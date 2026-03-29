@@ -124,8 +124,9 @@ function updateAll() {
 }
 
 // ---- Systems table ----
-// COST column shows extraCPs (the user-added cost above what spaces give).
-// The CPs from system spaces are shown in the PTs column area or in the description.
+// COST column = extra CPs added to the system above what its spaces generate.
+// These extra CPs increase both the system's ability CPs and the vehicle's total cost.
+// System spaces already generate CPs per the table (1sp=5cp, 4sp=15cp, etc).
 function renderSystemsTable() {
   const el = document.getElementById("vs-sys-rows");
   if (!veh.systems.length) {

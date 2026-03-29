@@ -132,27 +132,27 @@ body{display:flex;flex-direction:column}
 .vs-notes{width:100%;font-family:var(--fb);font-size:9px;border:1px solid var(--brd2);border-radius:2px;padding:3px;resize:vertical;background:var(--inp);color:var(--tx)}
 .vs-notes:focus{outline:none;border-color:var(--vo)}
 
-/* Vehicle Key Table */
+/* Vehicle Key Table — simple lined rows like official sheet legend */
 .vs-key-table{width:100%;border-collapse:collapse;font-size:9px}
 .vs-key-table td{padding:1px 2px;border-bottom:1px solid var(--brd)}
 .vs-key-table input{background:var(--inp);border:1px solid var(--brd2);border-radius:2px;padding:1px 3px;font-family:var(--fb);font-size:9px;color:var(--tx)}
 .vs-key-table input:focus{outline:none;border-color:var(--vo)}
-.vs-key-label{width:32px;text-align:center}
+.vs-key-label{width:28px;text-align:center}
 .vs-key-desc{width:100%}
 .vs-key-del{color:var(--vr);cursor:pointer;font-weight:700;font-size:11px;padding:0 2px}
 .vs-key-del:hover{color:#ff6666}
 .vs-key-add-btn{font-size:8px;padding:2px 6px;margin-top:3px}
 
 /* Vehicle Picture placeholder */
-.vs-picture-area{width:100%;height:100px;border:1px dashed var(--brd);border-radius:2px;margin-top:2px}
+.vs-picture-area{width:100%;height:160px;border:1px dashed var(--brd);border-radius:2px;margin-top:2px}
 
-/* Bottom: Key + Picture left, Layout right */
-.vs-bottom{display:flex;gap:8px;margin-top:6px;border-top:1px solid var(--brd);padding-top:4px;min-height:260px}
-.vs-bottom-left{width:200px;flex-shrink:0}
-.vs-bottom-right{flex:1;min-height:240px}
+/* Bottom: Picture+Key left (~35%), Layout right (~65%) — matches official sheet */
+.vs-bottom{display:flex;gap:8px;margin-top:6px;border-top:1px solid var(--brd);padding-top:4px}
+.vs-bottom-left{width:35%;min-width:180px;flex-shrink:0}
+.vs-bottom-right{flex:1}
 
-/* Layout canvas — 9 big squares wide (45 feet) */
-.vs-layout-canvas{width:100%;max-width:360px;height:260px;background:#fff;border:1px solid var(--brd);border-radius:2px;overflow:hidden;position:relative}
+/* Layout canvas — 9 big squares wide, ~10 tall to match official sheet */
+.vs-layout-canvas{width:100%;aspect-ratio:9/10;background:#fff;border:1px solid var(--brd);border-radius:2px;overflow:hidden;position:relative}
 .vs-layout-canvas canvas{display:block;width:100%;height:100%}
 
 .vs-sheet-ftr{text-align:center;font-size:7px;color:var(--tx3);padding:4px 0;border-top:1px solid var(--brd);margin-top:6px}
