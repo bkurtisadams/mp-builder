@@ -280,9 +280,9 @@ class FloorPlanEditor {
     const ox = this.panX * dpr;
     const oy = this.panY * dpr;
 
-    // Light background
+    // White background for max contrast
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = "#e8e8e4";
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, W, H);
 
     const startGx = Math.floor(-ox / cell);
@@ -295,15 +295,15 @@ class FloorPlanEditor {
     for (let gx = startGx; gx <= endGx; gx++) {
       const isOrigin = gx === 0;
       const isHeavy = gx % 2 === 0;
-      ctx.strokeStyle = isOrigin ? "#c04820" : isHeavy ? "#a0a098" : "#ccccc6";
-      ctx.lineWidth = isOrigin ? 2 : isHeavy ? 1.5 : 0.5;
+      ctx.strokeStyle = isOrigin ? "#d4820a" : isHeavy ? "#aaaaaa" : "#dddddd";
+      ctx.lineWidth = isOrigin ? 2 : isHeavy ? 1 : 0.4;
       const x = ox + gx * cell;
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
     }
     for (let gy = startGy; gy <= endGy; gy++) {
       const isOrigin = gy === 0;
       const isHeavy = gy % 2 === 0;
-      ctx.strokeStyle = isOrigin ? "#c04820" : isHeavy ? "#a0a098" : "#ccccc6";
+      ctx.strokeStyle = isOrigin ? "#d4820a" : isHeavy ? "#aaaaaa" : "#dddddd";
       ctx.lineWidth = isOrigin ? 2 : isHeavy ? 1.5 : 0.5;
       const y = oy + gy * cell;
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
@@ -312,7 +312,7 @@ class FloorPlanEditor {
     // Feet labels every 2 cells (each heavy line = 5' boundary)
     // 2 cells = 1 movement space = 5'
     const labelSize = Math.max(8, Math.round(9 * this.zoom * dpr));
-    ctx.fillStyle = "#70706a";
+    ctx.fillStyle = "#999999";
     ctx.font = `${labelSize}px monospace`;
     ctx.textBaseline = "top";
     for (let gx = 0; gx <= endGx; gx += 2) {
@@ -350,13 +350,13 @@ class FloorPlanEditor {
     ctx.fillStyle = type?.color || "#888";
     ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
 
-    ctx.strokeStyle = selected ? "#c04820" : "#00000044";
+    ctx.strokeStyle = selected ? "#f4d03f" : "#00000044";
     ctx.lineWidth = selected ? 3 : 1;
     ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
 
     if (selected) {
       ctx.globalAlpha = 1;
-      ctx.fillStyle = "#c04820";
+      ctx.fillStyle = "#f4d03f";
       ctx.fillRect(x + w - 7, y + 1, 6, 6);
       ctx.fillRect(x + 1, y + h - 7, 6, 6);
     }
@@ -388,7 +388,7 @@ class FloorPlanEditor {
     ctx.globalAlpha = 0.4;
     ctx.fillStyle = type?.color || "#888";
     ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
-    ctx.strokeStyle = "#c04820";
+    ctx.strokeStyle = "#f4d03f";
     ctx.lineWidth = 2;
     ctx.setLineDash([4 * dpr, 4 * dpr]);
     ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
@@ -426,17 +426,17 @@ class FloorPlanEditor {
     const c = document.createElement("canvas");
     c.width = w; c.height = h;
     const ctx = c.getContext("2d");
-    ctx.fillStyle = "#e8e8e4";
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, w, h);
 
     for (let x = 0; x <= gw; x++) {
-      ctx.strokeStyle = x % 2 === 0 ? "#a0a098" : "#ccccc6";
-      ctx.lineWidth = x % 2 === 0 ? 1.5 : 0.5;
+      ctx.strokeStyle = x % 2 === 0 ? "#aaaaaa" : "#dddddd";
+      ctx.lineWidth = x % 2 === 0 ? 1 : 0.4;
       ctx.beginPath(); ctx.moveTo(x * cellPx + 1, 0); ctx.lineTo(x * cellPx + 1, h); ctx.stroke();
     }
     for (let y = 0; y <= gh; y++) {
-      ctx.strokeStyle = y % 2 === 0 ? "#a0a098" : "#ccccc6";
-      ctx.lineWidth = y % 2 === 0 ? 1.5 : 0.5;
+      ctx.strokeStyle = y % 2 === 0 ? "#aaaaaa" : "#dddddd";
+      ctx.lineWidth = y % 2 === 0 ? 1 : 0.4;
       ctx.beginPath(); ctx.moveTo(0, y * cellPx + 1); ctx.lineTo(w, y * cellPx + 1); ctx.stroke();
     }
 
