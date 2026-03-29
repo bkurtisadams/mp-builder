@@ -1,4 +1,4 @@
-/* mp-style.css v2.1.0 — Roll20 Navy Theme */
+/* mp-style.css v2.2.0 — Roll20 Navy Theme, official sheet layout */
 
 :root {
   --vo:#d4820a; --vo-lt:#e8960e; --vo-dk:#a06808;
@@ -29,10 +29,8 @@ body{display:flex;flex-direction:column}
 .mp-panel.active{display:flex}
 .mp-ftr{background:var(--bg);border-top:1px solid var(--brd);padding:3px 12px;text-align:center;font-size:8px;color:var(--tx3);flex-shrink:0}
 
-/* ---- EDITOR LAYOUT: 3-panel ---- */
+/* ---- EDITOR LAYOUT ---- */
 .ed-layout{display:flex;height:100%;overflow:hidden}
-
-/* Palette */
 .ed-palette{width:180px;min-width:150px;display:flex;flex-direction:column;border-right:2px solid #3a6a80;background:var(--bg2);flex-shrink:0}
 .ed-pal-hdr{background:#2a5a6a;color:#fff;font-family:var(--fd);font-size:12px;letter-spacing:1px;padding:4px 8px;flex-shrink:0}
 .ed-pal-scroll{overflow-y:auto;flex:1;padding:2px 0}
@@ -43,7 +41,6 @@ body{display:flex;flex-direction:column}
 .ed-pal-sw{width:10px;height:10px;flex-shrink:0;border:1px solid #fff2;border-radius:2px}
 .ed-pal-nm{flex:1;font-size:9px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* Center: canvas */
 .ed-center{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .ed-toolbar{display:flex;align-items:center;gap:3px;padding:3px 6px;background:var(--bg);border-bottom:1px solid var(--brd);flex-shrink:0;flex-wrap:wrap}
 .ed-btn{display:inline-flex;align-items:center;gap:2px;padding:3px 7px;font-size:10px;background:var(--vo);color:#fff;border:none;border-radius:3px;cursor:pointer;font-family:var(--fb);font-weight:700;white-space:nowrap}
@@ -51,75 +48,21 @@ body{display:flex;flex-direction:column}
 .ed-btn-mode{background:#252545;color:var(--tx3);border:1px solid #3a3a5a}
 .ed-btn-mode:hover{background:#2a2a50}
 .ed-btn-mode.active{background:var(--vo);color:#fff;border-color:var(--vo);box-shadow:0 0 4px rgba(212,130,10,.3)}
-.ed-btn-warn{background:#2a1a1a;color:#c88060;border:1px solid #4a2a2a}
-.ed-btn-warn:hover{background:#3a2a2a}
 .ed-sep{width:1px;height:16px;background:var(--brd);margin:0 2px}
-.ed-tb-lbl{font-size:9px;color:var(--tx3);font-weight:700}
-.ed-tb-input{width:40px;background:var(--inp);border:1px solid var(--brd);border-radius:2px;padding:2px 3px;font-size:10px;color:var(--tx);text-align:center;font-family:var(--fb)}
-.ed-tb-input:focus{outline:1px solid var(--vo);border-color:var(--vo)}
-.ed-tb-val{font-size:10px;color:var(--vy);font-weight:700;min-width:28px}
 .ed-canvas-wrap{flex:1;overflow:hidden;position:relative;background:#fff}
 #ed-canvas{display:block;width:100%;height:100%}
 .ed-hint{font-size:8px;color:var(--tx3);padding:2px 6px;background:var(--bg);border-top:1px solid var(--brd);flex-shrink:0}
 .ed-hint b{color:#ccc}
 
-/* Right panel */
-.ed-stats{width:270px;min-width:210px;display:flex;flex-direction:column;border-left:2px solid #3a6a80;background:var(--bg2);flex-shrink:0}
-.ed-stats-scroll{flex:1;overflow-y:auto;padding:4px 6px}
-.ed-cfg{margin-bottom:5px;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;padding:4px 6px}
-.ed-cfg-hdr{font-family:var(--fd);font-size:11px;color:var(--vy);letter-spacing:.5px;margin-bottom:3px;border-bottom:1px solid #2a5a6a;padding-bottom:2px}
-.ed-cfg-row{display:flex;align-items:center;gap:4px;margin-bottom:2px}
-.ed-cfg-row label{font-size:8px;font-weight:700;color:var(--vc);text-transform:uppercase;min-width:55px}
-.ed-cfg-row input[type="text"],.ed-cfg-row select{flex:1;background:var(--inp);border:1px solid var(--brd2);border-radius:2px;padding:2px 4px;font-family:var(--fb);font-size:10px;color:var(--tx)}
-.ed-cfg-row input:focus,.ed-cfg-row select:focus{outline:none;border-color:var(--vo)}
-.ed-cfg-row input[type="checkbox"]{width:13px;height:13px;accent-color:var(--vo);flex:none}
-
-/* Stat card */
-.ed-stat-card{margin-bottom:5px;background:var(--bg3);border:2px solid var(--vo);border-radius:3px;padding:4px 6px}
-.ed-sg{display:grid;grid-template-columns:1fr 1fr;gap:1px}
-.ed-s{display:flex;justify-content:space-between;padding:1px 3px;border-radius:1px}
-.ed-s:nth-child(odd){background:rgba(139,233,253,.04)}
-.ed-sl{font-size:8px;font-weight:700;color:var(--vc);text-transform:uppercase}
-.ed-sv{font-size:10px;font-weight:700;color:var(--vy)}
-
-/* Systems list */
-.ed-sys-list{max-height:200px;overflow-y:auto;font-size:9px;color:var(--tx2);line-height:1.4}
-.ed-sys-item{padding:2px 0;border-bottom:1px solid var(--bg);cursor:pointer;display:flex;justify-content:space-between;align-items:center}
-.ed-sys-item:hover{background:rgba(244,208,63,.06)}
-.ed-sys-item.sel{background:rgba(244,208,63,.08);outline:1px solid var(--vy)}
-.ed-sys-item b{color:var(--vc)}
-.ed-sys-item .ed-sys-cp{color:var(--vy);font-weight:700;min-width:28px;text-align:right}
-
-/* Weaknesses list */
-.ed-wk-list{max-height:120px;overflow-y:auto;font-size:9px;color:var(--tx2);line-height:1.4}
-.ed-wk-item{padding:2px 0;border-bottom:1px solid var(--bg);display:flex;justify-content:space-between;align-items:center}
-.ed-wk-item .ed-wk-name{color:var(--tx2)}
-.ed-wk-item .ed-wk-cp{color:var(--vg);font-weight:700;min-width:28px;text-align:right}
-.ed-wk-item .ed-wk-del{cursor:pointer;color:var(--vr);font-weight:700;margin-left:4px;font-size:11px}
-.ed-wk-item .ed-wk-del:hover{color:#ff6666}
-.ed-wk-add{display:flex;gap:3px;margin-top:3px}
-.ed-wk-add select{flex:1;font-size:9px;font-family:var(--fb);padding:2px;border:1px solid var(--brd2);border-radius:2px;background:var(--inp);color:var(--tx2)}
-.ed-wk-add button{font-size:9px;padding:2px 6px;background:var(--vo);color:#fff;border:none;border-radius:2px;cursor:pointer;font-family:var(--fb);font-weight:700}
-.ed-wk-add button:hover{background:var(--vo-lt)}
-
-/* Export */
-.ed-export{display:flex;flex-wrap:wrap;gap:3px}
 .ed-btn-sm{padding:3px 7px;font-size:9px;background:var(--inp);border:1px solid var(--brd2);color:#ccc;border-radius:2px;cursor:pointer;font-family:var(--fb);font-weight:700}
 .ed-btn-sm:hover{border-color:var(--vo);background:rgba(212,130,10,.08)}
-
-/* Notes textarea */
-.ed-notes{width:100%;font-family:var(--fb);font-size:9px;border:1px solid var(--brd2);border-radius:2px;padding:3px;resize:vertical;background:var(--inp);color:var(--tx)}
-.ed-notes:focus{outline:none;border-color:var(--vo)}
-
 .mp-hdr-export{display:flex;gap:3px;align-items:center}
 
-/* Responsive */
 @media(max-width:900px){
   .ed-layout{flex-direction:column}
   .ed-palette{width:100%;height:auto;max-height:120px;border-right:none;border-bottom:2px solid #3a6a80}
   .ed-pal-scroll{display:flex;flex-wrap:wrap;gap:2px;padding:4px}
   .ed-pal-cat{display:none}
-  .ed-stats{width:100%;height:auto;max-height:300px;border-left:none;border-top:2px solid #3a6a80}
 }
 
 /* ============ RECORD SHEET (vs-*) ============ */
@@ -149,17 +92,23 @@ body{display:flex;flex-direction:column}
 .vs-val-box{background:var(--vo);color:#fff;padding:2px 6px;border-radius:2px;font-size:11px}
 .vs-val-green{color:var(--vg)}
 
-/* Systems table */
-.vs-sys-hdr{display:grid;grid-template-columns:42px 50px 52px 50px 42px 32px 1fr;gap:2px;padding:4px 2px 2px;border-bottom:2px solid var(--vc-dk);margin-top:6px}
+/* Cost box (BASIC COST / TOTAL COST on left margin) */
+.vs-cost-box{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:42px;margin-right:4px}
+.vs-cost-box-label{font-size:7px;font-weight:700;color:var(--vc);text-transform:uppercase;text-align:center;line-height:1.1}
+.vs-cost-box-spacer{min-width:42px;margin-right:4px}
+
+/* Systems table — COST on far left like official sheet */
+.vs-sys-hdr{display:grid;grid-template-columns:46px 50px 52px 50px 42px 32px 1fr;gap:2px;padding:4px 2px 2px;border-bottom:2px solid var(--vc-dk);margin-top:6px}
 .vs-sys-hdr span{font-size:7px;font-weight:700;color:var(--vc);text-transform:uppercase;text-align:center}
 .vs-sh-desc{text-align:left !important}
 .vs-sys-rows{min-height:20px}
 
-.vs-sys-row{display:grid;grid-template-columns:42px 50px 52px 50px 42px 32px 1fr 24px;gap:2px;padding:2px;border-bottom:1px solid #1a1a2e;align-items:center}
+.vs-sys-row{display:grid;grid-template-columns:46px 50px 52px 50px 42px 32px 1fr 24px;gap:2px;padding:2px;border-bottom:1px solid #1a1a2e;align-items:center}
 .vs-sys-row:hover{background:rgba(244,208,63,.04)}
 .vs-sys-row.active{background:rgba(244,208,63,.08);outline:1px solid var(--vy)}
 .vs-sys-row input{background:var(--inp);border:1px solid var(--brd2);border-radius:2px;padding:1px 3px;font-family:var(--fb);font-size:9px;color:var(--tx);text-align:center;width:100%}
 .vs-sys-row input.vs-sys-desc{text-align:left}
+.vs-sys-row input.vs-sys-cost-inp{text-align:center;width:100%}
 .vs-sys-row input:focus{outline:none;border-color:var(--vo)}
 .vs-sys-row .vs-sys-val{font-size:9px;font-weight:700;color:var(--vy);text-align:center}
 .vs-sys-row .vs-sys-del{color:var(--vr);cursor:pointer;font-weight:700;font-size:12px;text-align:center}
@@ -169,33 +118,41 @@ body{display:flex;flex-direction:column}
 
 /* Totals row */
 .vs-totals{padding:4px 0;border-top:2px solid var(--vc-dk)}
+.vs-remain-note{font-size:8px;color:var(--tx3);margin-left:8px}
 
 /* Stats block */
 .vs-stats{padding:4px 0;border-top:1px solid var(--brd)}
 .vs-stats-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:2px 0}
 .vs-stats-row label{font-size:9px;font-weight:700;color:var(--tx2);text-transform:uppercase;white-space:nowrap}
 
-/* Sections (weaknesses, notes) */
+/* Sections (notes) */
 .vs-section{margin-top:6px;border-top:1px solid var(--brd);padding-top:4px}
 .vs-section-hdr{font-family:var(--fd);font-size:11px;color:var(--vy);letter-spacing:.5px;margin-bottom:3px}
-
-.vs-wk-rows{min-height:10px}
-.vs-wk-row{display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-bottom:1px solid #1a1a2e;font-size:9px;color:var(--tx2)}
-.vs-wk-row .vs-wk-cp{color:var(--vg);font-weight:700}
-.vs-wk-row .vs-wk-del{color:var(--vr);cursor:pointer;font-weight:700;font-size:11px;margin-left:4px}
-.vs-wk-add{display:flex;gap:4px;align-items:center;padding:3px 0}
 
 .vs-notes{width:100%;font-family:var(--fb);font-size:9px;border:1px solid var(--brd2);border-radius:2px;padding:3px;resize:vertical;background:var(--inp);color:var(--tx)}
 .vs-notes:focus{outline:none;border-color:var(--vo)}
 
-/* Bottom: Key + Layout */
-.vs-bottom{display:flex;gap:8px;margin-top:6px;border-top:1px solid var(--brd);padding-top:4px;min-height:200px}
+/* Vehicle Key Table */
+.vs-key-table{width:100%;border-collapse:collapse;font-size:9px}
+.vs-key-table td{padding:1px 2px;border-bottom:1px solid var(--brd)}
+.vs-key-table input{background:var(--inp);border:1px solid var(--brd2);border-radius:2px;padding:1px 3px;font-family:var(--fb);font-size:9px;color:var(--tx)}
+.vs-key-table input:focus{outline:none;border-color:var(--vo)}
+.vs-key-label{width:32px;text-align:center}
+.vs-key-desc{width:100%}
+.vs-key-del{color:var(--vr);cursor:pointer;font-weight:700;font-size:11px;padding:0 2px}
+.vs-key-del:hover{color:#ff6666}
+.vs-key-add-btn{font-size:8px;padding:2px 6px;margin-top:3px}
+
+/* Vehicle Picture placeholder */
+.vs-picture-area{width:100%;height:100px;border:1px dashed var(--brd);border-radius:2px;margin-top:2px}
+
+/* Bottom: Key + Picture left, Layout right */
+.vs-bottom{display:flex;gap:8px;margin-top:6px;border-top:1px solid var(--brd);padding-top:4px;min-height:260px}
 .vs-bottom-left{width:200px;flex-shrink:0}
-.vs-bottom-right{flex:1;min-height:180px}
-.vs-key{font-size:9px;color:var(--tx2)}
-.vs-key-item{display:flex;align-items:center;gap:4px;padding:1px 0}
-.vs-key-sw{width:10px;height:10px;border-radius:2px;flex-shrink:0}
-.vs-layout-canvas{width:100%;height:200px;background:#fff;border:1px solid var(--brd);border-radius:2px;overflow:hidden;position:relative}
+.vs-bottom-right{flex:1;min-height:240px}
+
+/* Layout canvas — 9 big squares wide (45 feet) */
+.vs-layout-canvas{width:100%;max-width:360px;height:260px;background:#fff;border:1px solid var(--brd);border-radius:2px;overflow:hidden;position:relative}
 .vs-layout-canvas canvas{display:block;width:100%;height:100%}
 
 .vs-sheet-ftr{text-align:center;font-size:7px;color:var(--tx3);padding:4px 0;border-top:1px solid var(--brd);margin-top:6px}

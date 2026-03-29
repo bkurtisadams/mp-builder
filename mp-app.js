@@ -1,8 +1,8 @@
-// mp-app.js v2.3.0 — Record Sheet as primary, Floor Plan as secondary
+// mp-app.js v2.4.0 — Record Sheet primary, no weaknesses, vehicle key table, extra CPs
 
 const veh = new Vehicle();
 let editor = null;
-let layoutEditor = null; // mini canvas on the record sheet
+let layoutEditor = null;
 
 // ---- Tab navigation ----
 document.querySelectorAll(".mp-tab-btn").forEach(btn => {
@@ -48,23 +48,10 @@ function buildAbilitySelect() {
   }
 }
 
-// ---- Populate weakness select ----
-function buildWeaknessSelect() {
-  const sel = document.getElementById("vs-add-weakness");
-  sel.innerHTML = "";
-  for (const w of MP.WEAKNESSES) {
-    const opt = document.createElement("option");
-    opt.value = w.id;
-    opt.textContent = `${w.name} (${w.cpMod})`;
-    sel.appendChild(opt);
-  }
-}
-
 // ---- Build palette for floor plan tab ----
 function buildPalette() {
   const scroll = document.getElementById("ed-pal-scroll");
   let html = '<div style="padding:6px 8px;font-size:9px;color:var(--tx3);font-style:italic">Systems are added on the Record Sheet tab. Select a system there, then paint its cells here.</div>';
-  // Show current systems as selectable items
   html += '<div class="ed-pal-cat">Current Systems</div>';
   for (const sys of veh.systems) {
     const ab = MP.abilityById(sys.abilityId);
@@ -82,7 +69,7 @@ function buildPalette() {
       const id = parseInt(el.dataset.sysid);
       editor.setActiveSys(id);
       updateModeButtons();
-      buildPalette(); // refresh active state
+      buildPalette();
     });
   });
 }
@@ -92,33 +79,28 @@ function updateAll() {
   const ch = veh.chassis;
   const a = veh.armor;
 
-  // Chassis row
   document.getElementById("vs-sys-spaces").textContent = ch.sp;
   document.getElementById("vs-profile").textContent = "x" + ch.prof;
   document.getElementById("vs-weight").textContent = ch.wt.replace(" lbs", "");
   document.getElementById("vs-mass").textContent = ch.mass;
 
-  // Hits/Power
   document.getElementById("vs-basic-cost").textContent = veh.baseCost;
   document.getElementById("vs-hits").textContent = veh.hits;
   document.getElementById("vs-power").textContent = veh.power;
   document.getElementById("vs-explosion").textContent = veh.explosionDice;
   document.getElementById("vs-area").textContent = veh.explosionArea;
 
-  // Armor (auto from chassis base + armor systems)
   document.getElementById("vs-armor-kin").value = a.kin;
   document.getElementById("vs-armor-eng").value = a.eng;
   document.getElementById("vs-armor-bio").value = a.bio;
   document.getElementById("vs-armor-ent").value = a.ent;
   document.getElementById("vs-armor-psy").value = a.psy;
 
-  // Totals
   document.getElementById("vs-total-cost").textContent = veh.totalCost;
   document.getElementById("vs-spaces-used").textContent = veh.allocatedSpaces;
   document.getElementById("vs-spaces-remain").textContent = veh.remainingSpaces;
   document.getElementById("vs-spare-parts").textContent = veh.spareParts;
 
-  // Stats
   document.getElementById("vs-st").textContent = veh.st;
   document.getElementById("vs-hth").textContent = MP.hthDamage(veh.st);
   document.getElementById("vs-en").textContent = veh.en;
@@ -135,15 +117,15 @@ function updateAll() {
   document.getElementById("vs-defense").textContent = veh.defense;
   document.getElementById("vs-carry").textContent = MP.carry(veh.st);
 
-  // Systems table
   renderSystemsTable();
-  renderWeaknesses();
   renderKey();
   if (editor) { editor.draw(); buildPalette(); }
   if (layoutEditor) layoutEditor.draw();
 }
 
 // ---- Systems table ----
+// COST column shows extraCPs (the user-added cost above what spaces give).
+// The CPs from system spaces are shown in the PTs column area or in the description.
 function renderSystemsTable() {
   const el = document.getElementById("vs-sys-rows");
   if (!veh.systems.length) {
@@ -153,18 +135,20 @@ function renderSystemsTable() {
   el.innerHTML = veh.systems.map(s => {
     const ab = MP.abilityById(s.abilityId);
     const name = s.abilityId === "custom" && s.customName ? s.customName : (ab?.name || "?");
-    const cp = veh.sysCPs(s);
+    const spaceCPs = MP.lookupSys(s.spaces).cp;
+    const totalCPs = veh.sysCPs(s);
     const hits = veh.sysHits(s);
     const prof = veh.sysProfileDisplay(s);
     const active = editor && editor.activeSysId === s.id ? " active" : "";
+    const costDisplay = s.extraCPs ? s.extraCPs : "";
     return `<div class="vs-sys-row${active}" data-id="${s.id}">
-      <span class="vs-sys-val">${cp}</span>
+      <input type="number" class="vs-sys-cost-inp" value="${s.extraCPs || 0}" data-field="extraCPs" data-id="${s.id}" title="Extra CPs above spaces" step="2.5" min="0">
       <span class="vs-sys-val">${s.spaces}</span>
       <span class="vs-sys-val">${prof}</span>
-      <span class="vs-sys-val">${hits}</span>
+      <span class="vs-sys-val">(${hits})</span>
       <input type="text" value="${s.dmg || ""}" data-field="dmg" data-id="${s.id}" placeholder="" title="Damage">
       <input type="text" value="${s.pts || ""}" data-field="pts" data-id="${s.id}" placeholder="" title="PTs">
-      <input type="text" class="vs-sys-desc" value="${s.desc || name}" data-field="desc" data-id="${s.id}" title="Description, arc, facing">
+      <input type="text" class="vs-sys-desc" value="${s.desc || name}" data-field="desc" data-id="${s.id}" title="Description">
       <span class="vs-sys-del" data-id="${s.id}" title="Remove">×</span>
     </div>`;
   }).join("");
@@ -173,7 +157,13 @@ function renderSystemsTable() {
   el.querySelectorAll("input").forEach(inp => {
     inp.addEventListener("change", () => {
       const sys = veh.findSystem(parseInt(inp.dataset.id));
-      if (sys) sys[inp.dataset.field] = inp.value;
+      if (!sys) return;
+      if (inp.dataset.field === "extraCPs") {
+        sys.extraCPs = parseFloat(inp.value) || 0;
+        updateAll();
+      } else {
+        sys[inp.dataset.field] = inp.value;
+      }
     });
   });
 
@@ -199,69 +189,58 @@ function renderSystemsTable() {
   });
 }
 
-// ---- Weaknesses ----
-function renderWeaknesses() {
-  const el = document.getElementById("vs-wk-rows");
-  if (!veh.weaknesses.length) {
-    el.innerHTML = '<div style="padding:3px;font-size:9px;color:var(--tx3);font-style:italic">None</div>';
+// ---- Vehicle Key (editable table) ----
+function renderKey() {
+  const tbody = document.getElementById("vs-key-tbody");
+  if (!veh.keyEntries.length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="font-size:9px;color:var(--tx3);font-style:italic;padding:2px">No key entries</td></tr>';
     return;
   }
-  el.innerHTML = veh.weaknesses.map(w => {
-    const def = MP.WEAKNESSES.find(d => d.id === w.weakId);
-    return `<div class="vs-wk-row">
-      <span>${def?.name || "?"}</span>
-      <span><span class="vs-wk-cp">${def?.cpMod || 0}</span>
-        <span class="vs-wk-del" data-id="${w.id}">×</span></span>
-    </div>`;
+  tbody.innerHTML = veh.keyEntries.map(k => {
+    return `<tr data-kid="${k.id}">
+      <td><input type="text" class="vs-key-label" value="${k.label}" data-kid="${k.id}" data-field="label" placeholder="#" title="Key letter/number"></td>
+      <td><input type="text" class="vs-key-desc" value="${k.desc}" data-kid="${k.id}" data-field="desc" placeholder="Description" title="Description"></td>
+      <td><span class="vs-key-del" data-kid="${k.id}" title="Remove">×</span></td>
+    </tr>`;
   }).join("");
-  el.querySelectorAll(".vs-wk-del").forEach(del => {
-    del.addEventListener("click", () => {
-      veh.removeWeakness(parseInt(del.dataset.id));
-      updateAll();
+
+  tbody.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("change", () => {
+      const entry = veh.keyEntries.find(k => k.id === parseInt(inp.dataset.kid));
+      if (entry) entry[inp.dataset.field] = inp.value;
     });
   });
-}
 
-// ---- Vehicle Key (legend for floor plan) ----
-function renderKey() {
-  const el = document.getElementById("vs-key");
-  if (!veh.systems.length) {
-    el.innerHTML = '<div style="font-size:9px;color:var(--tx3);font-style:italic">No systems</div>';
-    return;
-  }
-  el.innerHTML = veh.systems.map(s => {
-    const ab = MP.abilityById(s.abilityId);
-    const name = s.abilityId === "custom" && s.customName ? s.customName : (ab?.name || "?");
-    return `<div class="vs-key-item">
-      <span class="vs-key-sw" style="background:${ab?.color || "#707070"}"></span>
-      <span>${name} — ${s.spaces} spc, ${veh.sysCPs(s)} CPs</span>
-    </div>`;
-  }).join("");
+  tbody.querySelectorAll(".vs-key-del").forEach(del => {
+    del.addEventListener("click", () => {
+      veh.removeKeyEntry(parseInt(del.dataset.kid));
+      renderKey();
+    });
+  });
 }
 
 // ---- Add system button ----
 document.getElementById("btn-add-system").addEventListener("click", () => {
   const abilityId = document.getElementById("vs-add-ability").value;
   const spaces = parseInt(document.getElementById("vs-add-spaces").value) || 1;
+  const extraCPs = parseFloat(document.getElementById("vs-add-extra-cp").value) || 0;
   if (spaces > veh.remainingSpaces) {
     alert(`Not enough spaces. ${veh.remainingSpaces} remaining.`);
     return;
   }
-  const sys = veh.addSystem(abilityId, spaces);
+  const sys = veh.addSystem(abilityId, spaces, extraCPs);
   if (sys) {
-    // Pre-fill description with ability name
     const ab = MP.abilityById(abilityId);
     sys.desc = ab?.name || "";
   }
   updateAll();
 });
 
-// ---- Add weakness button ----
-document.getElementById("btn-add-weakness-vs").addEventListener("click", () => {
-  const weakId = document.getElementById("vs-add-weakness").value;
-  if (!weakId) return;
-  veh.addWeakness(weakId);
-  updateAll();
+// ---- Add key entry button ----
+document.getElementById("btn-add-key").addEventListener("click", () => {
+  const nextNum = veh.keyEntries.length + 1;
+  veh.addKeyEntry(String(nextNum), "");
+  renderKey();
 });
 
 // ---- Config change handlers ----
@@ -367,7 +346,6 @@ document.getElementById("btn-png").addEventListener("click", () => {
 // ---- Init ----
 buildChassisSelect();
 buildAbilitySelect();
-buildWeaknessSelect();
 
 // Floor plan editor (full-size, on editor tab)
 const canvasEl = document.getElementById("ed-canvas");

@@ -1,4 +1,4 @@
-// mp-vehicle.js v2.2.0 — Systems with space budgets and painted cells
+// mp-vehicle.js v2.3.0 — Systems with space budgets, extra CPs, no weaknesses
 
 class Vehicle {
   constructor() {
@@ -11,10 +11,10 @@ class Vehicle {
     this.wontExplode = false;
     this.isBase = false;
     this.notes = "";
-    this.systems = [];   // {id, abilityId, spaces, cells:[{gx,gy}], modifiers, arc, desc, customName, dmg, pts}
-    this.weaknesses = [];
+    this.systems = [];   // {id, abilityId, spaces, extraCPs, cells:[{gx,gy}], modifiers, arc, desc, customName, dmg, pts}
+    this.keyEntries = []; // {id, label, desc}
     this._nextId = 1;
-    this._nextWkId = 1;
+    this._nextKeyId = 1;
   }
 
   get chassis() { return MP.CHASSIS[this.chassisIdx]; }
@@ -23,15 +23,15 @@ class Vehicle {
   get placedCells() { return this.systems.reduce((s, sys) => s + sys.cells.length, 0); }
   get remainingSpaces() { return this.totalSpaces - this.allocatedSpaces; }
 
-  // Add a system with a space budget (no cells painted yet)
-  addSystem(abilityId, spaces) {
+  addSystem(abilityId, spaces, extraCPs) {
     const ability = MP.abilityById(abilityId);
     if (!ability) return null;
     const sys = {
       id: this._nextId++,
       abilityId,
       spaces,
-      cells: [],       // painted cells [{gx, gy}]
+      extraCPs: extraCPs || 0,
+      cells: [],
       modifiers: [],
       arc: "Forward",
       desc: "",
@@ -51,7 +51,6 @@ class Vehicle {
     return this.systems.find(s => s.id === id) || null;
   }
 
-  // Paint a cell for a system (returns false if budget full or cell occupied)
   paintCell(sysId, gx, gy) {
     const sys = this.findSystem(sysId);
     if (!sys) return false;
@@ -61,7 +60,6 @@ class Vehicle {
     return true;
   }
 
-  // Unpaint a cell
   unpaintCell(gx, gy) {
     for (const sys of this.systems) {
       const idx = sys.cells.findIndex(c => c.gx === gx && c.gy === gy);
@@ -73,7 +71,6 @@ class Vehicle {
     return null;
   }
 
-  // Find which system owns a cell
   cellAt(gx, gy) {
     for (const sys of this.systems) {
       if (sys.cells.some(c => c.gx === gx && c.gy === gy)) return sys;
@@ -81,32 +78,22 @@ class Vehicle {
     return null;
   }
 
-  // Weaknesses
-  addWeakness(weakId, notes) {
-    const def = MP.WEAKNESSES.find(w => w.id === weakId);
-    if (!def) return null;
-    const wk = { id: this._nextWkId++, weakId, count: 1, notes: notes || "" };
-    this.weaknesses.push(wk);
-    return wk;
+  // Vehicle Key
+  addKeyEntry(label, desc) {
+    const entry = { id: this._nextKeyId++, label: label || "", desc: desc || "" };
+    this.keyEntries.push(entry);
+    return entry;
   }
 
-  removeWeakness(id) {
-    this.weaknesses = this.weaknesses.filter(w => w.id !== id);
+  removeKeyEntry(id) {
+    this.keyEntries = this.keyEntries.filter(k => k.id !== id);
   }
 
-  get weaknessCPs() {
-    let total = 0;
-    for (const w of this.weaknesses) {
-      const def = MP.WEAKNESSES.find(d => d.id === w.weakId);
-      if (def) total += def.cpMod * (w.count || 1);
-    }
-    return total;
-  }
-
-  // System stats from allocated spaces
+  // System CPs from space allocation + extra CPs + tech mod + modifiers
   sysCPs(sys) {
     const entry = MP.lookupSys(sys.spaces);
     let cp = entry.cp;
+    cp += (sys.extraCPs || 0);
     cp += this.techMod;
     for (const m of sys.modifiers) {
       const def = MP.MODIFIERS.find(d => d.id === m.id);
@@ -116,6 +103,11 @@ class Vehicle {
       else if (typeof def.cpMod === "number") cp += def.cpMod * (m.count || 1);
     }
     return Math.max(0, cp);
+  }
+
+  // System cost = extra CPs only (what goes in the COST column)
+  sysCost(sys) {
+    return sys.extraCPs || 0;
   }
 
   sysHits(sys) {
@@ -137,9 +129,15 @@ class Vehicle {
 
   // ---- Computed vehicle stats ----
   get baseCost() { return this.chassis.cp; }
-  get totalCost() {
-    return this.baseCost + this.techMod + this.maneuverMod + (this.wontExplode ? 5 : 0) + this.weaknessCPs;
+
+  get systemExtraCPs() {
+    return this.systems.reduce((sum, s) => sum + (s.extraCPs || 0), 0);
   }
+
+  get totalCost() {
+    return this.baseCost + this.systemExtraCPs + this.techMod + this.maneuverMod + (this.wontExplode ? 5 : 0);
+  }
+
   get st() { return this.chassis.st; }
   get en() { return this.chassis.en; }
   get ag() {
@@ -190,12 +188,12 @@ class Vehicle {
   // ---- Serialization ----
   toJSON() {
     return {
-      version: 3, type: "mp-vehicle",
+      version: 4, type: "mp-vehicle",
       name: this.name, model: this.model, operator: this.operator,
       chassisIdx: this.chassisIdx, techMod: this.techMod,
       maneuverMod: this.maneuverMod, wontExplode: this.wontExplode,
       isBase: this.isBase, notes: this.notes,
-      systems: this.systems, weaknesses: this.weaknesses,
+      systems: this.systems, keyEntries: this.keyEntries,
     };
   }
 
@@ -211,11 +209,12 @@ class Vehicle {
     this.notes = data.notes || "";
     this.systems = (data.systems || []).map(s => {
       s.cells = s.cells || [];
+      s.extraCPs = s.extraCPs || 0;
       return s;
     });
-    this.weaknesses = data.weaknesses || [];
+    this.keyEntries = data.keyEntries || [];
     this._nextId = Math.max(1, ...this.systems.map(s => s.id), 0) + 1;
-    this._nextWkId = Math.max(1, ...this.weaknesses.map(w => w.id), 0) + 1;
+    this._nextKeyId = Math.max(1, ...this.keyEntries.map(k => k.id), 0) + 1;
   }
 
   toCSV() {
@@ -248,19 +247,19 @@ class Vehicle {
     rows.push(["Defense", this.defense]); rows.push(["Carry", MP.carry(this.st)]);
     rows.push(["Spare Parts", this.spareParts]);
     rows.push([]);
-    rows.push(["Cost","Spaces","Profile","Hits","DMG","PTs","Description"]);
+    rows.push(["Extra CPs","Spaces","Profile","Hits","CPs from Spaces","DMG","PTs","Description"]);
     for (const s of this.systems) {
       const ab = MP.abilityById(s.abilityId);
       const dname = s.abilityId === "custom" && s.customName ? s.customName : (ab?.name || "?");
-      rows.push([this.sysCPs(s), s.spaces, this.sysProfileDisplay(s), this.sysHits(s),
-        s.dmg || "", s.pts || "",
+      const spaceCPs = MP.lookupSys(s.spaces).cp;
+      rows.push([s.extraCPs || 0, s.spaces, this.sysProfileDisplay(s), this.sysHits(s),
+        spaceCPs, s.dmg || "", s.pts || "",
         `${dname}${s.desc ? ", " + s.desc : ""}${s.arc ? ", " + s.arc : ""}`]);
     }
-    if (this.weaknesses.length) {
-      rows.push([]); rows.push(["Weaknesses"]);
-      for (const w of this.weaknesses) {
-        const def = MP.WEAKNESSES.find(d => d.id === w.weakId);
-        rows.push([def?.name || "?", def?.cpMod || 0, w.notes || ""]);
+    if (this.keyEntries.length) {
+      rows.push([]); rows.push(["Vehicle Key"]);
+      for (const k of this.keyEntries) {
+        rows.push([k.label, k.desc]);
       }
     }
     return rows.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
