@@ -30,30 +30,29 @@
 
 <main class="mp-main">
 
-<!-- ==================== RECORD SHEET TAB ==================== -->
 <section class="mp-panel active" id="tab-sheet">
 <div class="vs-wrap">
 <div class="vs-sheet">
 
   <div class="vs-title">VEHICLE RECORD SHEET</div>
 
-  <!-- ROW 1: Name / Model / Operator -->
+  <!-- Name / Model / Operator -->
   <div class="vs-row vs-identity">
     <label>NAME:</label><input type="text" id="vs-name" class="vs-inp vs-inp-wide">
     <label>MODEL:</label><input type="text" id="vs-model" class="vs-inp vs-inp-med">
     <label>OPERATOR:</label><input type="text" id="vs-operator" class="vs-inp vs-inp-med">
   </div>
 
-  <!-- ROW 2: Chassis stats (auto from basic cost) -->
-  <div class="vs-row vs-chassis-row">
+  <!-- Chassis stats -->
+  <div class="vs-row">
     <label>SYSTEM SPACES:</label><span class="vs-val" id="vs-sys-spaces">16</span>
     <label>PROFILE:</label><span class="vs-val" id="vs-profile">x4</span>
     <label>WEIGHT:</label><span class="vs-val" id="vs-weight">2,880</span><span class="vs-unit">lbs</span>
     <label>MASS:</label><span class="vs-val" id="vs-mass">d10+1</span>
   </div>
 
-  <!-- ROW 3: Armor -->
-  <div class="vs-row vs-armor">
+  <!-- Armor -->
+  <div class="vs-row">
     <label>ARMOR:</label>
     <label class="vs-sub">Kinetic:</label><input type="number" id="vs-armor-kin" class="vs-inp vs-inp-sm" value="3">
     <label class="vs-sub">Energy:</label><input type="number" id="vs-armor-eng" class="vs-inp vs-inp-sm" value="3">
@@ -62,24 +61,7 @@
     <label class="vs-sub">Psychic:</label><input type="number" id="vs-armor-psy" class="vs-inp vs-inp-sm" value="0">
   </div>
 
-  <!-- ROW 4: BASIC COST (editable) | Hits | Explosion -->
-  <div class="vs-row vs-hp">
-    <div class="vs-cost-box">
-      <div class="vs-cost-box-label">BASIC<br>COST</div>
-      <input type="number" id="vs-basic-cost" class="vs-cost-input" value="15" min="0" step="2.5">
-    </div>
-    <label>HITS (</label><span class="vs-val" id="vs-hits">25</span><label>):</label>
-    <input type="number" id="vs-hits-cur" class="vs-inp vs-inp-sm" value="25">
-    <label>EXPLOSION:</label><span class="vs-val" id="vs-explosion">4d8</span>
-    <label>AREA:</label><span class="vs-val" id="vs-area">5</span><span class="vs-unit">"</span>
-  </div>
-  <div class="vs-row">
-    <div class="vs-cost-box-spacer"></div>
-    <label>POWER (</label><span class="vs-val" id="vs-power">57</span><label>):</label>
-    <input type="number" id="vs-power-cur" class="vs-inp vs-inp-sm" value="57">
-  </div>
-
-  <!-- ROW 5: Vehicle Mods (no chassis selector) -->
+  <!-- Vehicle Mods (moved here, between armor and basic cost) -->
   <div class="vs-row vs-mods">
     <label>Vehicle Mods:</label>
     <label class="vs-sub">Hi/Lo Tech</label>
@@ -98,35 +80,65 @@
     <label class="vs-sub">Base</label><input type="checkbox" id="vs-base">
   </div>
 
-  <!-- SYSTEMS TABLE HEADER -->
-  <div class="vs-sys-hdr">
-    <span class="vs-sh-c">COST</span>
-    <span class="vs-sh-s">SYSTEM<br>SPACES</span>
-    <span class="vs-sh-p">PROFILE</span>
-    <span class="vs-sh-h">HITS</span>
-    <span class="vs-sh-d">DMG</span>
-    <span class="vs-sh-t">PTs</span>
-    <span class="vs-sh-desc">VEHICLE SYSTEMS &amp; MODIFIERS</span>
+  <!-- BASIC COST (editable) | Hits | Explosion -->
+  <div class="vs-row vs-hp">
+    <div class="vs-cost-box">
+      <div class="vs-cost-box-label">BASIC<br>COST</div>
+      <input type="number" id="vs-basic-cost" class="vs-cost-input" value="15" min="0" step="2.5">
+    </div>
+    <label>HITS (</label><span class="vs-val" id="vs-hits">25</span><label>):</label>
+    <input type="number" id="vs-hits-cur" class="vs-inp vs-inp-sm" value="25">
+    <label>EXPLOSION:</label><span class="vs-val" id="vs-explosion">4d8</span>
+    <label>AREA:</label><span class="vs-val" id="vs-area">5</span><span class="vs-unit">"</span>
+  </div>
+  <div class="vs-row">
+    <div class="vs-cost-box-spacer"></div>
+    <label>POWER (</label><span class="vs-val" id="vs-power">57</span><label>):</label>
+    <input type="number" id="vs-power-cur" class="vs-inp vs-inp-sm" value="57">
+  </div>
+
+  <!-- SYSTEMS TABLE -->
+  <div class="vs-sys-hdr-wrap">
+    <div class="vs-sys-hdr">
+      <span class="vs-sh-c">COST</span>
+      <span class="vs-sh-s">SYSTEM<br>SPACES</span>
+      <span class="vs-sh-p">PROFILE</span>
+      <span class="vs-sh-h">HITS</span>
+      <span class="vs-sh-d">DMG</span>
+      <span class="vs-sh-t">PTs</span>
+      <span class="vs-sh-desc">VEHICLE SYSTEMS &amp; MODIFIERS</span>
+    </div>
+    <div class="vs-mod-hdr">
+      <span title="Integral">Int</span>
+      <span title="Bulky">Blk</span>
+      <span title="Delicate">Del</span>
+      <span title="ST Adjustment">ST</span>
+      <span title="EN Adjustment">EN</span>
+      <span title="AG Adjustment">AG</span>
+      <span title="IN Adjustment">IN</span>
+      <span title="CL Adjustment">CL</span>
+      <span title="Maneuverability">Man</span>
+    </div>
   </div>
   <div id="vs-sys-rows" class="vs-sys-rows"></div>
 
   <!-- TOTALS ROW -->
   <div class="vs-row vs-totals">
     <div class="vs-cost-box">
-      <span class="vs-val vs-val-box" id="vs-total-cost">5</span>
+      <span class="vs-val vs-val-box" id="vs-total-cost">15</span>
       <div class="vs-cost-box-label">TOTAL<br>COST</div>
     </div>
     <label>Spaces Used:</label><span class="vs-val" id="vs-spaces-used">0</span>
-    <label>/ Total:</label><span class="vs-val" id="vs-spaces-total">4</span>
+    <label>/ Total:</label><span class="vs-val" id="vs-spaces-total">16</span>
   </div>
 
   <!-- STATS BLOCK -->
   <div class="vs-stats">
     <div class="vs-stats-row">
-      <label>ST:</label><span class="vs-val" id="vs-st">18</span>
-      <label>Base HTH:</label><span class="vs-val" id="vs-hth">d8+1</span>
-      <label>EN:</label><span class="vs-val" id="vs-en">18</span>
-      <label>EN Save:</label><span class="vs-val" id="vs-en-save">12</span>
+      <label>ST:</label><span class="vs-val" id="vs-st">24</span>
+      <label>Base HTH:</label><span class="vs-val" id="vs-hth">d8</span>
+      <label>EN:</label><span class="vs-val" id="vs-en">24</span>
+      <label>EN Save:</label><span class="vs-val" id="vs-en-save">22</span>
       <label>Turn Rate:</label><span class="vs-val" id="vs-turn-rate">3</span>
       <label>Init:</label><span class="vs-val" id="vs-init">d4</span>
     </div>
@@ -141,7 +153,7 @@
     </div>
     <div class="vs-stats-row">
       <label>Defense:</label><span class="vs-val" id="vs-defense">0</span>
-      <label>Carry:</label><span class="vs-val" id="vs-carry">648 lbs</span>
+      <label>Carry:</label><span class="vs-val" id="vs-carry">1.2K lbs</span>
       <label>Spare Parts:</label><span class="vs-val" id="vs-spare-parts">0</span>
     </div>
   </div>
@@ -152,11 +164,15 @@
     <textarea id="vs-notes" class="vs-notes" rows="3" placeholder="Vehicle modifiers, special features, travel abilities, appearance, etc."></textarea>
   </div>
 
-  <!-- BOTTOM: matches official sheet — left column (picture + key), right column (layout grid) -->
+  <!-- BOTTOM -->
   <div class="vs-bottom">
     <div class="vs-bottom-left">
       <div class="vs-section-hdr">VEHICLE PICTURE</div>
-      <div class="vs-picture-area"></div>
+      <div class="vs-picture-area" id="vs-picture-area">
+        <img id="vs-picture-img" class="vs-picture-img" style="display:none">
+        <button class="ed-btn vs-picture-btn" id="btn-import-img">Import Image</button>
+        <input type="file" id="inp-picture" accept="image/*" style="display:none">
+      </div>
       <div class="vs-section-hdr" style="margin-top:6px">VEHICLE KEY</div>
       <table class="vs-key-table" id="vs-key-table">
         <tbody id="vs-key-tbody"></tbody>
@@ -172,19 +188,18 @@
   </div>
 
   <div class="vs-sheet-ftr">
-    &copy; 2017 Monkey House Games. Permission granted to copy for private use.
-    Mighty Protectors is a registered trademark of Monkey House Games.
+    Mighty Protectors&trade; is a registered trademark of Monkey House Games.
   </div>
 
 </div>
 </div>
 </section>
 
-<!-- ==================== FLOOR PLAN EDITOR TAB ==================== -->
+<!-- FLOOR PLAN EDITOR TAB -->
 <section class="mp-panel" id="tab-editor">
   <div class="ed-layout">
     <div class="ed-palette" id="ed-palette">
-      <div class="ed-pal-hdr">Systems & Abilities</div>
+      <div class="ed-pal-hdr">Systems</div>
       <div class="ed-pal-scroll" id="ed-pal-scroll"></div>
     </div>
     <div class="ed-center">
@@ -201,7 +216,6 @@
         <canvas id="ed-canvas"></canvas>
       </div>
       <div class="ed-hint">
-        Select system in Record Sheet, switch to Floor Plan, paint cells.
         <b>E</b>=erase <b>S</b>=select Right-drag=pan Scroll=zoom
         Grid: 1 cell = 1 system space (2.5') / heavy lines = 5'
       </div>
@@ -212,7 +226,7 @@
 </main>
 
 <footer class="mp-ftr">
-  Mighty Protectors&trade; &amp; Villains &amp; Vigilantes&trade; &copy; Jeff Dee &amp; Jack Herman / Monkey House Games
+  Mighty Protectors&trade; is a registered trademark of Monkey House Games.
 </footer>
 
 <script src="mp-data.js"></script>
