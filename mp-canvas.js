@@ -290,10 +290,11 @@ class FloorPlanEditor {
     const startGy = Math.floor(-oy / cell);
     const endGy = Math.ceil((H - oy) / cell);
 
-    // Grid lines — light lines for individual cells, heavy for every 4 (movement space)
+    // Grid lines — each cell = 1 system space (2.5')
+    // Heavy lines every 2 cells = 1 movement space (5')
     for (let gx = startGx; gx <= endGx; gx++) {
       const isOrigin = gx === 0;
-      const isHeavy = gx % 4 === 0;
+      const isHeavy = gx % 2 === 0;
       ctx.strokeStyle = isOrigin ? "#c04820" : isHeavy ? "#a0a098" : "#ccccc6";
       ctx.lineWidth = isOrigin ? 2 : isHeavy ? 1.5 : 0.5;
       const x = ox + gx * cell;
@@ -301,27 +302,28 @@ class FloorPlanEditor {
     }
     for (let gy = startGy; gy <= endGy; gy++) {
       const isOrigin = gy === 0;
-      const isHeavy = gy % 4 === 0;
+      const isHeavy = gy % 2 === 0;
       ctx.strokeStyle = isOrigin ? "#c04820" : isHeavy ? "#a0a098" : "#ccccc6";
       ctx.lineWidth = isOrigin ? 2 : isHeavy ? 1.5 : 0.5;
       const y = oy + gy * cell;
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
 
-    // Feet labels every 4 cells (1 movement space = 5')
+    // Feet labels every 2 cells (each heavy line = 5' boundary)
+    // 2 cells = 1 movement space = 5'
     const labelSize = Math.max(8, Math.round(9 * this.zoom * dpr));
     ctx.fillStyle = "#70706a";
     ctx.font = `${labelSize}px monospace`;
     ctx.textBaseline = "top";
-    for (let gx = 0; gx <= endGx; gx += 4) {
+    for (let gx = 0; gx <= endGx; gx += 2) {
       const x = ox + gx * cell;
-      const feet = (gx / 4) * 5;
+      const feet = (gx / 2) * 5;
       if (x > 0 && x < W) ctx.fillText(`${feet}'`, x + 3, 3);
     }
     ctx.textBaseline = "middle";
-    for (let gy = 4; gy <= endGy; gy += 4) {
+    for (let gy = 2; gy <= endGy; gy += 2) {
       const y = oy + gy * cell;
-      const feet = (gy / 4) * 5;
+      const feet = (gy / 2) * 5;
       if (y > 0 && y < H) ctx.fillText(`${feet}'`, 3, y + 2);
     }
     ctx.textBaseline = "alphabetic";
@@ -428,13 +430,13 @@ class FloorPlanEditor {
     ctx.fillRect(0, 0, w, h);
 
     for (let x = 0; x <= gw; x++) {
-      ctx.strokeStyle = x % 4 === 0 ? "#a0a098" : "#ccccc6";
-      ctx.lineWidth = x % 4 === 0 ? 1.5 : 0.5;
+      ctx.strokeStyle = x % 2 === 0 ? "#a0a098" : "#ccccc6";
+      ctx.lineWidth = x % 2 === 0 ? 1.5 : 0.5;
       ctx.beginPath(); ctx.moveTo(x * cellPx + 1, 0); ctx.lineTo(x * cellPx + 1, h); ctx.stroke();
     }
     for (let y = 0; y <= gh; y++) {
-      ctx.strokeStyle = y % 4 === 0 ? "#a0a098" : "#ccccc6";
-      ctx.lineWidth = y % 4 === 0 ? 1.5 : 0.5;
+      ctx.strokeStyle = y % 2 === 0 ? "#a0a098" : "#ccccc6";
+      ctx.lineWidth = y % 2 === 0 ? 1.5 : 0.5;
       ctx.beginPath(); ctx.moveTo(0, y * cellPx + 1); ctx.lineTo(w, y * cellPx + 1); ctx.stroke();
     }
 
