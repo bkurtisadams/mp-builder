@@ -34,28 +34,23 @@
     <div class="ed-center">
       <div class="ed-toolbar" id="ed-toolbar">
         <button id="btn-mode-select" class="ed-btn ed-btn-mode active" title="Select (S)">Select</button>
-        <button id="btn-mode-place" class="ed-btn ed-btn-mode" title="Place (P)">Place</button>
+        <button id="btn-mode-paint" class="ed-btn ed-btn-mode" title="Paint cells for active system">Paint</button>
+        <button id="btn-mode-erase" class="ed-btn ed-btn-mode" title="Erase cells (E)">Erase</button>
         <span class="ed-sep"></span>
-        <label class="ed-tb-lbl">Size:</label>
-        <input id="inp-place-spaces" type="number" class="ed-tb-input" value="1" min="1" max="1024" title="System spaces">
-        <label class="ed-tb-lbl">W×H:</label>
-        <span id="lbl-place-dims" class="ed-tb-val">1×1</span>
-        <button id="btn-rotate" class="ed-btn" title="Rotate (R)">Rot</button>
+        <label class="ed-tb-lbl">Spaces:</label>
+        <input id="inp-place-spaces" type="number" class="ed-tb-input" value="1" min="1" max="524288" title="System spaces to allocate">
         <span class="ed-sep"></span>
         <button id="btn-zoom-in" class="ed-btn" title="Zoom in">+</button>
         <button id="btn-zoom-out" class="ed-btn" title="Zoom out">−</button>
         <button id="btn-zoom-reset" class="ed-btn" title="Reset view">Reset</button>
-        <span class="ed-sep"></span>
-        <button id="btn-delete" class="ed-btn ed-btn-warn" title="Delete (Del)">Del</button>
-        <button id="btn-clear" class="ed-btn ed-btn-warn" title="Clear all">Clear</button>
       </div>
       <div class="ed-canvas-wrap" id="ed-canvas-wrap">
         <canvas id="ed-canvas"></canvas>
       </div>
       <div class="ed-hint">
-        <b>Select:</b> click / drag / Del &nbsp; <b>Place:</b> pick palette, click canvas &nbsp;
-        <b>R</b>=rotate &nbsp; Right-drag=pan &nbsp; Scroll=zoom &nbsp;
-        Grid: 1 cell = 1 system space (2.5') / heavy lines = 5' (1 movement space)
+        <b>Flow:</b> set spaces, click ability in palette to add system, then paint cells on canvas &nbsp;
+        <b>E</b>=erase &nbsp; <b>S</b>=select &nbsp; Right-drag=pan &nbsp; Scroll=zoom &nbsp;
+        Grid: 1 cell = 1 system space (2.5') / heavy lines = 5'
       </div>
     </div>
 

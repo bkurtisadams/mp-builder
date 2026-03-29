@@ -1,4 +1,4 @@
-// mp-app.js v2.0.0 — Main app controller with weaknesses
+// mp-app.js v2.2.0 — System-first placement model
 
 const veh = new Vehicle();
 let editor = null;
@@ -16,16 +16,16 @@ document.querySelectorAll(".mp-tab-btn").forEach(btn => {
   });
 });
 
-// ---- Build palette (full abilities list) ----
+// ---- Build palette (ability picker for adding systems) ----
 function buildPalette() {
   const scroll = document.getElementById("ed-pal-scroll");
   let html = "";
   for (const cat of MP.CATEGORIES) {
-    const items = MP.SYSTEM_TYPES.filter(t => t.cat === cat);
+    const items = MP.ABILITY_TYPES.filter(t => t.cat === cat);
     if (!items.length) continue;
     html += `<div class="ed-pal-cat">${cat}</div>`;
     for (const t of items) {
-      html += `<div class="ed-pal-item" data-type="${t.id}" title="${t.name}">
+      html += `<div class="ed-pal-item" data-ability="${t.id}" title="${t.name} — click to add system">
         <span class="ed-pal-sw" style="background:${t.color}"></span>
         <span class="ed-pal-nm">${t.name}</span>
       </div>`;
@@ -35,24 +35,27 @@ function buildPalette() {
 
   scroll.querySelectorAll(".ed-pal-item").forEach(el => {
     el.addEventListener("click", () => {
-      const typeId = el.dataset.type;
-      if (editor.pickType === typeId && editor.mode === "place") {
-        editor.setMode("select");
-        el.classList.remove("active");
-        updateModeButtons();
-        return;
-      }
-      scroll.querySelectorAll(".ed-pal-item").forEach(e => e.classList.remove("active"));
-      el.classList.add("active");
-      const spaces = parseInt(document.getElementById("inp-place-spaces").value) || 1;
-      editor.setPick(typeId, spaces);
-      updateModeButtons();
-      updatePlaceDims();
+      const abilityId = el.dataset.ability;
+      addSystemFromPalette(abilityId);
     });
   });
 }
 
-// ---- Populate chassis select ----
+// ---- Add system from palette click ----
+function addSystemFromPalette(abilityId) {
+  const spaces = parseInt(document.getElementById("inp-place-spaces").value) || 1;
+  if (spaces > veh.remainingSpaces) {
+    alert(`Not enough spaces. ${veh.remainingSpaces} remaining.`);
+    return;
+  }
+  const sys = veh.addSystem(abilityId, spaces);
+  if (!sys) return;
+  // Auto-select and enter paint mode
+  editor.setActiveSys(sys.id);
+  updateStats();
+}
+
+// ---- Chassis select ----
 function buildChassisSelect() {
   const sel = document.getElementById("cfg-chassis");
   MP.CHASSIS.forEach((ch, i) => {
@@ -64,7 +67,7 @@ function buildChassisSelect() {
   sel.value = veh.chassisIdx;
 }
 
-// ---- Populate weakness select ----
+// ---- Weakness select ----
 function buildWeaknessSelect() {
   const sel = document.getElementById("sel-weakness");
   sel.innerHTML = "";
@@ -79,14 +82,11 @@ function buildWeaknessSelect() {
 // ---- Mode buttons ----
 function updateModeButtons() {
   document.getElementById("btn-mode-select").classList.toggle("active", editor.mode === "select");
-  document.getElementById("btn-mode-place").classList.toggle("active", editor.mode === "place");
+  document.getElementById("btn-mode-paint").classList.toggle("active", editor.mode === "paint");
+  document.getElementById("btn-mode-erase").classList.toggle("active", editor.mode === "erase");
 }
 
-function updatePlaceDims() {
-  document.getElementById("lbl-place-dims").textContent = editor.placeW + "×" + editor.placeH;
-}
-
-// ---- Stats panel update ----
+// ---- Stats panel ----
 function updateStats() {
   const ch = veh.chassis;
   const a = veh.armor;
@@ -94,7 +94,7 @@ function updateStats() {
   grid.innerHTML = [
     ["Base CPs", ch.cp],
     ["Total Cost", veh.totalCost],
-    ["Spaces", `${veh.usedSpaces} / ${ch.sp}`],
+    ["Spaces", `${veh.allocatedSpaces} / ${ch.sp}`],
     ["Remaining", veh.remainingSpaces],
     ["Profile", "x" + ch.prof],
     ["Weight", ch.wt],
@@ -126,43 +126,59 @@ function updateStats() {
   // Systems list
   const listEl = document.getElementById("ed-sys-list");
   const countEl = document.getElementById("ed-sys-count");
-  countEl.textContent = `(${veh.usedSpaces}/${ch.sp} spc)`;
+  countEl.textContent = `(${veh.allocatedSpaces}/${ch.sp} spc)`;
   if (!veh.systems.length) {
-    listEl.innerHTML = '<div style="color:var(--tx3);font-style:italic;padding:4px">No systems placed</div>';
+    listEl.innerHTML = '<div style="color:var(--tx3);font-style:italic;padding:4px">No systems — click an ability in the palette to add one</div>';
   } else {
     listEl.innerHTML = veh.systems.map(s => {
-      const type = MP.typeById(s.typeId);
-      const name = s.typeId === "custom" && s.customName ? s.customName : (type?.name || "?");
+      const ab = MP.abilityById(s.abilityId);
+      const name = s.abilityId === "custom" && s.customName ? s.customName : (ab?.name || "?");
       const cp = veh.sysCPs(s);
-      const sel = editor && editor.selected === s.id ? " sel" : "";
+      const sel = editor && editor.activeSysId === s.id ? " sel" : "";
+      const placed = s.cells.length;
+      const budget = s.spaces;
+      const status = placed < budget ? ` [${placed}/${budget}]` : "";
       return `<div class="ed-sys-item${sel}" data-id="${s.id}">
-        <span><b>${name}</b> ${s.spaces}spc ${veh.sysHits(s)}hp</span>
-        <span class="ed-sys-cp">${cp}cp</span>
+        <span><b>${name}</b> ${budget}spc ${veh.sysHits(s)}hp${status}</span>
+        <span style="display:flex;align-items:center;gap:4px">
+          <span class="ed-sys-cp">${cp}cp</span>
+          <span class="ed-sys-del" data-id="${s.id}" title="Remove system" style="color:var(--vr);cursor:pointer;font-weight:700;font-size:11px">×</span>
+        </span>
       </div>`;
     }).join("");
 
     listEl.querySelectorAll(".ed-sys-item").forEach(el => {
-      el.addEventListener("click", () => {
-        editor.selected = parseInt(el.dataset.id);
-        editor.setMode("select");
-        editor.draw();
+      el.addEventListener("click", (e) => {
+        if (e.target.classList.contains("ed-sys-del")) return;
+        const id = parseInt(el.dataset.id);
+        editor.setActiveSys(id);
         updateModeButtons();
+        updateStats();
+      });
+    });
+
+    listEl.querySelectorAll(".ed-sys-del").forEach(el => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const id = parseInt(el.dataset.id);
+        veh.removeSystem(id);
+        if (editor.activeSysId === id) editor.activeSysId = null;
+        editor.draw();
         updateStats();
       });
     });
   }
 
-  // Weaknesses list
   updateWeaknesses();
+  updateModeButtons();
 }
 
-// ---- Weaknesses panel ----
+// ---- Weaknesses ----
 function updateWeaknesses() {
   const listEl = document.getElementById("ed-wk-list");
   const totalEl = document.getElementById("ed-wk-total");
   const wkCPs = veh.weaknessCPs;
   totalEl.textContent = wkCPs ? `(${wkCPs} CPs)` : "";
-
   if (!veh.weaknesses.length) {
     listEl.innerHTML = '<div style="color:var(--tx3);font-style:italic;padding:4px">No weaknesses</div>';
     return;
@@ -170,14 +186,11 @@ function updateWeaknesses() {
   listEl.innerHTML = veh.weaknesses.map(w => {
     const def = MP.WEAKNESSES.find(d => d.id === w.weakId);
     return `<div class="ed-wk-item" data-id="${w.id}">
-      <span class="ed-wk-name">${def?.name || "?"} ${w.notes ? "(" + w.notes + ")" : ""}</span>
-      <span>
-        <span class="ed-wk-cp">${def?.cpMod || 0}</span>
-        <span class="ed-wk-del" data-id="${w.id}" title="Remove">×</span>
-      </span>
+      <span class="ed-wk-name">${def?.name || "?"}</span>
+      <span><span class="ed-wk-cp">${def?.cpMod || 0}</span>
+        <span class="ed-wk-del" data-id="${w.id}" title="Remove">×</span></span>
     </div>`;
   }).join("");
-
   listEl.querySelectorAll(".ed-wk-del").forEach(el => {
     el.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -187,16 +200,14 @@ function updateWeaknesses() {
   });
 }
 
-// ---- Add weakness button ----
 document.getElementById("btn-add-weakness").addEventListener("click", () => {
   const sel = document.getElementById("sel-weakness");
-  const weakId = sel.value;
-  if (!weakId) return;
-  veh.addWeakness(weakId);
+  if (!sel.value) return;
+  veh.addWeakness(sel.value);
   updateStats();
 });
 
-// ---- Config change handlers ----
+// ---- Config ----
 function onConfigChange() {
   veh.name = document.getElementById("cfg-name").value;
   veh.model = document.getElementById("cfg-model").value;
@@ -220,35 +231,22 @@ function onConfigChange() {
   document.getElementById(id).addEventListener("change", onConfigChange);
 });
 
-// ---- Toolbar buttons ----
+// ---- Toolbar ----
 document.getElementById("btn-mode-select").addEventListener("click", () => {
   editor.setMode("select");
-  document.querySelectorAll(".ed-pal-item").forEach(e => e.classList.remove("active"));
   updateModeButtons();
 });
-document.getElementById("btn-mode-place").addEventListener("click", () => {
-  if (editor.pickType) {
-    editor.mode = "place";
-    editor.canvas.style.cursor = "crosshair";
-  }
+document.getElementById("btn-mode-paint").addEventListener("click", () => {
+  if (editor.activeSysId) editor.setMode("paint");
   updateModeButtons();
 });
-document.getElementById("inp-place-spaces").addEventListener("change", e => {
-  const val = parseInt(e.target.value) || 1;
-  editor.setPlaceSpaces(val);
-  updatePlaceDims();
-});
-document.getElementById("btn-rotate").addEventListener("click", () => {
-  editor.rotatePlacement();
-  updatePlaceDims();
+document.getElementById("btn-mode-erase").addEventListener("click", () => {
+  editor.setMode("erase");
+  updateModeButtons();
 });
 document.getElementById("btn-zoom-in").addEventListener("click", () => editor.zoomIn());
 document.getElementById("btn-zoom-out").addEventListener("click", () => editor.zoomOut());
 document.getElementById("btn-zoom-reset").addEventListener("click", () => editor.resetView());
-document.getElementById("btn-delete").addEventListener("click", () => editor.deleteSelected());
-document.getElementById("btn-clear").addEventListener("click", () => {
-  if (confirm("Clear all placed systems?")) editor.clearAll();
-});
 
 // ---- Export ----
 document.getElementById("btn-save").addEventListener("click", () => {
@@ -256,11 +254,9 @@ document.getElementById("btn-save").addEventListener("click", () => {
   const data = JSON.stringify(veh.toJSON(), null, 2);
   const blob = new Blob([data], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
+  const a = document.createElement("a"); a.href = url;
   a.download = (veh.name || "vehicle").replace(/\s+/g, "_") + ".json";
-  a.click();
-  URL.revokeObjectURL(url);
+  a.click(); URL.revokeObjectURL(url);
 });
 
 document.getElementById("btn-load").addEventListener("click", () => {
@@ -294,16 +290,14 @@ document.getElementById("btn-csv").addEventListener("click", () => {
   const csv = veh.toCSV();
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
+  const a = document.createElement("a"); a.href = url;
   a.download = (veh.name || "vehicle").replace(/\s+/g, "_") + ".csv";
-  a.click();
-  URL.revokeObjectURL(url);
+  a.click(); URL.revokeObjectURL(url);
 });
 
 document.getElementById("btn-png").addEventListener("click", () => {
   const c = editor.toImage(600);
-  if (!c) { alert("No systems placed."); return; }
+  if (!c) { alert("No cells painted."); return; }
   const a = document.createElement("a");
   a.download = (veh.name || "vehicle").replace(/\s+/g, "_") + "_floorplan.png";
   a.href = c.toDataURL("image/png");

@@ -1,4 +1,4 @@
-// mp-canvas.js v2.0.0 — Floor plan canvas editor (light theme, 5' grid)
+// mp-canvas.js v2.2.0 — Cell-painting canvas for system space assignment
 
 const CELL_PX = 28;
 
@@ -9,20 +9,17 @@ class FloorPlanEditor {
     this.ctx = canvasEl.getContext("2d");
     this.veh = vehicle;
 
-    this.mode = "select";
-    this.pickType = null;
-    this.placeSpaces = 1;
-    this.placeW = 1;
-    this.placeH = 1;
-
-    this.selected = null;
-    this.dragging = null;
-    this.ghost = null;
+    this.mode = "select";   // "select" | "paint" | "erase"
+    this.activeSysId = null; // system id being painted
 
     this.panX = 0;
     this.panY = 0;
     this.panStart = null;
     this.zoom = 1.0;
+    this.painting = false;  // mouse held down in paint mode
+
+    this.hoverGx = null;
+    this.hoverGy = null;
 
     this.onUpdate = null;
 
@@ -36,8 +33,8 @@ class FloorPlanEditor {
     this.canvas.addEventListener("mousedown", e => this._onMouseDown(e));
     this.canvas.addEventListener("mouseup", e => this._onMouseUp(e));
     this.canvas.addEventListener("mouseleave", () => {
-      this.ghost = null;
-      this.panStart = null;
+      this.hoverGx = null; this.hoverGy = null;
+      this.painting = false; this.panStart = null;
       this.draw();
     });
     this.canvas.addEventListener("wheel", e => this._onWheel(e), { passive: false });
@@ -58,8 +55,7 @@ class FloorPlanEditor {
     const w = Math.round(this.wrap.clientWidth * dpr);
     const h = Math.round(this.wrap.clientHeight * dpr);
     if (this.canvas.width !== w || this.canvas.height !== h) {
-      this.canvas.width = w;
-      this.canvas.height = h;
+      this.canvas.width = w; this.canvas.height = h;
     }
     this.canvas.style.width = this.wrap.clientWidth + "px";
     this.canvas.style.height = this.wrap.clientHeight + "px";
@@ -73,73 +69,23 @@ class FloorPlanEditor {
 
   _cssToGrid(cx, cy) {
     const cell = CELL_PX * this.zoom;
-    return {
-      gx: Math.floor((cx - this.panX) / cell),
-      gy: Math.floor((cy - this.panY) / cell)
-    };
-  }
-
-  _gridToCSS(gx, gy) {
-    const cell = CELL_PX * this.zoom;
-    return { px: this.panX + gx * cell, py: this.panY + gy * cell };
+    return { gx: Math.floor((cx - this.panX) / cell), gy: Math.floor((cy - this.panY) / cell) };
   }
 
   setMode(mode) {
     this.mode = mode;
-    this.ghost = null;
-    if (mode === "select") this.pickType = null;
-    this.canvas.style.cursor = mode === "place" ? "crosshair" : "default";
+    this.painting = false;
+    this.canvas.style.cursor = mode === "paint" ? "crosshair" : mode === "erase" ? "not-allowed" : "default";
     this.draw();
   }
 
-  setPick(typeId, spaces) {
-    this.pickType = typeId;
-    const type = MP.typeById(typeId);
-    this.placeSpaces = type?.fixed || spaces || 1;
-    this._calcPlaceSize();
-    this.mode = "place";
-    this.canvas.style.cursor = "crosshair";
+  setActiveSys(sysId) {
+    this.activeSysId = sysId;
+    if (sysId) {
+      this.mode = "paint";
+      this.canvas.style.cursor = "crosshair";
+    }
     this.draw();
-  }
-
-  _calcPlaceSize() {
-    const sp = this.placeSpaces;
-    const sqrt = Math.ceil(Math.sqrt(sp));
-    for (let w = sqrt; w >= 1; w--) {
-      if (sp % w === 0) {
-        this.placeW = w;
-        this.placeH = sp / w;
-        return;
-      }
-    }
-    this.placeW = sp;
-    this.placeH = 1;
-  }
-
-  setPlaceSpaces(spaces) {
-    const type = this.pickType ? MP.typeById(this.pickType) : null;
-    if (type?.fixed) {
-      this.placeSpaces = type.fixed;
-    } else {
-      this.placeSpaces = Math.max(1, spaces);
-    }
-    this._calcPlaceSize();
-  }
-
-  rotatePlacement() {
-    const tmp = this.placeW;
-    this.placeW = this.placeH;
-    this.placeH = tmp;
-    this.draw();
-  }
-
-  _systemAt(cx, cy) {
-    const { gx, gy } = this._cssToGrid(cx, cy);
-    for (let i = this.veh.systems.length - 1; i >= 0; i--) {
-      const s = this.veh.systems[i];
-      if (gx >= s.gx && gx < s.gx + s.gw && gy >= s.gy && gy < s.gy + s.gh) return s;
-    }
-    return null;
   }
 
   _onMouseMove(ev) {
@@ -150,21 +96,23 @@ class FloorPlanEditor {
       this.draw();
       return;
     }
-    if (this.dragging) {
-      const s = this.veh.findSystem(this.dragging.id);
-      if (s) {
-        const { gx, gy } = this._cssToGrid(cx, cy);
-        s.gx = gx - this.dragging.offGx;
-        s.gy = gy - this.dragging.offGy;
+    const { gx, gy } = this._cssToGrid(cx, cy);
+    this.hoverGx = gx;
+    this.hoverGy = gy;
+
+    // Drag-paint
+    if (this.painting && this.mode === "paint" && this.activeSysId) {
+      if (this.veh.paintCell(this.activeSysId, gx, gy)) {
+        if (this.onUpdate) this.onUpdate();
       }
-      this.draw();
-      return;
     }
-    if (this.mode === "place" && this.pickType) {
-      const { gx, gy } = this._cssToGrid(cx, cy);
-      this.ghost = { gx, gy, gw: this.placeW, gh: this.placeH, typeId: this.pickType };
-      this.draw();
+    // Drag-erase
+    if (this.painting && this.mode === "erase") {
+      if (this.veh.unpaintCell(gx, gy)) {
+        if (this.onUpdate) this.onUpdate();
+      }
     }
+    this.draw();
   }
 
   _onMouseDown(ev) {
@@ -176,25 +124,27 @@ class FloorPlanEditor {
     if (ev.button !== 0) return;
     ev.preventDefault();
     const { cx, cy } = this._canvasPos(ev);
+    const { gx, gy } = this._cssToGrid(cx, cy);
 
-    if (this.mode === "place" && this.pickType) {
-      const { gx, gy } = this._cssToGrid(cx, cy);
-      this.veh.addSystem(this.pickType, this.placeSpaces, gx, gy, this.placeW, this.placeH);
-      this.ghost = { gx, gy, gw: this.placeW, gh: this.placeH, typeId: this.pickType };
+    if (this.mode === "paint" && this.activeSysId) {
+      this.painting = true;
+      if (this.veh.paintCell(this.activeSysId, gx, gy)) {
+        if (this.onUpdate) this.onUpdate();
+      }
       this.draw();
-      if (this.onUpdate) this.onUpdate();
       return;
     }
-
-    if (this.mode === "select") {
-      const hit = this._systemAt(cx, cy);
-      if (hit) {
-        this.selected = hit.id;
-        const { gx, gy } = this._cssToGrid(cx, cy);
-        this.dragging = { id: hit.id, offGx: gx - hit.gx, offGy: gy - hit.gy };
-      } else {
-        this.selected = null;
+    if (this.mode === "erase") {
+      this.painting = true;
+      if (this.veh.unpaintCell(gx, gy)) {
+        if (this.onUpdate) this.onUpdate();
       }
+      this.draw();
+      return;
+    }
+    if (this.mode === "select") {
+      const sys = this.veh.cellAt(gx, gy);
+      this.activeSysId = sys ? sys.id : null;
       this.draw();
       if (this.onUpdate) this.onUpdate();
     }
@@ -202,11 +152,7 @@ class FloorPlanEditor {
 
   _onMouseUp(ev) {
     if (ev.button === 2 || ev.button === 1) { this.panStart = null; return; }
-    if (this.dragging) {
-      this.dragging = null;
-      this.draw();
-      if (this.onUpdate) this.onUpdate();
-    }
+    this.painting = false;
   }
 
   _onWheel(ev) {
@@ -223,20 +169,9 @@ class FloorPlanEditor {
 
   _onKey(ev) {
     if (["INPUT","TEXTAREA","SELECT"].includes(document.activeElement?.tagName)) return;
-    if (ev.key === "r" || ev.key === "R") { ev.preventDefault(); this.rotatePlacement(); return; }
-    if ((ev.key === "Delete" || ev.key === "Backspace") && this.selected) {
-      ev.preventDefault();
-      this.veh.removeSystem(this.selected);
-      this.selected = null;
-      this.draw();
-      if (this.onUpdate) this.onUpdate();
-      return;
-    }
-    if (ev.key === "s" || ev.key === "S") { ev.preventDefault(); this.setMode("select"); return; }
-    if (ev.key === "Escape") {
-      if (this.mode === "place") this.setMode("select");
-      else { this.selected = null; this.draw(); }
-    }
+    if (ev.key === "Escape") { this.setMode("select"); this.activeSysId = null; this.draw(); if (this.onUpdate) this.onUpdate(); }
+    if (ev.key === "e" || ev.key === "E") { ev.preventDefault(); this.setMode("erase"); }
+    if (ev.key === "s" || ev.key === "S") { ev.preventDefault(); this.setMode("select"); }
   }
 
   zoomIn() { this._zoomBy(1.25); }
@@ -254,22 +189,7 @@ class FloorPlanEditor {
     this.draw();
   }
 
-  deleteSelected() {
-    if (!this.selected) return;
-    this.veh.removeSystem(this.selected);
-    this.selected = null;
-    this.draw();
-    if (this.onUpdate) this.onUpdate();
-  }
-
-  clearAll() {
-    this.veh.systems = [];
-    this.selected = null;
-    this.draw();
-    if (this.onUpdate) this.onUpdate();
-  }
-
-  // ---- Drawing (Light Theme) ----
+  // ---- Drawing ----
 
   draw() {
     const ctx = this.ctx;
@@ -280,7 +200,6 @@ class FloorPlanEditor {
     const ox = this.panX * dpr;
     const oy = this.panY * dpr;
 
-    // White background for max contrast
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, W, H);
@@ -290,8 +209,7 @@ class FloorPlanEditor {
     const startGy = Math.floor(-oy / cell);
     const endGy = Math.ceil((H - oy) / cell);
 
-    // Grid lines — each cell = 1 system space (2.5')
-    // Heavy lines every 2 cells = 1 movement space (5')
+    // Grid
     for (let gx = startGx; gx <= endGx; gx++) {
       const isOrigin = gx === 0;
       const isHeavy = gx % 2 === 0;
@@ -304,13 +222,12 @@ class FloorPlanEditor {
       const isOrigin = gy === 0;
       const isHeavy = gy % 2 === 0;
       ctx.strokeStyle = isOrigin ? "#d4820a" : isHeavy ? "#aaaaaa" : "#dddddd";
-      ctx.lineWidth = isOrigin ? 2 : isHeavy ? 1.5 : 0.5;
+      ctx.lineWidth = isOrigin ? 2 : isHeavy ? 1 : 0.4;
       const y = oy + gy * cell;
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
 
-    // Feet labels every 2 cells (each heavy line = 5' boundary)
-    // 2 cells = 1 movement space = 5'
+    // Feet labels
     const labelSize = Math.max(8, Math.round(9 * this.zoom * dpr));
     ctx.fillStyle = "#999999";
     ctx.font = `${labelSize}px monospace`;
@@ -328,107 +245,91 @@ class FloorPlanEditor {
     }
     ctx.textBaseline = "alphabetic";
 
-    // Placed systems
-    for (const s of this.veh.systems) {
-      this._drawSystem(ctx, s, s.id === this.selected, cell, ox, oy, dpr);
+    // Painted cells
+    for (const sys of this.veh.systems) {
+      const ab = MP.abilityById(sys.abilityId);
+      const color = ab?.color || "#707070";
+      const isActive = sys.id === this.activeSysId;
+      for (const c of sys.cells) {
+        const x = ox + c.gx * cell;
+        const y = oy + c.gy * cell;
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = color;
+        ctx.fillRect(x + 1, y + 1, cell - 2, cell - 2);
+        ctx.strokeStyle = isActive ? "#f4d03f" : "#00000044";
+        ctx.lineWidth = isActive ? 2 : 0.5;
+        ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
+        ctx.globalAlpha = 1;
+        // Abbr label if cell is big enough
+        if (cell / dpr > 16) {
+          const fs = Math.max(7, Math.min(11, (cell / dpr) * 0.4)) * dpr;
+          ctx.font = `bold ${fs}px sans-serif`;
+          ctx.fillStyle = "#ffffffdd";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(ab?.abbr || "??", x + cell / 2, y + cell / 2);
+        }
+      }
     }
-
-    // Ghost
-    if (this.mode === "place" && this.ghost && this.pickType) {
-      this._drawGhost(ctx, this.ghost, cell, ox, oy, dpr);
-    }
-  }
-
-  _drawSystem(ctx, s, selected, cell, ox, oy, dpr) {
-    const type = MP.typeById(s.typeId);
-    const x = ox + s.gx * cell;
-    const y = oy + s.gy * cell;
-    const w = s.gw * cell;
-    const h = s.gh * cell;
-
-    ctx.globalAlpha = 0.88;
-    ctx.fillStyle = type?.color || "#888";
-    ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
-
-    ctx.strokeStyle = selected ? "#f4d03f" : "#00000044";
-    ctx.lineWidth = selected ? 3 : 1;
-    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-
-    if (selected) {
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = "#f4d03f";
-      ctx.fillRect(x + w - 7, y + 1, 6, 6);
-      ctx.fillRect(x + 1, y + h - 7, 6, 6);
-    }
-
-    ctx.globalAlpha = 1;
-    const cssPw = w / dpr, cssPh = h / dpr;
-    if (cssPw > 14 && cssPh > 10) {
-      const fontSize = Math.max(8, Math.min(13, cssPw * 0.12)) * dpr;
-      ctx.font = `bold ${fontSize}px sans-serif`;
-      ctx.fillStyle = "#ffffffee";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      const abbr = type?.abbr || "??";
-      const label = cssPw > 40 ? (type?.name || abbr) : abbr;
-      ctx.fillText(label, x + w / 2, y + h / 2);
-    }
-    ctx.globalAlpha = 1;
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-  }
 
-  _drawGhost(ctx, g, cell, ox, oy, dpr) {
-    const type = MP.typeById(g.typeId);
-    const x = ox + g.gx * cell;
-    const y = oy + g.gy * cell;
-    const w = g.gw * cell;
-    const h = g.gh * cell;
-
-    ctx.globalAlpha = 0.4;
-    ctx.fillStyle = type?.color || "#888";
-    ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
-    ctx.strokeStyle = "#f4d03f";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4 * dpr, 4 * dpr]);
-    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-    ctx.setLineDash([]);
-
-    const cssPw = w / dpr;
-    if (cssPw > 14) {
-      const fontSize = Math.max(8, Math.min(13, cssPw * 0.12)) * dpr;
-      ctx.font = `bold ${fontSize}px sans-serif`;
-      ctx.fillStyle = "#000000aa";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(type?.abbr || "??", x + w / 2, y + h / 2);
+    // Hover ghost in paint mode
+    if (this.mode === "paint" && this.activeSysId && this.hoverGx !== null) {
+      const sys = this.veh.findSystem(this.activeSysId);
+      const ab = sys ? MP.abilityById(sys.abilityId) : null;
+      if (sys && sys.cells.length < sys.spaces && !this.veh.cellAt(this.hoverGx, this.hoverGy)) {
+        const x = ox + this.hoverGx * cell;
+        const y = oy + this.hoverGy * cell;
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = ab?.color || "#707070";
+        ctx.fillRect(x + 1, y + 1, cell - 2, cell - 2);
+        ctx.strokeStyle = "#f4d03f";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3 * dpr, 3 * dpr]);
+        ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+      }
     }
-    ctx.globalAlpha = 1;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
+
+    // Erase hover
+    if (this.mode === "erase" && this.hoverGx !== null) {
+      const hit = this.veh.cellAt(this.hoverGx, this.hoverGy);
+      if (hit) {
+        const x = ox + this.hoverGx * cell;
+        const y = oy + this.hoverGy * cell;
+        ctx.strokeStyle = "#ef4444";
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
+        // X mark
+        ctx.beginPath();
+        ctx.moveTo(x + 4, y + 4); ctx.lineTo(x + cell - 4, y + cell - 4);
+        ctx.moveTo(x + cell - 4, y + 4); ctx.lineTo(x + 4, y + cell - 4);
+        ctx.stroke();
+      }
+    }
   }
 
   toImage(maxWidth) {
-    if (!this.veh.systems.length) return null;
+    let allCells = [];
+    for (const sys of this.veh.systems) allCells.push(...sys.cells.map(c => ({ ...c, sys })));
+    if (!allCells.length) return null;
     let minGx = Infinity, minGy = Infinity, maxGx = -Infinity, maxGy = -Infinity;
-    for (const s of this.veh.systems) {
-      minGx = Math.min(minGx, s.gx);
-      minGy = Math.min(minGy, s.gy);
-      maxGx = Math.max(maxGx, s.gx + s.gw);
-      maxGy = Math.max(maxGy, s.gy + s.gh);
+    for (const c of allCells) {
+      minGx = Math.min(minGx, c.gx); minGy = Math.min(minGy, c.gy);
+      maxGx = Math.max(maxGx, c.gx + 1); maxGy = Math.max(maxGy, c.gy + 1);
     }
     const gw = maxGx - minGx;
     const gh = maxGy - minGy;
     const cellPx = maxWidth ? Math.min(28, Math.floor(maxWidth / gw)) : 28;
     const w = gw * cellPx + 2;
     const h = gh * cellPx + 2;
-
     const c = document.createElement("canvas");
     c.width = w; c.height = h;
     const ctx = c.getContext("2d");
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, w, h);
-
     for (let x = 0; x <= gw; x++) {
       ctx.strokeStyle = x % 2 === 0 ? "#aaaaaa" : "#dddddd";
       ctx.lineWidth = x % 2 === 0 ? 1 : 0.4;
@@ -439,30 +340,22 @@ class FloorPlanEditor {
       ctx.lineWidth = y % 2 === 0 ? 1 : 0.4;
       ctx.beginPath(); ctx.moveTo(0, y * cellPx + 1); ctx.lineTo(w, y * cellPx + 1); ctx.stroke();
     }
-
-    for (const s of this.veh.systems) {
-      const type = MP.typeById(s.typeId);
-      const sx = (s.gx - minGx) * cellPx + 1;
-      const sy = (s.gy - minGy) * cellPx + 1;
-      const sw = s.gw * cellPx;
-      const sh = s.gh * cellPx;
-      ctx.globalAlpha = 0.88;
-      ctx.fillStyle = type?.color || "#888";
-      ctx.fillRect(sx + 1, sy + 1, sw - 2, sh - 2);
-      ctx.strokeStyle = "#00000044";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(sx + 1, sy + 1, sw - 2, sh - 2);
+    for (const cc of allCells) {
+      const ab = MP.abilityById(cc.sys.abilityId);
+      const sx = (cc.gx - minGx) * cellPx + 1;
+      const sy = (cc.gy - minGy) * cellPx + 1;
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = ab?.color || "#707070";
+      ctx.fillRect(sx + 1, sy + 1, cellPx - 2, cellPx - 2);
       ctx.globalAlpha = 1;
-      if (sw > 14 && sh > 10) {
-        ctx.font = `bold ${Math.max(8, Math.min(12, sw * 0.12))}px sans-serif`;
-        ctx.fillStyle = "#ffffffee";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(type?.abbr || "??", sx + sw / 2, sy + sh / 2);
+      if (cellPx > 14) {
+        ctx.font = `bold ${Math.max(7, Math.min(11, cellPx * 0.4))}px sans-serif`;
+        ctx.fillStyle = "#ffffffdd";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(ab?.abbr || "??", sx + cellPx / 2, sy + cellPx / 2);
       }
     }
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
     return c;
   }
 }
