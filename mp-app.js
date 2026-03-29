@@ -262,6 +262,7 @@ document.getElementById("inp-picture").addEventListener("change", e => {
     const img = document.getElementById("vs-picture-img");
     img.src = veh.pictureData;
     img.style.display = "block";
+    document.getElementById("vs-picture-area").classList.add("has-image");
   };
   reader.readAsDataURL(e.target.files[0]);
   e.target.value = "";
@@ -311,6 +312,7 @@ document.getElementById("inp-json").addEventListener("change", e => {
         const img = document.getElementById("vs-picture-img");
         img.src = veh.pictureData;
         img.style.display = "block";
+        document.getElementById("vs-picture-area").classList.add("has-image");
       }
       updateAll();
     } catch (err) { alert("Invalid JSON: " + err.message); }
