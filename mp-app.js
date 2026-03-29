@@ -72,7 +72,7 @@ function updateAll() {
   document.getElementById("vs-cl").textContent = veh.cl;
   document.getElementById("vs-cl-save").textContent = MP.save(veh.cl);
   document.getElementById("vs-turn-rate").textContent = veh.turnRate;
-  document.getElementById("vs-init").textContent = MP.initDie(MP.save(veh.cl));
+  document.getElementById("vs-init").textContent = MP.initDie(veh.cl);
 
   renderSystemsTable();
   renderKey();
@@ -95,7 +95,7 @@ function renderSystemsTable() {
     const prof = s && s.spaces ? veh.sysProfileDisplay(s) : "";
     const hits = s && s.spaces ? veh.sysHits(s) : "";
     const hitsDisplay = hits !== "" ? `(${hits})` : "";
-    const pts = s && s.spaces ? `(${veh.sysBaseCPs(s)})` : "";
+    const pts = s && s.spaces ? `(${veh.sysCPs(s)})` : "";
     const dmg = s ? (s.dmg || "") : "";
     const desc = s ? (s.desc || "") : "";
     const integral = s ? (s.integral || false) : false;

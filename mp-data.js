@@ -288,33 +288,73 @@ MP.MODIFIERS = [
 
 MP.ARCS = ["Forward","Back","Fwd/Right","Fwd/Left","Back/Right","Back/Left"];
 
-// ---- Derived Stat Functions ----
-MP.save = function(score) { return Math.floor(score / 2) + 10; };
+// ---- BC Table (from rulebook 2.1.7.2) ----
+// Each entry: [minScore, carry, hth, save, init]
+MP.BC_TABLE = [
+  [0,  8,             "d2-1",    6,  "d2-1"],
+  [1,  10,            "d2-1",    7,  "d2-1"],
+  [2,  12,            "d2-1",    7,  "d2-1"],
+  [3,  15,            "d2",      8,  "d2"],
+  [6,  30,            "d3",      9,  "d3"],
+  [9,  60,            "d4",      10, "d4"],
+  [12, 120,           "d6",      11, "d6"],
+  [15, 240,           "d6+1",    11, "d6+1"],
+  [18, 480,           "d8+1",    12, "d8+1"],
+  [21, 960,           "d10+1",   12, "d10+1"],
+  [24, 1920,          "2d6",     13, "2d6"],
+  [27, 3840,          "d6+d8",   13, "d6+d8"],
+  [30, 7680,          "2d8",     14, "2d8"],
+  [33, 15360,         "d8+d10",  14, "d8+d10"],
+  [36, 30720,         "2d10",    15, "2d10"],
+  [39, 61440,         "d10+d12", 15, "d10+d12"],
+  [42, 122880,        "2d12",    16, "2d12"],
+  [45, 245760,        "3d8",     16, "3d8"],
+  [48, 491520,        "2d8+d10", 17, "2d8+d10"],
+  [51, 983040,        "d8+2d10", 17, "d8+2d10"],
+  [54, 1966080,       "3d10",    18, "3d10"],
+  [57, 3932160,       "2d10+d12",18, "2d10+d12"],
+  [60, 7864320,       "d10+2d12",19, "d10+2d12"],
+  [63, 15728640,      "3d12",    19, "3d12"],
+  [66, 31457280,      "3d12+1",  20, "3d12+1"],
+  [69, 62914560,      "3d12+2",  20, "3d12+2"],
+  [72, 125829120,     "4d10",    21, "4d10"],
+  [75, 251658240,     "3d10+d12",21, "3d10+d12"],
+  [78, 503316480,     "2d10+2d12",22,"2d10+2d12"],
+  [81, 1006632960,    "d10+3d12",22, "d10+3d12"],
+  [84, 2013265920,    "4d12",    23, "4d12"],
+  [87, 4026531840,    "4d12+1",  23, "4d12+1"],
+  [90, 8053063680,    "5d10",    24, "5d10"],
+  [93, 16106127360,   "4d10+d12",24, "4d10+d12"],
+  [96, 32212254720,   "3d10+2d12",25,"3d10+2d12"],
+];
 
+MP._bcLookup = function(score) {
+  for (let i = MP.BC_TABLE.length - 1; i >= 0; i--) {
+    if (score >= MP.BC_TABLE[i][0]) return MP.BC_TABLE[i];
+  }
+  return MP.BC_TABLE[0];
+};
+
+// Save number for any BC score (ST, EN, AG, IN, CL all use same column)
+MP.save = function(score) {
+  return MP._bcLookup(score)[3];
+};
+
+// Base HTH Damage from ST
 MP.hthDamage = function(st) {
-  if (st <= 9) return "1";
-  if (st <= 14) return "1d4";
-  if (st <= 19) return "1d6";
-  if (st <= 24) return "1d8";
-  if (st <= 29) return "1d8+1";
-  if (st <= 34) return "2d8";
-  if (st <= 39) return "2d8+1";
-  if (st <= 44) return "3d8";
-  return "3d8+1";
+  return MP._bcLookup(st)[2];
 };
 
-MP.initDie = function(clSave) {
-  if (clSave <= 10) return "d12";
-  if (clSave <= 11) return "d10";
-  if (clSave <= 12) return "d10+1";
-  if (clSave <= 13) return "d8+1";
-  if (clSave <= 14) return "d8+2";
-  return "d6+3";
+// Initiative die from CL score (uses init column, which matches CL save)
+MP.initDie = function(cl) {
+  return MP._bcLookup(cl)[4];
 };
 
+// Carrying Capacity from ST
 MP.carry = function(st) {
-  const base = st * st * 2;
-  if (base >= 1000000) return (base / 1000000).toFixed(1) + "M lbs";
-  if (base >= 1000) return (base / 1000).toFixed(1) + "K lbs";
-  return base + " lbs";
+  const lbs = MP._bcLookup(st)[1];
+  if (lbs >= 1000000000) return (lbs / 1000000000).toFixed(1) + "B lbs";
+  if (lbs >= 1000000) return (lbs / 1000000).toFixed(1) + "M lbs";
+  if (lbs >= 1000) return (lbs / 1000).toFixed(1) + "K lbs";
+  return lbs + " lbs";
 };

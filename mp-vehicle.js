@@ -107,6 +107,7 @@ class Vehicle {
     let cost = this.baseCost + this.systemExtraCPs + this.techMod;
     cost += this.maneuverMod;
     if (this.wontExplode) cost += 5;
+    if (this.isBase) cost -= 15;
     for (const s of this.systems) {
       cost += (s.bulky || 0) * 2.5;
       cost -= (s.delicate || 0) * 2.5;
