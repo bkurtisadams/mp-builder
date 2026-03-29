@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mighty Protectors Vehicle Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bitter:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="mp-style.css">
+</head>
+<body>
+<header class="mp-hdr">
+  <div class="mp-hdr-in">
+    <h1 class="mp-logo">MIGHTY PROTECTORS<span class="mp-logo-sub">Vehicle Builder</span></h1>
+    <nav class="mp-tabs">
+      <button class="mp-tab-btn active" data-tab="editor">✎ Floor Plan Editor</button>
+      <button class="mp-tab-btn" data-tab="sheet">📄 Record Sheet</button>
+    </nav>
+  </div>
+</header>
+
+<main class="mp-main">
+
+<!-- ==================== EDITOR TAB ==================== -->
+<section class="mp-panel active" id="tab-editor">
+  <div class="ed-layout">
+
+    <!-- LEFT: Palette -->
+    <div class="ed-palette" id="ed-palette">
+      <div class="ed-pal-hdr">Systems</div>
+      <div class="ed-pal-scroll" id="ed-pal-scroll"></div>
+    </div>
+
+    <!-- CENTER: Canvas -->
+    <div class="ed-center">
+      <div class="ed-toolbar" id="ed-toolbar">
+        <button id="btn-mode-select" class="ed-btn ed-btn-mode active" title="Select (S)">☛ Select</button>
+        <button id="btn-mode-place" class="ed-btn ed-btn-mode" title="Place (P)">✎ Place</button>
+        <span class="ed-sep"></span>
+        <label class="ed-tb-lbl">Size:</label>
+        <input id="inp-place-spaces" type="number" class="ed-tb-input" value="1" min="1" max="1024" title="System spaces">
+        <label class="ed-tb-lbl">W×H:</label>
+        <span id="lbl-place-dims" class="ed-tb-val">1×1</span>
+        <button id="btn-rotate" class="ed-btn" title="Rotate (R)">↻ Rot</button>
+        <span class="ed-sep"></span>
+        <button id="btn-zoom-in" class="ed-btn" title="Zoom in">+</button>
+        <button id="btn-zoom-out" class="ed-btn" title="Zoom out">−</button>
+        <button id="btn-zoom-reset" class="ed-btn" title="Reset view">⊡</button>
+        <span class="ed-sep"></span>
+        <button id="btn-delete" class="ed-btn ed-btn-warn" title="Delete (Del)">✕</button>
+        <button id="btn-clear" class="ed-btn ed-btn-warn" title="Clear all">Clear</button>
+      </div>
+      <div class="ed-canvas-wrap" id="ed-canvas-wrap">
+        <canvas id="ed-canvas"></canvas>
+      </div>
+      <div class="ed-hint">
+        <b>Select:</b> click · drag · Del · <b>Place:</b> pick from palette · click canvas · R=rotate ·
+        Right-drag=pan · Scroll=zoom
+      </div>
+    </div>
+
+    <!-- RIGHT: Config + Stats -->
+    <div class="ed-stats" id="ed-stats">
+      <div class="ed-pal-hdr">Vehicle</div>
+      <div class="ed-stats-scroll">
+
+        <!-- Identity -->
+        <div class="ed-cfg">
+          <div class="ed-cfg-row"><label>Name</label><input id="cfg-name" type="text"></div>
+          <div class="ed-cfg-row"><label>Model</label><input id="cfg-model" type="text"></div>
+          <div class="ed-cfg-row"><label>Operator</label><input id="cfg-operator" type="text"></div>
+        </div>
+
+        <!-- Chassis -->
+        <div class="ed-cfg">
+          <div class="ed-cfg-row"><label>Chassis</label><select id="cfg-chassis"></select></div>
+          <div class="ed-cfg-row"><label>Hi/Lo Tech</label>
+            <select id="cfg-tech">
+              <option value="-15">-15</option><option value="-10">-10</option><option value="-5">-5</option>
+              <option value="0" selected>0</option>
+              <option value="5">+5</option><option value="10">+10</option><option value="15">+15</option>
+            </select>
+          </div>
+          <div class="ed-cfg-row"><label>Maneuver</label>
+            <select id="cfg-maneuver">
+              <option value="-10">-10</option><option value="-5">-5</option>
+              <option value="0" selected>0</option>
+              <option value="5">+5</option><option value="10">+10</option>
+            </select>
+          </div>
+          <div class="ed-cfg-row">
+            <label>Won't Explode</label><input type="checkbox" id="cfg-noexplode">
+            <label style="margin-left:12px">Base</label><input type="checkbox" id="cfg-base">
+          </div>
+        </div>
+
+        <!-- Stats summary -->
+        <div class="ed-stat-card" id="ed-stat-card">
+          <div class="ed-sg" id="ed-stat-grid"></div>
+        </div>
+
+        <!-- Systems list -->
+        <div class="ed-cfg">
+          <div class="ed-cfg-hdr">Systems <span id="ed-sys-count"></span></div>
+          <div id="ed-sys-list" class="ed-sys-list"></div>
+        </div>
+
+        <!-- Export -->
+        <div class="ed-cfg">
+          <div class="ed-cfg-hdr">Export</div>
+          <div class="ed-export">
+            <button class="ed-btn-sm" id="btn-save">💾 JSON</button>
+            <button class="ed-btn-sm" id="btn-load">📂 Load</button>
+            <button class="ed-btn-sm" id="btn-csv">📊 CSV</button>
+            <button class="ed-btn-sm" id="btn-png">🖼 Plan</button>
+          </div>
+          <input type="file" id="inp-json" accept=".json" style="display:none">
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==================== SHEET TAB (stub) ==================== -->
+<section class="mp-panel" id="tab-sheet">
+  <div style="padding:20px;max-width:800px">
+    <p style="color:#5aa0c8;font-style:italic;padding:10px;background:rgba(90,160,200,.08);border-left:3px solid #5aa0c8;border-radius:4px">
+      Printable record sheet view coming next. Will match the official MP Vehicle Record Sheet layout with the floor plan thumbnail at the bottom.
+    </p>
+  </div>
+</section>
+
+</main>
+
+<footer class="mp-ftr">
+  Mighty Protectors™ &amp; Villains &amp; Vigilantes™ © Jeff Dee &amp; Jack Herman / Monkey House Games
+</footer>
+
+<script src="mp-data.js"></script>
+<script src="mp-vehicle.js"></script>
+<script src="mp-canvas.js"></script>
+<script src="mp-app.js"></script>
+</body>
+</html>
