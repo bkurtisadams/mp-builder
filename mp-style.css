@@ -22,8 +22,8 @@
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0 }
 input[type=number] { -moz-appearance: textfield }
-html, body { height: 100%; background: var(--bg); color: var(--tx); font-family: var(--fb); font-size: 12px }
-body { display: flex; flex-direction: column }
+html { min-height: 100%; background: var(--bg) }
+body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: var(--fb); font-size: 12px; display: flex; flex-direction: column }
 
 /* Header */
 .mp-hdr { background: var(--hdr-bg); border-bottom: 3px solid var(--accent); padding: 0 12px; flex-shrink: 0 }
@@ -126,6 +126,7 @@ body { display: flex; flex-direction: column }
 .vs-sys-mods { display: grid; grid-template-columns: repeat(9, 18px); gap: 1px; padding: 1px; align-items: center }
 .vs-sys-mods input[type="number"] { background: var(--inp); border: 1px solid var(--brd2); border-radius: 2px; padding: 0; font-family: var(--fb); font-size: 7px; color: var(--tx); text-align: center; width: 100% }
 .vs-sys-mods input[type="number"]:focus { outline: none; border-color: var(--accent) }
+.vs-sys-mods input[type="number"].has-val { background: #fff5e0 }
 .vs-sys-mods input[type="checkbox"] { width: 12px; height: 12px; accent-color: var(--accent); margin: 0 auto; display: block }
 
 .vs-sys-remain { border-top: 2px solid var(--label); background: rgba(0,80,140,.04) }
