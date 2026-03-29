@@ -1,19 +1,21 @@
-// mp-vehicle.js v1.0.0 — Vehicle state model
+// mp-vehicle.js v2.0.0 — Vehicle state model with weaknesses
 
 class Vehicle {
   constructor() {
     this.name = "";
     this.model = "";
     this.operator = "";
-    this.chassisIdx = 6; // default (15) = 16 spaces
+    this.chassisIdx = 6;
     this.techMod = 0;
     this.maneuverMod = 0;
     this.wontExplode = false;
     this.isBase = false;
     this.notes = "";
     this.pictureUrl = "";
-    this.systems = [];   // placed system pieces
+    this.systems = [];
+    this.weaknesses = []; // {id, count, notes}
     this._nextId = 1;
+    this._nextWkId = 1;
   }
 
   get chassis() { return MP.CHASSIS[this.chassisIdx]; }
@@ -21,7 +23,6 @@ class Vehicle {
   get usedSpaces() { return this.systems.reduce((s, p) => s + p.spaces, 0); }
   get remainingSpaces() { return this.totalSpaces - this.usedSpaces; }
 
-  // Add a system (from palette placement on canvas)
   addSystem(typeId, spaces, gx, gy, gw, gh) {
     const type = MP.typeById(typeId);
     if (!type) return null;
@@ -30,7 +31,7 @@ class Vehicle {
       id: this._nextId++,
       typeId,
       spaces: actualSpaces,
-      gx, gy, gw, gh,  // grid position and size on canvas
+      gx, gy, gw, gh,
       modifiers: [],
       arc: "Forward",
       desc: "",
@@ -50,13 +51,31 @@ class Vehicle {
     return this.systems.find(s => s.id === id) || null;
   }
 
-  // System CP calculation
+  addWeakness(weakId, notes) {
+    const def = MP.WEAKNESSES.find(w => w.id === weakId);
+    if (!def) return null;
+    const wk = { id: this._nextWkId++, weakId, count: 1, notes: notes || "" };
+    this.weaknesses.push(wk);
+    return wk;
+  }
+
+  removeWeakness(id) {
+    this.weaknesses = this.weaknesses.filter(w => w.id !== id);
+  }
+
+  get weaknessCPs() {
+    let total = 0;
+    for (const w of this.weaknesses) {
+      const def = MP.WEAKNESSES.find(d => d.id === w.weakId);
+      if (def) total += def.cpMod * (w.count || 1);
+    }
+    return total;
+  }
+
   sysCPs(sys) {
     const entry = MP.lookupSys(sys.spaces);
     let cp = entry.cp;
-    // Tech mod: +/-5 per tier to each system
     cp += this.techMod;
-    // System modifiers
     for (const m of sys.modifiers) {
       const def = MP.MODIFIERS.find(d => d.id === m.id);
       if (!def) continue;
@@ -67,7 +86,6 @@ class Vehicle {
     return Math.max(0, cp);
   }
 
-  // System hits after bulky/delicate
   sysHits(sys) {
     const entry = MP.lookupSys(sys.spaces);
     let hits = entry.hits;
@@ -78,31 +96,27 @@ class Vehicle {
     return Math.max(1, hits);
   }
 
-  // System profile
   sysProfile(sys) {
     return MP.lookupSys(sys.spaces).prof;
   }
 
-  // Profile display (as multiplier like the sheet)
   sysProfileDisplay(sys) {
     const p = this.sysProfile(sys);
     return "x" + (Number.isInteger(p) ? p : p.toFixed(2).replace(/0+$/, "").replace(/\.$/, ""));
   }
 
-  // ---- Computed vehicle stats ----
+  // ---- Computed vehicle stats (Roll20 field names) ----
 
   get baseCost() { return this.chassis.cp; }
 
   get totalCost() {
-    let c = this.baseCost;
-    // Tech mod is already a CP adjustment to each system, but also adjusts vehicle cost
-    // Per rules: "For each (+5) adjustment to the total cost..."
-    c += Math.abs(this.techMod); // tech mod cost is always added as positive adjustment
-    if (this.techMod < 0) c -= Math.abs(this.techMod) * 2; // discount = subtract
-    c += Math.abs(this.maneuverMod);
-    if (this.maneuverMod < 0) c -= Math.abs(this.maneuverMod) * 2;
-    if (this.wontExplode) c += 5;
-    return this.baseCost + this.techMod + this.maneuverMod + (this.wontExplode ? 5 : 0);
+    return this.baseCost + this.techMod + this.maneuverMod + (this.wontExplode ? 5 : 0) + this.weaknessCPs;
+  }
+
+  get systemsCost() {
+    let c = 0;
+    for (const s of this.systems) c += this.sysCPs(s);
+    return c;
   }
 
   get st() { return this.chassis.st; }
@@ -132,12 +146,12 @@ class Vehicle {
     return cl;
   }
 
+  get hits() { return this.chassis.hits; }
   get power() { return this.st + this.en + this.ag + this.intel; }
   get handling() { return MP.save(this.ag) - 10; }
   get turnRate() { return 3 + (this.maneuverMod / 5); }
 
   get armor() {
-    // Base SR = 3 for Kin/Eng/Bio/Ent, 0 for Psychic
     let extra = 0;
     for (const s of this.systems) {
       if (s.typeId === "armor") extra += this.sysCPs(s);
@@ -147,7 +161,7 @@ class Vehicle {
 
   get explosionDice() {
     if (this.wontExplode) return "None";
-    const cp = this.totalCost;
+    const cp = Math.max(0, this.totalCost);
     const d8s = 1 + Math.floor(cp / 5);
     const rem = cp % 5;
     let dice = d8s + "d8";
@@ -162,8 +176,6 @@ class Vehicle {
   }
 
   get defense() {
-    // Vehicle Defense = pilot AG save - 10 + handling
-    // Without pilot, just handling
     return this.handling;
   }
 
@@ -179,12 +191,12 @@ class Vehicle {
 
   toJSON() {
     return {
-      version: 1, type: "mp-vehicle",
+      version: 2, type: "mp-vehicle",
       name: this.name, model: this.model, operator: this.operator,
       chassisIdx: this.chassisIdx, techMod: this.techMod,
       maneuverMod: this.maneuverMod, wontExplode: this.wontExplode,
       isBase: this.isBase, notes: this.notes, pictureUrl: this.pictureUrl,
-      systems: this.systems,
+      systems: this.systems, weaknesses: this.weaknesses,
     };
   }
 
@@ -200,7 +212,9 @@ class Vehicle {
     this.notes = data.notes || "";
     this.pictureUrl = data.pictureUrl || "";
     this.systems = data.systems || [];
-    this._nextId = Math.max(1, ...this.systems.map(s => s.id)) + 1;
+    this.weaknesses = data.weaknesses || [];
+    this._nextId = Math.max(1, ...this.systems.map(s => s.id), 0) + 1;
+    this._nextWkId = Math.max(1, ...this.weaknesses.map(w => w.id), 0) + 1;
   }
 
   toCSV() {
@@ -216,7 +230,7 @@ class Vehicle {
     rows.push(["Profile", "x" + this.chassis.prof]);
     rows.push(["Weight", this.chassis.wt]);
     rows.push(["Mass", this.chassis.mass]);
-    rows.push(["Hits", this.chassis.hits]);
+    rows.push(["Hits", this.hits]);
     rows.push(["Power", this.power]);
     const a = this.armor;
     rows.push(["Armor Kin/Eng/Bio/Ent/Psy", `${a.kin}/${a.eng}/${a.bio}/${a.ent}/${a.psy}`]);
@@ -248,6 +262,14 @@ class Vehicle {
         this.sysHits(s), s.dmg || "", s.pts || "",
         `${dname}${s.desc ? ", " + s.desc : ""}${s.arc ? ", " + s.arc : ""}`
       ]);
+    }
+    if (this.weaknesses.length) {
+      rows.push([]);
+      rows.push(["Weaknesses"]);
+      for (const w of this.weaknesses) {
+        const def = MP.WEAKNESSES.find(d => d.id === w.weakId);
+        rows.push([def?.name || "?", def?.cpMod || 0, w.notes || ""]);
+      }
     }
     return rows.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
   }

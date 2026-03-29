@@ -12,8 +12,8 @@
   <div class="mp-hdr-in">
     <h1 class="mp-logo">MIGHTY PROTECTORS<span class="mp-logo-sub">Vehicle Builder</span></h1>
     <nav class="mp-tabs">
-      <button class="mp-tab-btn active" data-tab="editor">✎ Floor Plan Editor</button>
-      <button class="mp-tab-btn" data-tab="sheet">📄 Record Sheet</button>
+      <button class="mp-tab-btn active" data-tab="editor">Floor Plan Editor</button>
+      <button class="mp-tab-btn" data-tab="sheet">Record Sheet</button>
     </nav>
   </div>
 </header>
@@ -26,35 +26,36 @@
 
     <!-- LEFT: Palette -->
     <div class="ed-palette" id="ed-palette">
-      <div class="ed-pal-hdr">Systems</div>
+      <div class="ed-pal-hdr">Systems & Abilities</div>
       <div class="ed-pal-scroll" id="ed-pal-scroll"></div>
     </div>
 
     <!-- CENTER: Canvas -->
     <div class="ed-center">
       <div class="ed-toolbar" id="ed-toolbar">
-        <button id="btn-mode-select" class="ed-btn ed-btn-mode active" title="Select (S)">☛ Select</button>
-        <button id="btn-mode-place" class="ed-btn ed-btn-mode" title="Place (P)">✎ Place</button>
+        <button id="btn-mode-select" class="ed-btn ed-btn-mode active" title="Select (S)">Select</button>
+        <button id="btn-mode-place" class="ed-btn ed-btn-mode" title="Place (P)">Place</button>
         <span class="ed-sep"></span>
         <label class="ed-tb-lbl">Size:</label>
         <input id="inp-place-spaces" type="number" class="ed-tb-input" value="1" min="1" max="1024" title="System spaces">
         <label class="ed-tb-lbl">W×H:</label>
         <span id="lbl-place-dims" class="ed-tb-val">1×1</span>
-        <button id="btn-rotate" class="ed-btn" title="Rotate (R)">↻ Rot</button>
+        <button id="btn-rotate" class="ed-btn" title="Rotate (R)">Rot</button>
         <span class="ed-sep"></span>
         <button id="btn-zoom-in" class="ed-btn" title="Zoom in">+</button>
         <button id="btn-zoom-out" class="ed-btn" title="Zoom out">−</button>
-        <button id="btn-zoom-reset" class="ed-btn" title="Reset view">⊡</button>
+        <button id="btn-zoom-reset" class="ed-btn" title="Reset view">Reset</button>
         <span class="ed-sep"></span>
-        <button id="btn-delete" class="ed-btn ed-btn-warn" title="Delete (Del)">✕</button>
+        <button id="btn-delete" class="ed-btn ed-btn-warn" title="Delete (Del)">Del</button>
         <button id="btn-clear" class="ed-btn ed-btn-warn" title="Clear all">Clear</button>
       </div>
       <div class="ed-canvas-wrap" id="ed-canvas-wrap">
         <canvas id="ed-canvas"></canvas>
       </div>
       <div class="ed-hint">
-        <b>Select:</b> click · drag · Del · <b>Place:</b> pick from palette · click canvas · R=rotate ·
-        Right-drag=pan · Scroll=zoom
+        <b>Select:</b> click / drag / Del &nbsp; <b>Place:</b> pick palette, click canvas &nbsp;
+        <b>R</b>=rotate &nbsp; Right-drag=pan &nbsp; Scroll=zoom &nbsp;
+        Grid: heavy lines = 1 movement space (5')
       </div>
     </div>
 
@@ -104,14 +105,30 @@
           <div id="ed-sys-list" class="ed-sys-list"></div>
         </div>
 
+        <!-- Weaknesses -->
+        <div class="ed-cfg">
+          <div class="ed-cfg-hdr">Weaknesses <span id="ed-wk-total"></span></div>
+          <div id="ed-wk-list" class="ed-wk-list"></div>
+          <div class="ed-wk-add">
+            <select id="sel-weakness"></select>
+            <button id="btn-add-weakness">+ Add</button>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="ed-cfg">
+          <div class="ed-cfg-hdr">Notes</div>
+          <textarea id="cfg-notes" rows="3" style="width:100%;font-family:var(--fb);font-size:9px;border:1px solid var(--brd);border-radius:2px;padding:3px;resize:vertical;background:#fff;color:var(--tx)"></textarea>
+        </div>
+
         <!-- Export -->
         <div class="ed-cfg">
           <div class="ed-cfg-hdr">Export</div>
           <div class="ed-export">
-            <button class="ed-btn-sm" id="btn-save">💾 JSON</button>
-            <button class="ed-btn-sm" id="btn-load">📂 Load</button>
-            <button class="ed-btn-sm" id="btn-csv">📊 CSV</button>
-            <button class="ed-btn-sm" id="btn-png">🖼 Plan</button>
+            <button class="ed-btn-sm" id="btn-save">Save JSON</button>
+            <button class="ed-btn-sm" id="btn-load">Load JSON</button>
+            <button class="ed-btn-sm" id="btn-csv">CSV</button>
+            <button class="ed-btn-sm" id="btn-png">Floor Plan PNG</button>
           </div>
           <input type="file" id="inp-json" accept=".json" style="display:none">
         </div>
@@ -124,7 +141,7 @@
 <!-- ==================== SHEET TAB (stub) ==================== -->
 <section class="mp-panel" id="tab-sheet">
   <div style="padding:20px;max-width:800px">
-    <p style="color:#5aa0c8;font-style:italic;padding:10px;background:rgba(90,160,200,.08);border-left:3px solid #5aa0c8;border-radius:4px">
+    <p style="color:var(--vb);font-style:italic;padding:10px;background:rgba(74,128,160,.08);border-left:3px solid var(--vb);border-radius:4px">
       Printable record sheet view coming next. Will match the official MP Vehicle Record Sheet layout with the floor plan thumbnail at the bottom.
     </p>
   </div>
@@ -133,7 +150,7 @@
 </main>
 
 <footer class="mp-ftr">
-  Mighty Protectors™ &amp; Villains &amp; Vigilantes™ © Jeff Dee &amp; Jack Herman / Monkey House Games
+  Mighty Protectors&trade; &amp; Villains &amp; Vigilantes&trade; &copy; Jeff Dee &amp; Jack Herman / Monkey House Games
 </footer>
 
 <script src="mp-data.js"></script>

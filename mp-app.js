@@ -1,4 +1,4 @@
-// mp-app.js v1.0.0 — Main app controller
+// mp-app.js v2.0.0 — Main app controller with weaknesses
 
 const veh = new Vehicle();
 let editor = null;
@@ -16,7 +16,7 @@ document.querySelectorAll(".mp-tab-btn").forEach(btn => {
   });
 });
 
-// ---- Build palette ----
+// ---- Build palette (full abilities list) ----
 function buildPalette() {
   const scroll = document.getElementById("ed-pal-scroll");
   let html = "";
@@ -36,7 +36,6 @@ function buildPalette() {
   scroll.querySelectorAll(".ed-pal-item").forEach(el => {
     el.addEventListener("click", () => {
       const typeId = el.dataset.type;
-      // Toggle
       if (editor.pickType === typeId && editor.mode === "place") {
         editor.setMode("select");
         el.classList.remove("active");
@@ -65,6 +64,18 @@ function buildChassisSelect() {
   sel.value = veh.chassisIdx;
 }
 
+// ---- Populate weakness select ----
+function buildWeaknessSelect() {
+  const sel = document.getElementById("sel-weakness");
+  sel.innerHTML = "";
+  for (const w of MP.WEAKNESSES) {
+    const opt = document.createElement("option");
+    opt.value = w.id;
+    opt.textContent = `${w.name} (${w.cpMod})`;
+    sel.appendChild(opt);
+  }
+}
+
 // ---- Mode buttons ----
 function updateModeButtons() {
   document.getElementById("btn-mode-select").classList.toggle("active", editor.mode === "select");
@@ -88,7 +99,7 @@ function updateStats() {
     ["Profile", "x" + ch.prof],
     ["Weight", ch.wt],
     ["Mass", ch.mass],
-    ["Hits", ch.hits],
+    ["Hits", veh.hits],
     ["Power", veh.power],
     ["Armor K/E/B/Ent", a.kin],
     ["Psychic", a.psy],
@@ -118,29 +129,72 @@ function updateStats() {
   countEl.textContent = `(${veh.usedSpaces}/${ch.sp} spc)`;
   if (!veh.systems.length) {
     listEl.innerHTML = '<div style="color:var(--tx3);font-style:italic;padding:4px">No systems placed</div>';
+  } else {
+    listEl.innerHTML = veh.systems.map(s => {
+      const type = MP.typeById(s.typeId);
+      const name = s.typeId === "custom" && s.customName ? s.customName : (type?.name || "?");
+      const cp = veh.sysCPs(s);
+      const sel = editor && editor.selected === s.id ? " sel" : "";
+      return `<div class="ed-sys-item${sel}" data-id="${s.id}">
+        <span><b>${name}</b> ${s.spaces}spc ${veh.sysHits(s)}hp</span>
+        <span class="ed-sys-cp">${cp}cp</span>
+      </div>`;
+    }).join("");
+
+    listEl.querySelectorAll(".ed-sys-item").forEach(el => {
+      el.addEventListener("click", () => {
+        editor.selected = parseInt(el.dataset.id);
+        editor.setMode("select");
+        editor.draw();
+        updateModeButtons();
+        updateStats();
+      });
+    });
+  }
+
+  // Weaknesses list
+  updateWeaknesses();
+}
+
+// ---- Weaknesses panel ----
+function updateWeaknesses() {
+  const listEl = document.getElementById("ed-wk-list");
+  const totalEl = document.getElementById("ed-wk-total");
+  const wkCPs = veh.weaknessCPs;
+  totalEl.textContent = wkCPs ? `(${wkCPs} CPs)` : "";
+
+  if (!veh.weaknesses.length) {
+    listEl.innerHTML = '<div style="color:var(--tx3);font-style:italic;padding:4px">No weaknesses</div>';
     return;
   }
-  listEl.innerHTML = veh.systems.map(s => {
-    const type = MP.typeById(s.typeId);
-    const name = s.typeId === "custom" && s.customName ? s.customName : (type?.name || "?");
-    const cp = veh.sysCPs(s);
-    const sel = editor && editor.selected === s.id ? " sel" : "";
-    return `<div class="ed-sys-item${sel}" data-id="${s.id}">
-      <span><b>${name}</b> ${s.spaces}spc ${veh.sysHits(s)}hp</span>
-      <span class="ed-sys-cp">${cp}cp</span>
+  listEl.innerHTML = veh.weaknesses.map(w => {
+    const def = MP.WEAKNESSES.find(d => d.id === w.weakId);
+    return `<div class="ed-wk-item" data-id="${w.id}">
+      <span class="ed-wk-name">${def?.name || "?"} ${w.notes ? "(" + w.notes + ")" : ""}</span>
+      <span>
+        <span class="ed-wk-cp">${def?.cpMod || 0}</span>
+        <span class="ed-wk-del" data-id="${w.id}" title="Remove">×</span>
+      </span>
     </div>`;
   }).join("");
 
-  listEl.querySelectorAll(".ed-sys-item").forEach(el => {
-    el.addEventListener("click", () => {
-      editor.selected = parseInt(el.dataset.id);
-      editor.setMode("select");
-      editor.draw();
-      updateModeButtons();
+  listEl.querySelectorAll(".ed-wk-del").forEach(el => {
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      veh.removeWeakness(parseInt(el.dataset.id));
       updateStats();
     });
   });
 }
+
+// ---- Add weakness button ----
+document.getElementById("btn-add-weakness").addEventListener("click", () => {
+  const sel = document.getElementById("sel-weakness");
+  const weakId = sel.value;
+  if (!weakId) return;
+  veh.addWeakness(weakId);
+  updateStats();
+});
 
 // ---- Config change handlers ----
 function onConfigChange() {
@@ -152,10 +206,11 @@ function onConfigChange() {
   veh.maneuverMod = parseInt(document.getElementById("cfg-maneuver").value);
   veh.wontExplode = document.getElementById("cfg-noexplode").checked;
   veh.isBase = document.getElementById("cfg-base").checked;
+  veh.notes = document.getElementById("cfg-notes").value;
   updateStats();
 }
 
-["cfg-name","cfg-model","cfg-operator"].forEach(id => {
+["cfg-name","cfg-model","cfg-operator","cfg-notes"].forEach(id => {
   document.getElementById(id).addEventListener("input", onConfigChange);
 });
 ["cfg-chassis","cfg-tech","cfg-maneuver"].forEach(id => {
@@ -197,6 +252,7 @@ document.getElementById("btn-clear").addEventListener("click", () => {
 
 // ---- Export ----
 document.getElementById("btn-save").addEventListener("click", () => {
+  veh.notes = document.getElementById("cfg-notes").value;
   const data = JSON.stringify(veh.toJSON(), null, 2);
   const blob = new Blob([data], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -224,6 +280,7 @@ document.getElementById("inp-json").addEventListener("change", e => {
       document.getElementById("cfg-maneuver").value = veh.maneuverMod;
       document.getElementById("cfg-noexplode").checked = veh.wontExplode;
       document.getElementById("cfg-base").checked = veh.isBase;
+      document.getElementById("cfg-notes").value = veh.notes;
       editor.draw();
       updateStats();
     } catch (err) { alert("Invalid JSON: " + err.message); }
@@ -233,6 +290,7 @@ document.getElementById("inp-json").addEventListener("change", e => {
 });
 
 document.getElementById("btn-csv").addEventListener("click", () => {
+  veh.notes = document.getElementById("cfg-notes").value;
   const csv = veh.toCSV();
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
@@ -255,6 +313,7 @@ document.getElementById("btn-png").addEventListener("click", () => {
 // ---- Init ----
 buildPalette();
 buildChassisSelect();
+buildWeaknessSelect();
 
 const canvasEl = document.getElementById("ed-canvas");
 const wrapEl = document.getElementById("ed-canvas-wrap");
