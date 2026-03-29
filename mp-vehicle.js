@@ -1,23 +1,23 @@
-// mp-vehicle.js v2.3.0 — Systems with space budgets, extra CPs, no weaknesses
+// mp-vehicle.js v2.5.0 — Basic cost drives chassis, freeform systems
 
 class Vehicle {
   constructor() {
     this.name = "";
     this.model = "";
     this.operator = "";
-    this.chassisIdx = 6;
+    this.basicCost = 15; // CPs — determines chassis size
     this.techMod = 0;
     this.maneuverMod = 0;
     this.wontExplode = false;
     this.isBase = false;
     this.notes = "";
-    this.systems = [];   // {id, abilityId, spaces, extraCPs, cells:[{gx,gy}], modifiers, arc, desc, customName, dmg, pts}
-    this.keyEntries = []; // {id, label, desc}
+    this.systems = [];
+    this.keyEntries = [];
     this._nextId = 1;
     this._nextKeyId = 1;
   }
 
-  get chassis() { return MP.CHASSIS[this.chassisIdx]; }
+  get chassis() { return MP.lookupChassis(this.basicCost); }
   get totalSpaces() { return this.chassis.sp; }
   get allocatedSpaces() { return this.systems.reduce((s, sys) => s + sys.spaces, 0); }
   get placedCells() { return this.systems.reduce((s, sys) => s + sys.cells.length, 0); }
@@ -131,7 +131,7 @@ class Vehicle {
   }
 
   // ---- Computed vehicle stats ----
-  get baseCost() { return this.chassis.cp; }
+  get baseCost() { return this.basicCost; }
 
   get systemExtraCPs() {
     return this.systems.reduce((sum, s) => sum + (s.extraCPs || 0), 0);
@@ -191,9 +191,9 @@ class Vehicle {
   // ---- Serialization ----
   toJSON() {
     return {
-      version: 4, type: "mp-vehicle",
+      version: 5, type: "mp-vehicle",
       name: this.name, model: this.model, operator: this.operator,
-      chassisIdx: this.chassisIdx, techMod: this.techMod,
+      basicCost: this.basicCost, techMod: this.techMod,
       maneuverMod: this.maneuverMod, wontExplode: this.wontExplode,
       isBase: this.isBase, notes: this.notes,
       systems: this.systems, keyEntries: this.keyEntries,
@@ -204,7 +204,7 @@ class Vehicle {
     this.name = data.name || "";
     this.model = data.model || "";
     this.operator = data.operator || "";
-    this.chassisIdx = data.chassisIdx ?? 6;
+    this.basicCost = data.basicCost ?? (data.chassisIdx != null ? MP.CHASSIS[data.chassisIdx]?.cp ?? 15 : 15);
     this.techMod = data.techMod || 0;
     this.maneuverMod = data.maneuverMod || 0;
     this.wontExplode = data.wontExplode || false;

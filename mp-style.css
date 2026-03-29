@@ -12,14 +12,19 @@
   --fd:'Bangers',cursive; --fb:'Bitter',serif;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+/* Hide number input spinners globally */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
 html,body{height:100%;background:var(--bg);color:var(--tx);font-family:var(--fb);font-size:12px}
 body{display:flex;flex-direction:column}
 
 /* Header */
 .mp-hdr{background:var(--bg);border-bottom:3px solid var(--vo);padding:0 12px;flex-shrink:0}
 .mp-hdr-in{max-width:1800px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:44px}
-.mp-logo{font-family:var(--fd);font-size:24px;color:var(--vy);line-height:1}
-.mp-logo-sub{font-family:var(--fb);font-size:10px;color:var(--vc);margin-left:8px;vertical-align:middle;letter-spacing:1px}
+.mp-logo-wrap{display:flex;align-items:center;gap:8px}
+.mp-logo-img{height:28px;display:block}
+.mp-logo-sub{font-family:var(--fb);font-size:10px;color:var(--vc);letter-spacing:1px}
 .mp-tabs{display:flex;gap:2px}
 .mp-tab-btn{background:#252545;border:1px solid var(--brd);border-bottom:none;border-radius:4px 4px 0 0;padding:5px 14px;color:var(--tx3);font-family:var(--fb);font-size:11px;font-weight:700;cursor:pointer;transition:.15s}
 .mp-tab-btn:hover{color:var(--tx2)}
@@ -96,6 +101,9 @@ body{display:flex;flex-direction:column}
 .vs-cost-box{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:42px;margin-right:4px}
 .vs-cost-box-label{font-size:7px;font-weight:700;color:var(--vc);text-transform:uppercase;text-align:center;line-height:1.1}
 .vs-cost-box-spacer{min-width:42px;margin-right:4px}
+/* Editable basic cost input — orange box like the sheet */
+.vs-cost-input{width:48px;background:var(--vo);color:#fff;font-family:var(--fb);font-size:12px;font-weight:700;text-align:center;border:1px solid var(--vo-dk);border-radius:2px;padding:2px 4px}
+.vs-cost-input:focus{outline:1px solid var(--vy);border-color:var(--vy)}
 
 /* Systems table — COST on far left like official sheet */
 .vs-sys-hdr{display:grid;grid-template-columns:46px 50px 52px 50px 42px 32px 1fr;gap:2px;padding:4px 2px 2px;border-bottom:2px solid var(--vc-dk);margin-top:6px}

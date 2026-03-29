@@ -17,17 +17,7 @@ document.querySelectorAll(".mp-tab-btn").forEach(btn => {
   });
 });
 
-// ---- Populate chassis select ----
-function buildChassisSelect() {
-  const sel = document.getElementById("vs-chassis");
-  MP.CHASSIS.forEach((ch, i) => {
-    const opt = document.createElement("option");
-    opt.value = i;
-    opt.textContent = `(${ch.cp} CP) ${ch.sp} spc — ${ch.wt}`;
-    sel.appendChild(opt);
-  });
-  sel.value = veh.chassisIdx;
-}
+// (chassis dropdown removed — basic cost input drives chassis lookup)
 
 // (ability dropdown removed — systems are freeform text entry)
 
@@ -68,7 +58,7 @@ function updateAll() {
   document.getElementById("vs-weight").textContent = ch.wt.replace(" lbs", "");
   document.getElementById("vs-mass").textContent = ch.mass;
 
-  document.getElementById("vs-basic-cost").textContent = veh.baseCost;
+  document.getElementById("vs-basic-cost").value = veh.basicCost;
   document.getElementById("vs-hits").textContent = veh.hits;
   document.getElementById("vs-power").textContent = veh.power;
   document.getElementById("vs-explosion").textContent = veh.explosionDice;
@@ -251,7 +241,7 @@ function onConfigChange() {
   veh.name = document.getElementById("vs-name").value;
   veh.model = document.getElementById("vs-model").value;
   veh.operator = document.getElementById("vs-operator").value;
-  veh.chassisIdx = parseInt(document.getElementById("vs-chassis").value);
+  veh.basicCost = parseFloat(document.getElementById("vs-basic-cost").value) || 0;
   veh.techMod = parseInt(document.getElementById("vs-tech").value);
   veh.maneuverMod = parseInt(document.getElementById("vs-maneuver").value);
   veh.wontExplode = document.getElementById("vs-noexplode").checked;
@@ -263,7 +253,11 @@ function onConfigChange() {
 ["vs-name","vs-model","vs-operator","vs-notes"].forEach(id => {
   document.getElementById(id).addEventListener("input", onConfigChange);
 });
-["vs-chassis","vs-tech","vs-maneuver"].forEach(id => {
+["vs-basic-cost"].forEach(id => {
+  document.getElementById(id).addEventListener("change", onConfigChange);
+  document.getElementById(id).addEventListener("input", onConfigChange);
+});
+["vs-tech","vs-maneuver"].forEach(id => {
   document.getElementById(id).addEventListener("change", onConfigChange);
 });
 ["vs-noexplode","vs-base"].forEach(id => {
@@ -314,7 +308,7 @@ document.getElementById("inp-json").addEventListener("change", e => {
       document.getElementById("vs-name").value = veh.name;
       document.getElementById("vs-model").value = veh.model;
       document.getElementById("vs-operator").value = veh.operator;
-      document.getElementById("vs-chassis").value = veh.chassisIdx;
+      document.getElementById("vs-basic-cost").value = veh.basicCost;
       document.getElementById("vs-tech").value = veh.techMod;
       document.getElementById("vs-maneuver").value = veh.maneuverMod;
       document.getElementById("vs-noexplode").checked = veh.wontExplode;
@@ -347,7 +341,6 @@ document.getElementById("btn-png").addEventListener("click", () => {
 });
 
 // ---- Init ----
-buildChassisSelect();
 
 // Floor plan editor (full-size, on editor tab)
 const canvasEl = document.getElementById("ed-canvas");
