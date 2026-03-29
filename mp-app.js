@@ -1,4 +1,4 @@
-// mp-app.js v2.6.0 — PTs auto-fill, per-system modifiers, 4-col key, import image
+// mp-app.js v2.7.0 — Light blue theme, compacted, no maneuver dropdown
 
 const veh = new Vehicle();
 let editor = null;
@@ -49,23 +49,19 @@ function updateAll() {
   document.getElementById("vs-profile").textContent = "x" + ch.prof;
   document.getElementById("vs-weight").textContent = ch.wt.replace(" lbs", "");
   document.getElementById("vs-mass").textContent = ch.mass;
-
   document.getElementById("vs-basic-cost").value = veh.basicCost;
   document.getElementById("vs-hits").textContent = veh.hits;
   document.getElementById("vs-power").textContent = veh.power;
   document.getElementById("vs-explosion").textContent = veh.explosionDice;
   document.getElementById("vs-area").textContent = veh.explosionArea;
-
   document.getElementById("vs-armor-kin").value = a.kin;
   document.getElementById("vs-armor-eng").value = a.eng;
   document.getElementById("vs-armor-bio").value = a.bio;
   document.getElementById("vs-armor-ent").value = a.ent;
   document.getElementById("vs-armor-psy").value = a.psy;
-
   document.getElementById("vs-total-cost").textContent = veh.totalCost;
   document.getElementById("vs-spaces-used").textContent = veh.allocatedSpaces;
   document.getElementById("vs-spaces-total").textContent = veh.totalSpaces;
-
   document.getElementById("vs-st").textContent = veh.st;
   document.getElementById("vs-hth").textContent = MP.hthDamage(veh.st);
   document.getElementById("vs-en").textContent = veh.en;
@@ -107,16 +103,15 @@ function renderSystemsTable() {
     const pts = s && s.spaces ? `(${veh.sysBaseCPs(s)})` : "";
     const dmg = s ? (s.dmg || "") : "";
     const desc = s ? (s.desc || "") : "";
-    // Modifiers
     const integral = s ? (s.integral || false) : false;
-    const bulky = s ? (s.bulky || 0) : 0;
-    const delicate = s ? (s.delicate || 0) : 0;
-    const adjST = s ? (s.adjST || 0) : 0;
-    const adjEN = s ? (s.adjEN || 0) : 0;
-    const adjAG = s ? (s.adjAG || 0) : 0;
-    const adjIN = s ? (s.adjIN || 0) : 0;
-    const adjCL = s ? (s.adjCL || 0) : 0;
-    const adjMan = s ? (s.adjMan || 0) : 0;
+    const bulky = s ? (s.bulky || "") : "";
+    const delicate = s ? (s.delicate || "") : "";
+    const adjST = s ? (s.adjST || "") : "";
+    const adjEN = s ? (s.adjEN || "") : "";
+    const adjAG = s ? (s.adjAG || "") : "";
+    const adjIN = s ? (s.adjIN || "") : "";
+    const adjCL = s ? (s.adjCL || "") : "";
+    const adjMan = s ? (s.adjMan || "") : "";
 
     html += `<div class="vs-sys-row-wrap${active}" data-idx="${i}">
       <div class="vs-sys-row">
@@ -131,14 +126,14 @@ function renderSystemsTable() {
       </div>
       <div class="vs-sys-mods">
         <input type="checkbox" data-field="integral" data-idx="${i}" ${integral ? "checked" : ""} title="Integral">
-        <input type="number" value="${bulky || ""}" data-field="bulky" data-idx="${i}" min="0" title="Bulky">
-        <input type="number" value="${delicate || ""}" data-field="delicate" data-idx="${i}" min="0" title="Delicate">
-        <input type="number" value="${adjST || ""}" data-field="adjST" data-idx="${i}" title="ST adj">
-        <input type="number" value="${adjEN || ""}" data-field="adjEN" data-idx="${i}" title="EN adj">
-        <input type="number" value="${adjAG || ""}" data-field="adjAG" data-idx="${i}" title="AG adj">
-        <input type="number" value="${adjIN || ""}" data-field="adjIN" data-idx="${i}" title="IN adj">
-        <input type="number" value="${adjCL || ""}" data-field="adjCL" data-idx="${i}" title="CL adj">
-        <input type="number" value="${adjMan || ""}" data-field="adjMan" data-idx="${i}" title="Maneuver adj">
+        <input type="number" value="${bulky}" data-field="bulky" data-idx="${i}" min="0" title="Bulky">
+        <input type="number" value="${delicate}" data-field="delicate" data-idx="${i}" min="0" title="Delicate">
+        <input type="number" value="${adjST}" data-field="adjST" data-idx="${i}" title="ST adj">
+        <input type="number" value="${adjEN}" data-field="adjEN" data-idx="${i}" title="EN adj">
+        <input type="number" value="${adjAG}" data-field="adjAG" data-idx="${i}" title="AG adj">
+        <input type="number" value="${adjIN}" data-field="adjIN" data-idx="${i}" title="IN adj">
+        <input type="number" value="${adjCL}" data-field="adjCL" data-idx="${i}" title="CL adj">
+        <input type="number" value="${adjMan}" data-field="adjMan" data-idx="${i}" title="Maneuver adj">
       </div>
     </div>`;
   }
@@ -157,15 +152,13 @@ function renderSystemsTable() {
 
   el.innerHTML = html;
 
-  // Wire all inputs
+  // Wire inputs
   el.querySelectorAll("input").forEach(inp => {
-    const ev = inp.type === "checkbox" ? "change" : "change";
-    inp.addEventListener(ev, () => {
+    inp.addEventListener("change", () => {
       const idx = parseInt(inp.dataset.idx);
       const field = inp.dataset.field;
       let sys = veh.systems[idx] || null;
 
-      // Auto-create system if editing a blank row
       if (!sys) {
         if (inp.type === "checkbox" && !inp.checked) return;
         if (inp.type !== "checkbox" && !inp.value.trim()) return;
@@ -209,7 +202,7 @@ function renderSystemsTable() {
   });
 }
 
-// ---- Vehicle Key: 4-column grid (key/desc/key/desc) ----
+// ---- Vehicle Key: 4 columns, 6 rows ----
 const KEY_ROW_COUNT = 6;
 
 function renderKey() {
@@ -220,15 +213,11 @@ function renderKey() {
     const right = i + KEY_ROW_COUNT;
     const kL = veh.keyEntries[left] || null;
     const kR = veh.keyEntries[right] || null;
-    const lLabel = kL ? kL.label : "";
-    const lDesc = kL ? kL.desc : "";
-    const rLabel = kR ? kR.label : "";
-    const rDesc = kR ? kR.desc : "";
     html += `<tr>
-      <td><input type="text" class="vs-key-label" value="${lLabel}" data-kidx="${left}" data-field="label" placeholder="#"></td>
-      <td><input type="text" class="vs-key-desc" value="${lDesc}" data-kidx="${left}" data-field="desc" placeholder=""></td>
-      <td><input type="text" class="vs-key-label" value="${rLabel}" data-kidx="${right}" data-field="label" placeholder="#"></td>
-      <td><input type="text" class="vs-key-desc" value="${rDesc}" data-kidx="${right}" data-field="desc" placeholder=""></td>
+      <td><input type="text" class="vs-key-label" value="${kL ? kL.label : ""}" data-kidx="${left}" data-field="label" placeholder="#"></td>
+      <td><input type="text" class="vs-key-desc" value="${kL ? kL.desc : ""}" data-kidx="${left}" data-field="desc"></td>
+      <td><input type="text" class="vs-key-label" value="${kR ? kR.label : ""}" data-kidx="${right}" data-field="label" placeholder="#"></td>
+      <td><input type="text" class="vs-key-desc" value="${kR ? kR.desc : ""}" data-kidx="${right}" data-field="desc"></td>
     </tr>`;
   }
   tbody.innerHTML = html;
@@ -236,12 +225,8 @@ function renderKey() {
   tbody.querySelectorAll("input").forEach(inp => {
     inp.addEventListener("change", () => {
       const kidx = parseInt(inp.dataset.kidx);
-      const field = inp.dataset.field;
-      // Auto-create entries up to this index
-      while (veh.keyEntries.length <= kidx) {
-        veh.addKeyEntry("", "");
-      }
-      veh.keyEntries[kidx][field] = inp.value;
+      while (veh.keyEntries.length <= kidx) veh.addKeyEntry("", "");
+      veh.keyEntries[kidx][inp.dataset.field] = inp.value;
     });
   });
 }
@@ -253,7 +238,6 @@ function onConfigChange() {
   veh.operator = document.getElementById("vs-operator").value;
   veh.basicCost = parseFloat(document.getElementById("vs-basic-cost").value) || 0;
   veh.techMod = parseInt(document.getElementById("vs-tech").value);
-  veh.maneuverMod = parseInt(document.getElementById("vs-maneuver").value);
   veh.wontExplode = document.getElementById("vs-noexplode").checked;
   veh.isBase = document.getElementById("vs-base").checked;
   veh.notes = document.getElementById("vs-notes").value;
@@ -267,7 +251,7 @@ function onConfigChange() {
   document.getElementById(id).addEventListener("change", onConfigChange);
   document.getElementById(id).addEventListener("input", onConfigChange);
 });
-["vs-tech","vs-maneuver"].forEach(id => {
+["vs-tech"].forEach(id => {
   document.getElementById(id).addEventListener("change", onConfigChange);
 });
 ["vs-noexplode","vs-base"].forEach(id => {
@@ -291,14 +275,7 @@ document.getElementById("inp-picture").addEventListener("change", e => {
   e.target.value = "";
 });
 
-// ---- Add key entry ----
-document.getElementById("btn-add-key").addEventListener("click", () => {
-  const nextNum = veh.keyEntries.length + 1;
-  veh.addKeyEntry(String(nextNum), "");
-  renderKey();
-});
-
-// ---- Mode buttons (floor plan) ----
+// ---- Mode buttons ----
 function updateModeButtons() {
   if (!editor) return;
   document.getElementById("btn-mode-select").classList.toggle("active", editor.mode === "select");
@@ -336,7 +313,6 @@ document.getElementById("inp-json").addEventListener("change", e => {
       document.getElementById("vs-operator").value = veh.operator;
       document.getElementById("vs-basic-cost").value = veh.basicCost;
       document.getElementById("vs-tech").value = veh.techMod;
-      document.getElementById("vs-maneuver").value = veh.maneuverMod;
       document.getElementById("vs-noexplode").checked = veh.wontExplode;
       document.getElementById("vs-base").checked = veh.isBase;
       document.getElementById("vs-notes").value = veh.notes;

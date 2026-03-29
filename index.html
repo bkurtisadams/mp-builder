@@ -34,8 +34,6 @@
 <div class="vs-wrap">
 <div class="vs-sheet">
 
-  <div class="vs-title">VEHICLE RECORD SHEET</div>
-
   <!-- Name / Model / Operator -->
   <div class="vs-row vs-identity">
     <label>NAME:</label><input type="text" id="vs-name" class="vs-inp vs-inp-wide">
@@ -61,7 +59,7 @@
     <label class="vs-sub">Psychic:</label><input type="number" id="vs-armor-psy" class="vs-inp vs-inp-sm" value="0">
   </div>
 
-  <!-- Vehicle Mods (moved here, between armor and basic cost) -->
+  <!-- Vehicle Mods (no maneuver dropdown) -->
   <div class="vs-row vs-mods">
     <label>Vehicle Mods:</label>
     <label class="vs-sub">Hi/Lo Tech</label>
@@ -70,17 +68,11 @@
       <option value="0" selected>0</option>
       <option value="5">+5</option><option value="10">+10</option><option value="15">+15</option>
     </select>
-    <label class="vs-sub">Maneuver</label>
-    <select id="vs-maneuver" class="vs-sel">
-      <option value="-10">-10</option><option value="-5">-5</option>
-      <option value="0" selected>0</option>
-      <option value="5">+5</option><option value="10">+10</option>
-    </select>
     <label class="vs-sub">Won't Explode</label><input type="checkbox" id="vs-noexplode">
     <label class="vs-sub">Base</label><input type="checkbox" id="vs-base">
   </div>
 
-  <!-- BASIC COST (editable) | Hits | Explosion -->
+  <!-- BASIC COST / Hits / Explosion -->
   <div class="vs-row vs-hp">
     <div class="vs-cost-box">
       <div class="vs-cost-box-label">BASIC<br>COST</div>
@@ -100,39 +92,39 @@
   <!-- SYSTEMS TABLE -->
   <div class="vs-sys-hdr-wrap">
     <div class="vs-sys-hdr">
-      <span class="vs-sh-c">COST</span>
-      <span class="vs-sh-s">SYSTEM<br>SPACES</span>
-      <span class="vs-sh-p">PROFILE</span>
-      <span class="vs-sh-h">HITS</span>
-      <span class="vs-sh-d">DMG</span>
-      <span class="vs-sh-t">PTs</span>
+      <span>COST</span>
+      <span>SYSTEM<br>SPACES</span>
+      <span>PROFILE</span>
+      <span>HITS</span>
+      <span>DMG</span>
+      <span>PTs</span>
       <span class="vs-sh-desc">VEHICLE SYSTEMS &amp; MODIFIERS</span>
     </div>
     <div class="vs-mod-hdr">
-      <span title="Integral">Int</span>
-      <span title="Bulky">Blk</span>
-      <span title="Delicate">Del</span>
-      <span title="ST Adjustment">ST</span>
-      <span title="EN Adjustment">EN</span>
-      <span title="AG Adjustment">AG</span>
-      <span title="IN Adjustment">IN</span>
-      <span title="CL Adjustment">CL</span>
-      <span title="Maneuverability">Man</span>
+      <span>Int</span>
+      <span>Bulky</span>
+      <span>Del</span>
+      <span>ST</span>
+      <span>EN</span>
+      <span>AG</span>
+      <span>IN</span>
+      <span>CL</span>
+      <span>Man</span>
     </div>
   </div>
   <div id="vs-sys-rows" class="vs-sys-rows"></div>
 
-  <!-- TOTALS ROW -->
+  <!-- TOTALS -->
   <div class="vs-row vs-totals">
     <div class="vs-cost-box">
-      <span class="vs-val vs-val-box" id="vs-total-cost">15</span>
+      <span class="vs-val-box" id="vs-total-cost">15</span>
       <div class="vs-cost-box-label">TOTAL<br>COST</div>
     </div>
     <label>Spaces Used:</label><span class="vs-val" id="vs-spaces-used">0</span>
     <label>/ Total:</label><span class="vs-val" id="vs-spaces-total">16</span>
   </div>
 
-  <!-- STATS BLOCK -->
+  <!-- STATS -->
   <div class="vs-stats">
     <div class="vs-stats-row">
       <label>ST:</label><span class="vs-val" id="vs-st">24</span>
@@ -161,7 +153,7 @@
   <!-- NOTES -->
   <div class="vs-section">
     <div class="vs-section-hdr">NOTES</div>
-    <textarea id="vs-notes" class="vs-notes" rows="3" placeholder="Vehicle modifiers, special features, travel abilities, appearance, etc."></textarea>
+    <textarea id="vs-notes" class="vs-notes" rows="2" placeholder="Vehicle modifiers, special features, travel abilities, appearance, etc."></textarea>
   </div>
 
   <!-- BOTTOM -->
@@ -170,14 +162,13 @@
       <div class="vs-section-hdr">VEHICLE PICTURE</div>
       <div class="vs-picture-area" id="vs-picture-area">
         <img id="vs-picture-img" class="vs-picture-img" style="display:none">
-        <button class="ed-btn vs-picture-btn" id="btn-import-img">Import Image</button>
+        <button class="vs-picture-btn" id="btn-import-img">Import Image</button>
         <input type="file" id="inp-picture" accept="image/*" style="display:none">
       </div>
       <div class="vs-section-hdr" style="margin-top:6px">VEHICLE KEY</div>
       <table class="vs-key-table" id="vs-key-table">
         <tbody id="vs-key-tbody"></tbody>
       </table>
-      <button class="ed-btn vs-key-add-btn" id="btn-add-key">+ Key</button>
     </div>
     <div class="vs-bottom-right">
       <div class="vs-section-hdr">VEHICLE LAYOUT</div>
