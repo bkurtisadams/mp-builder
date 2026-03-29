@@ -1,7 +1,8 @@
-// mp-app.js v2.2.0 — System-first placement model
+// mp-app.js v2.3.0 — Record Sheet as primary, Floor Plan as secondary
 
 const veh = new Vehicle();
 let editor = null;
+let layoutEditor = null; // mini canvas on the record sheet
 
 // ---- Tab navigation ----
 document.querySelectorAll(".mp-tab-btn").forEach(btn => {
@@ -16,60 +17,40 @@ document.querySelectorAll(".mp-tab-btn").forEach(btn => {
   });
 });
 
-// ---- Build palette (ability picker for adding systems) ----
-function buildPalette() {
-  const scroll = document.getElementById("ed-pal-scroll");
-  let html = "";
-  for (const cat of MP.CATEGORIES) {
-    const items = MP.ABILITY_TYPES.filter(t => t.cat === cat);
-    if (!items.length) continue;
-    html += `<div class="ed-pal-cat">${cat}</div>`;
-    for (const t of items) {
-      html += `<div class="ed-pal-item" data-ability="${t.id}" title="${t.name} — click to add system">
-        <span class="ed-pal-sw" style="background:${t.color}"></span>
-        <span class="ed-pal-nm">${t.name}</span>
-      </div>`;
-    }
-  }
-  scroll.innerHTML = html;
-
-  scroll.querySelectorAll(".ed-pal-item").forEach(el => {
-    el.addEventListener("click", () => {
-      const abilityId = el.dataset.ability;
-      addSystemFromPalette(abilityId);
-    });
-  });
-}
-
-// ---- Add system from palette click ----
-function addSystemFromPalette(abilityId) {
-  const spaces = parseInt(document.getElementById("inp-place-spaces").value) || 1;
-  if (spaces > veh.remainingSpaces) {
-    alert(`Not enough spaces. ${veh.remainingSpaces} remaining.`);
-    return;
-  }
-  const sys = veh.addSystem(abilityId, spaces);
-  if (!sys) return;
-  // Auto-select and enter paint mode
-  editor.setActiveSys(sys.id);
-  updateStats();
-}
-
-// ---- Chassis select ----
+// ---- Populate chassis select ----
 function buildChassisSelect() {
-  const sel = document.getElementById("cfg-chassis");
+  const sel = document.getElementById("vs-chassis");
   MP.CHASSIS.forEach((ch, i) => {
     const opt = document.createElement("option");
     opt.value = i;
-    opt.textContent = `(${ch.cp}) ${ch.sp} spc — ${ch.wt}`;
+    opt.textContent = `(${ch.cp} CP) ${ch.sp} spc — ${ch.wt}`;
     sel.appendChild(opt);
   });
   sel.value = veh.chassisIdx;
 }
 
-// ---- Weakness select ----
+// ---- Populate ability select for adding systems ----
+function buildAbilitySelect() {
+  const sel = document.getElementById("vs-add-ability");
+  sel.innerHTML = "";
+  for (const cat of MP.CATEGORIES) {
+    const items = MP.ABILITY_TYPES.filter(t => t.cat === cat);
+    if (!items.length) continue;
+    const grp = document.createElement("optgroup");
+    grp.label = cat;
+    for (const t of items) {
+      const opt = document.createElement("option");
+      opt.value = t.id;
+      opt.textContent = t.name;
+      grp.appendChild(opt);
+    }
+    sel.appendChild(grp);
+  }
+}
+
+// ---- Populate weakness select ----
 function buildWeaknessSelect() {
-  const sel = document.getElementById("sel-weakness");
+  const sel = document.getElementById("vs-add-weakness");
   sel.innerHTML = "";
   for (const w of MP.WEAKNESSES) {
     const opt = document.createElement("option");
@@ -79,170 +60,250 @@ function buildWeaknessSelect() {
   }
 }
 
-// ---- Mode buttons ----
+// ---- Build palette for floor plan tab ----
+function buildPalette() {
+  const scroll = document.getElementById("ed-pal-scroll");
+  let html = '<div style="padding:6px 8px;font-size:9px;color:var(--tx3);font-style:italic">Systems are added on the Record Sheet tab. Select a system there, then paint its cells here.</div>';
+  // Show current systems as selectable items
+  html += '<div class="ed-pal-cat">Current Systems</div>';
+  for (const sys of veh.systems) {
+    const ab = MP.abilityById(sys.abilityId);
+    const name = sys.abilityId === "custom" && sys.customName ? sys.customName : (ab?.name || "?");
+    const active = editor && editor.activeSysId === sys.id;
+    html += `<div class="ed-pal-item${active ? " active" : ""}" data-sysid="${sys.id}">
+      <span class="ed-pal-sw" style="background:${ab?.color || "#707070"}"></span>
+      <span class="ed-pal-nm">${name} (${sys.cells.length}/${sys.spaces})</span>
+    </div>`;
+  }
+  scroll.innerHTML = html;
+
+  scroll.querySelectorAll(".ed-pal-item[data-sysid]").forEach(el => {
+    el.addEventListener("click", () => {
+      const id = parseInt(el.dataset.sysid);
+      editor.setActiveSys(id);
+      updateModeButtons();
+      buildPalette(); // refresh active state
+    });
+  });
+}
+
+// ---- Update all computed displays ----
+function updateAll() {
+  const ch = veh.chassis;
+  const a = veh.armor;
+
+  // Chassis row
+  document.getElementById("vs-sys-spaces").textContent = ch.sp;
+  document.getElementById("vs-profile").textContent = "x" + ch.prof;
+  document.getElementById("vs-weight").textContent = ch.wt.replace(" lbs", "");
+  document.getElementById("vs-mass").textContent = ch.mass;
+
+  // Hits/Power
+  document.getElementById("vs-basic-cost").textContent = veh.baseCost;
+  document.getElementById("vs-hits").textContent = veh.hits;
+  document.getElementById("vs-power").textContent = veh.power;
+  document.getElementById("vs-explosion").textContent = veh.explosionDice;
+  document.getElementById("vs-area").textContent = veh.explosionArea;
+
+  // Armor (auto from chassis base + armor systems)
+  document.getElementById("vs-armor-kin").value = a.kin;
+  document.getElementById("vs-armor-eng").value = a.eng;
+  document.getElementById("vs-armor-bio").value = a.bio;
+  document.getElementById("vs-armor-ent").value = a.ent;
+  document.getElementById("vs-armor-psy").value = a.psy;
+
+  // Totals
+  document.getElementById("vs-total-cost").textContent = veh.totalCost;
+  document.getElementById("vs-spaces-used").textContent = veh.allocatedSpaces;
+  document.getElementById("vs-spaces-remain").textContent = veh.remainingSpaces;
+  document.getElementById("vs-spare-parts").textContent = veh.spareParts;
+
+  // Stats
+  document.getElementById("vs-st").textContent = veh.st;
+  document.getElementById("vs-hth").textContent = MP.hthDamage(veh.st);
+  document.getElementById("vs-en").textContent = veh.en;
+  document.getElementById("vs-en-save").textContent = MP.save(veh.en);
+  document.getElementById("vs-ag").textContent = veh.ag;
+  document.getElementById("vs-ag-save").textContent = MP.save(veh.ag);
+  document.getElementById("vs-handling").textContent = veh.handling;
+  document.getElementById("vs-in").textContent = veh.intel;
+  document.getElementById("vs-in-save").textContent = MP.save(veh.intel);
+  document.getElementById("vs-cl").textContent = veh.cl;
+  document.getElementById("vs-cl-save").textContent = MP.save(veh.cl);
+  document.getElementById("vs-turn-rate").textContent = veh.turnRate;
+  document.getElementById("vs-init").textContent = MP.initDie(MP.save(veh.cl));
+  document.getElementById("vs-defense").textContent = veh.defense;
+  document.getElementById("vs-carry").textContent = MP.carry(veh.st);
+
+  // Systems table
+  renderSystemsTable();
+  renderWeaknesses();
+  renderKey();
+  if (editor) { editor.draw(); buildPalette(); }
+  if (layoutEditor) layoutEditor.draw();
+}
+
+// ---- Systems table ----
+function renderSystemsTable() {
+  const el = document.getElementById("vs-sys-rows");
+  if (!veh.systems.length) {
+    el.innerHTML = '<div style="padding:6px;font-size:9px;color:var(--tx3);font-style:italic">No systems added yet</div>';
+    return;
+  }
+  el.innerHTML = veh.systems.map(s => {
+    const ab = MP.abilityById(s.abilityId);
+    const name = s.abilityId === "custom" && s.customName ? s.customName : (ab?.name || "?");
+    const cp = veh.sysCPs(s);
+    const hits = veh.sysHits(s);
+    const prof = veh.sysProfileDisplay(s);
+    const active = editor && editor.activeSysId === s.id ? " active" : "";
+    return `<div class="vs-sys-row${active}" data-id="${s.id}">
+      <span class="vs-sys-val">${cp}</span>
+      <span class="vs-sys-val">${s.spaces}</span>
+      <span class="vs-sys-val">${prof}</span>
+      <span class="vs-sys-val">${hits}</span>
+      <input type="text" value="${s.dmg || ""}" data-field="dmg" data-id="${s.id}" placeholder="" title="Damage">
+      <input type="text" value="${s.pts || ""}" data-field="pts" data-id="${s.id}" placeholder="" title="PTs">
+      <input type="text" class="vs-sys-desc" value="${s.desc || name}" data-field="desc" data-id="${s.id}" title="Description, arc, facing">
+      <span class="vs-sys-del" data-id="${s.id}" title="Remove">×</span>
+    </div>`;
+  }).join("");
+
+  // Wire editable fields
+  el.querySelectorAll("input").forEach(inp => {
+    inp.addEventListener("change", () => {
+      const sys = veh.findSystem(parseInt(inp.dataset.id));
+      if (sys) sys[inp.dataset.field] = inp.value;
+    });
+  });
+
+  // Wire delete
+  el.querySelectorAll(".vs-sys-del").forEach(del => {
+    del.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = parseInt(del.dataset.id);
+      veh.removeSystem(id);
+      if (editor && editor.activeSysId === id) editor.activeSysId = null;
+      updateAll();
+    });
+  });
+
+  // Wire row click to select for painting
+  el.querySelectorAll(".vs-sys-row").forEach(row => {
+    row.addEventListener("click", (e) => {
+      if (e.target.tagName === "INPUT" || e.target.classList.contains("vs-sys-del")) return;
+      const id = parseInt(row.dataset.id);
+      if (editor) editor.setActiveSys(id);
+      updateAll();
+    });
+  });
+}
+
+// ---- Weaknesses ----
+function renderWeaknesses() {
+  const el = document.getElementById("vs-wk-rows");
+  if (!veh.weaknesses.length) {
+    el.innerHTML = '<div style="padding:3px;font-size:9px;color:var(--tx3);font-style:italic">None</div>';
+    return;
+  }
+  el.innerHTML = veh.weaknesses.map(w => {
+    const def = MP.WEAKNESSES.find(d => d.id === w.weakId);
+    return `<div class="vs-wk-row">
+      <span>${def?.name || "?"}</span>
+      <span><span class="vs-wk-cp">${def?.cpMod || 0}</span>
+        <span class="vs-wk-del" data-id="${w.id}">×</span></span>
+    </div>`;
+  }).join("");
+  el.querySelectorAll(".vs-wk-del").forEach(del => {
+    del.addEventListener("click", () => {
+      veh.removeWeakness(parseInt(del.dataset.id));
+      updateAll();
+    });
+  });
+}
+
+// ---- Vehicle Key (legend for floor plan) ----
+function renderKey() {
+  const el = document.getElementById("vs-key");
+  if (!veh.systems.length) {
+    el.innerHTML = '<div style="font-size:9px;color:var(--tx3);font-style:italic">No systems</div>';
+    return;
+  }
+  el.innerHTML = veh.systems.map(s => {
+    const ab = MP.abilityById(s.abilityId);
+    const name = s.abilityId === "custom" && s.customName ? s.customName : (ab?.name || "?");
+    return `<div class="vs-key-item">
+      <span class="vs-key-sw" style="background:${ab?.color || "#707070"}"></span>
+      <span>${name} — ${s.spaces} spc, ${veh.sysCPs(s)} CPs</span>
+    </div>`;
+  }).join("");
+}
+
+// ---- Add system button ----
+document.getElementById("btn-add-system").addEventListener("click", () => {
+  const abilityId = document.getElementById("vs-add-ability").value;
+  const spaces = parseInt(document.getElementById("vs-add-spaces").value) || 1;
+  if (spaces > veh.remainingSpaces) {
+    alert(`Not enough spaces. ${veh.remainingSpaces} remaining.`);
+    return;
+  }
+  const sys = veh.addSystem(abilityId, spaces);
+  if (sys) {
+    // Pre-fill description with ability name
+    const ab = MP.abilityById(abilityId);
+    sys.desc = ab?.name || "";
+  }
+  updateAll();
+});
+
+// ---- Add weakness button ----
+document.getElementById("btn-add-weakness-vs").addEventListener("click", () => {
+  const weakId = document.getElementById("vs-add-weakness").value;
+  if (!weakId) return;
+  veh.addWeakness(weakId);
+  updateAll();
+});
+
+// ---- Config change handlers ----
+function onConfigChange() {
+  veh.name = document.getElementById("vs-name").value;
+  veh.model = document.getElementById("vs-model").value;
+  veh.operator = document.getElementById("vs-operator").value;
+  veh.chassisIdx = parseInt(document.getElementById("vs-chassis").value);
+  veh.techMod = parseInt(document.getElementById("vs-tech").value);
+  veh.maneuverMod = parseInt(document.getElementById("vs-maneuver").value);
+  veh.wontExplode = document.getElementById("vs-noexplode").checked;
+  veh.isBase = document.getElementById("vs-base").checked;
+  veh.notes = document.getElementById("vs-notes").value;
+  updateAll();
+}
+
+["vs-name","vs-model","vs-operator","vs-notes"].forEach(id => {
+  document.getElementById(id).addEventListener("input", onConfigChange);
+});
+["vs-chassis","vs-tech","vs-maneuver"].forEach(id => {
+  document.getElementById(id).addEventListener("change", onConfigChange);
+});
+["vs-noexplode","vs-base"].forEach(id => {
+  document.getElementById(id).addEventListener("change", onConfigChange);
+});
+
+// ---- Mode buttons (floor plan tab) ----
 function updateModeButtons() {
+  if (!editor) return;
   document.getElementById("btn-mode-select").classList.toggle("active", editor.mode === "select");
   document.getElementById("btn-mode-paint").classList.toggle("active", editor.mode === "paint");
   document.getElementById("btn-mode-erase").classList.toggle("active", editor.mode === "erase");
 }
 
-// ---- Stats panel ----
-function updateStats() {
-  const ch = veh.chassis;
-  const a = veh.armor;
-  const grid = document.getElementById("ed-stat-grid");
-  grid.innerHTML = [
-    ["Base CPs", ch.cp],
-    ["Total Cost", veh.totalCost],
-    ["Spaces", `${veh.allocatedSpaces} / ${ch.sp}`],
-    ["Remaining", veh.remainingSpaces],
-    ["Profile", "x" + ch.prof],
-    ["Weight", ch.wt],
-    ["Mass", ch.mass],
-    ["Hits", veh.hits],
-    ["Power", veh.power],
-    ["Armor K/E/B/Ent", a.kin],
-    ["Psychic", a.psy],
-    ["Explosion", veh.explosionDice],
-    ["Expl Area", veh.explosionArea + '"'],
-    ["ST", veh.st],
-    ["Base HTH", MP.hthDamage(veh.st)],
-    ["EN", veh.en],
-    ["EN Save", MP.save(veh.en)],
-    ["AG", veh.ag],
-    ["AG Save", MP.save(veh.ag)],
-    ["Handling", veh.handling],
-    ["IN", veh.intel],
-    ["IN Save", MP.save(veh.intel)],
-    ["CL", veh.cl],
-    ["CL Save", MP.save(veh.cl)],
-    ["Turn Rate", veh.turnRate],
-    ["Initiative", MP.initDie(MP.save(veh.cl))],
-    ["Defense", veh.defense],
-    ["Carry", MP.carry(veh.st)],
-    ["Spare Parts", veh.spareParts + " Hits"],
-  ].map(([l, v]) => `<div class="ed-s"><span class="ed-sl">${l}</span><span class="ed-sv">${v}</span></div>`).join("");
-
-  // Systems list
-  const listEl = document.getElementById("ed-sys-list");
-  const countEl = document.getElementById("ed-sys-count");
-  countEl.textContent = `(${veh.allocatedSpaces}/${ch.sp} spc)`;
-  if (!veh.systems.length) {
-    listEl.innerHTML = '<div style="color:var(--tx3);font-style:italic;padding:4px">No systems — click an ability in the palette to add one</div>';
-  } else {
-    listEl.innerHTML = veh.systems.map(s => {
-      const ab = MP.abilityById(s.abilityId);
-      const name = s.abilityId === "custom" && s.customName ? s.customName : (ab?.name || "?");
-      const cp = veh.sysCPs(s);
-      const sel = editor && editor.activeSysId === s.id ? " sel" : "";
-      const placed = s.cells.length;
-      const budget = s.spaces;
-      const status = placed < budget ? ` [${placed}/${budget}]` : "";
-      return `<div class="ed-sys-item${sel}" data-id="${s.id}">
-        <span><b>${name}</b> ${budget}spc ${veh.sysHits(s)}hp${status}</span>
-        <span style="display:flex;align-items:center;gap:4px">
-          <span class="ed-sys-cp">${cp}cp</span>
-          <span class="ed-sys-del" data-id="${s.id}" title="Remove system" style="color:var(--vr);cursor:pointer;font-weight:700;font-size:11px">×</span>
-        </span>
-      </div>`;
-    }).join("");
-
-    listEl.querySelectorAll(".ed-sys-item").forEach(el => {
-      el.addEventListener("click", (e) => {
-        if (e.target.classList.contains("ed-sys-del")) return;
-        const id = parseInt(el.dataset.id);
-        editor.setActiveSys(id);
-        updateModeButtons();
-        updateStats();
-      });
-    });
-
-    listEl.querySelectorAll(".ed-sys-del").forEach(el => {
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const id = parseInt(el.dataset.id);
-        veh.removeSystem(id);
-        if (editor.activeSysId === id) editor.activeSysId = null;
-        editor.draw();
-        updateStats();
-      });
-    });
-  }
-
-  updateWeaknesses();
-  updateModeButtons();
-}
-
-// ---- Weaknesses ----
-function updateWeaknesses() {
-  const listEl = document.getElementById("ed-wk-list");
-  const totalEl = document.getElementById("ed-wk-total");
-  const wkCPs = veh.weaknessCPs;
-  totalEl.textContent = wkCPs ? `(${wkCPs} CPs)` : "";
-  if (!veh.weaknesses.length) {
-    listEl.innerHTML = '<div style="color:var(--tx3);font-style:italic;padding:4px">No weaknesses</div>';
-    return;
-  }
-  listEl.innerHTML = veh.weaknesses.map(w => {
-    const def = MP.WEAKNESSES.find(d => d.id === w.weakId);
-    return `<div class="ed-wk-item" data-id="${w.id}">
-      <span class="ed-wk-name">${def?.name || "?"}</span>
-      <span><span class="ed-wk-cp">${def?.cpMod || 0}</span>
-        <span class="ed-wk-del" data-id="${w.id}" title="Remove">×</span></span>
-    </div>`;
-  }).join("");
-  listEl.querySelectorAll(".ed-wk-del").forEach(el => {
-    el.addEventListener("click", (e) => {
-      e.stopPropagation();
-      veh.removeWeakness(parseInt(el.dataset.id));
-      updateStats();
-    });
-  });
-}
-
-document.getElementById("btn-add-weakness").addEventListener("click", () => {
-  const sel = document.getElementById("sel-weakness");
-  if (!sel.value) return;
-  veh.addWeakness(sel.value);
-  updateStats();
-});
-
-// ---- Config ----
-function onConfigChange() {
-  veh.name = document.getElementById("cfg-name").value;
-  veh.model = document.getElementById("cfg-model").value;
-  veh.operator = document.getElementById("cfg-operator").value;
-  veh.chassisIdx = parseInt(document.getElementById("cfg-chassis").value);
-  veh.techMod = parseInt(document.getElementById("cfg-tech").value);
-  veh.maneuverMod = parseInt(document.getElementById("cfg-maneuver").value);
-  veh.wontExplode = document.getElementById("cfg-noexplode").checked;
-  veh.isBase = document.getElementById("cfg-base").checked;
-  veh.notes = document.getElementById("cfg-notes").value;
-  updateStats();
-}
-
-["cfg-name","cfg-model","cfg-operator","cfg-notes"].forEach(id => {
-  document.getElementById(id).addEventListener("input", onConfigChange);
-});
-["cfg-chassis","cfg-tech","cfg-maneuver"].forEach(id => {
-  document.getElementById(id).addEventListener("change", onConfigChange);
-});
-["cfg-noexplode","cfg-base"].forEach(id => {
-  document.getElementById(id).addEventListener("change", onConfigChange);
-});
-
-// ---- Toolbar ----
 document.getElementById("btn-mode-select").addEventListener("click", () => {
-  editor.setMode("select");
-  updateModeButtons();
+  editor.setMode("select"); updateModeButtons();
 });
 document.getElementById("btn-mode-paint").addEventListener("click", () => {
-  if (editor.activeSysId) editor.setMode("paint");
-  updateModeButtons();
+  if (editor.activeSysId) editor.setMode("paint"); updateModeButtons();
 });
 document.getElementById("btn-mode-erase").addEventListener("click", () => {
-  editor.setMode("erase");
-  updateModeButtons();
+  editor.setMode("erase"); updateModeButtons();
 });
 document.getElementById("btn-zoom-in").addEventListener("click", () => editor.zoomIn());
 document.getElementById("btn-zoom-out").addEventListener("click", () => editor.zoomOut());
@@ -250,7 +311,7 @@ document.getElementById("btn-zoom-reset").addEventListener("click", () => editor
 
 // ---- Export ----
 document.getElementById("btn-save").addEventListener("click", () => {
-  veh.notes = document.getElementById("cfg-notes").value;
+  veh.notes = document.getElementById("vs-notes").value;
   const data = JSON.stringify(veh.toJSON(), null, 2);
   const blob = new Blob([data], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -268,17 +329,16 @@ document.getElementById("inp-json").addEventListener("change", e => {
   reader.onload = ev => {
     try {
       veh.fromJSON(JSON.parse(ev.target.result));
-      document.getElementById("cfg-name").value = veh.name;
-      document.getElementById("cfg-model").value = veh.model;
-      document.getElementById("cfg-operator").value = veh.operator;
-      document.getElementById("cfg-chassis").value = veh.chassisIdx;
-      document.getElementById("cfg-tech").value = veh.techMod;
-      document.getElementById("cfg-maneuver").value = veh.maneuverMod;
-      document.getElementById("cfg-noexplode").checked = veh.wontExplode;
-      document.getElementById("cfg-base").checked = veh.isBase;
-      document.getElementById("cfg-notes").value = veh.notes;
-      editor.draw();
-      updateStats();
+      document.getElementById("vs-name").value = veh.name;
+      document.getElementById("vs-model").value = veh.model;
+      document.getElementById("vs-operator").value = veh.operator;
+      document.getElementById("vs-chassis").value = veh.chassisIdx;
+      document.getElementById("vs-tech").value = veh.techMod;
+      document.getElementById("vs-maneuver").value = veh.maneuverMod;
+      document.getElementById("vs-noexplode").checked = veh.wontExplode;
+      document.getElementById("vs-base").checked = veh.isBase;
+      document.getElementById("vs-notes").value = veh.notes;
+      updateAll();
     } catch (err) { alert("Invalid JSON: " + err.message); }
   };
   reader.readAsText(e.target.files[0]);
@@ -286,7 +346,7 @@ document.getElementById("inp-json").addEventListener("change", e => {
 });
 
 document.getElementById("btn-csv").addEventListener("click", () => {
-  veh.notes = document.getElementById("cfg-notes").value;
+  veh.notes = document.getElementById("vs-notes").value;
   const csv = veh.toCSV();
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
@@ -305,15 +365,24 @@ document.getElementById("btn-png").addEventListener("click", () => {
 });
 
 // ---- Init ----
-buildPalette();
 buildChassisSelect();
+buildAbilitySelect();
 buildWeaknessSelect();
 
+// Floor plan editor (full-size, on editor tab)
 const canvasEl = document.getElementById("ed-canvas");
 const wrapEl = document.getElementById("ed-canvas-wrap");
 editor = new FloorPlanEditor(canvasEl, wrapEl, veh);
-editor.onUpdate = updateStats;
+editor.onUpdate = () => { updateAll(); };
 editor.panX = 40;
 editor.panY = 40;
-editor.draw();
-updateStats();
+
+// Mini layout canvas on record sheet
+const layoutCanvasEl = document.getElementById("vs-layout-canvas");
+const layoutWrapEl = document.getElementById("vs-layout-wrap");
+layoutEditor = new FloorPlanEditor(layoutCanvasEl, layoutWrapEl, veh);
+layoutEditor.onUpdate = () => { updateAll(); };
+layoutEditor.panX = 20;
+layoutEditor.panY = 20;
+
+updateAll();

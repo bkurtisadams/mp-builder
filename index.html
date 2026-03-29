@@ -12,33 +12,191 @@
   <div class="mp-hdr-in">
     <h1 class="mp-logo">MIGHTY PROTECTORS&trade;<span class="mp-logo-sub">Vehicle Builder</span></h1>
     <nav class="mp-tabs">
-      <button class="mp-tab-btn active" data-tab="editor">Floor Plan Editor</button>
-      <button class="mp-tab-btn" data-tab="sheet">Record Sheet</button>
+      <button class="mp-tab-btn active" data-tab="sheet">Record Sheet</button>
+      <button class="mp-tab-btn" data-tab="editor">Floor Plan</button>
     </nav>
+    <div class="mp-hdr-export">
+      <button class="ed-btn-sm" id="btn-save">Save JSON</button>
+      <button class="ed-btn-sm" id="btn-load">Load JSON</button>
+      <button class="ed-btn-sm" id="btn-csv">CSV</button>
+      <button class="ed-btn-sm" id="btn-png">Plan PNG</button>
+      <input type="file" id="inp-json" accept=".json" style="display:none">
+    </div>
   </div>
 </header>
 
 <main class="mp-main">
 
-<!-- ==================== EDITOR TAB ==================== -->
-<section class="mp-panel active" id="tab-editor">
-  <div class="ed-layout">
+<!-- ==================== RECORD SHEET TAB ==================== -->
+<section class="mp-panel active" id="tab-sheet">
+<div class="vs-wrap">
+<div class="vs-sheet">
 
-    <!-- LEFT: Palette -->
+  <!-- TITLE -->
+  <div class="vs-title">MIGHTY PROTECTORS&reg; VEHICLE RECORD SHEET</div>
+
+  <!-- ROW 1: Name / Model / Operator -->
+  <div class="vs-row vs-identity">
+    <label>NAME:</label><input type="text" id="vs-name" class="vs-inp vs-inp-wide">
+    <label>MODEL:</label><input type="text" id="vs-model" class="vs-inp vs-inp-med">
+    <label>OPERATOR:</label><input type="text" id="vs-operator" class="vs-inp vs-inp-med">
+  </div>
+
+  <!-- ROW 2: Chassis stats -->
+  <div class="vs-row vs-chassis">
+    <label>SYSTEM SPACES:</label><span class="vs-val" id="vs-sys-spaces">4</span>
+    <label>PROFILE:</label><span class="vs-val" id="vs-profile">x2.0</span>
+    <label>WEIGHT:</label><span class="vs-val" id="vs-weight">720</span><span class="vs-unit">lbs</span>
+    <label>MASS:</label><span class="vs-val" id="vs-mass">d6+1</span>
+  </div>
+
+  <!-- ROW 3: Armor -->
+  <div class="vs-row vs-armor">
+    <label>ARMOR:</label>
+    <label class="vs-sub">Kinetic:</label><input type="number" id="vs-armor-kin" class="vs-inp vs-inp-sm" value="3">
+    <label class="vs-sub">Energy:</label><input type="number" id="vs-armor-eng" class="vs-inp vs-inp-sm" value="3">
+    <label class="vs-sub">Biochem:</label><input type="number" id="vs-armor-bio" class="vs-inp vs-inp-sm" value="3">
+    <label class="vs-sub">Entropy:</label><input type="number" id="vs-armor-ent" class="vs-inp vs-inp-sm" value="3">
+    <label class="vs-sub">Psychic:</label><input type="number" id="vs-armor-psy" class="vs-inp vs-inp-sm" value="0">
+  </div>
+
+  <!-- ROW 4: Hits / Power / Explosion -->
+  <div class="vs-row vs-hp">
+    <div class="vs-box-label">BASIC<br>COST</div>
+    <span class="vs-val vs-val-box" id="vs-basic-cost">5</span>
+    <label>HITS (</label><span class="vs-val" id="vs-hits">16</span><label>):</label>
+    <input type="number" id="vs-hits-cur" class="vs-inp vs-inp-sm" value="16">
+    <label>POWER (</label><span class="vs-val" id="vs-power">45</span><label>):</label>
+    <input type="number" id="vs-power-cur" class="vs-inp vs-inp-sm" value="45">
+    <label>EXPLOSION:</label><span class="vs-val" id="vs-explosion">2d8</span>
+    <label>AREA:</label><span class="vs-val" id="vs-area">3.0</span><span class="vs-unit">"</span>
+  </div>
+
+  <!-- ROW 5: Vehicle Mods -->
+  <div class="vs-row vs-mods">
+    <label>Vehicle Mods:</label>
+    <label class="vs-sub">Hi/Lo Tech</label>
+    <select id="vs-tech" class="vs-sel">
+      <option value="-15">-15</option><option value="-10">-10</option><option value="-5">-5</option>
+      <option value="0" selected>0</option>
+      <option value="5">+5</option><option value="10">+10</option><option value="15">+15</option>
+    </select>
+    <label class="vs-sub">Maneuver</label>
+    <select id="vs-maneuver" class="vs-sel">
+      <option value="-10">-10</option><option value="-5">-5</option>
+      <option value="0" selected>0</option>
+      <option value="5">+5</option><option value="10">+10</option>
+    </select>
+    <label class="vs-sub">Won't Explode</label><input type="checkbox" id="vs-noexplode">
+    <label class="vs-sub">Base</label><input type="checkbox" id="vs-base">
+    <label class="vs-sub" style="margin-left:12px">Chassis:</label>
+    <select id="vs-chassis" class="vs-sel vs-sel-wide"></select>
+  </div>
+
+  <!-- SYSTEMS TABLE -->
+  <div class="vs-sys-hdr">
+    <span class="vs-sh-c">COST</span>
+    <span class="vs-sh-s">SYSTEM<br>SPACES</span>
+    <span class="vs-sh-p">PROFILE</span>
+    <span class="vs-sh-h">HITS</span>
+    <span class="vs-sh-d">DMG</span>
+    <span class="vs-sh-t">PTs</span>
+    <span class="vs-sh-desc">VEHICLE SYSTEMS &amp; MODIFIERS</span>
+  </div>
+  <div id="vs-sys-rows" class="vs-sys-rows"></div>
+  <div class="vs-sys-add">
+    <select id="vs-add-ability" class="vs-sel vs-sel-wide"></select>
+    <label class="vs-sub">Spaces:</label>
+    <input type="number" id="vs-add-spaces" class="vs-inp vs-inp-sm" value="1" min="1">
+    <button class="ed-btn" id="btn-add-system">+ Add System</button>
+  </div>
+
+  <!-- TOTALS ROW -->
+  <div class="vs-row vs-totals">
+    <span class="vs-val vs-val-box" id="vs-total-cost">5</span>
+    <label>TOTAL COST</label>
+    <label style="margin-left:16px">Spaces Used:</label><span class="vs-val" id="vs-spaces-used">0</span>
+    <label>Remaining:</label><span class="vs-val vs-val-green" id="vs-spaces-remain">4</span>
+    <label>Spare Parts:</label><span class="vs-val" id="vs-spare-parts">0</span>
+  </div>
+
+  <!-- STATS BLOCK -->
+  <div class="vs-stats">
+    <div class="vs-stats-row">
+      <label>ST:</label><span class="vs-val" id="vs-st">18</span>
+      <label>Base HTH:</label><span class="vs-val" id="vs-hth">d8+1</span>
+      <label>EN:</label><span class="vs-val" id="vs-en">18</span>
+      <label>EN Save:</label><span class="vs-val" id="vs-en-save">12</span>
+      <label>Turn Rate:</label><span class="vs-val" id="vs-turn-rate">3</span>
+      <label>Init:</label><span class="vs-val" id="vs-init">d4</span>
+    </div>
+    <div class="vs-stats-row">
+      <label>AG:</label><span class="vs-val" id="vs-ag">9</span>
+      <label>AG Save:</label><span class="vs-val" id="vs-ag-save">10</span>
+      <label>Handling:</label><span class="vs-val" id="vs-handling">0</span>
+      <label>IN:</label><span class="vs-val" id="vs-in">0</span>
+      <label>IN Save:</label><span class="vs-val" id="vs-in-save">6</span>
+      <label>CL:</label><span class="vs-val" id="vs-cl">9</span>
+      <label>CL Save:</label><span class="vs-val" id="vs-cl-save">10</span>
+    </div>
+    <div class="vs-stats-row">
+      <label>Defense:</label><span class="vs-val" id="vs-defense">0</span>
+      <label>Carry:</label><span class="vs-val" id="vs-carry">648 lbs</span>
+    </div>
+  </div>
+
+  <!-- WEAKNESSES -->
+  <div class="vs-section">
+    <div class="vs-section-hdr">WEAKNESSES</div>
+    <div id="vs-wk-rows" class="vs-wk-rows"></div>
+    <div class="vs-wk-add">
+      <select id="vs-add-weakness" class="vs-sel vs-sel-wide"></select>
+      <button class="ed-btn" id="btn-add-weakness-vs">+ Add</button>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div class="vs-section">
+    <div class="vs-section-hdr">NOTES</div>
+    <textarea id="vs-notes" class="vs-notes" rows="3" placeholder="Vehicle modifiers, special features, travel abilities, appearance, etc."></textarea>
+  </div>
+
+  <!-- BOTTOM: Vehicle Key + Vehicle Layout -->
+  <div class="vs-bottom">
+    <div class="vs-bottom-left">
+      <div class="vs-section-hdr">VEHICLE KEY</div>
+      <div id="vs-key" class="vs-key"></div>
+    </div>
+    <div class="vs-bottom-right">
+      <div class="vs-section-hdr">VEHICLE LAYOUT</div>
+      <div class="vs-layout-canvas" id="vs-layout-wrap">
+        <canvas id="vs-layout-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="vs-sheet-ftr">
+    &copy; 2017 Monkey House Games. Permission granted to copy for private use.
+    Mighty Protectors is a registered trademark of Monkey House Games.
+  </div>
+
+</div>
+</div>
+</section>
+
+<!-- ==================== FLOOR PLAN EDITOR TAB ==================== -->
+<section class="mp-panel" id="tab-editor">
+  <div class="ed-layout">
     <div class="ed-palette" id="ed-palette">
       <div class="ed-pal-hdr">Systems & Abilities</div>
       <div class="ed-pal-scroll" id="ed-pal-scroll"></div>
     </div>
-
-    <!-- CENTER: Canvas -->
     <div class="ed-center">
       <div class="ed-toolbar" id="ed-toolbar">
         <button id="btn-mode-select" class="ed-btn ed-btn-mode active" title="Select (S)">Select</button>
-        <button id="btn-mode-paint" class="ed-btn ed-btn-mode" title="Paint cells for active system">Paint</button>
-        <button id="btn-mode-erase" class="ed-btn ed-btn-mode" title="Erase cells (E)">Erase</button>
-        <span class="ed-sep"></span>
-        <label class="ed-tb-lbl">Spaces:</label>
-        <input id="inp-place-spaces" type="number" class="ed-tb-input" value="1" min="1" max="524288" title="System spaces to allocate">
+        <button id="btn-mode-paint" class="ed-btn ed-btn-mode" title="Paint cells">Paint</button>
+        <button id="btn-mode-erase" class="ed-btn ed-btn-mode" title="Erase (E)">Erase</button>
         <span class="ed-sep"></span>
         <button id="btn-zoom-in" class="ed-btn" title="Zoom in">+</button>
         <button id="btn-zoom-out" class="ed-btn" title="Zoom out">−</button>
@@ -48,97 +206,11 @@
         <canvas id="ed-canvas"></canvas>
       </div>
       <div class="ed-hint">
-        <b>Flow:</b> set spaces, click ability in palette to add system, then paint cells on canvas &nbsp;
-        <b>E</b>=erase &nbsp; <b>S</b>=select &nbsp; Right-drag=pan &nbsp; Scroll=zoom &nbsp;
+        Select system in Record Sheet, switch to Floor Plan, paint cells.
+        <b>E</b>=erase <b>S</b>=select Right-drag=pan Scroll=zoom
         Grid: 1 cell = 1 system space (2.5') / heavy lines = 5'
       </div>
     </div>
-
-    <!-- RIGHT: Config + Stats -->
-    <div class="ed-stats" id="ed-stats">
-      <div class="ed-pal-hdr">Vehicle</div>
-      <div class="ed-stats-scroll">
-
-        <!-- Identity -->
-        <div class="ed-cfg">
-          <div class="ed-cfg-row"><label>Name</label><input id="cfg-name" type="text"></div>
-          <div class="ed-cfg-row"><label>Model</label><input id="cfg-model" type="text"></div>
-          <div class="ed-cfg-row"><label>Operator</label><input id="cfg-operator" type="text"></div>
-        </div>
-
-        <!-- Chassis -->
-        <div class="ed-cfg">
-          <div class="ed-cfg-row"><label>Chassis</label><select id="cfg-chassis"></select></div>
-          <div class="ed-cfg-row"><label>Hi/Lo Tech</label>
-            <select id="cfg-tech">
-              <option value="-15">-15</option><option value="-10">-10</option><option value="-5">-5</option>
-              <option value="0" selected>0</option>
-              <option value="5">+5</option><option value="10">+10</option><option value="15">+15</option>
-            </select>
-          </div>
-          <div class="ed-cfg-row"><label>Maneuver</label>
-            <select id="cfg-maneuver">
-              <option value="-10">-10</option><option value="-5">-5</option>
-              <option value="0" selected>0</option>
-              <option value="5">+5</option><option value="10">+10</option>
-            </select>
-          </div>
-          <div class="ed-cfg-row">
-            <label>Won't Explode</label><input type="checkbox" id="cfg-noexplode">
-            <label style="margin-left:12px">Base</label><input type="checkbox" id="cfg-base">
-          </div>
-        </div>
-
-        <!-- Stats summary -->
-        <div class="ed-stat-card" id="ed-stat-card">
-          <div class="ed-sg" id="ed-stat-grid"></div>
-        </div>
-
-        <!-- Systems list -->
-        <div class="ed-cfg">
-          <div class="ed-cfg-hdr">Systems <span id="ed-sys-count"></span></div>
-          <div id="ed-sys-list" class="ed-sys-list"></div>
-        </div>
-
-        <!-- Weaknesses -->
-        <div class="ed-cfg">
-          <div class="ed-cfg-hdr">Weaknesses <span id="ed-wk-total"></span></div>
-          <div id="ed-wk-list" class="ed-wk-list"></div>
-          <div class="ed-wk-add">
-            <select id="sel-weakness"></select>
-            <button id="btn-add-weakness">+ Add</button>
-          </div>
-        </div>
-
-        <!-- Notes -->
-        <div class="ed-cfg">
-          <div class="ed-cfg-hdr">Notes</div>
-          <textarea id="cfg-notes" rows="3" class="ed-notes"></textarea>
-        </div>
-
-        <!-- Export -->
-        <div class="ed-cfg">
-          <div class="ed-cfg-hdr">Export</div>
-          <div class="ed-export">
-            <button class="ed-btn-sm" id="btn-save">Save JSON</button>
-            <button class="ed-btn-sm" id="btn-load">Load JSON</button>
-            <button class="ed-btn-sm" id="btn-csv">CSV</button>
-            <button class="ed-btn-sm" id="btn-png">Floor Plan PNG</button>
-          </div>
-          <input type="file" id="inp-json" accept=".json" style="display:none">
-        </div>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-<!-- ==================== SHEET TAB (stub) ==================== -->
-<section class="mp-panel" id="tab-sheet">
-  <div style="padding:20px;max-width:800px">
-    <p style="color:var(--vb);font-style:italic;padding:10px;background:rgba(74,128,160,.08);border-left:3px solid var(--vb);border-radius:4px">
-      Printable record sheet view coming next. Will match the official MP Vehicle Record Sheet layout with the floor plan thumbnail at the bottom.
-    </p>
   </div>
 </section>
 
