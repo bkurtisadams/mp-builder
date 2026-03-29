@@ -358,3 +358,148 @@ MP.carry = function(st) {
   if (lbs >= 1000) return (lbs / 1000).toFixed(1) + "K lbs";
   return lbs + " lbs";
 };
+
+// ---- Vehicle Templates ----
+MP.TEMPLATES = [
+  {
+    name:"Motorcycle", basicCost:10, techMod:0, maneuverMod:5, wontExplode:false, isBase:false,
+    systems:[
+      {spaces:1, desc:"Control Seat", extraCPs:0},
+      {spaces:4, desc:"Speed: 16/256, 174 mph, PR=1", extraCPs:5},
+      {spaces:1, desc:"Headlight", extraCPs:0},
+    ]
+  },
+  {
+    name:"Compact Car", basicCost:15, techMod:0, maneuverMod:0, wontExplode:false, isBase:false,
+    systems:[
+      {spaces:1, desc:"Control Seat", extraCPs:0},
+      {spaces:3, desc:"Passenger Seats (3)", extraCPs:0},
+      {spaces:4, desc:"Speed: 16/256, 174 mph, PR=1", extraCPs:5},
+      {spaces:2, desc:"Cargo / Trunk", extraCPs:0},
+      {spaces:1, desc:"Headlights", extraCPs:0},
+      {spaces:1, desc:"Radio", extraCPs:0},
+    ]
+  },
+  {
+    name:"Sedan", basicCost:17.5, techMod:0, maneuverMod:0, wontExplode:false, isBase:false,
+    systems:[
+      {spaces:1, desc:"Control Seat", extraCPs:0},
+      {spaces:4, desc:"Passenger Seats (4)", extraCPs:0},
+      {spaces:6, desc:"Speed: 16/256, 174 mph, PR=1", extraCPs:5},
+      {spaces:4, desc:"Cargo / Trunk", extraCPs:0},
+      {spaces:1, desc:"Headlights", extraCPs:0},
+      {spaces:1, desc:"Radio", extraCPs:0},
+    ]
+  },
+  {
+    name:"Pickup Truck", basicCost:20, techMod:0, maneuverMod:-5, wontExplode:false, isBase:false,
+    systems:[
+      {spaces:1, desc:"Control Seat", extraCPs:0},
+      {spaces:2, desc:"Passenger Seats (2)", extraCPs:0},
+      {spaces:6, desc:"Speed: 16/256, 174 mph, PR=1", extraCPs:5},
+      {spaces:8, desc:"Cargo / Truck Bed", extraCPs:0},
+      {spaces:1, desc:"Headlights", extraCPs:0},
+      {spaces:1, desc:"Radio", extraCPs:0},
+    ]
+  },
+  {
+    name:"Semi Truck", basicCost:25, techMod:0, maneuverMod:-10, wontExplode:false, isBase:false,
+    systems:[
+      {spaces:1, desc:"Control Seat", extraCPs:0},
+      {spaces:1, desc:"Passenger Seat", extraCPs:0},
+      {spaces:1, desc:"Bunk", extraCPs:0},
+      {spaces:12, desc:"Speed: 16/256, 174 mph, PR=2", extraCPs:5},
+      {spaces:32, desc:"Cargo / Trailer", extraCPs:0, open:true},
+      {spaces:1, desc:"Headlights", extraCPs:0},
+      {spaces:1, desc:"Radio / CB", extraCPs:0},
+    ]
+  },
+  {
+    name:"Helicopter", basicCost:20, techMod:5, maneuverMod:5, wontExplode:false, isBase:false,
+    systems:[
+      {spaces:1, desc:"Control Seat (Pilot)", extraCPs:0},
+      {spaces:1, desc:"Control Seat (Co-Pilot)", extraCPs:0},
+      {spaces:4, desc:"Passenger Seats (4)", extraCPs:0},
+      {spaces:8, desc:"Flight: 16/256, 174 mph, PR=1", extraCPs:10},
+      {spaces:4, desc:"Cargo", extraCPs:0},
+      {spaces:1, desc:"Sensor Suite (Radar)", extraCPs:5},
+      {spaces:1, desc:"Radio / Comms", extraCPs:0},
+    ]
+  },
+  {
+    name:"Fighter Jet", basicCost:25, techMod:10, maneuverMod:0, wontExplode:false, isBase:false,
+    systems:[
+      {spaces:1, desc:"Control Seat (Ejection)", extraCPs:5},
+      {spaces:16, desc:"Flight: 32/512, 348 mph, PR=2", extraCPs:15},
+      {spaces:4, desc:"Energy Blast: 2d8, 22\" range", extraCPs:10},
+      {spaces:2, desc:"Sensor Suite (Radar/IR)", extraCPs:10},
+      {spaces:1, desc:"Radio / Comms", extraCPs:0},
+      {spaces:1, desc:"Countermeasures (Chaff/Flare)", extraCPs:5},
+    ]
+  },
+  {
+    name:"Speedboat", basicCost:17.5, techMod:0, maneuverMod:5, wontExplode:false, isBase:false,
+    systems:[
+      {spaces:1, desc:"Control Seat", extraCPs:0},
+      {spaces:3, desc:"Passenger Seats (3)", extraCPs:0},
+      {spaces:6, desc:"Swimming: 16/256, 174 mph, PR=1", extraCPs:5},
+      {spaces:2, desc:"Cargo", extraCPs:0},
+      {spaces:1, desc:"Navigation Lights", extraCPs:0},
+      {spaces:1, desc:"Radio", extraCPs:0},
+    ]
+  },
+  {
+    name:"Tank", basicCost:30, techMod:5, maneuverMod:-10, wontExplode:true, isBase:false,
+    systems:[
+      {spaces:1, desc:"Control Seat (Driver)", extraCPs:0},
+      {spaces:1, desc:"Control Seat (Commander)", extraCPs:0},
+      {spaces:1, desc:"Control Seat (Gunner)", extraCPs:0},
+      {spaces:1, desc:"Control Seat (Loader)", extraCPs:0},
+      {spaces:16, desc:"Speed: 8/128, 87 mph, PR=2", extraCPs:5},
+      {spaces:8, desc:"Power Blast: 3d8, 44\" range, Fwd Arc", extraCPs:20},
+      {spaces:2, desc:"Energy Blast: d8+d6, turret 360°", extraCPs:5, adjCL:0},
+      {spaces:2, desc:"Sensor Suite (IR/Thermal)", extraCPs:10},
+      {spaces:1, desc:"Radio / Comms", extraCPs:0},
+      {spaces:4, desc:"Spare Parts", extraCPs:0},
+    ]
+  },
+  {
+    name:"APC", basicCost:25, techMod:5, maneuverMod:-5, wontExplode:false, isBase:false,
+    systems:[
+      {spaces:1, desc:"Control Seat (Driver)", extraCPs:0},
+      {spaces:1, desc:"Control Seat (Commander)", extraCPs:0},
+      {spaces:8, desc:"Passenger Seats (8 troops)", extraCPs:0},
+      {spaces:12, desc:"Speed: 8/128, 87 mph, PR=2", extraCPs:5},
+      {spaces:4, desc:"Energy Blast: d8+d6, turret 360°", extraCPs:5},
+      {spaces:2, desc:"Sensor Suite", extraCPs:5},
+      {spaces:1, desc:"Radio / Comms", extraCPs:0},
+      {spaces:4, desc:"Cargo / Ammo", extraCPs:0},
+    ]
+  },
+  {
+    name:"Space Shuttle", basicCost:35, techMod:10, maneuverMod:0, wontExplode:false, isBase:false,
+    systems:[
+      {spaces:2, desc:"Control Seats (Pilot/Co-Pilot)", extraCPs:0},
+      {spaces:4, desc:"Passenger Seats (4 crew)", extraCPs:0},
+      {spaces:32, desc:"Flight: 64/1024, Orbital, PR=4", extraCPs:25},
+      {spaces:16, desc:"Cargo Bay", extraCPs:0, open:true},
+      {spaces:4, desc:"Life Support", extraCPs:10},
+      {spaces:4, desc:"Sensor Suite (Full Spectrum)", extraCPs:15},
+      {spaces:2, desc:"Radio / Comms Array", extraCPs:5},
+      {spaces:2, desc:"Spare Parts", extraCPs:0},
+    ]
+  },
+  {
+    name:"Yacht", basicCost:27.5, techMod:5, maneuverMod:0, wontExplode:false, isBase:false,
+    systems:[
+      {spaces:1, desc:"Control Seat (Helm)", extraCPs:0},
+      {spaces:6, desc:"Passenger Seats / Lounge", extraCPs:0},
+      {spaces:4, desc:"Bunks (4, double)", extraCPs:0},
+      {spaces:12, desc:"Swimming: 8/128, 87 mph, PR=1", extraCPs:5},
+      {spaces:8, desc:"Cargo / Storage", extraCPs:0},
+      {spaces:2, desc:"Sensor Suite (Radar/Sonar)", extraCPs:5},
+      {spaces:1, desc:"Radio / Comms", extraCPs:0},
+    ]
+  },
+];
+

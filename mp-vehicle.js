@@ -13,6 +13,7 @@ class Vehicle {
     this.systems = [];
     this.keyEntries = [];
     this.pictureData = "";
+    this.notes = "";
     this._nextId = 1;
     this._nextKeyId = 1;
   }
@@ -165,6 +166,7 @@ class Vehicle {
       maneuverMod: this.maneuverMod, wontExplode: this.wontExplode,
       isBase: this.isBase, systems: this.systems,
       keyEntries: this.keyEntries, pictureData: this.pictureData,
+      notes: this.notes,
     };
   }
 
@@ -178,6 +180,7 @@ class Vehicle {
     this.wontExplode = data.wontExplode || false;
     this.isBase = data.isBase || false;
     this.pictureData = data.pictureData || "";
+    this.notes = data.notes || "";
     this.systems = (data.systems || []).map(s => {
       s.cells = s.cells || [];
       s.extraCPs = s.extraCPs || 0;

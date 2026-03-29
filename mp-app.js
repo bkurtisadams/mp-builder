@@ -1,43 +1,74 @@
-// mp-app.js v2.8.0 — Open System, maneuver input, stats spread, tooltips
+// mp-app.js v3.0.0 — Single-page layout, inline floor plan, templates
 
 const veh = new Vehicle();
 let editor = null;
-let layoutEditor = null;
 
-// ---- Tab navigation ----
-document.querySelectorAll(".mp-tab-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".mp-tab-btn").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".mp-panel").forEach(p => p.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
-    if (btn.dataset.tab === "editor" && editor) {
-      setTimeout(() => { editor._resize(); editor.draw(); }, 50);
-    }
-  });
-});
-
-// ---- Palette ----
-function buildPalette() {
-  const scroll = document.getElementById("ed-pal-scroll");
-  let html = '<div style="padding:6px 8px;font-size:9px;color:var(--tx3);font-style:italic">Select a system on the Record Sheet, then paint its cells here.</div>';
-  html += '<div class="ed-pal-cat">Current Systems</div>';
-  for (const sys of veh.systems) {
-    if (!sys.desc && !sys.spaces) continue;
-    const active = editor && editor.activeSysId === sys.id;
-    html += `<div class="ed-pal-item${active ? " active" : ""}" data-sysid="${sys.id}">
-      <span class="ed-pal-sw" style="background:#707070"></span>
-      <span class="ed-pal-nm">${sys.desc || "?"} (${sys.cells.length}/${sys.spaces})</span>
-    </div>`;
+// ---- Populate templates dropdown ----
+(function buildTemplateDropdown() {
+  const sel = document.getElementById("sel-template");
+  for (let i = 0; i < MP.TEMPLATES.length; i++) {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = MP.TEMPLATES[i].name;
+    sel.appendChild(opt);
   }
-  scroll.innerHTML = html;
-  scroll.querySelectorAll(".ed-pal-item[data-sysid]").forEach(el => {
-    el.addEventListener("click", () => {
-      editor.setActiveSys(parseInt(el.dataset.sysid));
-      updateModeButtons();
-      buildPalette();
-    });
+  sel.addEventListener("change", () => {
+    if (sel.value === "") return;
+    const tpl = MP.TEMPLATES[parseInt(sel.value)];
+    if (!tpl) return;
+    veh.name = tpl.name;
+    veh.model = "";
+    veh.operator = "";
+    veh.basicCost = tpl.basicCost;
+    veh.techMod = tpl.techMod || 0;
+    veh.maneuverMod = tpl.maneuverMod || 0;
+    veh.wontExplode = tpl.wontExplode || false;
+    veh.isBase = tpl.isBase || false;
+    veh.pictureData = "";
+    veh.systems = [];
+    veh._nextId = 1;
+    for (const ts of tpl.systems) {
+      const sys = veh.addSystem();
+      sys.spaces = ts.spaces || 0;
+      sys.extraCPs = ts.extraCPs || 0;
+      sys.desc = ts.desc || "";
+      sys.integral = ts.integral || false;
+      sys.bulky = ts.bulky || 0;
+      sys.delicate = ts.delicate || 0;
+      sys.open = ts.open || false;
+      sys.adjST = ts.adjST || 0;
+      sys.adjEN = ts.adjEN || 0;
+      sys.adjAG = ts.adjAG || 0;
+      sys.adjIN = ts.adjIN || 0;
+      sys.adjCL = ts.adjCL || 0;
+    }
+    syncFormFromVeh();
+    updateAll();
+    sel.value = "";
   });
+})();
+
+// ---- Sync form fields from vehicle state ----
+function syncFormFromVeh() {
+  document.getElementById("vs-name").value = veh.name;
+  document.getElementById("vs-model").value = veh.model;
+  document.getElementById("vs-operator").value = veh.operator;
+  document.getElementById("vs-basic-cost").value = veh.basicCost;
+  document.getElementById("vs-tech").value = veh.techMod;
+  document.getElementById("vs-maneuver").value = veh.maneuverMod;
+  document.getElementById("vs-noexplode").checked = veh.wontExplode;
+  document.getElementById("vs-base").checked = veh.isBase;
+  document.getElementById("vs-notes").value = veh.notes || "";
+  const img = document.getElementById("vs-picture-img");
+  if (veh.pictureData) {
+    img.src = veh.pictureData;
+    img.style.display = "block";
+    document.getElementById("vs-picture-area").classList.add("has-image");
+  } else {
+    img.src = "";
+    img.style.display = "none";
+    document.getElementById("vs-picture-area").classList.remove("has-image");
+  }
 }
 
 // ---- Update all ----
@@ -76,8 +107,7 @@ function updateAll() {
 
   renderSystemsTable();
   renderKey();
-  if (editor) { editor.draw(); buildPalette(); }
-  if (layoutEditor) layoutEditor.draw();
+  if (editor) editor.draw();
 }
 
 // ---- Systems table: 18 rows + remaining ----
@@ -191,13 +221,16 @@ function renderSystemsTable() {
       if (e.target.tagName === "INPUT" || e.target.classList.contains("vs-sys-del")) return;
       const idx = parseInt(row.dataset.idx);
       const sys = veh.systems[idx];
-      if (sys && editor) editor.setActiveSys(sys.id);
+      if (sys && editor) {
+        editor.setActiveSys(sys.id);
+        updateModeButtons();
+      }
       updateAll();
     });
   });
 }
 
-// ---- Vehicle Key: 4 columns, 6 rows ----
+// ---- Vehicle Key: 4 columns, 8 rows ----
 const KEY_ROW_COUNT = 8;
 
 function renderKey() {
@@ -236,6 +269,7 @@ function onConfigChange() {
   veh.maneuverMod = parseFloat(document.getElementById("vs-maneuver").value) || 0;
   veh.wontExplode = document.getElementById("vs-noexplode").checked;
   veh.isBase = document.getElementById("vs-base").checked;
+  veh.notes = document.getElementById("vs-notes").value;
   updateAll();
 }
 
@@ -248,6 +282,9 @@ function onConfigChange() {
 });
 ["vs-noexplode","vs-base"].forEach(id => {
   document.getElementById(id).addEventListener("change", onConfigChange);
+});
+document.getElementById("vs-notes").addEventListener("input", () => {
+  veh.notes = document.getElementById("vs-notes").value;
 });
 
 // ---- Import image ----
@@ -300,20 +337,7 @@ document.getElementById("inp-json").addEventListener("change", e => {
   reader.onload = ev => {
     try {
       veh.fromJSON(JSON.parse(ev.target.result));
-      document.getElementById("vs-name").value = veh.name;
-      document.getElementById("vs-model").value = veh.model;
-      document.getElementById("vs-operator").value = veh.operator;
-      document.getElementById("vs-basic-cost").value = veh.basicCost;
-      document.getElementById("vs-tech").value = veh.techMod;
-      document.getElementById("vs-maneuver").value = veh.maneuverMod;
-      document.getElementById("vs-noexplode").checked = veh.wontExplode;
-      document.getElementById("vs-base").checked = veh.isBase;
-      if (veh.pictureData) {
-        const img = document.getElementById("vs-picture-img");
-        img.src = veh.pictureData;
-        img.style.display = "block";
-        document.getElementById("vs-picture-area").classList.add("has-image");
-      }
+      syncFormFromVeh();
       updateAll();
     } catch (err) { alert("Invalid JSON: " + err.message); }
   };
@@ -339,18 +363,11 @@ document.getElementById("btn-png").addEventListener("click", () => {
 });
 
 // ---- Init ----
-const canvasEl = document.getElementById("ed-canvas");
-const wrapEl = document.getElementById("ed-canvas-wrap");
-editor = new FloorPlanEditor(canvasEl, wrapEl, veh);
-editor.onUpdate = () => { updateAll(); };
-editor.panX = 40;
-editor.panY = 40;
-
 const layoutCanvasEl = document.getElementById("vs-layout-canvas");
 const layoutWrapEl = document.getElementById("vs-layout-wrap");
-layoutEditor = new FloorPlanEditor(layoutCanvasEl, layoutWrapEl, veh);
-layoutEditor.onUpdate = () => { updateAll(); };
-layoutEditor.panX = 20;
-layoutEditor.panY = 20;
+editor = new FloorPlanEditor(layoutCanvasEl, layoutWrapEl, veh);
+editor.onUpdate = () => { updateAll(); };
+editor.panX = 20;
+editor.panY = 20;
 
 updateAll();

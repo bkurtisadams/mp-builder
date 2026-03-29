@@ -14,10 +14,12 @@
       <img src="MP_logo_v3.png" alt="Mighty Protectors" class="mp-logo-img">
       <span class="mp-logo-sub">Vehicle Builder</span>
     </div>
-    <nav class="mp-tabs">
-      <button class="mp-tab-btn active" data-tab="sheet">Record Sheet</button>
-      <button class="mp-tab-btn" data-tab="editor">Floor Plan</button>
-    </nav>
+    <div class="mp-hdr-template">
+      <label class="mp-tpl-label">Template:</label>
+      <select id="sel-template" class="mp-tpl-sel">
+        <option value="">— blank —</option>
+      </select>
+    </div>
     <div class="mp-hdr-export">
       <button class="ed-btn-sm" id="btn-save">Save JSON</button>
       <button class="ed-btn-sm" id="btn-load">Load JSON</button>
@@ -30,7 +32,6 @@
 
 <main class="mp-main">
 
-<section class="mp-panel active" id="tab-sheet">
 <div class="vs-wrap">
 <div class="vs-sheet">
 
@@ -134,7 +135,13 @@
     </div>
   </div>
 
-  <!-- Bottom -->
+  <!-- NOTES -->
+  <div class="vs-notes-section">
+    <div class="vs-section-hdr">NOTES</div>
+    <textarea id="vs-notes" class="vs-notes" rows="3" placeholder="Vehicle modifiers, special features, travel abilities, appearance..."></textarea>
+  </div>
+
+  <!-- Bottom: Picture + Key + Layout -->
   <div class="vs-bottom">
     <div class="vs-bottom-left">
       <div class="vs-section-hdr">VEHICLE PICTURE</div>
@@ -150,52 +157,50 @@
     </div>
     <div class="vs-bottom-right">
       <div class="vs-section-hdr">VEHICLE LAYOUT</div>
-      <div class="vs-layout-canvas" id="vs-layout-wrap">
-        <canvas id="vs-layout-canvas"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <div class="vs-sheet-ftr">
-    Mighty Protectors&trade; is a registered trademark of Monkey House Games.
-  </div>
-
-</div>
-</div>
-</section>
-
-<section class="mp-panel" id="tab-editor">
-  <div class="ed-layout">
-    <div class="ed-palette" id="ed-palette">
-      <div class="ed-pal-hdr">Systems</div>
-      <div class="ed-pal-scroll" id="ed-pal-scroll"></div>
-    </div>
-    <div class="ed-center">
-      <div class="ed-toolbar" id="ed-toolbar">
+      <div class="vs-layout-toolbar">
         <button id="btn-mode-select" class="ed-btn ed-btn-mode active" title="Select (S)">Select</button>
         <button id="btn-mode-paint" class="ed-btn ed-btn-mode" title="Paint cells">Paint</button>
         <button id="btn-mode-erase" class="ed-btn ed-btn-mode" title="Erase (E)">Erase</button>
         <span class="ed-sep"></span>
         <button id="btn-zoom-in" class="ed-btn" title="Zoom in">+</button>
-        <button id="btn-zoom-out" class="ed-btn" title="Zoom out">−</button>
+        <button id="btn-zoom-out" class="ed-btn" title="Zoom out">&minus;</button>
         <button id="btn-zoom-reset" class="ed-btn" title="Reset view">Reset</button>
       </div>
-      <div class="ed-canvas-wrap" id="ed-canvas-wrap">
-        <canvas id="ed-canvas"></canvas>
+      <div class="vs-layout-canvas" id="vs-layout-wrap">
+        <canvas id="vs-layout-canvas"></canvas>
       </div>
-      <div class="ed-hint">
-        <b>E</b>=erase <b>S</b>=select Right-drag=pan Scroll=zoom
-        Grid: 1 cell = 1 system space (2.5') / heavy lines = 5'
+      <div class="vs-layout-hint">
+        <b>E</b>=erase <b>S</b>=select Right-drag=pan Scroll=zoom &bull;
+        1 cell = 1 system space (2.5') / heavy lines = 5'
       </div>
     </div>
   </div>
-</section>
+
+  <!-- Modifiers Reference -->
+  <div class="vs-ref-section">
+    <div class="vs-section-hdr">MODIFIERS REFERENCE</div>
+    <table class="vs-ref-table">
+      <tr><td class="vs-ref-name">Integral</td><td>Hidden, can't be targeted. Half CPs.</td></tr>
+      <tr><td class="vs-ref-name">Bulky</td><td>+4.3 Hits per application. +2.5 CP each.</td></tr>
+      <tr><td class="vs-ref-name">Delicate</td><td>-4.3 Hits per application. -2.5 CP each.</td></tr>
+      <tr><td class="vs-ref-name">Gear</td><td>Removable/breakable by passengers.</td></tr>
+      <tr><td class="vs-ref-name">Indep. Power</td><td>Own 10 Power, independent of central.</td></tr>
+      <tr><td class="vs-ref-name">No Arc</td><td>Straight line only. -10 CP.</td></tr>
+      <tr><td class="vs-ref-name">Wide 240&deg;</td><td>240&deg; arc. +5 CP.</td></tr>
+      <tr><td class="vs-ref-name">Wide 360&deg;</td><td>360&deg; arc. +10 CP.</td></tr>
+      <tr><td class="vs-ref-name">Open System</td><td>Passable, 1/4 CPs. Free sub-vehicle at 1/4 size.</td></tr>
+      <tr><td class="vs-ref-name">Won't Expl.</td><td>Indep. power won't explode. +5 CP.</td></tr>
+    </table>
+  </div>
+
+  <div class="vs-sheet-ftr">
+    Mighty Protectors&trade; &amp; Villains &amp; Vigilantes&trade; &copy; Jeff Dee &amp; Jack Herman &mdash; Monkey House Games
+  </div>
+
+</div>
+</div>
 
 </main>
-
-<footer class="mp-ftr">
-  Mighty Protectors&trade; is a registered trademark of Monkey House Games.
-</footer>
 
 <script src="mp-data.js"></script>
 <script src="mp-vehicle.js"></script>
