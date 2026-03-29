@@ -198,7 +198,7 @@ function renderSystemsTable() {
 }
 
 // ---- Vehicle Key: 4 columns, 6 rows ----
-const KEY_ROW_COUNT = 6;
+const KEY_ROW_COUNT = 9;
 
 function renderKey() {
   const tbody = document.getElementById("vs-key-tbody");

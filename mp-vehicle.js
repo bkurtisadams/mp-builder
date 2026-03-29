@@ -76,8 +76,11 @@ class Vehicle {
     let cp = this.sysBaseCPs(sys);
     cp += (sys.extraCPs || 0);
     cp += this.techMod;
-    if (sys.integral) cp = Math.floor(cp / 2);
-    if (sys.open) cp = Math.floor(cp / 4);
+    // Bulky reduces CPs, Delicate increases CPs
+    cp -= (sys.bulky || 0) * 2.5;
+    cp += (sys.delicate || 0) * 2.5;
+    if (sys.integral) cp = Math.ceil(cp / 2);
+    if (sys.open) cp = Math.ceil(cp / 4);
     return Math.max(0, cp);
   }
 
@@ -108,10 +111,6 @@ class Vehicle {
     cost += this.maneuverMod;
     if (this.wontExplode) cost += 5;
     if (this.isBase) cost -= 15;
-    for (const s of this.systems) {
-      cost += (s.bulky || 0) * 2.5;
-      cost -= (s.delicate || 0) * 2.5;
-    }
     return cost;
   }
 
