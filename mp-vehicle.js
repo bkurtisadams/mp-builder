@@ -24,12 +24,10 @@ class Vehicle {
   get remainingSpaces() { return this.totalSpaces - this.allocatedSpaces; }
 
   addSystem(abilityId, spaces, extraCPs) {
-    const ability = MP.abilityById(abilityId);
-    if (!ability) return null;
     const sys = {
       id: this._nextId++,
-      abilityId,
-      spaces,
+      abilityId: abilityId || "custom",
+      spaces: spaces || 0,
       extraCPs: extraCPs || 0,
       cells: [],
       modifiers: [],
@@ -91,6 +89,7 @@ class Vehicle {
 
   // System CPs from space allocation + extra CPs + tech mod + modifiers
   sysCPs(sys) {
+    if (!sys.spaces) return Math.max(0, (sys.extraCPs || 0));
     const entry = MP.lookupSys(sys.spaces);
     let cp = entry.cp;
     cp += (sys.extraCPs || 0);
@@ -111,6 +110,7 @@ class Vehicle {
   }
 
   sysHits(sys) {
+    if (!sys.spaces) return 0;
     const entry = MP.lookupSys(sys.spaces);
     let hits = entry.hits;
     for (const m of sys.modifiers) {
@@ -120,7 +120,10 @@ class Vehicle {
     return Math.max(1, hits);
   }
 
-  sysProfile(sys) { return MP.lookupSys(sys.spaces).prof; }
+  sysProfile(sys) {
+    if (!sys.spaces) return 0;
+    return MP.lookupSys(sys.spaces).prof;
+  }
 
   sysProfileDisplay(sys) {
     const p = this.sysProfile(sys);

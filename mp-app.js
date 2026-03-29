@@ -29,24 +29,7 @@ function buildChassisSelect() {
   sel.value = veh.chassisIdx;
 }
 
-// ---- Populate ability select for adding systems ----
-function buildAbilitySelect() {
-  const sel = document.getElementById("vs-add-ability");
-  sel.innerHTML = "";
-  for (const cat of MP.CATEGORIES) {
-    const items = MP.ABILITY_TYPES.filter(t => t.cat === cat);
-    if (!items.length) continue;
-    const grp = document.createElement("optgroup");
-    grp.label = cat;
-    for (const t of items) {
-      const opt = document.createElement("option");
-      opt.value = t.id;
-      opt.textContent = t.name;
-      grp.appendChild(opt);
-    }
-    sel.appendChild(grp);
-  }
-}
+// (ability dropdown removed — systems are freeform text entry)
 
 // ---- Build palette for floor plan tab ----
 function buildPalette() {
@@ -54,8 +37,9 @@ function buildPalette() {
   let html = '<div style="padding:6px 8px;font-size:9px;color:var(--tx3);font-style:italic">Systems are added on the Record Sheet tab. Select a system there, then paint its cells here.</div>';
   html += '<div class="ed-pal-cat">Current Systems</div>';
   for (const sys of veh.systems) {
+    if (!sys.desc && !sys.spaces) continue; // skip blank rows
     const ab = MP.abilityById(sys.abilityId);
-    const name = sys.abilityId === "custom" && sys.customName ? sys.customName : (ab?.name || "?");
+    const name = sys.desc || sys.customName || (ab?.name || "?");
     const active = editor && editor.activeSysId === sys.id;
     html += `<div class="ed-pal-item${active ? " active" : ""}" data-sysid="${sys.id}">
       <span class="ed-pal-sw" style="background:${ab?.color || "#707070"}"></span>
@@ -98,7 +82,7 @@ function updateAll() {
 
   document.getElementById("vs-total-cost").textContent = veh.totalCost;
   document.getElementById("vs-spaces-used").textContent = veh.allocatedSpaces;
-  document.getElementById("vs-spaces-remain").textContent = veh.remainingSpaces;
+  document.getElementById("vs-spaces-total").textContent = veh.totalSpaces;
   document.getElementById("vs-spare-parts").textContent = veh.spareParts;
 
   document.getElementById("vs-st").textContent = veh.st;
@@ -124,67 +108,100 @@ function updateAll() {
 }
 
 // ---- Systems table ----
-// COST column = extra CPs added to the system above what its spaces generate.
-// These extra CPs increase both the system's ability CPs and the vehicle's total cost.
-// System spaces already generate CPs per the table (1sp=5cp, 4sp=15cp, etc).
+// Fixed 18 rows like the official paper sheet. Each row is fully editable.
+// COST = extra CPs added above what spaces generate. Spaces field editable.
+// Typing into a blank row auto-creates the system in the model.
+const SYS_ROW_COUNT = 18;
+
 function renderSystemsTable() {
   const el = document.getElementById("vs-sys-rows");
-  if (!veh.systems.length) {
-    el.innerHTML = '<div style="padding:6px;font-size:9px;color:var(--tx3);font-style:italic">No systems added yet</div>';
-    return;
-  }
-  el.innerHTML = veh.systems.map(s => {
-    const ab = MP.abilityById(s.abilityId);
-    const name = s.abilityId === "custom" && s.customName ? s.customName : (ab?.name || "?");
-    const spaceCPs = MP.lookupSys(s.spaces).cp;
-    const totalCPs = veh.sysCPs(s);
-    const hits = veh.sysHits(s);
-    const prof = veh.sysProfileDisplay(s);
-    const active = editor && editor.activeSysId === s.id ? " active" : "";
-    const costDisplay = s.extraCPs ? s.extraCPs : "";
-    return `<div class="vs-sys-row${active}" data-id="${s.id}">
-      <input type="number" class="vs-sys-cost-inp" value="${s.extraCPs || 0}" data-field="extraCPs" data-id="${s.id}" title="Extra CPs above spaces" step="2.5" min="0">
-      <span class="vs-sys-val">${s.spaces}</span>
-      <span class="vs-sys-val">${prof}</span>
-      <span class="vs-sys-val">(${hits})</span>
-      <input type="text" value="${s.dmg || ""}" data-field="dmg" data-id="${s.id}" placeholder="" title="Damage">
-      <input type="text" value="${s.pts || ""}" data-field="pts" data-id="${s.id}" placeholder="" title="PTs">
-      <input type="text" class="vs-sys-desc" value="${s.desc || name}" data-field="desc" data-id="${s.id}" title="Description">
-      <span class="vs-sys-del" data-id="${s.id}" title="Remove">×</span>
-    </div>`;
-  }).join("");
+  let html = "";
 
-  // Wire editable fields
+  for (let i = 0; i < SYS_ROW_COUNT; i++) {
+    const s = veh.systems[i] || null;
+    const active = s && editor && editor.activeSysId === s.id ? " active" : "";
+    const id = s ? s.id : -(i + 1); // negative ids for blank rows
+    const cost = s ? (s.extraCPs || "") : "";
+    const spaces = s ? s.spaces : "";
+    const prof = s && s.spaces ? veh.sysProfileDisplay(s) : "";
+    const hits = s && s.spaces ? veh.sysHits(s) : "";
+    const hitsDisplay = hits !== "" ? `(${hits})` : "";
+    const dmg = s ? (s.dmg || "") : "";
+    const pts = s ? (s.pts || "") : "";
+    const desc = s ? (s.desc || "") : "";
+
+    html += `<div class="vs-sys-row${active}" data-idx="${i}" data-id="${id}">
+      <input type="number" value="${cost}" data-field="extraCPs" data-idx="${i}" title="Extra CPs" step="2.5" min="0">
+      <input type="number" value="${spaces}" data-field="spaces" data-idx="${i}" title="System Spaces" min="0">
+      <span class="vs-sys-val">${prof}</span>
+      <span class="vs-sys-val">${hitsDisplay}</span>
+      <input type="text" value="${dmg}" data-field="dmg" data-idx="${i}" title="Damage">
+      <input type="text" value="${pts}" data-field="pts" data-idx="${i}" title="PTs">
+      <input type="text" class="vs-sys-desc" value="${desc}" data-field="desc" data-idx="${i}" title="System name / description">
+      <span class="vs-sys-del" data-idx="${i}" title="Clear row">×</span>
+    </div>`;
+  }
+
+  // Row 19: remaining spaces
+  html += `<div class="vs-sys-row vs-sys-remain">
+    <span class="vs-sys-val" id="vs-remain-cost"></span>
+    <span class="vs-sys-val" id="vs-remain-spaces">${veh.remainingSpaces}</span>
+    <span></span><span></span><span></span><span></span>
+    <span class="vs-remain-note"><em>Remaining system spaces for rooms, storage, corridors etc</em></span>
+    <span></span>
+  </div>`;
+
+  el.innerHTML = html;
+
+  // Wire inputs
   el.querySelectorAll("input").forEach(inp => {
     inp.addEventListener("change", () => {
-      const sys = veh.findSystem(parseInt(inp.dataset.id));
-      if (!sys) return;
-      if (inp.dataset.field === "extraCPs") {
-        sys.extraCPs = parseFloat(inp.value) || 0;
-        updateAll();
-      } else {
-        sys[inp.dataset.field] = inp.value;
-      }
-    });
-  });
+      const idx = parseInt(inp.dataset.idx);
+      const field = inp.dataset.field;
+      let sys = veh.systems[idx] || null;
 
-  // Wire delete
-  el.querySelectorAll(".vs-sys-del").forEach(del => {
-    del.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const id = parseInt(del.dataset.id);
-      veh.removeSystem(id);
-      if (editor && editor.activeSysId === id) editor.activeSysId = null;
+      // Auto-create system if typing into a blank row
+      if (!sys) {
+        const val = inp.value.trim();
+        if (!val && val !== "0") return; // don't create for empty input
+        // Fill blank slots up to this index
+        while (veh.systems.length <= idx) {
+          veh.addSystem("custom", 0, 0);
+        }
+        sys = veh.systems[idx];
+      }
+
+      if (field === "extraCPs") {
+        sys.extraCPs = parseFloat(inp.value) || 0;
+      } else if (field === "spaces") {
+        sys.spaces = parseInt(inp.value) || 0;
+      } else {
+        sys[field] = inp.value;
+      }
       updateAll();
     });
   });
 
-  // Wire row click to select for painting
+  // Wire clear (×) buttons
+  el.querySelectorAll(".vs-sys-del").forEach(del => {
+    del.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(del.dataset.idx);
+      const sys = veh.systems[idx];
+      if (!sys) return;
+      if (editor && editor.activeSysId === sys.id) editor.activeSysId = null;
+      veh.systems.splice(idx, 1);
+      updateAll();
+    });
+  });
+
+  // Wire row click to select for floor plan painting
   el.querySelectorAll(".vs-sys-row").forEach(row => {
     row.addEventListener("click", (e) => {
       if (e.target.tagName === "INPUT" || e.target.classList.contains("vs-sys-del")) return;
-      const id = parseInt(row.dataset.id);
-      if (editor) editor.setActiveSys(id);
+      const idx = parseInt(row.dataset.idx);
+      const sys = veh.systems[idx];
+      if (sys && editor) editor.setActiveSys(sys.id);
       updateAll();
     });
   });
@@ -220,22 +237,7 @@ function renderKey() {
   });
 }
 
-// ---- Add system button ----
-document.getElementById("btn-add-system").addEventListener("click", () => {
-  const abilityId = document.getElementById("vs-add-ability").value;
-  const spaces = parseInt(document.getElementById("vs-add-spaces").value) || 1;
-  const extraCPs = parseFloat(document.getElementById("vs-add-extra-cp").value) || 0;
-  if (spaces > veh.remainingSpaces) {
-    alert(`Not enough spaces. ${veh.remainingSpaces} remaining.`);
-    return;
-  }
-  const sys = veh.addSystem(abilityId, spaces, extraCPs);
-  if (sys) {
-    const ab = MP.abilityById(abilityId);
-    sys.desc = ab?.name || "";
-  }
-  updateAll();
-});
+// (No add-system button — fixed 18 rows like the paper sheet)
 
 // ---- Add key entry button ----
 document.getElementById("btn-add-key").addEventListener("click", () => {
@@ -346,7 +348,6 @@ document.getElementById("btn-png").addEventListener("click", () => {
 
 // ---- Init ----
 buildChassisSelect();
-buildAbilitySelect();
 
 // Floor plan editor (full-size, on editor tab)
 const canvasEl = document.getElementById("ed-canvas");

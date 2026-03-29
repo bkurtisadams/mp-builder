@@ -114,7 +114,9 @@ body{display:flex;flex-direction:column}
 .vs-sys-row .vs-sys-del{color:var(--vr);cursor:pointer;font-weight:700;font-size:12px;text-align:center}
 .vs-sys-row .vs-sys-del:hover{color:#ff6666}
 
-.vs-sys-add{display:flex;gap:4px;align-items:center;padding:4px 2px;border-top:1px solid var(--brd)}
+/* Row 19: remaining spaces */
+.vs-sys-remain{border-top:2px solid var(--vc-dk);background:rgba(139,233,253,.04)}
+.vs-sys-remain .vs-remain-note{font-size:8px;color:var(--tx3)}
 
 /* Totals row */
 .vs-totals{padding:4px 0;border-top:2px solid var(--vc-dk)}
