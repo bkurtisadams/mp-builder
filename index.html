@@ -34,129 +34,107 @@
 <div class="vs-wrap">
 <div class="vs-sheet">
 
-  <!-- Name / Model / Operator -->
   <div class="vs-row vs-identity">
     <label>NAME:</label><input type="text" id="vs-name" class="vs-inp vs-inp-wide">
     <label>MODEL:</label><input type="text" id="vs-model" class="vs-inp vs-inp-med">
     <label>OPERATOR:</label><input type="text" id="vs-operator" class="vs-inp vs-inp-med">
   </div>
 
-  <!-- Chassis stats -->
   <div class="vs-row">
-    <label>SYSTEM SPACES:</label><span class="vs-val" id="vs-sys-spaces">16</span>
-    <label>PROFILE:</label><span class="vs-val" id="vs-profile">x4</span>
-    <label>WEIGHT:</label><span class="vs-val" id="vs-weight">2,880</span><span class="vs-unit">lbs</span>
-    <label>MASS:</label><span class="vs-val" id="vs-mass">d10+1</span>
+    <label title="Total system spaces from chassis">SYSTEM SPACES:</label><span class="vs-val" id="vs-sys-spaces">16</span>
+    <label title="Vehicle profile modifier">PROFILE:</label><span class="vs-val" id="vs-profile">x4</span>
+    <label title="Vehicle weight">WEIGHT:</label><span class="vs-val" id="vs-weight">2,880</span><span class="vs-unit">lbs</span>
+    <label title="Mass roll">MASS:</label><span class="vs-val" id="vs-mass">d10+1</span>
   </div>
 
-  <!-- Armor -->
   <div class="vs-row">
     <label>ARMOR:</label>
-    <label class="vs-sub">Kinetic:</label><input type="number" id="vs-armor-kin" class="vs-inp vs-inp-sm" value="3">
-    <label class="vs-sub">Energy:</label><input type="number" id="vs-armor-eng" class="vs-inp vs-inp-sm" value="3">
-    <label class="vs-sub">Biochem:</label><input type="number" id="vs-armor-bio" class="vs-inp vs-inp-sm" value="3">
-    <label class="vs-sub">Entropy:</label><input type="number" id="vs-armor-ent" class="vs-inp vs-inp-sm" value="3">
-    <label class="vs-sub">Psychic:</label><input type="number" id="vs-armor-psy" class="vs-inp vs-inp-sm" value="0">
+    <label class="vs-sub">Kinetic:</label><input type="number" id="vs-armor-kin" class="vs-inp vs-inp-sm" value="3" title="Kinetic armor rating">
+    <label class="vs-sub">Energy:</label><input type="number" id="vs-armor-eng" class="vs-inp vs-inp-sm" value="3" title="Energy armor rating">
+    <label class="vs-sub">Biochem:</label><input type="number" id="vs-armor-bio" class="vs-inp vs-inp-sm" value="3" title="Biochem armor rating">
+    <label class="vs-sub">Entropy:</label><input type="number" id="vs-armor-ent" class="vs-inp vs-inp-sm" value="3" title="Entropy armor rating">
+    <label class="vs-sub">Psychic:</label><input type="number" id="vs-armor-psy" class="vs-inp vs-inp-sm" value="0" title="Psychic armor rating">
   </div>
 
-  <!-- Vehicle Mods (no maneuver dropdown) -->
   <div class="vs-row vs-mods">
     <label>Vehicle Mods:</label>
     <label class="vs-sub">Hi/Lo Tech</label>
-    <select id="vs-tech" class="vs-sel">
-      <option value="-15">-15</option><option value="-10">-10</option><option value="-5">-5</option>
-      <option value="0" selected>0</option>
-      <option value="5">+5</option><option value="10">+10</option><option value="15">+15</option>
-    </select>
-    <label class="vs-sub">Won't Explode</label><input type="checkbox" id="vs-noexplode">
-    <label class="vs-sub">Base</label><input type="checkbox" id="vs-base">
+    <input type="number" id="vs-tech" class="vs-inp-xs" value="0" title="±5 CPs per step. Adds/subtracts CPs to every system.">
+    <label class="vs-sub">Maneuver</label>
+    <input type="number" id="vs-maneuver" class="vs-inp-xs" value="0" title="±1 Turn Rate per ±5 CP cost adjustment">
+    <label class="vs-sub">Won't Explode</label><input type="checkbox" id="vs-noexplode" title="+5 CP. Central Power System won't explode.">
+    <label class="vs-sub">Base</label><input type="checkbox" id="vs-base" title="Vehicle is a stationary Base">
   </div>
 
-  <!-- BASIC COST / Hits / Explosion -->
   <div class="vs-row vs-hp">
     <div class="vs-cost-box">
       <div class="vs-cost-box-label">BASIC<br>COST</div>
-      <input type="number" id="vs-basic-cost" class="vs-cost-input" value="15" min="0" step="2.5">
+      <input type="number" id="vs-basic-cost" class="vs-cost-input" value="15" min="0" step="2.5" title="Vehicle base CP cost — determines size, spaces, ST/EN, hits">
     </div>
     <label>HITS (</label><span class="vs-val" id="vs-hits">25</span><label>):</label>
-    <input type="number" id="vs-hits-cur" class="vs-inp vs-inp-sm" value="25">
+    <input type="number" id="vs-hits-cur" class="vs-inp vs-inp-sm" value="25" title="Current hit points">
     <label>EXPLOSION:</label><span class="vs-val" id="vs-explosion">4d8</span>
     <label>AREA:</label><span class="vs-val" id="vs-area">5</span><span class="vs-unit">"</span>
   </div>
   <div class="vs-row">
     <div class="vs-cost-box-spacer"></div>
     <label>POWER (</label><span class="vs-val" id="vs-power">57</span><label>):</label>
-    <input type="number" id="vs-power-cur" class="vs-inp vs-inp-sm" value="57">
+    <input type="number" id="vs-power-cur" class="vs-inp vs-inp-sm" value="57" title="Current power points">
   </div>
 
   <!-- SYSTEMS TABLE -->
   <div class="vs-sys-hdr-wrap">
     <div class="vs-sys-hdr">
-      <span>COST</span>
-      <span>SYSTEM<br>SPACES</span>
-      <span>PROFILE</span>
-      <span>HITS</span>
-      <span>DMG</span>
-      <span>PTs</span>
+      <span title="Extra CPs added to this system (adds to vehicle cost)">COST</span>
+      <span title="System spaces allocated">SYSTEM<br>SPACES</span>
+      <span title="Auto-calculated from system spaces">PROFILE</span>
+      <span title="Auto-calculated from spaces, modified by Bulky/Delicate">HITS</span>
+      <span title="Damage taken by this system">DMG</span>
+      <span title="CPs generated by system spaces (auto)">PTs</span>
       <span class="vs-sh-desc">VEHICLE SYSTEMS &amp; MODIFIERS</span>
     </div>
     <div class="vs-mod-hdr">
-      <span>Int</span>
-      <span>Bulky</span>
-      <span>Del</span>
-      <span>ST</span>
-      <span>EN</span>
-      <span>AG</span>
-      <span>IN</span>
-      <span>CL</span>
-      <span>Man</span>
+      <span title="Integral — hidden, can't be targeted. Halves CPs.">Int</span>
+      <span title="Bulky — +4.3 Hits per dose, +2.5 CP cost per dose">Blk</span>
+      <span title="Delicate — -4.3 Hits per dose, -2.5 CP cost per dose">Del</span>
+      <span title="Open System — passable, yields ¼ CPs">Opn</span>
+      <span title="ST adjustment from this system">ST</span>
+      <span title="EN adjustment from this system">EN</span>
+      <span title="AG adjustment (e.g. Automation)">AG</span>
+      <span title="IN adjustment (e.g. Robot Brain)">IN</span>
+      <span title="CL adjustment (e.g. Performance)">CL</span>
     </div>
   </div>
   <div id="vs-sys-rows" class="vs-sys-rows"></div>
 
-  <!-- TOTALS -->
-  <div class="vs-row vs-totals">
+  <!-- TOTAL COST + Stats -->
+  <div class="vs-total-stats">
     <div class="vs-cost-box">
       <span class="vs-val-box" id="vs-total-cost">15</span>
       <div class="vs-cost-box-label">TOTAL<br>COST</div>
     </div>
-    <label>Spaces Used:</label><span class="vs-val" id="vs-spaces-used">0</span>
-    <label>/ Total:</label><span class="vs-val" id="vs-spaces-total">16</span>
-  </div>
-
-  <!-- STATS -->
-  <div class="vs-stats">
-    <div class="vs-stats-row">
-      <label>ST:</label><span class="vs-val" id="vs-st">24</span>
-      <label>Base HTH:</label><span class="vs-val" id="vs-hth">d8</span>
-      <label>EN:</label><span class="vs-val" id="vs-en">24</span>
-      <label>EN Save:</label><span class="vs-val" id="vs-en-save">22</span>
-      <label>Turn Rate:</label><span class="vs-val" id="vs-turn-rate">3</span>
-      <label>Init:</label><span class="vs-val" id="vs-init">d4</span>
-    </div>
-    <div class="vs-stats-row">
-      <label>AG:</label><span class="vs-val" id="vs-ag">9</span>
-      <label>AG Save:</label><span class="vs-val" id="vs-ag-save">10</span>
-      <label>Handling:</label><span class="vs-val" id="vs-handling">0</span>
-      <label>IN:</label><span class="vs-val" id="vs-in">0</span>
-      <label>IN Save:</label><span class="vs-val" id="vs-in-save">6</span>
-      <label>CL:</label><span class="vs-val" id="vs-cl">9</span>
-      <label>CL Save:</label><span class="vs-val" id="vs-cl-save">10</span>
-    </div>
-    <div class="vs-stats-row">
-      <label>Defense:</label><span class="vs-val" id="vs-defense">0</span>
-      <label>Carry:</label><span class="vs-val" id="vs-carry">1.2K lbs</span>
-      <label>Spare Parts:</label><span class="vs-val" id="vs-spare-parts">0</span>
+    <div class="vs-stats-block">
+      <div class="vs-stats-row">
+        <span><label>ST:</label><span class="vs-val" id="vs-st">24</span></span>
+        <span><label>Base HTH:</label><span class="vs-val" id="vs-hth">d8+1</span></span>
+        <span><label>EN:</label><span class="vs-val" id="vs-en">24</span></span>
+        <span><label>EN Save:</label><span class="vs-val" id="vs-en-save">22</span></span>
+        <span><label>Turn Rate:</label><span class="vs-val" id="vs-turn-rate">3</span></span>
+        <span><label>Init:</label><span class="vs-val" id="vs-init">d4</span></span>
+      </div>
+      <div class="vs-stats-row">
+        <span><label>AG:</label><span class="vs-val" id="vs-ag">9</span></span>
+        <span><label>AG Save:</label><span class="vs-val" id="vs-ag-save">10</span></span>
+        <span><label>Handling:</label><span class="vs-val" id="vs-handling">0</span></span>
+        <span><label>IN:</label><span class="vs-val" id="vs-in">0</span></span>
+        <span><label>IN Save:</label><span class="vs-val" id="vs-in-save">6</span></span>
+        <span><label>CL:</label><span class="vs-val" id="vs-cl">9</span></span>
+        <span><label>CL Save:</label><span class="vs-val" id="vs-cl-save">10</span></span>
+      </div>
     </div>
   </div>
 
-  <!-- NOTES -->
-  <div class="vs-section">
-    <div class="vs-section-hdr">NOTES</div>
-    <textarea id="vs-notes" class="vs-notes" rows="2" placeholder="Vehicle modifiers, special features, travel abilities, appearance, etc."></textarea>
-  </div>
-
-  <!-- BOTTOM -->
+  <!-- Bottom -->
   <div class="vs-bottom">
     <div class="vs-bottom-left">
       <div class="vs-section-hdr">VEHICLE PICTURE</div>
@@ -186,7 +164,6 @@
 </div>
 </section>
 
-<!-- FLOOR PLAN EDITOR TAB -->
 <section class="mp-panel" id="tab-editor">
   <div class="ed-layout">
     <div class="ed-palette" id="ed-palette">

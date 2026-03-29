@@ -1,4 +1,4 @@
-// mp-app.js v2.7.0 — Light blue theme, compacted, no maneuver dropdown
+// mp-app.js v2.8.0 — Open System, maneuver input, stats spread, tooltips
 
 const veh = new Vehicle();
 let editor = null;
@@ -17,7 +17,7 @@ document.querySelectorAll(".mp-tab-btn").forEach(btn => {
   });
 });
 
-// ---- Build palette for floor plan tab ----
+// ---- Palette ----
 function buildPalette() {
   const scroll = document.getElementById("ed-pal-scroll");
   let html = '<div style="padding:6px 8px;font-size:9px;color:var(--tx3);font-style:italic">Select a system on the Record Sheet, then paint its cells here.</div>';
@@ -40,7 +40,7 @@ function buildPalette() {
   });
 }
 
-// ---- Update all computed displays ----
+// ---- Update all ----
 function updateAll() {
   const ch = veh.chassis;
   const a = veh.armor;
@@ -60,8 +60,6 @@ function updateAll() {
   document.getElementById("vs-armor-ent").value = a.ent;
   document.getElementById("vs-armor-psy").value = a.psy;
   document.getElementById("vs-total-cost").textContent = veh.totalCost;
-  document.getElementById("vs-spaces-used").textContent = veh.allocatedSpaces;
-  document.getElementById("vs-spaces-total").textContent = veh.totalSpaces;
   document.getElementById("vs-st").textContent = veh.st;
   document.getElementById("vs-hth").textContent = MP.hthDamage(veh.st);
   document.getElementById("vs-en").textContent = veh.en;
@@ -75,9 +73,6 @@ function updateAll() {
   document.getElementById("vs-cl-save").textContent = MP.save(veh.cl);
   document.getElementById("vs-turn-rate").textContent = veh.turnRate;
   document.getElementById("vs-init").textContent = MP.initDie(MP.save(veh.cl));
-  document.getElementById("vs-defense").textContent = veh.defense;
-  document.getElementById("vs-carry").textContent = MP.carry(veh.st);
-  document.getElementById("vs-spare-parts").textContent = 0;
 
   renderSystemsTable();
   renderKey();
@@ -85,7 +80,7 @@ function updateAll() {
   if (layoutEditor) layoutEditor.draw();
 }
 
-// ---- Systems table: 18 fixed rows + remaining row ----
+// ---- Systems table: 18 rows + remaining ----
 const SYS_ROW_COUNT = 18;
 
 function renderSystemsTable() {
@@ -104,6 +99,7 @@ function renderSystemsTable() {
     const dmg = s ? (s.dmg || "") : "";
     const desc = s ? (s.desc || "") : "";
     const integral = s ? (s.integral || false) : false;
+    const open = s ? (s.open || false) : false;
     const bulky = s ? (s.bulky || "") : "";
     const delicate = s ? (s.delicate || "") : "";
     const adjST = s ? (s.adjST || "") : "";
@@ -111,29 +107,28 @@ function renderSystemsTable() {
     const adjAG = s ? (s.adjAG || "") : "";
     const adjIN = s ? (s.adjIN || "") : "";
     const adjCL = s ? (s.adjCL || "") : "";
-    const adjMan = s ? (s.adjMan || "") : "";
 
     html += `<div class="vs-sys-row-wrap${active}" data-idx="${i}">
       <div class="vs-sys-row">
-        <input type="number" value="${cost}" data-field="extraCPs" data-idx="${i}" step="2.5" min="0" title="Extra CPs">
-        <input type="number" value="${spaces}" data-field="spaces" data-idx="${i}" min="0" title="System Spaces">
+        <input type="number" value="${cost}" data-field="extraCPs" data-idx="${i}" step="2.5" min="0" title="Extra CPs added to this system (adds to vehicle cost)">
+        <input type="number" value="${spaces}" data-field="spaces" data-idx="${i}" min="0" title="System spaces allocated">
         <span class="vs-sys-val">${prof}</span>
         <span class="vs-sys-val">${hitsDisplay}</span>
-        <input type="text" value="${dmg}" data-field="dmg" data-idx="${i}" title="Damage">
+        <input type="text" value="${dmg}" data-field="dmg" data-idx="${i}" title="Damage taken by this system">
         <span class="vs-sys-val vs-sys-pts">${pts}</span>
-        <input type="text" class="vs-sys-desc" value="${desc}" data-field="desc" data-idx="${i}" title="System name">
+        <input type="text" class="vs-sys-desc" value="${desc}" data-field="desc" data-idx="${i}" title="System name, abilities, arc, notes">
         <span class="vs-sys-del" data-idx="${i}" title="Clear row">&times;</span>
       </div>
       <div class="vs-sys-mods">
-        <input type="checkbox" data-field="integral" data-idx="${i}" ${integral ? "checked" : ""} title="Integral">
-        <input type="number" value="${bulky}" data-field="bulky" data-idx="${i}" min="0" title="Bulky">
-        <input type="number" value="${delicate}" data-field="delicate" data-idx="${i}" min="0" title="Delicate">
-        <input type="number" value="${adjST}" data-field="adjST" data-idx="${i}" title="ST adj">
-        <input type="number" value="${adjEN}" data-field="adjEN" data-idx="${i}" title="EN adj">
-        <input type="number" value="${adjAG}" data-field="adjAG" data-idx="${i}" title="AG adj">
-        <input type="number" value="${adjIN}" data-field="adjIN" data-idx="${i}" title="IN adj">
-        <input type="number" value="${adjCL}" data-field="adjCL" data-idx="${i}" title="CL adj">
-        <input type="number" value="${adjMan}" data-field="adjMan" data-idx="${i}" title="Maneuver adj">
+        <input type="checkbox" data-field="integral" data-idx="${i}" ${integral ? "checked" : ""} title="Integral — hidden, can't be targeted. Halves CPs.">
+        <input type="number" value="${bulky}" data-field="bulky" data-idx="${i}" min="0" title="Bulky — +4.3 Hits per dose, +2.5 CP cost per dose">
+        <input type="number" value="${delicate}" data-field="delicate" data-idx="${i}" min="0" title="Delicate — -4.3 Hits per dose, -2.5 CP cost per dose">
+        <input type="checkbox" data-field="open" data-idx="${i}" ${open ? "checked" : ""} title="Open System — passable, yields ¼ CPs">
+        <input type="number" value="${adjST}" data-field="adjST" data-idx="${i}" title="ST adjustment from this system">
+        <input type="number" value="${adjEN}" data-field="adjEN" data-idx="${i}" title="EN adjustment from this system">
+        <input type="number" value="${adjAG}" data-field="adjAG" data-idx="${i}" title="AG adjustment (e.g. Automation)">
+        <input type="number" value="${adjIN}" data-field="adjIN" data-idx="${i}" title="IN adjustment (e.g. Robot Brain)">
+        <input type="number" value="${adjCL}" data-field="adjCL" data-idx="${i}" title="CL adjustment (e.g. Performance)">
       </div>
     </div>`;
   }
@@ -166,9 +161,9 @@ function renderSystemsTable() {
         sys = veh.systems[idx];
       }
 
-      if (field === "integral") {
-        sys.integral = inp.checked;
-      } else if (["extraCPs","spaces","bulky","delicate","adjST","adjEN","adjAG","adjIN","adjCL","adjMan"].includes(field)) {
+      if (field === "integral" || field === "open") {
+        sys[field] = inp.checked;
+      } else if (["extraCPs","spaces","bulky","delicate","adjST","adjEN","adjAG","adjIN","adjCL"].includes(field)) {
         sys[field] = parseFloat(inp.value) || 0;
       } else {
         sys[field] = inp.value;
@@ -177,7 +172,7 @@ function renderSystemsTable() {
     });
   });
 
-  // Wire clear buttons
+  // Wire clear
   el.querySelectorAll(".vs-sys-del").forEach(del => {
     del.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -190,7 +185,7 @@ function renderSystemsTable() {
     });
   });
 
-  // Wire row click for floor plan selection
+  // Wire row click for floor plan
   el.querySelectorAll(".vs-sys-row-wrap").forEach(row => {
     row.addEventListener("click", (e) => {
       if (e.target.tagName === "INPUT" || e.target.classList.contains("vs-sys-del")) return;
@@ -237,22 +232,19 @@ function onConfigChange() {
   veh.model = document.getElementById("vs-model").value;
   veh.operator = document.getElementById("vs-operator").value;
   veh.basicCost = parseFloat(document.getElementById("vs-basic-cost").value) || 0;
-  veh.techMod = parseInt(document.getElementById("vs-tech").value);
+  veh.techMod = parseFloat(document.getElementById("vs-tech").value) || 0;
+  veh.maneuverMod = parseFloat(document.getElementById("vs-maneuver").value) || 0;
   veh.wontExplode = document.getElementById("vs-noexplode").checked;
   veh.isBase = document.getElementById("vs-base").checked;
-  veh.notes = document.getElementById("vs-notes").value;
   updateAll();
 }
 
-["vs-name","vs-model","vs-operator","vs-notes"].forEach(id => {
+["vs-name","vs-model","vs-operator"].forEach(id => {
   document.getElementById(id).addEventListener("input", onConfigChange);
 });
-["vs-basic-cost"].forEach(id => {
+["vs-basic-cost","vs-tech","vs-maneuver"].forEach(id => {
   document.getElementById(id).addEventListener("change", onConfigChange);
   document.getElementById(id).addEventListener("input", onConfigChange);
-});
-["vs-tech"].forEach(id => {
-  document.getElementById(id).addEventListener("change", onConfigChange);
 });
 ["vs-noexplode","vs-base"].forEach(id => {
   document.getElementById(id).addEventListener("change", onConfigChange);
@@ -291,7 +283,6 @@ document.getElementById("btn-zoom-reset").addEventListener("click", () => editor
 
 // ---- Export ----
 document.getElementById("btn-save").addEventListener("click", () => {
-  veh.notes = document.getElementById("vs-notes").value;
   const blob = new Blob([JSON.stringify(veh.toJSON(), null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a"); a.href = url;
@@ -313,9 +304,9 @@ document.getElementById("inp-json").addEventListener("change", e => {
       document.getElementById("vs-operator").value = veh.operator;
       document.getElementById("vs-basic-cost").value = veh.basicCost;
       document.getElementById("vs-tech").value = veh.techMod;
+      document.getElementById("vs-maneuver").value = veh.maneuverMod;
       document.getElementById("vs-noexplode").checked = veh.wontExplode;
       document.getElementById("vs-base").checked = veh.isBase;
-      document.getElementById("vs-notes").value = veh.notes;
       if (veh.pictureData) {
         const img = document.getElementById("vs-picture-img");
         img.src = veh.pictureData;
@@ -329,7 +320,6 @@ document.getElementById("inp-json").addEventListener("change", e => {
 });
 
 document.getElementById("btn-csv").addEventListener("click", () => {
-  veh.notes = document.getElementById("vs-notes").value;
   const blob = new Blob([veh.toCSV()], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a"); a.href = url;
