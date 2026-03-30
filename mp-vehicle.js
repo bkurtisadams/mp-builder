@@ -59,6 +59,14 @@ class Vehicle {
     return null;
   }
 
+  cellObjAt(gx, gy) {
+    for (const sys of this.systems) {
+      const c = sys.cells.find(c => c.gx === gx && c.gy === gy);
+      if (c) return { sys, cell: c };
+    }
+    return null;
+  }
+
   addKeyEntry(label, desc) {
     const entry = { id: this._nextKeyId++, label: label || "", desc: desc || "" };
     this.keyEntries.push(entry);

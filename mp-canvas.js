@@ -39,6 +39,7 @@ class FloorPlanEditor {
     this.canvas.addEventListener("mousemove", e => this._onMouseMove(e));
     this.canvas.addEventListener("mousedown", e => this._onMouseDown(e));
     this.canvas.addEventListener("mouseup", e => this._onMouseUp(e));
+    this.canvas.addEventListener("dblclick", e => this._onDblClick(e));
     this.canvas.addEventListener("mouseleave", () => {
       this.hoverGx = null; this.hoverGy = null;
       this.painting = false; this.panStart = null;
@@ -264,6 +265,50 @@ class FloorPlanEditor {
     }
   }
 
+  _onDblClick(ev) {
+    if (this.mode !== "select") return;
+    const { cx, cy } = this._canvasPos(ev);
+    const { gx, gy } = this._cssToGrid(cx, cy);
+    const result = this.veh.cellObjAt(gx, gy);
+    if (!result) return;
+    ev.preventDefault();
+    this._showCellLabelEditor(result.cell, gx, gy);
+  }
+
+  _showCellLabelEditor(cellObj, gx, gy) {
+    // Position an input over the cell
+    const cell = CELL_PX * this.zoom;
+    const rect = this.canvas.getBoundingClientRect();
+    const x = rect.left + this.panX + gx * cell;
+    const y = rect.top + gy * cell + this.panY;
+
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.maxLength = 4;
+    inp.value = cellObj.label || "";
+    inp.placeholder = "??";
+    inp.style.cssText = `position:fixed;left:${x}px;top:${y}px;width:${cell}px;height:${cell}px;`
+      + `font-family:'Bitter',serif;font-size:${Math.max(9, cell * 0.4)}px;font-weight:bold;`
+      + `text-align:center;border:2px solid #c05a00;border-radius:2px;background:#fff;`
+      + `color:#1a2a3a;outline:none;z-index:9999;padding:0;box-sizing:border-box;`;
+    document.body.appendChild(inp);
+    inp.focus();
+    inp.select();
+
+    const commit = () => {
+      cellObj.label = inp.value.trim() || undefined;
+      if (inp.parentNode) inp.parentNode.removeChild(inp);
+      this.draw();
+      if (this.onUpdate) this.onUpdate();
+    };
+
+    inp.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); commit(); }
+      if (e.key === "Escape") { if (inp.parentNode) inp.parentNode.removeChild(inp); }
+    });
+    inp.addEventListener("blur", commit);
+  }
+
   zoomIn() { this._zoomBy(1.25); }
   zoomOut() { this._zoomBy(0.8); }
   resetView() { this.zoom = 1; this.panX = 40; this.panY = 40; this.draw(); }
@@ -441,16 +486,17 @@ class FloorPlanEditor {
         ctx.strokeStyle = isActive ? "#f4d03f" : "#00000044";
         ctx.lineWidth = isActive ? 2 : 0.5;
         ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
-        // Label if cell is big enough and not a seat
-        if (!isSeat && cell / dpr > 16) {
-          const fs = Math.max(7, Math.min(11, (cell / dpr) * 0.4)) * dpr;
-          ctx.font = `bold ${fs}px sans-serif`;
-          ctx.fillStyle = "#ffffffdd";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          // Use first 2 chars of desc as label
-          const lbl = (sys.desc || "??").substring(0, 2).toUpperCase();
-          ctx.fillText(lbl, x + cell / 2, y + cell / 2);
+        // Label: per-cell label overrides default, show on all cells including seats
+        if (cell / dpr > 16) {
+          const lbl = c.label || (isSeat ? "" : (sys.desc || "??").substring(0, 2).toUpperCase());
+          if (lbl) {
+            const fs = Math.max(7, Math.min(11, (cell / dpr) * 0.4)) * dpr;
+            ctx.font = `bold ${fs}px sans-serif`;
+            ctx.fillStyle = isSeat ? "#000000aa" : "#ffffffdd";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(lbl, x + cell / 2, y + cell / 2 + (isSeat ? cell * 0.05 : 0));
+          }
         }
       }
     }
@@ -575,12 +621,15 @@ class FloorPlanEditor {
         ctx.globalAlpha = 0.85;
         ctx.fillStyle = color;
         ctx.fillRect(sx + 1, sy + 1, cellPx - 2, cellPx - 2);
-        ctx.globalAlpha = 1;
-        if (cellPx > 14) {
+      }
+      ctx.globalAlpha = 1;
+      // Per-cell label or default
+      if (cellPx > 14) {
+        const lbl = cc.label || (isSeat ? "" : (cc.sys.desc || "??").substring(0, 2).toUpperCase());
+        if (lbl) {
           ctx.font = `bold ${Math.max(7, Math.min(11, cellPx * 0.4))}px sans-serif`;
-          ctx.fillStyle = "#ffffffdd";
+          ctx.fillStyle = isSeat ? "#000000aa" : "#ffffffdd";
           ctx.textAlign = "center"; ctx.textBaseline = "middle";
-          const lbl = (cc.sys.desc || "??").substring(0, 2).toUpperCase();
           ctx.fillText(lbl, sx + cellPx / 2, sy + cellPx / 2);
         }
       }
