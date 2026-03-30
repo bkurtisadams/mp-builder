@@ -191,6 +191,38 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
   .mp-hdr-in { flex-wrap: wrap; height: auto; padding: 4px 0 }
 }
 
+/* ============ ABILITY INSERT DIALOG (Ctrl+I) ============ */
+.aid-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9000; display: flex; align-items: center; justify-content: center }
+.aid-dialog { background: var(--bg3); border: 2px solid var(--brd); border-radius: 6px; box-shadow: 0 8px 32px rgba(0,0,0,.3); width: 380px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column }
+.aid-title { font-family: var(--fd); font-size: 16px; color: var(--label); padding: 8px 12px; border-bottom: 2px solid var(--brd); letter-spacing: .5px }
+.aid-body { padding: 8px 12px; overflow-y: auto; flex: 1 }
+.aid-row { display: flex; align-items: center; gap: 6px; padding: 3px 0 }
+.aid-lbl { font-size: 9px; font-weight: 700; color: var(--label); text-transform: uppercase; white-space: nowrap; min-width: 90px; text-align: right }
+.aid-sel-ability { flex: 1; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 3px 4px; font-family: var(--fb); font-size: 10px; color: var(--tx) }
+.aid-sel-ability:focus { outline: none; border-color: var(--accent) }
+.aid-sel-mod { flex: 1; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 2px 4px; font-family: var(--fb); font-size: 9px; color: var(--tx) }
+.aid-sel-mod:focus { outline: none; border-color: var(--accent) }
+.aid-inp-num { width: 64px; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 2px 4px; font-family: var(--fb); font-size: 10px; color: var(--tx); text-align: center }
+.aid-inp-num:focus { outline: none; border-color: var(--accent) }
+.aid-inp-text { flex: 1; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 2px 4px; font-family: var(--fb); font-size: 9px; color: var(--tx) }
+.aid-inp-text:focus { outline: none; border-color: var(--accent) }
+.aid-chk { width: 14px; height: 14px; accent-color: var(--accent) }
+.aid-hint { font-size: 8px; color: var(--tx3); font-style: italic }
+.aid-hint-row { padding: 0 0 2px; margin-left: 96px }
+.aid-hint-info { font-size: 8px; color: var(--accent); font-style: italic }
+.aid-pr-display { font-size: 8px; font-weight: 700; color: var(--tx2); white-space: nowrap }
+.aid-row.aid-hidden { display: none }
+.aid-divider { border-top: 1px solid var(--brd2); margin: 4px 0 }
+.aid-total { display: flex; align-items: center; gap: 6px; padding: 6px 0 2px; border-top: 1px solid var(--brd2); margin-top: 4px }
+.aid-total-label { font-size: 9px; font-weight: 700; color: var(--label); min-width: 90px; text-align: right }
+.aid-total-val { font-size: 13px; font-weight: 700; color: var(--val); background: #fff; border: 1px solid var(--brd); border-radius: 2px; padding: 2px 8px; min-width: 48px; text-align: center }
+.aid-footer { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 12px; border-top: 1px solid var(--brd2) }
+.aid-btn { padding: 5px 16px; font-family: var(--fb); font-size: 10px; font-weight: 700; border: none; border-radius: 3px; cursor: pointer }
+.aid-btn-ok { background: var(--accent); color: #fff }
+.aid-btn-ok:hover { background: var(--accent-lt) }
+.aid-btn-cancel { background: #e0e8f0; color: var(--tx2); border: 1px solid var(--brd) }
+.aid-btn-cancel:hover { background: #d0d8e8 }
+
 /* ============ PRINT STYLES ============ */
 @media print {
   /* Hide non-printable UI */
