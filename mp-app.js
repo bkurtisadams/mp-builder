@@ -338,9 +338,6 @@ function onConfigChange() {
 });
 
 // ---- Import image ----
-document.getElementById("btn-import-img").addEventListener("click", () => {
-  document.getElementById("inp-picture").click();
-});
 document.getElementById("inp-picture").addEventListener("change", e => {
   if (!e.target.files.length) return;
   const reader = new FileReader();
