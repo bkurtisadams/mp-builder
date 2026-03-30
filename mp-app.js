@@ -411,11 +411,13 @@ function updateSilBar() {
     document.getElementById("sil-y").value = sil.gy ?? 0;
     document.getElementById("sil-w").value = sil.gw ?? 10;
     document.getElementById("sil-h").value = sil.gh ?? 8;
+    document.getElementById("sil-rot").value = sil.rot ?? 0;
   } else {
     document.getElementById("sil-x").value = "";
     document.getElementById("sil-y").value = "";
     document.getElementById("sil-w").value = "";
     document.getElementById("sil-h").value = "";
+    document.getElementById("sil-rot").value = "";
   }
 }
 
@@ -453,8 +455,8 @@ document.getElementById("btn-sil-clear").addEventListener("click", () => {
   updateSilBar();
 });
 
-// Sil X/Y/W/H inputs
-["sil-x","sil-y","sil-w","sil-h"].forEach(id => {
+// Sil X/Y/W/H/Rot inputs
+["sil-x","sil-y","sil-w","sil-h","sil-rot"].forEach(id => {
   document.getElementById(id).addEventListener("input", () => {
     const sil = veh.silhouette;
     if (!sil) return;
@@ -462,6 +464,7 @@ document.getElementById("btn-sil-clear").addEventListener("click", () => {
     sil.gy = parseFloat(document.getElementById("sil-y").value) || 0;
     sil.gw = Math.max(1, parseFloat(document.getElementById("sil-w").value) || 1);
     sil.gh = Math.max(1, parseFloat(document.getElementById("sil-h").value) || 1);
+    sil.rot = parseFloat(document.getElementById("sil-rot").value) || 0;
     if (editor) editor.draw();
   });
 });
@@ -587,6 +590,7 @@ select:focus{outline:none;border-color:var(--accent)}
     <label class="pop-sil-label">Y:</label><input type="number" id="pop-sil-y" class="pop-sil-inp" step="0.5">
     <label class="pop-sil-label">W:</label><input type="number" id="pop-sil-w" class="pop-sil-inp" step="0.5" min="1">
     <label class="pop-sil-label">H:</label><input type="number" id="pop-sil-h" class="pop-sil-inp" step="0.5" min="1">
+    <label class="pop-sil-label">Rot:</label><input type="number" id="pop-sil-rot" class="pop-sil-inp" step="15">
   </div>
   <div class="pop-hint">
     <b>Del</b>=delete selected cell &bull; Right-drag=pan &bull; Scroll=zoom &bull;
@@ -640,6 +644,7 @@ select:focus{outline:none;border-color:var(--accent)}
         d.getElementById("pop-sil-y").value = sil.gy ?? 0;
         d.getElementById("pop-sil-w").value = sil.gw ?? 10;
         d.getElementById("pop-sil-h").value = sil.gh ?? 8;
+        d.getElementById("pop-sil-rot").value = sil.rot ?? 0;
       }
     }
     updatePopoutSilBar(pdoc);
@@ -687,7 +692,7 @@ select:focus{outline:none;border-color:var(--accent)}
       if (editor) editor.draw();
     });
 
-    ["pop-sil-x","pop-sil-y","pop-sil-w","pop-sil-h"].forEach(id => {
+    ["pop-sil-x","pop-sil-y","pop-sil-w","pop-sil-h","pop-sil-rot"].forEach(id => {
       pdoc.getElementById(id).addEventListener("input", () => {
         const sil = veh.silhouette;
         if (!sil) return;
@@ -695,6 +700,7 @@ select:focus{outline:none;border-color:var(--accent)}
         sil.gy = parseFloat(pdoc.getElementById("pop-sil-y").value) || 0;
         sil.gw = Math.max(1, parseFloat(pdoc.getElementById("pop-sil-w").value) || 1);
         sil.gh = Math.max(1, parseFloat(pdoc.getElementById("pop-sil-h").value) || 1);
+        sil.rot = parseFloat(pdoc.getElementById("pop-sil-rot").value) || 0;
         popoutEditor.draw();
         if (editor) editor.draw();
       });

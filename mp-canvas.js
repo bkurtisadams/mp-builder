@@ -332,6 +332,7 @@ class FloorPlanEditor {
     sil.gy = sil.gy || 0;
     sil.gw = gw || 10;
     sil.gh = gh || 8;
+    sil.rot = sil.rot || 0;
     this.veh.silhouette = sil;
     this._silImg = new Image();
     this._silImg.onload = () => this.draw();
@@ -361,11 +362,21 @@ class FloorPlanEditor {
     const sy = this.panY + sil.gy * cell;
     const sw = sil.gw * cell;
     const sh = sil.gh * cell;
-    // Resize handle: 8px square at bottom-right corner
+    const rot = (sil.rot || 0) * Math.PI / 180;
+    // Transform click into silhouette's rotated local space
+    const midX = sx + sw / 2;
+    const midY = sy + sh / 2;
+    const cos = Math.cos(-rot);
+    const sin = Math.sin(-rot);
+    const dx = cx - midX;
+    const dy = cy - midY;
+    const lx = dx * cos - dy * sin;
+    const ly = dx * sin + dy * cos;
+    // Resize handle: 8px square at bottom-right corner in local space
     const hSize = 8;
-    if (cx >= sx + sw - hSize && cx <= sx + sw + hSize && cy >= sy + sh - hSize && cy <= sy + sh + hSize) return "resize";
-    // Move: anywhere inside
-    if (cx >= sx && cx <= sx + sw && cy >= sy && cy <= sy + sh) return "move";
+    if (lx >= sw / 2 - hSize && lx <= sw / 2 + hSize && ly >= sh / 2 - hSize && ly <= sh / 2 + hSize) return "resize";
+    // Move: anywhere inside in local space
+    if (lx >= -sw / 2 && lx <= sw / 2 && ly >= -sh / 2 && ly <= sh / 2) return "move";
     return "";
   }
 
@@ -392,19 +403,26 @@ class FloorPlanEditor {
       const sy = oy + sil.gy * cell;
       const sw = sil.gw * cell;
       const sh = sil.gh * cell;
+      const rot = (sil.rot || 0) * Math.PI / 180;
+      const cx2 = sx + sw / 2;
+      const cy2 = sy + sh / 2;
+      ctx.save();
+      ctx.translate(cx2, cy2);
+      ctx.rotate(rot);
       ctx.globalAlpha = 0.2;
-      ctx.drawImage(this._silImg, sx, sy, sw, sh);
+      ctx.drawImage(this._silImg, -sw / 2, -sh / 2, sw, sh);
       ctx.globalAlpha = 1;
       // Border
       ctx.strokeStyle = "#00000030";
       ctx.lineWidth = 1;
       ctx.setLineDash([4 * dpr, 4 * dpr]);
-      ctx.strokeRect(sx, sy, sw, sh);
+      ctx.strokeRect(-sw / 2, -sh / 2, sw, sh);
       ctx.setLineDash([]);
-      // Resize handle
+      // Resize handle (bottom-right corner)
       const hSize = 6 * dpr;
       ctx.fillStyle = "#00000040";
-      ctx.fillRect(sx + sw - hSize, sy + sh - hSize, hSize * 2, hSize * 2);
+      ctx.fillRect(sw / 2 - hSize, sh / 2 - hSize, hSize * 2, hSize * 2);
+      ctx.restore();
     }
 
     const startGx = Math.floor(-ox / cell);
