@@ -226,6 +226,21 @@
       <span class="aid-pr-display" id="aid-cp-display"></span>
       <span class="aid-pr-display" id="aid-pr-display"></span>
     </div>
+    <div class="aid-row aid-sysmods-row">
+      <label class="aid-lbl">System Mods:</label>
+      <label class="aid-chk-label"><input type="checkbox" id="aid-integral" class="aid-chk"> Integral (½ CPs)</label>
+      <label class="aid-chk-label"><input type="checkbox" id="aid-open" class="aid-chk"> Open (¼ CPs)</label>
+      <label class="aid-chk-label" title="Scroll or click arrows to adjust">Bulky: <input type="number" id="aid-bulky" class="aid-inp-tiny" value="0" min="0" max="20" step="1"></label>
+      <label class="aid-chk-label" title="Scroll or click arrows to adjust">Del: <input type="number" id="aid-delicate" class="aid-inp-tiny" value="0" min="0" max="20" step="1"></label>
+    </div>
+    <div class="aid-budget-row">
+      <span class="aid-budget-label">Budget:</span>
+      <span class="aid-budget-val" id="aid-budget" title="System CPs available (spaces + tech + bulky/delicate, halved/quartered by integral/open)">0</span>
+      <span class="aid-budget-label">Used:</span>
+      <span class="aid-budget-val" id="aid-used" title="Base ability CPs + modifier adjustments">0</span>
+      <span class="aid-budget-label">Remaining:</span>
+      <span class="aid-budget-val" id="aid-remaining">0</span>
+    </div>
     <div class="aid-divider"></div>
     <div class="aid-row" data-mod="ae">
       <label class="aid-lbl">Area Effect:</label>

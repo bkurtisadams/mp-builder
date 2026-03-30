@@ -213,6 +213,14 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 .aid-hint-row { padding: 0 0 2px; margin-left: 96px }
 .aid-hint-info { font-size: 8px; color: var(--accent); font-style: italic }
 .aid-stats-info { font-size: 9px; font-weight: 700; color: var(--val) }
+.aid-sysmods-row { flex-wrap: wrap }
+.aid-chk-label { font-size: 8px; color: var(--tx2); display: inline-flex; align-items: center; gap: 2px; white-space: nowrap }
+.aid-inp-tiny { width: 32px; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 1px 2px; font-family: var(--fb); font-size: 8px; color: var(--tx); text-align: center }
+.aid-inp-tiny:focus { outline: none; border-color: var(--accent) }
+.aid-budget-row { display: flex; align-items: center; gap: 4px; padding: 3px 0; margin-left: 96px }
+.aid-budget-label { font-size: 8px; font-weight: 700; color: var(--label); text-transform: uppercase }
+.aid-budget-val { font-size: 10px; font-weight: 700; color: var(--val); background: #fff; border: 1px solid var(--brd2); border-radius: 2px; padding: 1px 4px; min-width: 28px; text-align: center }
+.aid-budget-val.aid-over { color: #c03030; background: #fff0f0; border-color: #c03030 }
 .aid-pr-display { font-size: 8px; font-weight: 700; color: var(--tx2); white-space: nowrap }
 .aid-divider { border-top: 1px solid var(--brd2); margin: 4px 0 }
 .aid-footer { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 12px; border-top: 1px solid var(--brd2) }

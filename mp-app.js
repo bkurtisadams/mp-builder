@@ -934,11 +934,26 @@ const abilityDlg = {
     this._buildSelect("aid-range", MP.RANGE_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 6);
     // PR/Charges built dynamically per ability in _rebuildPRCharges()
 
-    // Wire spaces change to update CP display and stats
-    spSel.addEventListener("change", () => { this._updateCPDisplay(); this._updateStats(); });
+    // Wire spaces and system modifier changes to update budget and stats
+    const budgetInputs = ["aid-spaces","aid-integral","aid-open","aid-bulky","aid-delicate"];
+    for (const id of budgetInputs) {
+      const el = document.getElementById(id);
+      el.addEventListener("change", () => { this._updateBudget(); this._updateStats(); });
+      el.addEventListener("input", () => { this._updateBudget(); this._updateStats(); });
+    }
 
     // Wire ability dropdown to auto-fill and show/hide modifiers
     document.getElementById("aid-ability").addEventListener("change", () => this._onAbilityChange());
+
+    // Wire ability modifier inputs to update budget used
+    const modInputs = ["aid-area","aid-ap","aid-autofire","aid-gear","aid-prch","aid-range"];
+    for (const id of modInputs) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("change", () => this._updateBudget());
+        el.addEventListener("input", () => this._updateBudget());
+      }
+    }
 
     // OK / Cancel
     document.getElementById("aid-ok").addEventListener("click", () => this._commit());
@@ -962,17 +977,62 @@ const abilityDlg = {
     }
   },
 
-  _updateCPDisplay() {
+  _getBudget() {
     const sp = parseInt(document.getElementById("aid-spaces").value) || 1;
     const row = MP.lookupSys(sp);
-    document.getElementById("aid-cp-display").textContent = row ? `(${row.cp}) CPs` : "";
+    let cp = row ? row.cp : 0;
+    // Tech mod from vehicle
+    cp += veh.techMod || 0;
+    // Bulky adds to cost (+2.5/app), Delicate subtracts (-2.5/app)
+    const bulky = parseInt(document.getElementById("aid-bulky").value) || 0;
+    const delicate = parseInt(document.getElementById("aid-delicate").value) || 0;
+    cp += bulky * 2.5;
+    cp -= delicate * 2.5;
+    // Integral halves
+    if (document.getElementById("aid-integral").checked) cp = Math.ceil(cp / 2);
+    // Open quarters
+    if (document.getElementById("aid-open").checked) cp = Math.ceil(cp / 4);
+    return Math.max(0, cp);
+  },
+
+  _getModAdj() {
+    let adj = 0;
+    const areaIdx = parseInt(document.getElementById("aid-area").value);
+    adj += MP.AREA_EFFECT_STEPS[areaIdx]?.cp || 0;
+    const apIdx = parseInt(document.getElementById("aid-ap").value);
+    adj += MP.ARMOR_PIERCING_STEPS[apIdx]?.cp || 0;
+    const afIdx = parseInt(document.getElementById("aid-autofire").value);
+    adj += MP.AUTOFIRE_STEPS[afIdx]?.cp || 0;
+    if (document.getElementById("aid-gear").checked) adj -= 5;
+    const prchSel = document.getElementById("aid-prch");
+    const prchOpt = prchSel.options[prchSel.selectedIndex];
+    adj += parseFloat(prchOpt?.dataset.cp) || 0;
+    const rngIdx = parseInt(document.getElementById("aid-range").value);
+    adj += MP.RANGE_STEPS[rngIdx]?.cp || 0;
+    return adj;
+  },
+
+  _updateBudget() {
+    const budget = this._getBudget();
+    const modAdj = this._getModAdj();
+    // "Used" = budget + modAdj (modifiers adjust the final cost)
+    // If modAdj is negative, cost goes down. If positive, cost goes up.
+    const used = budget + modAdj;
+    const remaining = budget - used;
+
+    document.getElementById("aid-budget").textContent = budget;
+    document.getElementById("aid-used").textContent = used;
+    const remEl = document.getElementById("aid-remaining");
+    remEl.textContent = remaining;
+    remEl.classList.toggle("aid-over", remaining < 0);
+
+    // Also update the old CP display
+    document.getElementById("aid-cp-display").textContent = budget ? `(${budget}) CPs` : "";
   },
 
   _updateStats() {
     const abId = document.getElementById("aid-ability").value;
-    const sp = parseInt(document.getElementById("aid-spaces").value) || 1;
-    const sysRow = MP.lookupSys(sp);
-    const cp = sysRow ? sysRow.cp : 0;
+    const cp = this._getBudget();
     const info = MP.computeAbilityInfo(abId, cp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
     const el = document.getElementById("aid-stats-info");
     el.textContent = info ? info.hint : "";
@@ -995,6 +1055,7 @@ const abilityDlg = {
       prEl.textContent = "";
       this._rebuildPRCharges(0);
     }
+    this._updateBudget();
     this._updateStats();
   },
 
@@ -1018,19 +1079,27 @@ const abilityDlg = {
     // Reset all fields
     document.getElementById("aid-ability").selectedIndex = 0;
     document.getElementById("aid-spaces").selectedIndex = 0;
+    document.getElementById("aid-integral").checked = false;
+    document.getElementById("aid-open").checked = false;
+    document.getElementById("aid-bulky").value = "0";
+    document.getElementById("aid-delicate").value = "0";
     document.getElementById("aid-area").value = "0";
     document.getElementById("aid-ap").value = "0";
     document.getElementById("aid-autofire").value = "0";
     document.getElementById("aid-gear").checked = false;
     document.getElementById("aid-range").value = "6";
     document.getElementById("aid-notes").value = "";
-    // If the row already has spaces set, pre-select that value
+    // If the row already has data, pre-fill
     const sys = veh.systems[rowIdx];
-    if (sys && sys.spaces) {
-      document.getElementById("aid-spaces").value = String(sys.spaces);
+    if (sys) {
+      if (sys.spaces) document.getElementById("aid-spaces").value = String(sys.spaces);
+      if (sys.integral) document.getElementById("aid-integral").checked = true;
+      if (sys.open) document.getElementById("aid-open").checked = true;
+      if (sys.bulky) document.getElementById("aid-bulky").value = String(sys.bulky);
+      if (sys.delicate) document.getElementById("aid-delicate").value = String(sys.delicate);
     }
     this._onAbilityChange();
-    this._updateCPDisplay();
+    this._updateBudget();
     this.overlay.style.display = "flex";
     document.getElementById("aid-ability").focus();
   },
@@ -1049,22 +1118,19 @@ const abilityDlg = {
     const detail = MP.ABILITY_DETAILS[abId];
     const name = ab ? ab.name : "Custom";
 
-    // Get system CPs from spaces
-    const sp = parseInt(document.getElementById("aid-spaces").value) || 1;
-    const sysRow = MP.lookupSys(sp);
-    const sysCp = sysRow ? sysRow.cp : 0;
+    // Get budget CPs (includes spaces + tech + bulky/delicate + integral/open)
+    const budgetCp = this._getBudget();
 
-    // Compute ability stats (damage/speed/armor/range)
-    const info = MP.computeAbilityInfo(abId, sysCp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
+    // Compute ability stats (damage/speed/armor/range) from budget CPs
+    const info = MP.computeAbilityInfo(abId, budgetCp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
 
-    // Build description in notation style:
-    // "Power Blast: 2d10 (20), Rng 27", AP 5 (+2.5), Gear (-5), 8 ch (-5)"
+    // Build description in notation style
     const parts = [];
 
-    // Base ability + computed stats + system CPs
+    // Base ability + computed stats + budget CPs
     let basePart = name;
     if (info && info.desc) basePart += ": " + info.desc;
-    basePart += " (" + sysCp + ")";
+    basePart += " (" + budgetCp + ")";
     parts.push(basePart);
 
     // Modifiers — each with CP cost in parens
@@ -1131,6 +1197,12 @@ const abilityDlg = {
 
     // Write spaces (overwrite if row was empty, keep if already set)
     if (!sys.spaces) sys.spaces = spaces;
+
+    // Write system modifiers from dialog
+    sys.integral = document.getElementById("aid-integral").checked;
+    sys.open = document.getElementById("aid-open").checked;
+    sys.bulky = parseInt(document.getElementById("aid-bulky").value) || 0;
+    sys.delicate = parseInt(document.getElementById("aid-delicate").value) || 0;
 
     // Write description — append if non-empty
     if (sys.desc && sys.desc.trim()) {
