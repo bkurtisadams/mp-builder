@@ -81,16 +81,14 @@ class FloorPlanEditor {
   setMode(mode) {
     this.mode = mode;
     this.painting = false;
-    this.canvas.style.cursor = mode === "paint" ? "crosshair" : mode === "erase" ? "not-allowed" : "default";
+    if (mode === "paint") this.canvas.style.cursor = "crosshair";
+    else if (mode === "sil") this.canvas.style.cursor = "default";
+    else this.canvas.style.cursor = "default";
     this.draw();
   }
 
   setActiveSys(sysId) {
     this.activeSysId = sysId;
-    if (sysId) {
-      this.mode = "paint";
-      this.canvas.style.cursor = "crosshair";
-    }
     this.draw();
   }
 

@@ -372,11 +372,6 @@ function setLayoutMode(mode) {
   document.getElementById("btn-mode-select").classList.toggle("active", mode === "select");
   document.getElementById("btn-mode-paint").classList.toggle("active", mode === "paint");
   document.getElementById("btn-mode-sil").classList.toggle("active", mode === "sil");
-  // Disable Sil button when in select/paint, disable Select/Paint when in sil
-  document.getElementById("btn-mode-sil").classList.toggle("ed-btn-disabled", mode === "select" || mode === "paint");
-  document.getElementById("btn-mode-select").classList.toggle("ed-btn-disabled", mode === "sil");
-  document.getElementById("btn-mode-paint").classList.toggle("ed-btn-disabled", mode === "sil");
-  // Sil bar enabled only in sil mode with a silhouette loaded
   updateSilBar();
   editor.draw();
 }
@@ -400,9 +395,7 @@ function updateSilBar() {
 }
 
 document.getElementById("btn-mode-select").addEventListener("click", () => setLayoutMode("select"));
-document.getElementById("btn-mode-paint").addEventListener("click", () => {
-  if (editor && editor.activeSysId) setLayoutMode("paint");
-});
+document.getElementById("btn-mode-paint").addEventListener("click", () => setLayoutMode("paint"));
 document.getElementById("btn-mode-sil").addEventListener("click", () => setLayoutMode("sil"));
 
 document.getElementById("btn-zoom-in").addEventListener("click", () => editor.zoomIn());
@@ -608,9 +601,6 @@ select:focus{outline:none;border-color:var(--accent)}
       pdoc.getElementById("pop-select").classList.toggle("active", mode === "select");
       pdoc.getElementById("pop-paint").classList.toggle("active", mode === "paint");
       pdoc.getElementById("pop-sil").classList.toggle("active", mode === "sil");
-      pdoc.getElementById("pop-sil").classList.toggle("ed-btn-disabled", mode === "select" || mode === "paint");
-      pdoc.getElementById("pop-select").classList.toggle("ed-btn-disabled", mode === "sil");
-      pdoc.getElementById("pop-paint").classList.toggle("ed-btn-disabled", mode === "sil");
       updatePopoutSilBar(pdoc);
       popoutEditor.draw();
     }
@@ -638,9 +628,7 @@ select:focus{outline:none;border-color:var(--accent)}
     });
 
     pdoc.getElementById("pop-select").addEventListener("click", () => setPopoutMode("select"));
-    pdoc.getElementById("pop-paint").addEventListener("click", () => {
-      if (popoutEditor.activeSysId) setPopoutMode("paint");
-    });
+    pdoc.getElementById("pop-paint").addEventListener("click", () => setPopoutMode("paint"));
     pdoc.getElementById("pop-sil").addEventListener("click", () => setPopoutMode("sil"));
     pdoc.getElementById("pop-zin").addEventListener("click", () => popoutEditor.zoomIn());
     pdoc.getElementById("pop-zout").addEventListener("click", () => popoutEditor.zoomOut());
