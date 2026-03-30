@@ -111,6 +111,11 @@ function updateAll() {
   if (editor) editor.draw();
 }
 
+// HTML attribute escaper
+function escAttr(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
 // ---- Systems table: 18 rows + remaining ----
 const SYS_ROW_COUNT = 18;
 
@@ -126,8 +131,8 @@ function renderSystemsTable() {
     const hits = s && s.spaces ? veh.sysHits(s) : "";
     const hitsDisplay = hits !== "" ? `(${hits})` : "";
     const pts = s && s.spaces ? `(${veh.sysCPs(s)})` : "";
-    const dmg = s ? (s.dmg || "") : "";
-    const desc = s ? (s.desc || "") : "";
+    const dmg = s ? escAttr(s.dmg || "") : "";
+    const desc = s ? escAttr(s.desc || "") : "";
     const integral = s ? (s.integral || false) : false;
     const open = s ? (s.open || false) : false;
     const bulky = s ? (s.bulky || "") : "";
@@ -228,10 +233,10 @@ function renderKey() {
     const kL = veh.keyEntries[left] || null;
     const kR = veh.keyEntries[right] || null;
     html += `<tr>
-      <td><input type="text" class="vs-key-label" value="${kL ? kL.label : ""}" data-kidx="${left}" data-field="label" placeholder="#"></td>
-      <td><input type="text" class="vs-key-desc" value="${kL ? kL.desc : ""}" data-kidx="${left}" data-field="desc"></td>
-      <td><input type="text" class="vs-key-label" value="${kR ? kR.label : ""}" data-kidx="${right}" data-field="label" placeholder="#"></td>
-      <td><input type="text" class="vs-key-desc" value="${kR ? kR.desc : ""}" data-kidx="${right}" data-field="desc"></td>
+      <td><input type="text" class="vs-key-label" value="${escAttr(kL ? kL.label : "")}" data-kidx="${left}" data-field="label" placeholder="#"></td>
+      <td><input type="text" class="vs-key-desc" value="${escAttr(kL ? kL.desc : "")}" data-kidx="${left}" data-field="desc"></td>
+      <td><input type="text" class="vs-key-label" value="${escAttr(kR ? kR.label : "")}" data-kidx="${right}" data-field="label" placeholder="#"></td>
+      <td><input type="text" class="vs-key-desc" value="${escAttr(kR ? kR.desc : "")}" data-kidx="${right}" data-field="desc"></td>
     </tr>`;
   }
   tbody.innerHTML = html;
