@@ -119,6 +119,7 @@ function updateAll() {
   renderKey();
   updateSystemDropdown();
   updateActiveIndicator();
+  if (typeof updateSilBar === "function") updateSilBar();
   if (editor) editor.draw();
   autoSave();
 }
@@ -356,39 +357,59 @@ document.getElementById("sel-layout-sys").addEventListener("change", () => {
   if (editor) {
     editor.activeSysId = sysId;
     if (sysId) {
-      editor.setMode("paint");
-    } else {
-      editor.setMode("select");
+      setLayoutMode("paint");
     }
-    updateModeButtons();
     updateActiveIndicator();
     editor.draw();
   }
 });
 
-// ---- Mode buttons ----
-function updateModeButtons() {
+// ---- Mode buttons: Select / Paint / Sil ----
+function setLayoutMode(mode) {
   if (!editor) return;
-  document.getElementById("btn-mode-paint").classList.toggle("active", editor.mode === "paint");
-  document.getElementById("btn-mode-erase").classList.toggle("active", editor.mode === "erase");
+  editor.setMode(mode);
+  editor.selectedCell = null;
+  document.getElementById("btn-mode-select").classList.toggle("active", mode === "select");
+  document.getElementById("btn-mode-paint").classList.toggle("active", mode === "paint");
+  document.getElementById("btn-mode-sil").classList.toggle("active", mode === "sil");
+  // Disable Sil button when in select/paint, disable Select/Paint when in sil
+  document.getElementById("btn-mode-sil").classList.toggle("ed-btn-disabled", mode === "select" || mode === "paint");
+  document.getElementById("btn-mode-select").classList.toggle("ed-btn-disabled", mode === "sil");
+  document.getElementById("btn-mode-paint").classList.toggle("ed-btn-disabled", mode === "sil");
+  // Sil bar enabled only in sil mode with a silhouette loaded
+  updateSilBar();
+  editor.draw();
 }
+
+function updateSilBar() {
+  const bar = document.getElementById("vs-sil-bar");
+  const sil = veh.silhouette;
+  const inSilMode = editor && editor.mode === "sil";
+  bar.classList.toggle("disabled", !inSilMode);
+  if (sil) {
+    document.getElementById("sil-x").value = sil.gx ?? 0;
+    document.getElementById("sil-y").value = sil.gy ?? 0;
+    document.getElementById("sil-w").value = sil.gw ?? 10;
+    document.getElementById("sil-h").value = sil.gh ?? 8;
+  } else {
+    document.getElementById("sil-x").value = "";
+    document.getElementById("sil-y").value = "";
+    document.getElementById("sil-w").value = "";
+    document.getElementById("sil-h").value = "";
+  }
+}
+
+document.getElementById("btn-mode-select").addEventListener("click", () => setLayoutMode("select"));
 document.getElementById("btn-mode-paint").addEventListener("click", () => {
-  if (editor && editor.activeSysId) {
-    editor.setMode("paint");
-    updateModeButtons();
-  }
+  if (editor && editor.activeSysId) setLayoutMode("paint");
 });
-document.getElementById("btn-mode-erase").addEventListener("click", () => {
-  if (editor) {
-    editor.setMode("erase");
-    updateModeButtons();
-  }
-});
+document.getElementById("btn-mode-sil").addEventListener("click", () => setLayoutMode("sil"));
+
 document.getElementById("btn-zoom-in").addEventListener("click", () => editor.zoomIn());
 document.getElementById("btn-zoom-out").addEventListener("click", () => editor.zoomOut());
 document.getElementById("btn-zoom-reset").addEventListener("click", () => editor.resetView());
 
-// ---- Silhouette ----
+// ---- Silhouette bar ----
 document.getElementById("btn-sil-import").addEventListener("click", () => {
   document.getElementById("inp-silhouette").click();
 });
@@ -396,12 +417,13 @@ document.getElementById("inp-silhouette").addEventListener("change", e => {
   if (!e.target.files.length) return;
   const reader = new FileReader();
   reader.onload = ev => {
-    // Load image to get aspect ratio, then set silhouette at ~10 cells wide
     const img = new Image();
     img.onload = () => {
       const gw = 10;
-      const gh = Math.round(gw * (img.height / img.width));
-      editor.loadSilhouette(ev.target.result, gw, Math.max(2, gh));
+      const gh = Math.max(1, Math.round(gw * (img.height / img.width)));
+      editor.loadSilhouette(ev.target.result, gw, gh);
+      setLayoutMode("sil");
+      updateSilBar();
     };
     img.src = ev.target.result;
   };
@@ -410,11 +432,20 @@ document.getElementById("inp-silhouette").addEventListener("change", e => {
 });
 document.getElementById("btn-sil-clear").addEventListener("click", () => {
   if (editor) editor.clearSilhouette();
+  updateSilBar();
 });
-// Stub: built-in silhouettes dropdown (empty for now)
-document.getElementById("sel-silhouette").addEventListener("change", () => {
-  const sel = document.getElementById("sel-silhouette");
-  sel.value = "";
+
+// Sil X/Y/W/H inputs
+["sil-x","sil-y","sil-w","sil-h"].forEach(id => {
+  document.getElementById(id).addEventListener("input", () => {
+    const sil = veh.silhouette;
+    if (!sil) return;
+    sil.gx = parseFloat(document.getElementById("sil-x").value) || 0;
+    sil.gy = parseFloat(document.getElementById("sil-y").value) || 0;
+    sil.gw = Math.max(1, parseFloat(document.getElementById("sil-w").value) || 1);
+    sil.gh = Math.max(1, parseFloat(document.getElementById("sil-h").value) || 1);
+    if (editor) editor.draw();
+  });
 });
 
 // ---- Popout Layout Window ----
@@ -498,8 +529,15 @@ select:focus{outline:none;border-color:var(--accent)}
 .ed-btn-mode{background:#e0e8f0;color:var(--tx2);border:1px solid var(--brd)}
 .ed-btn-mode:hover{background:#d0d8e8}
 .ed-btn-mode.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ed-btn-mode.ed-btn-disabled{opacity:0.4;pointer-events:none}
 .ed-sep{width:1px;height:16px;background:var(--brd);margin:0 2px}
 .pop-active{margin-left:auto;font-size:9px;white-space:nowrap}
+.pop-sil-bar{display:flex;align-items:center;gap:3px;padding:3px 6px;background:var(--bg2);border-top:1px solid var(--brd);flex-wrap:wrap;flex-shrink:0}
+.pop-sil-bar.disabled{opacity:0.4;pointer-events:none}
+.pop-sil-label{font-size:8px;font-weight:700;color:#0a4a6a;white-space:nowrap}
+.pop-sil-inp{width:42px;background:var(--inp);border:1px solid var(--brd);border-radius:2px;padding:1px 2px;font-family:var(--fb);font-size:9px;color:var(--tx);text-align:center}
+.ed-btn-sm{padding:3px 7px;font-size:9px;background:#2a3a4a;border:1px solid #4a6a7a;color:#ccc;border-radius:2px;cursor:pointer;font-family:var(--fb);font-weight:700}
+.ed-btn-sm:hover{border-color:var(--accent)}
 </style>
 </head><body>
 <div class="pop-wrap">
@@ -507,23 +545,33 @@ select:focus{outline:none;border-color:var(--accent)}
     <select id="pop-sel-sys" class="pop-sys-sel" title="Select a system to paint">
       <option value="">— select system —</option>
     </select>
+    <button id="pop-select" class="ed-btn ed-btn-mode active" title="Select cell, Delete to remove">Select</button>
     <button id="pop-paint" class="ed-btn ed-btn-mode" title="Paint cells">Paint</button>
-    <button id="pop-erase" class="ed-btn ed-btn-mode" title="Erase">Erase</button>
+    <button id="pop-sil" class="ed-btn ed-btn-mode" title="Move/resize silhouette">Sil.</button>
     <span class="ed-sep"></span>
     <button id="pop-zin" class="ed-btn">+</button>
     <button id="pop-zout" class="ed-btn">&minus;</button>
     <button id="pop-zreset" class="ed-btn">Reset</button>
     <span class="ed-sep"></span>
-    <button id="pop-sil-import" class="ed-btn">Import Sil.</button>
-    <button id="pop-sil-clear" class="ed-btn">Clear Sil.</button>
-    <input type="file" id="pop-inp-sil" accept="image/*" style="display:none">
+    <button id="pop-popout-close" class="ed-btn">Close</button>
     <span id="pop-active-sys" class="pop-active"></span>
   </div>
   <div class="pop-canvas-wrap" id="pop-canvas-wrap">
     <canvas id="pop-canvas"></canvas>
   </div>
+  <div class="pop-sil-bar" id="pop-sil-bar">
+    <label class="pop-sil-label">Silhouette:</label>
+    <button id="pop-sil-import" class="ed-btn-sm">Import</button>
+    <button id="pop-sil-clear" class="ed-btn-sm">Clear</button>
+    <input type="file" id="pop-inp-sil" accept="image/*" style="display:none">
+    <span class="ed-sep"></span>
+    <label class="pop-sil-label">X:</label><input type="number" id="pop-sil-x" class="pop-sil-inp" step="0.5">
+    <label class="pop-sil-label">Y:</label><input type="number" id="pop-sil-y" class="pop-sil-inp" step="0.5">
+    <label class="pop-sil-label">W:</label><input type="number" id="pop-sil-w" class="pop-sil-inp" step="0.5" min="1">
+    <label class="pop-sil-label">H:</label><input type="number" id="pop-sil-h" class="pop-sil-inp" step="0.5" min="1">
+  </div>
   <div class="pop-hint">
-    <b>E</b>=erase <b>S</b>=select Right-drag=pan Scroll=zoom &bull;
+    <b>Del</b>=delete selected cell &bull; Right-drag=pan &bull; Scroll=zoom &bull;
     1 cell = 1 system space (2.5') / heavy lines = 5'
   </div>
 </div>
@@ -536,7 +584,6 @@ select:focus{outline:none;border-color:var(--accent)}
     const canvas = pdoc.getElementById("pop-canvas");
     const wrap = pdoc.getElementById("pop-canvas-wrap");
 
-    // Inject MP and FloorPlanEditor into popout scope
     popoutWin.MP = MP;
     popoutWin.FloorPlanEditor = FloorPlanEditor;
     popoutWin.CELL_PX = CELL_PX;
@@ -547,42 +594,60 @@ select:focus{outline:none;border-color:var(--accent)}
     popoutEditor.onUpdate = () => {
       buildPopoutSysDropdown(pdoc);
       updatePopoutIndicator(pdoc);
+      updatePopoutSilBar(pdoc);
       popoutEditor.draw();
-      updateAll(); // sync main window
+      updateAll();
     };
 
     buildPopoutSysDropdown(pdoc);
     updatePopoutIndicator(pdoc);
 
-    // Wire controls
+    function setPopoutMode(mode) {
+      popoutEditor.setMode(mode);
+      popoutEditor.selectedCell = null;
+      pdoc.getElementById("pop-select").classList.toggle("active", mode === "select");
+      pdoc.getElementById("pop-paint").classList.toggle("active", mode === "paint");
+      pdoc.getElementById("pop-sil").classList.toggle("active", mode === "sil");
+      pdoc.getElementById("pop-sil").classList.toggle("ed-btn-disabled", mode === "select" || mode === "paint");
+      pdoc.getElementById("pop-select").classList.toggle("ed-btn-disabled", mode === "sil");
+      pdoc.getElementById("pop-paint").classList.toggle("ed-btn-disabled", mode === "sil");
+      updatePopoutSilBar(pdoc);
+      popoutEditor.draw();
+    }
+
+    function updatePopoutSilBar(d) {
+      const bar = d.getElementById("pop-sil-bar");
+      const sil = veh.silhouette;
+      const inSil = popoutEditor && popoutEditor.mode === "sil";
+      bar.classList.toggle("disabled", !inSil);
+      if (sil) {
+        d.getElementById("pop-sil-x").value = sil.gx ?? 0;
+        d.getElementById("pop-sil-y").value = sil.gy ?? 0;
+        d.getElementById("pop-sil-w").value = sil.gw ?? 10;
+        d.getElementById("pop-sil-h").value = sil.gh ?? 8;
+      }
+    }
+    updatePopoutSilBar(pdoc);
+
     pdoc.getElementById("pop-sel-sys").addEventListener("change", function() {
       const sysId = parseInt(this.value) || null;
       popoutEditor.activeSysId = sysId;
-      if (sysId) popoutEditor.setMode("paint");
-      else popoutEditor.setMode("select");
-      updatePopoutModeButtons(pdoc);
+      if (sysId) setPopoutMode("paint");
       updatePopoutIndicator(pdoc);
       popoutEditor.draw();
     });
 
-    function updatePopoutModeButtons(d) {
-      d.getElementById("pop-paint").classList.toggle("active", popoutEditor.mode === "paint");
-      d.getElementById("pop-erase").classList.toggle("active", popoutEditor.mode === "erase");
-    }
-
+    pdoc.getElementById("pop-select").addEventListener("click", () => setPopoutMode("select"));
     pdoc.getElementById("pop-paint").addEventListener("click", () => {
-      if (popoutEditor.activeSysId) popoutEditor.setMode("paint");
-      updatePopoutModeButtons(pdoc);
+      if (popoutEditor.activeSysId) setPopoutMode("paint");
     });
-    pdoc.getElementById("pop-erase").addEventListener("click", () => {
-      popoutEditor.setMode("erase");
-      updatePopoutModeButtons(pdoc);
-    });
+    pdoc.getElementById("pop-sil").addEventListener("click", () => setPopoutMode("sil"));
     pdoc.getElementById("pop-zin").addEventListener("click", () => popoutEditor.zoomIn());
     pdoc.getElementById("pop-zout").addEventListener("click", () => popoutEditor.zoomOut());
     pdoc.getElementById("pop-zreset").addEventListener("click", () => popoutEditor.resetView());
+    pdoc.getElementById("pop-popout-close").addEventListener("click", () => popoutWin.close());
 
-    // Silhouette in popout
+    // Silhouette controls in popout
     pdoc.getElementById("pop-sil-import").addEventListener("click", () => {
       pdoc.getElementById("pop-inp-sil").click();
     });
@@ -593,9 +658,9 @@ select:focus{outline:none;border-color:var(--accent)}
         const img = new Image();
         img.onload = () => {
           const gw = 10;
-          const gh = Math.max(2, Math.round(gw * (img.height / img.width)));
+          const gh = Math.max(1, Math.round(gw * (img.height / img.width)));
           popoutEditor.loadSilhouette(ev.target.result, gw, gh);
-          // Also update main editor
+          setPopoutMode("sil");
           if (editor) { editor._ensureSilImage(); editor.draw(); }
         };
         img.src = ev.target.result;
@@ -605,7 +670,21 @@ select:focus{outline:none;border-color:var(--accent)}
     });
     pdoc.getElementById("pop-sil-clear").addEventListener("click", () => {
       popoutEditor.clearSilhouette();
+      updatePopoutSilBar(pdoc);
       if (editor) editor.draw();
+    });
+
+    ["pop-sil-x","pop-sil-y","pop-sil-w","pop-sil-h"].forEach(id => {
+      pdoc.getElementById(id).addEventListener("input", () => {
+        const sil = veh.silhouette;
+        if (!sil) return;
+        sil.gx = parseFloat(pdoc.getElementById("pop-sil-x").value) || 0;
+        sil.gy = parseFloat(pdoc.getElementById("pop-sil-y").value) || 0;
+        sil.gw = Math.max(1, parseFloat(pdoc.getElementById("pop-sil-w").value) || 1);
+        sil.gh = Math.max(1, parseFloat(pdoc.getElementById("pop-sil-h").value) || 1);
+        popoutEditor.draw();
+        if (editor) editor.draw();
+      });
     });
 
     popoutEditor.draw();

@@ -159,19 +159,13 @@
         <select id="sel-layout-sys" class="vs-sys-sel" title="Select a system to paint">
           <option value="">— select system —</option>
         </select>
-        <button id="btn-mode-paint" class="ed-btn ed-btn-mode" title="Paint cells">Paint</button>
-        <button id="btn-mode-erase" class="ed-btn ed-btn-mode" title="Erase (E)">Erase</button>
+        <button id="btn-mode-select" class="ed-btn ed-btn-mode active" title="Select a painted cell, Delete to remove">Select</button>
+        <button id="btn-mode-paint" class="ed-btn ed-btn-mode" title="Paint cells for selected system">Paint</button>
+        <button id="btn-mode-sil" class="ed-btn ed-btn-mode" title="Move/resize silhouette overlay">Sil.</button>
         <span class="ed-sep"></span>
         <button id="btn-zoom-in" class="ed-btn" title="Zoom in">+</button>
         <button id="btn-zoom-out" class="ed-btn" title="Zoom out">&minus;</button>
         <button id="btn-zoom-reset" class="ed-btn" title="Reset view">Reset</button>
-        <span class="ed-sep"></span>
-        <select id="sel-silhouette" class="vs-sil-sel" title="Built-in silhouette overlay">
-          <option value="">— silhouette —</option>
-        </select>
-        <button id="btn-sil-import" class="ed-btn" title="Import silhouette image">Import</button>
-        <button id="btn-sil-clear" class="ed-btn" title="Remove silhouette overlay">Clear</button>
-        <input type="file" id="inp-silhouette" accept="image/*" style="display:none">
         <span class="ed-sep"></span>
         <button id="btn-popout" class="ed-btn" title="Open layout in a separate window">Popout</button>
         <span id="vs-active-sys" class="vs-active-sys"></span>
@@ -179,8 +173,19 @@
       <div class="vs-layout-canvas" id="vs-layout-wrap">
         <canvas id="vs-layout-canvas"></canvas>
       </div>
+      <div class="vs-sil-bar" id="vs-sil-bar">
+        <label class="vs-sil-label">Silhouette:</label>
+        <button id="btn-sil-import" class="ed-btn-sm" title="Import silhouette image">Import</button>
+        <button id="btn-sil-clear" class="ed-btn-sm" title="Remove silhouette overlay">Clear</button>
+        <input type="file" id="inp-silhouette" accept="image/*" style="display:none">
+        <span class="ed-sep"></span>
+        <label class="vs-sil-label">X:</label><input type="number" id="sil-x" class="vs-sil-inp" step="0.5" title="Silhouette X position (grid units)">
+        <label class="vs-sil-label">Y:</label><input type="number" id="sil-y" class="vs-sil-inp" step="0.5" title="Silhouette Y position (grid units)">
+        <label class="vs-sil-label">W:</label><input type="number" id="sil-w" class="vs-sil-inp" step="0.5" min="1" title="Silhouette width (grid units)">
+        <label class="vs-sil-label">H:</label><input type="number" id="sil-h" class="vs-sil-inp" step="0.5" min="1" title="Silhouette height (grid units)">
+      </div>
       <div class="vs-layout-hint">
-        <b>E</b>=erase <b>S</b>=select Right-drag=pan Scroll=zoom &bull;
+        <b>Del</b>=delete selected cell &bull; Right-drag=pan &bull; Scroll=zoom &bull;
         1 cell = 1 system space (2.5') / heavy lines = 5'
       </div>
     </div>

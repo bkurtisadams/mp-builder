@@ -20,6 +20,7 @@ class FloorPlanEditor {
 
     this.hoverGx = null;
     this.hoverGy = null;
+    this.selectedCell = null; // {gx, gy, sysId} for Delete key
 
     this.onUpdate = null;
 
@@ -105,16 +106,18 @@ class FloorPlanEditor {
     // Silhouette drag in progress
     if (this._silDrag) {
       const cell = CELL_PX * this.zoom;
-      const { gx, gy } = this._cssToGrid(cx, cy);
+      const dx = (cx - this._silDrag.startCx) / cell;
+      const dy = (cy - this._silDrag.startCy) / cell;
       const sil = this.veh.silhouette;
       if (this._silDrag.type === "move") {
-        sil.gx = this._silDrag.origGx + (gx - this._silDrag.startGx);
-        sil.gy = this._silDrag.origGy + (gy - this._silDrag.startGy);
+        sil.gx = Math.round((this._silDrag.origGx + dx) * 2) / 2;
+        sil.gy = Math.round((this._silDrag.origGy + dy) * 2) / 2;
       } else if (this._silDrag.type === "resize") {
-        sil.gw = Math.max(2, this._silDrag.origGw + (gx - this._silDrag.startGx));
-        sil.gh = Math.max(2, this._silDrag.origGh + (gy - this._silDrag.startGy));
+        sil.gw = Math.max(1, Math.round((this._silDrag.origGw + dx) * 2) / 2);
+        sil.gh = Math.max(1, Math.round((this._silDrag.origGh + dy) * 2) / 2);
       }
       this.draw();
+      if (this.onUpdate) this.onUpdate();
       return;
     }
 
@@ -122,8 +125,8 @@ class FloorPlanEditor {
     this.hoverGx = gx;
     this.hoverGy = gy;
 
-    // Update cursor for silhouette hover (only in select mode)
-    if (this.mode === "select") {
+    // Cursor updates for sil mode
+    if (this.mode === "sil") {
       const hit = this._silhouetteHitTest(cx, cy);
       this._silHover = hit;
       this.canvas.style.cursor = hit === "resize" ? "nwse-resize" : hit === "move" ? "grab" : "default";
@@ -132,12 +135,6 @@ class FloorPlanEditor {
     // Drag-paint
     if (this.painting && this.mode === "paint" && this.activeSysId) {
       if (this.veh.paintCell(this.activeSysId, gx, gy)) {
-        if (this.onUpdate) this.onUpdate();
-      }
-    }
-    // Drag-erase
-    if (this.painting && this.mode === "erase") {
-      if (this.veh.unpaintCell(gx, gy)) {
         if (this.onUpdate) this.onUpdate();
       }
     }
@@ -155,14 +152,14 @@ class FloorPlanEditor {
     const { cx, cy } = this._canvasPos(ev);
     const { gx, gy } = this._cssToGrid(cx, cy);
 
-    // Check silhouette interaction first (in select mode)
-    if (this.mode === "select" && this.veh.silhouette && this._silImg) {
+    // Silhouette mode
+    if (this.mode === "sil" && this.veh.silhouette && this._silImg) {
       const hit = this._silhouetteHitTest(cx, cy);
       if (hit) {
         const sil = this.veh.silhouette;
         this._silDrag = {
           type: hit,
-          startGx: gx, startGy: gy,
+          startCx: cx, startCy: cy,
           origGx: sil.gx, origGy: sil.gy,
           origGw: sil.gw, origGh: sil.gh
         };
@@ -171,6 +168,7 @@ class FloorPlanEditor {
       }
     }
 
+    // Paint mode
     if (this.mode === "paint" && this.activeSysId) {
       this.painting = true;
       if (this.veh.paintCell(this.activeSysId, gx, gy)) {
@@ -179,17 +177,11 @@ class FloorPlanEditor {
       this.draw();
       return;
     }
-    if (this.mode === "erase") {
-      this.painting = true;
-      if (this.veh.unpaintCell(gx, gy)) {
-        if (this.onUpdate) this.onUpdate();
-      }
-      this.draw();
-      return;
-    }
+
+    // Select mode — click a cell to select it
     if (this.mode === "select") {
       const sys = this.veh.cellAt(gx, gy);
-      this.activeSysId = sys ? sys.id : null;
+      this.selectedCell = sys ? { gx, gy, sysId: sys.id } : null;
       this.draw();
       if (this.onUpdate) this.onUpdate();
     }
@@ -199,7 +191,7 @@ class FloorPlanEditor {
     if (ev.button === 2 || ev.button === 1) { this.panStart = null; return; }
     if (this._silDrag) {
       this._silDrag = null;
-      this.canvas.style.cursor = "default";
+      this.canvas.style.cursor = this.mode === "sil" ? "default" : "default";
       if (this.onUpdate) this.onUpdate();
     }
     this.painting = false;
@@ -219,9 +211,20 @@ class FloorPlanEditor {
 
   _onKey(ev) {
     if (["INPUT","TEXTAREA","SELECT"].includes(document.activeElement?.tagName)) return;
-    if (ev.key === "Escape") { this.setMode("select"); this.activeSysId = null; this.draw(); if (this.onUpdate) this.onUpdate(); }
-    if (ev.key === "e" || ev.key === "E") { ev.preventDefault(); this.setMode("erase"); }
-    if (ev.key === "s" || ev.key === "S") { ev.preventDefault(); this.setMode("select"); }
+    if (ev.key === "Escape") {
+      this.setMode("select");
+      this.activeSysId = null;
+      this.selectedCell = null;
+      this.draw();
+      if (this.onUpdate) this.onUpdate();
+    }
+    if ((ev.key === "Delete" || ev.key === "Backspace") && this.mode === "select" && this.selectedCell) {
+      ev.preventDefault();
+      this.veh.unpaintCell(this.selectedCell.gx, this.selectedCell.gy);
+      this.selectedCell = null;
+      this.draw();
+      if (this.onUpdate) this.onUpdate();
+    }
   }
 
   zoomIn() { this._zoomBy(1.25); }
@@ -436,21 +439,18 @@ class FloorPlanEditor {
       }
     }
 
-    // Erase hover
-    if (this.mode === "erase" && this.hoverGx !== null) {
-      const hit = this.veh.cellAt(this.hoverGx, this.hoverGy);
-      if (hit) {
-        const x = ox + this.hoverGx * cell;
-        const y = oy + this.hoverGy * cell;
-        ctx.strokeStyle = "#ef4444";
-        ctx.lineWidth = 2.5;
-        ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
-        // X mark
-        ctx.beginPath();
-        ctx.moveTo(x + 4, y + 4); ctx.lineTo(x + cell - 4, y + cell - 4);
-        ctx.moveTo(x + cell - 4, y + 4); ctx.lineTo(x + 4, y + cell - 4);
-        ctx.stroke();
-      }
+    // Selected cell highlight (Select mode, Delete to remove)
+    if (this.selectedCell && this.mode === "select") {
+      const x = ox + this.selectedCell.gx * cell;
+      const y = oy + this.selectedCell.gy * cell;
+      ctx.strokeStyle = "#f4d03f";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, cell, cell);
+      ctx.strokeStyle = "#ef4444";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3 * dpr, 3 * dpr]);
+      ctx.strokeRect(x, y, cell, cell);
+      ctx.setLineDash([]);
     }
   }
 
