@@ -252,38 +252,38 @@ MP.abilityById = function(id) {
 MP.ABILITY_DETAILS = {
   // --- Offensive ---
   "absorption":         {dmg:"Special",    pr:0,  defCP:5,   hint:"Absorb dmg types, ¼ damage, gain CPs"},
-  "chemical-abilities": {dmg:"Biochem",    pr:2,  defCP:10,  hint:"Chemical Blast or Chemical Body (field)", calc:{seq:"A",offset:9,rng:"ST"}},
-  "death-touch":        {dmg:"Entropy",    pr:12, defCP:15,  hint:"Melee entropy, no roll-with, kill on 0 HP", calc:{seq:"A",offset:-1,rng:"touch"}},
-  "devitalization-ray": {dmg:"Entropy",    pr:3,  defCP:10,  hint:"Power damage", calc:{seq:"A",offset:13,rng:"ENx2"}},
-  "disintegration":     {dmg:"Other",      pr:2,  defCP:10,  hint:"Disintegration Ray or Field", calc:{seq:"A",offset:5,rng:"ST"}},
-  "emotion-control":    {dmg:"Psychic",    pr:3,  defCP:10,  hint:"Mental save attack, impose emotion", calc:{rng:"CL"}},
+  "chemical-abilities": {dmg:"Biochem",    pr:2,  defCP:10,  hint:"Chem Blast (rng ST\") or Chem Body (field)", calc:{seq:"A",offset:9,rng:"ST",baseRange:"BCx1\""}},
+  "death-touch":        {dmg:"Entropy",    pr:12, defCP:15,  hint:"Melee entropy, no roll-with, kill on 0 HP", calc:{seq:"A",offset:-1,rng:"touch",baseRange:"Touch/Melee"}},
+  "devitalization-ray": {dmg:"Entropy",    pr:3,  defCP:10,  hint:"Power damage, rng ENx2\"", calc:{seq:"A",offset:13,rng:"ENx2",baseRange:"BCx2\""}},
+  "disintegration":     {dmg:"Other",      pr:2,  defCP:10,  hint:"Disintegration Ray or Field", calc:{seq:"A",offset:5,rng:"ST",baseRange:"BCx1\""}},
+  "emotion-control":    {dmg:"Psychic",    pr:3,  defCP:10,  hint:"Mental save attack, impose emotion", calc:{rng:"CL",baseRange:"BCx1\""}},
   "experience-levels":  {dmg:"—",          pr:0,  defCP:10,  hint:"Hit/Defense/Task bonuses"},
-  "flame-abilities":    {dmg:"Energy",     pr:2,  defCP:10,  hint:"Flame Blast or Flame Aura", calc:{seq:"A",offset:5,rng:"ST+EN"}},
+  "flame-abilities":    {dmg:"Energy",     pr:2,  defCP:10,  hint:"Flame Blast or Flame Aura", calc:{seq:"A",offset:5,rng:"ST+EN",baseRange:"BCx1\""}},
   "force-field":        {dmg:"Special",    pr:16, defCP:15,  hint:"Personal Force Field or Force Bolt", calc:{forceField:true}},
-  "grapnel":            {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Snare attack", calc:{rng:"ST+AG"}},
-  "gravity-control":    {dmg:"Other",      pr:2,  defCP:10,  hint:"Gravity Decrease/Increase/Personal Well", calc:{rng:"EN"}},
+  "grapnel":            {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Snare attack, rng (ST+AG)\"", calc:{rng:"ST+AG",baseRange:"BCx1\""}},
+  "gravity-control":    {dmg:"Other",      pr:2,  defCP:10,  hint:"Gravity Decrease/Increase/Personal Well", calc:{rng:"EN",baseRange:"BCx1\""}},
   "heightened-agility": {dmg:"—",          pr:0,  defCP:10,  hint:"+1 AG per CP"},
   "heightened-attack":  {dmg:"—",          pr:0,  defCP:10,  hint:"Damage bonus on attacks"},
   "heightened-expertise":{dmg:"—",         pr:0,  defCP:10,  hint:"Accuracy bonus on attacks"},
   "heightened-strength":{dmg:"—",          pr:0,  defCP:10,  hint:"+1 ST per CP"},
-  "ice-abilities":      {dmg:"Entropy",    pr:1,  defCP:10,  hint:"Ice Armor, Ice Blast (snare), or Ice Shaping", calc:{rng:"(ST+EN)/2"}},
-  "light-control":      {dmg:"Energy",     pr:1,  defCP:10,  hint:"Laser, Flash, Glare, or Glow", calc:{seq:"A",offset:5,rng:"AGx2"}},
-  "lightning-control":  {dmg:"Energy",     pr:4,  defCP:10,  hint:"Electrical Bolt, Field, or Gear Ctrl", calc:{seq:"B",offset:6,rng:"ENx2"}},
-  "magnetism":          {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Magnetic Manipulation", calc:{rng:"ST"}},
-  "mind-control":       {dmg:"Psychic",    pr:8,  defCP:10,  hint:"Mental save attack", calc:{rng:"IN+CL"}},
-  "natural-weaponry":   {dmg:"Kinetic",    pr:0,  defCP:10,  hint:"Melee: blunt (KB) or sharp (+2 dmg, no KB)", calc:{rng:"touch"}},
-  "paralysis-ray":      {dmg:"Entropy",    pr:3,  defCP:10,  hint:"Save attack, immobilize", calc:{rng:"ENx2"}},
-  "poison-venom":       {dmg:"Biochem",    pr:2,  defCP:10,  hint:"Damaging or Paralytic poison", calc:{rng:"touch"}},
-  "power-blast":        {dmg:"Energy",     pr:1,  defCP:10,  hint:"Force bolts", calc:{seq:"A",offset:5,rng:"(ST+EN)/2"}},
+  "ice-abilities":      {dmg:"Entropy",    pr:1,  defCP:10,  hint:"Ice Armor, Ice Blast (snare), or Ice Shaping", calc:{rng:"(ST+EN)/2",baseRange:"BCx1\""}},
+  "light-control":      {dmg:"Energy",     pr:1,  defCP:10,  hint:"Laser, Flash, Glare, or Glow", calc:{seq:"A",offset:5,rng:"AGx2",baseRange:"BCx2\""}},
+  "lightning-control":  {dmg:"Energy",     pr:4,  defCP:10,  hint:"Electrical Bolt, Field, or Gear Ctrl", calc:{seq:"B",offset:6,rng:"ENx2",baseRange:"BCx2\""}},
+  "magnetism":          {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Magnetic Manipulation", calc:{rng:"ST",baseRange:"BCx1\""}},
+  "mind-control":       {dmg:"Psychic",    pr:8,  defCP:10,  hint:"Mental save attack", calc:{rng:"IN+CL",baseRange:"BCx1\""}},
+  "natural-weaponry":   {dmg:"Kinetic",    pr:0,  defCP:10,  hint:"Melee: blunt (KB) or sharp (+2 dmg, no KB)", calc:{rng:"touch",baseRange:"Touch/Melee"}},
+  "paralysis-ray":      {dmg:"Entropy",    pr:3,  defCP:10,  hint:"Save attack, immobilize", calc:{rng:"ENx2",baseRange:"BCx2\""}},
+  "poison-venom":       {dmg:"Biochem",    pr:2,  defCP:10,  hint:"Damaging or Paralytic poison", calc:{rng:"touch",baseRange:"Touch/Melee"}},
+  "power-blast":        {dmg:"Energy",     pr:1,  defCP:10,  hint:"Force bolts", calc:{seq:"A",offset:5,rng:"(ST+EN)/2",baseRange:"BCx1\""}},
   "reflection":         {dmg:"Special",    pr:0,  defCP:10,  hint:"Reflect incoming damage types"},
-  "repulsion-blast":    {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"KB only (no hit dmg)", calc:{seq:"A",offset:9,rng:"STx2"}},
-  "shaping":            {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Create solid constructs", calc:{rng:"AG"}},
-  "siphon":             {dmg:"Entropy",    pr:0,  defCP:10,  hint:"Drain target CPs/BCs/Hits/Power", calc:{rng:"touch"}},
-  "sonic-abilities":    {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Sonic Blast or Sonic Boom (save)", calc:{seq:"B",offset:2,rng:"STx2"}},
-  "special-weapon":     {dmg:"Kinetic",    pr:0,  defCP:10,  hint:"Melee or Missile weapon, blunt or sharp", calc:{rng:"AGx2"}},
-  "telekinesis":        {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Kinetic Manipulation", calc:{rng:"AG"}},
-  "transmutation":      {dmg:"Other",      pr:8,  defCP:10,  hint:"Save attack, alter living targets", calc:{rng:"INx2"}},
-  "vibration-abilities":{dmg:"Kinetic",    pr:5,  defCP:10,  hint:"Vibratory Blast, no KB", calc:{seq:"B",offset:8,rng:"AGx2"}},
+  "repulsion-blast":    {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"KB only (no hit dmg)", calc:{seq:"A",offset:9,rng:"STx2",baseRange:"BCx2\""}},
+  "shaping":            {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Create solid constructs", calc:{rng:"AG",baseRange:"BCx1\""}},
+  "siphon":             {dmg:"Entropy",    pr:0,  defCP:10,  hint:"Drain target CPs/BCs/Hits/Power", calc:{rng:"touch",baseRange:"Touch/Melee"}},
+  "sonic-abilities":    {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Sonic Blast or Sonic Boom (save)", calc:{seq:"B",offset:2,rng:"STx2",baseRange:"BCx2\""}},
+  "special-weapon":     {dmg:"Kinetic",    pr:0,  defCP:10,  hint:"Melee or Missile weapon, blunt or sharp", calc:{rng:"AGx2",baseRange:"BCx2\""}},
+  "telekinesis":        {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Kinetic Manipulation", calc:{rng:"AG",baseRange:"BCx1\""}},
+  "transmutation":      {dmg:"Other",      pr:8,  defCP:10,  hint:"Save attack, alter living targets", calc:{rng:"INx2",baseRange:"BCx2\""}},
+  "vibration-abilities":{dmg:"Kinetic",    pr:5,  defCP:10,  hint:"Vibratory Blast, no KB", calc:{seq:"B",offset:8,rng:"AGx2",baseRange:"BCx2\""}},
   "weakness-detection": {dmg:"—",          pr:0,  defCP:5,   hint:"+1 to hit scanned target per 2.5 CPs"},
   "weather-control":    {dmg:"Varies",     pr:5,  defCP:10,  hint:"Change Weather / Command Weather"},
   // --- Defensive ---
@@ -689,22 +689,49 @@ MP.buildPRChargesOptions = function(basePR) {
   return opts;
 };
 
-// Range steps — +/-2.5 per step from base 1×BC Carry
-MP.RANGE_STEPS = [
-  {label:'Self Only', cp:-15},
-  {label:'Touch',     cp:-12.5},
-  {label:'1"',        cp:-10},
-  {label:'2"',        cp:-7.5},
-  {label:'4"',        cp:-5},
-  {label:'½× Carry',  cp:-2.5},
-  {label:'1× Carry (default)', cp:0},
-  {label:'2× Carry',  cp:2.5},
-  {label:'4× Carry',  cp:5},
-  {label:'8× Carry',  cp:7.5},
-  {label:'16× Carry', cp:10},
-  {label:'32× Carry', cp:12.5},
-  {label:'Line of Sight', cp:15},
+// Range sliding scale (from rulebook)
+// Each step = ±2.5 CPs. Moving UP (longer range) = +2.5. Moving DOWN (shorter) = -2.5.
+// idx 0 = top (Line of Sight), higher idx = shorter range
+MP.RANGE_SCALE = [
+  {label:"Line of Sight",    idx:0},
+  {label:"Voice",            idx:1},
+  {label:"BCx16\"",          idx:2},
+  {label:"BCx8\"",           idx:3},
+  {label:"BCx4\"",           idx:4},
+  {label:"BCx2\"",           idx:5},
+  {label:"BCx1\"",           idx:6},
+  {label:"BC/2\"",           idx:7},
+  {label:"BC/4\"",           idx:8},
+  {label:"1\"",              idx:9},
+  {label:"Touch/Melee",      idx:10},
 ];
+
+// Find the index in RANGE_SCALE for a given base range label
+MP.rangeScaleIndex = function(baseLabel) {
+  for (let i = 0; i < MP.RANGE_SCALE.length; i++) {
+    if (MP.RANGE_SCALE[i].label === baseLabel) return i;
+  }
+  return 6; // default BCx1"
+};
+
+// Build dropdown options for Range given a base range label
+MP.buildRangeOptions = function(baseLabel) {
+  const baseIdx = MP.rangeScaleIndex(baseLabel);
+  const opts = [];
+  for (let i = 0; i < MP.RANGE_SCALE.length; i++) {
+    const steps = baseIdx - i; // positive = moved up (longer), negative = moved down (shorter)
+    const cp = steps * 2.5;
+    const row = MP.RANGE_SCALE[i];
+    const cpStr = cp === 0 ? "base" : (cp > 0 ? "+" + cp : String(cp));
+    opts.push({
+      label: row.label + " (" + cpStr + ")",
+      cp: cp,
+      idx: i,
+      rangeLabel: row.label
+    });
+  }
+  return opts;
+};
 
 // ---- BC Table (from rulebook 2.1.7.2) ----
 // Each entry: [minScore, carry, hth, save, init]
