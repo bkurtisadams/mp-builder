@@ -23,6 +23,11 @@ class FloorPlanEditor {
 
     this.onUpdate = null;
 
+    // Silhouette overlay
+    this._silImg = null;      // loaded Image element
+    this._silDrag = null;     // {type:"move"|"resize", startGx, startGy, origSil}
+    this._silHover = "";      // "" | "move" | "resize"
+
     this._bind();
     this._resize();
     this.draw();
@@ -96,9 +101,33 @@ class FloorPlanEditor {
       this.draw();
       return;
     }
+
+    // Silhouette drag in progress
+    if (this._silDrag) {
+      const cell = CELL_PX * this.zoom;
+      const { gx, gy } = this._cssToGrid(cx, cy);
+      const sil = this.veh.silhouette;
+      if (this._silDrag.type === "move") {
+        sil.gx = this._silDrag.origGx + (gx - this._silDrag.startGx);
+        sil.gy = this._silDrag.origGy + (gy - this._silDrag.startGy);
+      } else if (this._silDrag.type === "resize") {
+        sil.gw = Math.max(2, this._silDrag.origGw + (gx - this._silDrag.startGx));
+        sil.gh = Math.max(2, this._silDrag.origGh + (gy - this._silDrag.startGy));
+      }
+      this.draw();
+      return;
+    }
+
     const { gx, gy } = this._cssToGrid(cx, cy);
     this.hoverGx = gx;
     this.hoverGy = gy;
+
+    // Update cursor for silhouette hover (only in select mode)
+    if (this.mode === "select") {
+      const hit = this._silhouetteHitTest(cx, cy);
+      this._silHover = hit;
+      this.canvas.style.cursor = hit === "resize" ? "nwse-resize" : hit === "move" ? "grab" : "default";
+    }
 
     // Drag-paint
     if (this.painting && this.mode === "paint" && this.activeSysId) {
@@ -126,6 +155,22 @@ class FloorPlanEditor {
     const { cx, cy } = this._canvasPos(ev);
     const { gx, gy } = this._cssToGrid(cx, cy);
 
+    // Check silhouette interaction first (in select mode)
+    if (this.mode === "select" && this.veh.silhouette && this._silImg) {
+      const hit = this._silhouetteHitTest(cx, cy);
+      if (hit) {
+        const sil = this.veh.silhouette;
+        this._silDrag = {
+          type: hit,
+          startGx: gx, startGy: gy,
+          origGx: sil.gx, origGy: sil.gy,
+          origGw: sil.gw, origGh: sil.gh
+        };
+        this.canvas.style.cursor = hit === "resize" ? "nwse-resize" : "grabbing";
+        return;
+      }
+    }
+
     if (this.mode === "paint" && this.activeSysId) {
       this.painting = true;
       if (this.veh.paintCell(this.activeSysId, gx, gy)) {
@@ -152,6 +197,11 @@ class FloorPlanEditor {
 
   _onMouseUp(ev) {
     if (ev.button === 2 || ev.button === 1) { this.panStart = null; return; }
+    if (this._silDrag) {
+      this._silDrag = null;
+      this.canvas.style.cursor = "default";
+      if (this.onUpdate) this.onUpdate();
+    }
     this.painting = false;
   }
 
@@ -189,9 +239,55 @@ class FloorPlanEditor {
     this.draw();
   }
 
+  // ---- Silhouette ----
+  loadSilhouette(dataUrl, gw, gh) {
+    const sil = this.veh.silhouette || {};
+    sil.data = dataUrl;
+    sil.gx = sil.gx || 0;
+    sil.gy = sil.gy || 0;
+    sil.gw = gw || 10;
+    sil.gh = gh || 8;
+    this.veh.silhouette = sil;
+    this._silImg = new Image();
+    this._silImg.onload = () => this.draw();
+    this._silImg.src = dataUrl;
+  }
+
+  clearSilhouette() {
+    this.veh.silhouette = null;
+    this._silImg = null;
+    this._silDrag = null;
+    this.draw();
+  }
+
+  _ensureSilImage() {
+    if (this.veh.silhouette && this.veh.silhouette.data && !this._silImg) {
+      this._silImg = new Image();
+      this._silImg.onload = () => this.draw();
+      this._silImg.src = this.veh.silhouette.data;
+    }
+  }
+
+  _silhouetteHitTest(cx, cy) {
+    const sil = this.veh.silhouette;
+    if (!sil || !this._silImg) return "";
+    const cell = CELL_PX * this.zoom;
+    const sx = this.panX + sil.gx * cell;
+    const sy = this.panY + sil.gy * cell;
+    const sw = sil.gw * cell;
+    const sh = sil.gh * cell;
+    // Resize handle: 8px square at bottom-right corner
+    const hSize = 8;
+    if (cx >= sx + sw - hSize && cx <= sx + sw + hSize && cy >= sy + sh - hSize && cy <= sy + sh + hSize) return "resize";
+    // Move: anywhere inside
+    if (cx >= sx && cx <= sx + sw && cy >= sy && cy <= sy + sh) return "move";
+    return "";
+  }
+
   // ---- Drawing ----
 
   draw() {
+    this._ensureSilImage();
     const ctx = this.ctx;
     const dpr = window.devicePixelRatio || 1;
     const W = this.canvas.width;
@@ -203,6 +299,28 @@ class FloorPlanEditor {
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, W, H);
+
+    // Silhouette overlay (behind grid)
+    const sil = this.veh.silhouette;
+    if (sil && this._silImg && this._silImg.complete) {
+      const sx = ox + sil.gx * cell;
+      const sy = oy + sil.gy * cell;
+      const sw = sil.gw * cell;
+      const sh = sil.gh * cell;
+      ctx.globalAlpha = 0.2;
+      ctx.drawImage(this._silImg, sx, sy, sw, sh);
+      ctx.globalAlpha = 1;
+      // Border
+      ctx.strokeStyle = "#00000030";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4 * dpr, 4 * dpr]);
+      ctx.strokeRect(sx, sy, sw, sh);
+      ctx.setLineDash([]);
+      // Resize handle
+      const hSize = 6 * dpr;
+      ctx.fillStyle = "#00000040";
+      ctx.fillRect(sx + sw - hSize, sy + sh - hSize, hSize * 2, hSize * 2);
+    }
 
     const startGx = Math.floor(-ox / cell);
     const endGx = Math.ceil((W - ox) / cell);

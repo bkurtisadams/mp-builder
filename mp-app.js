@@ -387,6 +387,38 @@ document.getElementById("btn-zoom-in").addEventListener("click", () => editor.zo
 document.getElementById("btn-zoom-out").addEventListener("click", () => editor.zoomOut());
 document.getElementById("btn-zoom-reset").addEventListener("click", () => editor.resetView());
 
+// ---- Silhouette ----
+document.getElementById("btn-sil-import").addEventListener("click", () => {
+  document.getElementById("inp-silhouette").click();
+});
+document.getElementById("inp-silhouette").addEventListener("change", e => {
+  if (!e.target.files.length) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    // Load image to get aspect ratio, then set silhouette at ~10 cells wide
+    const img = new Image();
+    img.onload = () => {
+      const gw = 10;
+      const gh = Math.round(gw * (img.height / img.width));
+      editor.loadSilhouette(ev.target.result, gw, Math.max(2, gh));
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(e.target.files[0]);
+  e.target.value = "";
+});
+document.getElementById("btn-sil-clear").addEventListener("click", () => {
+  if (editor) editor.clearSilhouette();
+});
+// Stub: built-in silhouettes dropdown (empty for now)
+document.getElementById("sel-silhouette").addEventListener("change", () => {
+  const sel = document.getElementById("sel-silhouette");
+  // Future: load built-in silhouette by ID
+  // const id = sel.value;
+  // if (id && MP.SILHOUETTES[id]) editor.loadSilhouette(MP.SILHOUETTES[id].data, ...);
+  sel.value = "";
+});
+
 // ---- Export ----
 document.getElementById("btn-save").addEventListener("click", () => {
   const blob = new Blob([JSON.stringify(veh.toJSON(), null, 2)], { type: "application/json" });
