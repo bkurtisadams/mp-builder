@@ -192,7 +192,7 @@ MP.ABILITY_TYPES = [
   { id:"dimensional-travel",   cat:"Miscellaneous", name:"Dimensional Travel",     color:"#7a40a0", abbr:"DM" },
   { id:"duplication",          cat:"Miscellaneous", name:"Duplication",            color:"#606070", abbr:"DP" },
   { id:"energy",               cat:"Miscellaneous", name:"Energy",                 color:"#a08020", abbr:"EN" },
-  { id:"flight",               cat:"Miscellaneous", name:"Flight",                 color:"#3a80c0", abbr:"FT" },
+  { id:"flight",               cat:"Movement",      name:"Flight",                 color:"#3a80c0", abbr:"FT" },
   { id:"healing",              cat:"Miscellaneous", name:"Healing",                color:"#409060", abbr:"HL" },
   { id:"heightened-cool",      cat:"Miscellaneous", name:"Heightened Cool",        color:"#406080", abbr:"HC" },
   { id:"heightened-initiative",cat:"Miscellaneous", name:"Heightened Initiative",  color:"#507060", abbr:"HI" },
@@ -208,14 +208,14 @@ MP.ABILITY_TYPES = [
   { id:"revivification",       cat:"Miscellaneous", name:"Revivification",         color:"#408050", abbr:"RV" },
   { id:"shape-shifting",       cat:"Miscellaneous", name:"Shape-Shifting",         color:"#607060", abbr:"SS" },
   { id:"size-change",          cat:"Miscellaneous", name:"Size Change",            color:"#607050", abbr:"SC" },
-  { id:"speed",                cat:"Miscellaneous", name:"Speed",                  color:"#3070b0", abbr:"SP" },
+  { id:"speed",                cat:"Movement",      name:"Speed",                  color:"#3070b0", abbr:"SP" },
   { id:"summoning",            cat:"Miscellaneous", name:"Summoning",              color:"#706060", abbr:"SU" },
   { id:"super-speed",          cat:"Miscellaneous", name:"Super Speed",            color:"#3060c0", abbr:"SS" },
-  { id:"swimming",             cat:"Miscellaneous", name:"Swimming",               color:"#2a6a9a", abbr:"SM" },
+  { id:"swimming",             cat:"Movement",      name:"Swimming",               color:"#2a6a9a", abbr:"SM" },
   { id:"telepathy",            cat:"Miscellaneous", name:"Telepathy",              color:"#7060a0", abbr:"TP" },
-  { id:"teleportation",        cat:"Miscellaneous", name:"Teleportation",          color:"#6a50a0", abbr:"TL" },
+  { id:"teleportation",        cat:"Movement",      name:"Teleportation",          color:"#6a50a0", abbr:"TL" },
   { id:"transformation",       cat:"Miscellaneous", name:"Transformation",         color:"#707050", abbr:"TF" },
-  { id:"tunneling",            cat:"Miscellaneous", name:"Tunneling",              color:"#4a5a80", abbr:"TU" },
+  { id:"tunneling",            cat:"Movement",      name:"Tunneling",              color:"#4a5a80", abbr:"TU" },
   { id:"vehicle",              cat:"Miscellaneous", name:"Vehicle",                color:"#606058", abbr:"VH" },
   { id:"wealth",               cat:"Miscellaneous", name:"Wealth",                 color:"#a09040", abbr:"WL" },
   { id:"willpower",            cat:"Miscellaneous", name:"Willpower",              color:"#605080", abbr:"WP" },
@@ -359,7 +359,7 @@ MP.ABILITY_DETAILS = {
   "custom":             {dmg:"—",          pr:0,  defCP:0,   hint:"Custom system",                               mods:["ae","ap","af","gear","ch","pr_ch","rng"]},
 };
 
-MP.CATEGORIES = ["Offensive","Defensive","Miscellaneous","Vehicle","Crew","Cargo","Custom"];
+MP.CATEGORIES = ["Vehicle","Crew","Cargo","Movement","Offensive","Defensive","Miscellaneous","Custom"];
 
 // ---- Weaknesses (from MP rulebook 2.1.15) ----
 MP.WEAKNESSES = [

@@ -213,9 +213,6 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 .aid-pr-display { font-size: 8px; font-weight: 700; color: var(--tx2); white-space: nowrap }
 .aid-row.aid-hidden { display: none }
 .aid-divider { border-top: 1px solid var(--brd2); margin: 4px 0 }
-.aid-total { display: flex; align-items: center; gap: 6px; padding: 6px 0 2px; border-top: 1px solid var(--brd2); margin-top: 4px }
-.aid-total-label { font-size: 9px; font-weight: 700; color: var(--label); min-width: 90px; text-align: right }
-.aid-total-val { font-size: 13px; font-weight: 700; color: var(--val); background: #fff; border: 1px solid var(--brd); border-radius: 2px; padding: 2px 8px; min-width: 48px; text-align: center }
 .aid-footer { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 12px; border-top: 1px solid var(--brd2) }
 .aid-btn { padding: 5px 16px; font-family: var(--fb); font-size: 10px; font-weight: 700; border: none; border-radius: 3px; cursor: pointer }
 .aid-btn-ok { background: var(--accent); color: #fff }

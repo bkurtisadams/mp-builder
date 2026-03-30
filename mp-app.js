@@ -904,21 +904,25 @@ const abilityDlg = {
       sel.appendChild(og);
     }
 
+    // Build system spaces dropdown from SYS_TABLE
+    const spSel = document.getElementById("aid-spaces");
+    for (const row of MP.SYS_TABLE) {
+      const opt = document.createElement("option");
+      opt.value = row.sp;
+      opt.textContent = `${row.sp} sp → (${row.cp}) CPs`;
+      spSel.appendChild(opt);
+    }
+
     // Build modifier dropdowns
     this._buildSelect("aid-area", MP.AREA_EFFECT_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
     this._buildSelect("aid-ap", MP.ARMOR_PIERCING_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
     this._buildSelect("aid-autofire", MP.AUTOFIRE_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
     this._buildSelect("aid-charges", MP.CHARGES_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
     this._buildSelect("aid-pr", MP.POWER_CHARGES_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
-    this._buildSelect("aid-range", MP.RANGE_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 6); // default=1×Carry
+    this._buildSelect("aid-range", MP.RANGE_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 6);
 
-    // Wire recalc on any change
-    const recalcIds = ["aid-base-cp","aid-area","aid-ap","aid-autofire","aid-gear","aid-charges","aid-pr","aid-range"];
-    for (const id of recalcIds) {
-      const el = document.getElementById(id);
-      el.addEventListener("change", () => this._recalc());
-      el.addEventListener("input", () => this._recalc());
-    }
+    // Wire spaces change to update CP display
+    spSel.addEventListener("change", () => this._updateCPDisplay());
 
     // Wire ability dropdown to auto-fill and show/hide modifiers
     document.getElementById("aid-ability").addEventListener("change", () => this._onAbilityChange());
@@ -927,7 +931,6 @@ const abilityDlg = {
     document.getElementById("aid-ok").addEventListener("click", () => this._commit());
     document.getElementById("aid-cancel").addEventListener("click", () => this.close());
     this.overlay.addEventListener("mousedown", e => { if (e.target === this.overlay) this.close(); });
-    // Escape
     this.overlay.addEventListener("keydown", e => {
       if (e.key === "Escape") this.close();
       if (e.key === "Enter") this._commit();
@@ -946,27 +949,10 @@ const abilityDlg = {
     }
   },
 
-  _recalc() {
-    const base = parseFloat(document.getElementById("aid-base-cp").value) || 0;
-    // Only count visible modifier rows
-    const areaRow = document.querySelector('[data-mod="ae"]');
-    const apRow = document.querySelector('[data-mod="ap"]');
-    const afRow = document.querySelector('[data-mod="af"]');
-    const gearRow = document.querySelector('[data-mod="gear"]');
-    const chRow = document.querySelector('[data-mod="ch"]');
-    const prRow = document.querySelector('[data-mod="pr_ch"]');
-    const rngRow = document.querySelector('[data-mod="rng"]');
-
-    const area = areaRow && !areaRow.classList.contains("aid-hidden") ? (MP.AREA_EFFECT_STEPS[document.getElementById("aid-area").value]?.cp || 0) : 0;
-    const ap = apRow && !apRow.classList.contains("aid-hidden") ? (MP.ARMOR_PIERCING_STEPS[document.getElementById("aid-ap").value]?.cp || 0) : 0;
-    const af = afRow && !afRow.classList.contains("aid-hidden") ? (MP.AUTOFIRE_STEPS[document.getElementById("aid-autofire").value]?.cp || 0) : 0;
-    const gear = gearRow && !gearRow.classList.contains("aid-hidden") && document.getElementById("aid-gear").checked ? -5 : 0;
-    const ch = chRow && !chRow.classList.contains("aid-hidden") ? (MP.CHARGES_STEPS[document.getElementById("aid-charges").value]?.cp || 0) : 0;
-    const pr = prRow && !prRow.classList.contains("aid-hidden") ? (MP.POWER_CHARGES_STEPS[document.getElementById("aid-pr").value]?.cp || 0) : 0;
-    const rng = rngRow && !rngRow.classList.contains("aid-hidden") ? (MP.RANGE_STEPS[document.getElementById("aid-range").value]?.cp || 0) : 0;
-    const total = base + area + ap + af + gear + ch + pr + rng;
-    const el = document.getElementById("aid-total-cp");
-    el.textContent = (total >= 0 ? "+" : "") + total;
+  _updateCPDisplay() {
+    const sp = parseInt(document.getElementById("aid-spaces").value) || 1;
+    const row = MP.lookupSys(sp);
+    document.getElementById("aid-cp-display").textContent = row ? `(${row.cp}) CPs` : "";
   },
 
   _onAbilityChange() {
@@ -976,11 +962,7 @@ const abilityDlg = {
     const prEl = document.getElementById("aid-pr-display");
 
     if (detail) {
-      // Auto-fill base CPs
-      document.getElementById("aid-base-cp").value = detail.defCP;
-      // Show hint
       hintEl.textContent = detail.hint;
-      // Show PR and damage type
       const prText = detail.pr > 0 ? `PR=${detail.pr}` : "PR=0";
       const dmgText = detail.dmg !== "—" ? `${detail.dmg} dmg` : "";
       prEl.textContent = [prText, dmgText].filter(Boolean).join(", ");
@@ -993,26 +975,30 @@ const abilityDlg = {
     } else {
       hintEl.textContent = "";
       prEl.textContent = "";
-      // Show all modifier rows for unknown abilities
       document.querySelectorAll("[data-mod]").forEach(r => r.classList.remove("aid-hidden"));
     }
-    this._recalc();
   },
 
   open(rowIdx) {
     this.targetIdx = rowIdx;
     // Reset all fields
     document.getElementById("aid-ability").selectedIndex = 0;
-    document.getElementById("aid-base-cp").value = "0";
+    document.getElementById("aid-spaces").selectedIndex = 0;
     document.getElementById("aid-area").value = "0";
     document.getElementById("aid-ap").value = "0";
     document.getElementById("aid-autofire").value = "0";
     document.getElementById("aid-gear").checked = false;
     document.getElementById("aid-charges").value = "0";
     document.getElementById("aid-pr").value = "0";
-    document.getElementById("aid-range").value = "6"; // 1×Carry default
+    document.getElementById("aid-range").value = "6";
     document.getElementById("aid-notes").value = "";
+    // If the row already has spaces set, pre-select that value
+    const sys = veh.systems[rowIdx];
+    if (sys && sys.spaces) {
+      document.getElementById("aid-spaces").value = String(sys.spaces);
+    }
     this._onAbilityChange();
+    this._updateCPDisplay();
     this.overlay.style.display = "flex";
     document.getElementById("aid-ability").focus();
   },
@@ -1026,60 +1012,80 @@ const abilityDlg = {
     const idx = this.targetIdx;
     if (idx === null) return;
 
-    // Build description string
     const abId = document.getElementById("aid-ability").value;
     const ab = MP.abilityById(abId);
     const name = ab ? ab.name : "Custom";
     const parts = [name];
 
-    // Modifiers text
+    // Modifiers text (only from visible rows)
     const areaIdx = parseInt(document.getElementById("aid-area").value);
-    if (areaIdx > 0) parts.push("Area " + MP.AREA_EFFECT_STEPS[areaIdx].label);
+    if (areaIdx > 0 && !document.querySelector('[data-mod="ae"]').classList.contains("aid-hidden"))
+      parts.push("Area " + MP.AREA_EFFECT_STEPS[areaIdx].label);
 
     const apIdx = parseInt(document.getElementById("aid-ap").value);
-    if (apIdx > 0) parts.push("AP " + MP.ARMOR_PIERCING_STEPS[apIdx].label.replace(' pts',''));
+    if (apIdx > 0 && !document.querySelector('[data-mod="ap"]').classList.contains("aid-hidden"))
+      parts.push("AP " + MP.ARMOR_PIERCING_STEPS[apIdx].label.replace(' pts',''));
 
     const afIdx = parseInt(document.getElementById("aid-autofire").value);
-    if (afIdx > 0) parts.push("AF " + MP.AUTOFIRE_STEPS[afIdx].rof);
+    if (afIdx > 0 && !document.querySelector('[data-mod="af"]').classList.contains("aid-hidden"))
+      parts.push("AF " + MP.AUTOFIRE_STEPS[afIdx].rof);
 
-    if (document.getElementById("aid-gear").checked) parts.push("Gear");
+    if (document.getElementById("aid-gear").checked && !document.querySelector('[data-mod="gear"]').classList.contains("aid-hidden"))
+      parts.push("Gear");
 
     const chIdx = parseInt(document.getElementById("aid-charges").value);
-    if (chIdx > 0) parts.push(MP.CHARGES_STEPS[chIdx].label);
+    if (chIdx > 0 && !document.querySelector('[data-mod="ch"]').classList.contains("aid-hidden"))
+      parts.push(MP.CHARGES_STEPS[chIdx].label);
 
     const prIdx = parseInt(document.getElementById("aid-pr").value);
-    if (prIdx > 0) parts.push("PR=" + MP.POWER_CHARGES_STEPS[prIdx].pr);
+    if (prIdx > 0 && !document.querySelector('[data-mod="pr_ch"]').classList.contains("aid-hidden"))
+      parts.push("PR=" + MP.POWER_CHARGES_STEPS[prIdx].pr);
 
     const rngIdx = parseInt(document.getElementById("aid-range").value);
-    if (rngIdx !== 6) parts.push("Rng: " + MP.RANGE_STEPS[rngIdx].label.replace(' (default)',''));
+    if (rngIdx !== 6 && !document.querySelector('[data-mod="rng"]').classList.contains("aid-hidden"))
+      parts.push("Rng: " + MP.RANGE_STEPS[rngIdx].label.replace(' (default)',''));
 
     const notes = document.getElementById("aid-notes").value.trim();
     if (notes) parts.push(notes);
 
     const desc = parts.join(", ");
 
-    // Calculate total CP adjustment
-    const base = parseFloat(document.getElementById("aid-base-cp").value) || 0;
-    const totalAdj = base
-      + (MP.AREA_EFFECT_STEPS[areaIdx]?.cp || 0)
-      + (MP.ARMOR_PIERCING_STEPS[apIdx]?.cp || 0)
-      + (MP.AUTOFIRE_STEPS[afIdx]?.cp || 0)
-      + (document.getElementById("aid-gear").checked ? -5 : 0)
-      + (MP.CHARGES_STEPS[chIdx]?.cp || 0)
-      + (MP.POWER_CHARGES_STEPS[prIdx]?.cp || 0)
-      + (MP.RANGE_STEPS[rngIdx]?.cp || 0);
+    // Calculate modifier CP adjustment (no base — that comes from spaces)
+    let modAdj = 0;
+    if (!document.querySelector('[data-mod="ae"]').classList.contains("aid-hidden"))
+      modAdj += MP.AREA_EFFECT_STEPS[areaIdx]?.cp || 0;
+    if (!document.querySelector('[data-mod="ap"]').classList.contains("aid-hidden"))
+      modAdj += MP.ARMOR_PIERCING_STEPS[apIdx]?.cp || 0;
+    if (!document.querySelector('[data-mod="af"]').classList.contains("aid-hidden"))
+      modAdj += MP.AUTOFIRE_STEPS[afIdx]?.cp || 0;
+    if (!document.querySelector('[data-mod="gear"]').classList.contains("aid-hidden") && document.getElementById("aid-gear").checked)
+      modAdj += -5;
+    if (!document.querySelector('[data-mod="ch"]').classList.contains("aid-hidden"))
+      modAdj += MP.CHARGES_STEPS[chIdx]?.cp || 0;
+    if (!document.querySelector('[data-mod="pr_ch"]').classList.contains("aid-hidden"))
+      modAdj += MP.POWER_CHARGES_STEPS[prIdx]?.cp || 0;
+    if (!document.querySelector('[data-mod="rng"]').classList.contains("aid-hidden"))
+      modAdj += MP.RANGE_STEPS[rngIdx]?.cp || 0;
+
+    // Get selected spaces
+    const spaces = parseInt(document.getElementById("aid-spaces").value) || 0;
 
     // Ensure row exists
     while (veh.systems.length <= idx) veh.addSystem();
     const sys = veh.systems[idx];
 
-    // Write to row — append to desc if non-empty, set extraCPs
+    // Write spaces (overwrite if row was empty, keep if already set)
+    if (!sys.spaces) sys.spaces = spaces;
+
+    // Write description — append if non-empty
     if (sys.desc && sys.desc.trim()) {
       sys.desc = sys.desc + ", " + desc;
     } else {
       sys.desc = desc;
     }
-    sys.extraCPs = (sys.extraCPs || 0) + totalAdj;
+
+    // Write modifier CP adjustment to extraCPs
+    if (modAdj !== 0) sys.extraCPs = (sys.extraCPs || 0) + modAdj;
 
     this.close();
     updateAll();
