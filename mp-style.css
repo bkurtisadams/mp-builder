@@ -185,3 +185,62 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
   .vs-bottom-left { width: 100% }
   .mp-hdr-in { flex-wrap: wrap; height: auto; padding: 4px 0 }
 }
+
+/* ============ PRINT STYLES ============ */
+@media print {
+  /* Hide non-printable UI */
+  .mp-hdr, .vs-layout-toolbar, .vs-sil-bar, .vs-layout-hint,
+  .vs-picture-controls, .vs-picture-btn,
+  .vs-sys-row .vs-sys-del { display: none !important }
+
+  /* Reset page */
+  html, body { background: #fff !important; min-height: auto }
+  body { font-size: 10px }
+
+  /* Full width, no scroll, no overflow */
+  .mp-main { overflow: visible !important }
+  .vs-wrap { overflow: visible !important; padding: 0 !important }
+  .vs-sheet { max-width: 100% !important; border: 2px solid #000 !important; border-radius: 0 !important; background: #fff !important; padding: 8px 12px !important }
+  .vs-sys-scroll { overflow: visible !important }
+  .vs-sys-inner { min-width: 0 !important }
+
+  /* Stronger borders for print */
+  .vs-row { border-bottom: 1px solid #999 !important; padding: 2px 0 !important }
+  .vs-sys-hdr-wrap { border-bottom: 2px solid #000 !important }
+  .vs-sys-row-wrap { border-bottom: 1px solid #aaa !important }
+  .vs-sys-remain { border-top: 2px solid #000 !important }
+  .vs-total-stats { border-top: 2px solid #000 !important }
+  .vs-key-table td { border: 1px solid #999 !important }
+
+  /* Colors for print */
+  .vs-val { color: #000 !important }
+  .vs-row label { color: #000 !important }
+  .vs-sys-hdr span { color: #000 !important }
+  .vs-mod-hdr span { color: #000 !important }
+  .vs-cost-input { background: #e0e0e0 !important; color: #000 !important; border: 1px solid #000 !important }
+  .vs-val-box { background: #e0e0e0 !important; color: #000 !important }
+  .vs-section-hdr { color: #000 !important }
+  .vs-sheet-ftr { color: #666 !important; border-top: 1px solid #999 !important }
+
+  /* Inputs print as underlined values */
+  .vs-inp, .vs-inp-xs, .vs-inp-sm, .vs-sys-row input, .vs-sys-mods input[type="number"] {
+    border: none !important; border-bottom: 1px solid #999 !important;
+    background: transparent !important; border-radius: 0 !important;
+  }
+  .vs-sys-row input.vs-sys-desc { border-bottom: 1px solid #999 !important }
+  .vs-key-table input { border-bottom: 1px solid #ccc !important }
+
+  /* Layout canvas area */
+  .vs-layout-canvas { border: 1px solid #000 !important; break-inside: avoid }
+  .vs-layout-canvas canvas { display: none !important }
+  .vs-layout-canvas img { display: block !important }
+
+  /* Picture area */
+  .vs-picture-area { border: 1px solid #999 !important }
+
+  /* Bottom section stays together */
+  .vs-bottom { break-inside: avoid }
+
+  /* Page setup */
+  @page { size: letter portrait; margin: 0.4in }
+}

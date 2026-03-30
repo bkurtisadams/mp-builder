@@ -754,13 +754,33 @@ document.getElementById("btn-csv").addEventListener("click", () => {
   a.click(); URL.revokeObjectURL(url);
 });
 
-document.getElementById("btn-png").addEventListener("click", () => {
-  const c = editor.toImage(600);
-  if (!c) { alert("No cells painted."); return; }
-  const a = document.createElement("a");
-  a.download = (veh.name || "vehicle").replace(/\s+/g, "_") + "_floorplan.png";
-  a.href = c.toDataURL("image/png");
-  a.click();
+document.getElementById("btn-pdf").addEventListener("click", () => {
+  // Render the layout canvas to a static image for print
+  const layoutCanvas = document.getElementById("vs-layout-canvas");
+  const printImg = editor.toImage(500);
+  let layoutImgData = "";
+  if (printImg) layoutImgData = printImg.toDataURL("image/png");
+
+  // Snapshot the layout canvas area with a static image for printing
+  const layoutWrap = document.getElementById("vs-layout-wrap");
+  let origCanvas = null;
+  let tempImg = null;
+  if (layoutImgData) {
+    origCanvas = layoutCanvas;
+    origCanvas.style.display = "none";
+    tempImg = document.createElement("img");
+    tempImg.src = layoutImgData;
+    tempImg.style.cssText = "display:block;max-width:100%;max-height:100%;object-fit:contain;margin:auto";
+    layoutWrap.appendChild(tempImg);
+  }
+
+  window.print();
+
+  // Restore canvas after print
+  setTimeout(() => {
+    if (origCanvas) origCanvas.style.display = "";
+    if (tempImg && tempImg.parentNode) tempImg.parentNode.removeChild(tempImg);
+  }, 500);
 });
 
 // ---- localStorage auto-save ----
