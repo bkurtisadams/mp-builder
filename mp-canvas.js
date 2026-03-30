@@ -21,6 +21,7 @@ class FloorPlanEditor {
     this.hoverGx = null;
     this.hoverGy = null;
     this.selectedCell = null; // {gx, gy, sysId} for Delete key
+    this._cellDrag = null;   // {fromGx, fromGy, toGx, toGy, sysId}
 
     this.onUpdate = null;
 
@@ -119,6 +120,15 @@ class FloorPlanEditor {
       return;
     }
 
+    // Cell drag in progress (Select mode)
+    if (this._cellDrag) {
+      const { gx, gy } = this._cssToGrid(cx, cy);
+      this._cellDrag.toGx = gx;
+      this._cellDrag.toGy = gy;
+      this.draw();
+      return;
+    }
+
     const { gx, gy } = this._cssToGrid(cx, cy);
     this.hoverGx = gx;
     this.hoverGy = gy;
@@ -128,6 +138,12 @@ class FloorPlanEditor {
       const hit = this._silhouetteHitTest(cx, cy);
       this._silHover = hit;
       this.canvas.style.cursor = hit === "resize" ? "nwse-resize" : hit === "move" ? "grab" : "default";
+    }
+
+    // Cursor for select mode over a painted cell
+    if (this.mode === "select") {
+      const sys = this.veh.cellAt(gx, gy);
+      this.canvas.style.cursor = sys ? "grab" : "default";
     }
 
     // Drag-paint
@@ -176,10 +192,17 @@ class FloorPlanEditor {
       return;
     }
 
-    // Select mode — click a cell to select it
+    // Select mode — click a cell to select it, start drag
     if (this.mode === "select") {
       const sys = this.veh.cellAt(gx, gy);
-      this.selectedCell = sys ? { gx, gy, sysId: sys.id } : null;
+      if (sys) {
+        this.selectedCell = { gx, gy, sysId: sys.id };
+        this._cellDrag = { fromGx: gx, fromGy: gy, toGx: gx, toGy: gy, sysId: sys.id };
+        this.canvas.style.cursor = "grabbing";
+      } else {
+        this.selectedCell = null;
+        this._cellDrag = null;
+      }
       this.draw();
       if (this.onUpdate) this.onUpdate();
     }
@@ -189,7 +212,23 @@ class FloorPlanEditor {
     if (ev.button === 2 || ev.button === 1) { this.panStart = null; return; }
     if (this._silDrag) {
       this._silDrag = null;
-      this.canvas.style.cursor = this.mode === "sil" ? "default" : "default";
+      this.canvas.style.cursor = "default";
+      if (this.onUpdate) this.onUpdate();
+    }
+    // Finalize cell drag
+    if (this._cellDrag) {
+      const d = this._cellDrag;
+      if (d.fromGx !== d.toGx || d.fromGy !== d.toGy) {
+        // Only move if target is empty
+        if (!this.veh.cellAt(d.toGx, d.toGy)) {
+          this.veh.unpaintCell(d.fromGx, d.fromGy);
+          this.veh.paintCell(d.sysId, d.toGx, d.toGy);
+          this.selectedCell = { gx: d.toGx, gy: d.toGy, sysId: d.sysId };
+        }
+      }
+      this._cellDrag = null;
+      this.canvas.style.cursor = "default";
+      this.draw();
       if (this.onUpdate) this.onUpdate();
     }
     this.painting = false;
@@ -449,6 +488,35 @@ class FloorPlanEditor {
       ctx.setLineDash([3 * dpr, 3 * dpr]);
       ctx.strokeRect(x, y, cell, cell);
       ctx.setLineDash([]);
+    }
+
+    // Cell drag ghost
+    if (this._cellDrag && (this._cellDrag.fromGx !== this._cellDrag.toGx || this._cellDrag.fromGy !== this._cellDrag.toGy)) {
+      const sys = this.veh.findSystem(this._cellDrag.sysId);
+      const color = sys ? MP.sysColor(sys.desc) : "#707070";
+      const tx = ox + this._cellDrag.toGx * cell;
+      const ty = oy + this._cellDrag.toGy * cell;
+      const occupied = this.veh.cellAt(this._cellDrag.toGx, this._cellDrag.toGy);
+      if (!occupied) {
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = color;
+        ctx.fillRect(tx + 1, ty + 1, cell - 2, cell - 2);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "#f4d03f";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3 * dpr, 3 * dpr]);
+        ctx.strokeRect(tx + 1, ty + 1, cell - 2, cell - 2);
+        ctx.setLineDash([]);
+      } else {
+        // Can't drop here — red X
+        ctx.strokeStyle = "#ef4444";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(tx + 1, ty + 1, cell - 2, cell - 2);
+        ctx.beginPath();
+        ctx.moveTo(tx + 4, ty + 4); ctx.lineTo(tx + cell - 4, ty + cell - 4);
+        ctx.moveTo(tx + cell - 4, ty + 4); ctx.lineTo(tx + 4, ty + cell - 4);
+        ctx.stroke();
+      }
     }
   }
 
