@@ -466,8 +466,9 @@ class FloorPlanEditor {
     }
     ctx.textBaseline = "alphabetic";
 
-    // Painted cells
-    for (const sys of this.veh.systems) {
+    // Painted cells (including remaining system)
+    const allSystems = [...this.veh.systems, this.veh.getRemainingSys()];
+    for (const sys of allSystems) {
       const color = MP.sysColor(sys.desc);
       const isSeat = MP.isSeatSystem(sys.desc);
       const isActive = sys.id === this.activeSysId;
@@ -586,7 +587,8 @@ class FloorPlanEditor {
 
   toImage(maxWidth) {
     let allCells = [];
-    for (const sys of this.veh.systems) allCells.push(...sys.cells.map(c => ({ ...c, sys })));
+    const allSys = [...this.veh.systems, this.veh.getRemainingSys()];
+    for (const sys of allSys) allCells.push(...sys.cells.map(c => ({ ...c, sys })));
     if (!allCells.length) return null;
     let minGx = Infinity, minGy = Infinity, maxGx = -Infinity, maxGy = -Infinity;
     for (const c of allCells) {

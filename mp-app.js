@@ -187,12 +187,16 @@ function renderSystemsTable() {
   }
 
   // Row 19: remaining
+  const remSys = veh.getRemainingSys();
+  const remPlaced = remSys.cells.length;
+  const remAvail = veh.remainingSpaces;
+  const remTotal = remPlaced + remAvail;
   html += `<div class="vs-sys-row-wrap vs-sys-remain">
     <div class="vs-sys-row">
       <span class="vs-sys-val"></span>
-      <span class="vs-sys-val">${veh.remainingSpaces}</span>
+      <span class="vs-sys-val">${remTotal}</span>
       <span></span><span></span><span></span><span></span>
-      <span class="vs-remain-note"><em>Remaining system spaces for rooms, storage, corridors etc</em></span>
+      <span class="vs-remain-note"><em>Remaining spaces (${remPlaced} placed, ${remAvail} unplaced)</em></span>
       <span></span>
     </div>
     <div class="vs-sys-mods"></div>
@@ -281,10 +285,22 @@ function updateSystemDropdown() {
     const selected = (String(sys.id) === curVal) ? " selected" : "";
     html += `<option value="${sys.id}"${selected}>${name} (${placed}/${total})</option>`;
   }
+  // Add remaining spaces entry
+  const remSys = veh.getRemainingSys();
+  const remPlaced = remSys.cells.length;
+  const remTotal = veh.remainingSpaces + remPlaced;
+  if (remTotal > 0) {
+    const remSelected = (curVal === "remaining") ? " selected" : "";
+    html += `<option value="remaining"${remSelected}>Remaining (${remPlaced}/${remTotal})</option>`;
+  }
   sel.innerHTML = html;
   // Restore selection if still valid
   if (editor && editor.activeSysId) {
-    sel.value = String(editor.activeSysId);
+    if (editor.activeSysId === "remaining") {
+      sel.value = "remaining";
+    } else {
+      sel.value = String(editor.activeSysId);
+    }
     if (!sel.value) {
       editor.activeSysId = null;
       editor.setMode("select");
@@ -299,15 +315,24 @@ function updateActiveIndicator() {
     el.innerHTML = '<span style="font-size:8px;color:var(--tx3);font-style:italic">Select a system to paint</span>';
     return;
   }
-  const sys = veh.findSystem(editor.activeSysId);
-  if (!sys) {
-    el.innerHTML = '<span style="font-size:8px;color:var(--tx3);font-style:italic">Select a system to paint</span>';
-    return;
+  let sys, color, name, placed, total;
+  if (editor.activeSysId === "remaining") {
+    sys = veh.getRemainingSys();
+    color = "#606060";
+    name = "Remaining";
+    placed = sys.cells.length;
+    total = veh.remainingSpaces + placed;
+  } else {
+    sys = veh.findSystem(editor.activeSysId);
+    if (!sys) {
+      el.innerHTML = '<span style="font-size:8px;color:var(--tx3);font-style:italic">Select a system to paint</span>';
+      return;
+    }
+    color = MP.sysColor(sys.desc);
+    name = sys.desc || "(unnamed)";
+    placed = sys.cells.length;
+    total = sys.spaces || 0;
   }
-  const color = MP.sysColor(sys.desc);
-  const name = sys.desc || "(unnamed)";
-  const placed = sys.cells.length;
-  const total = sys.spaces || 0;
   el.innerHTML = `<span class="vs-active-swatch" style="background:${color}"></span>`
     + `<span class="vs-active-name">${name}</span>`
     + `<span class="vs-active-count">${placed} / ${total}</span>`;
@@ -378,7 +403,12 @@ document.getElementById("vs-pic-height").addEventListener("input", () => {
 // ---- Layout toolbar: system dropdown ----
 document.getElementById("sel-layout-sys").addEventListener("change", () => {
   const sel = document.getElementById("sel-layout-sys");
-  const sysId = parseInt(sel.value) || null;
+  let sysId = null;
+  if (sel.value === "remaining") {
+    sysId = "remaining";
+  } else {
+    sysId = parseInt(sel.value) || null;
+  }
   if (editor) {
     editor.activeSysId = sysId;
     if (sysId) {

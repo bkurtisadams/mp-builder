@@ -14,7 +14,8 @@ class Vehicle {
     this.keyEntries = [];
     this.pictureData = "";
     this.pictureHeight = 120;
-    this.silhouette = null; // { data, gx, gy, gw, gh }
+    this.silhouette = null; // { data, gx, gy, gw, gh, rot }
+    this._remainingSys = { id: "remaining", desc: "Remaining", spaces: 0, cells: [] };
     this._nextId = 1;
     this._nextKeyId = 1;
   }
@@ -22,7 +23,12 @@ class Vehicle {
   get chassis() { return MP.lookupChassis(this.basicCost); }
   get totalSpaces() { return this.chassis.sp; }
   get allocatedSpaces() { return this.systems.reduce((s, sys) => s + (sys.spaces || 0), 0); }
-  get remainingSpaces() { return this.totalSpaces - this.allocatedSpaces; }
+  get remainingSpaces() { return this.totalSpaces - this.allocatedSpaces - this._remainingSys.cells.length; }
+
+  // Special system for remaining/unallocated spaces (not in systems array)
+  getRemainingSys() {
+    return this._remainingSys;
+  }
 
   addSystem() {
     const sys = {
@@ -37,11 +43,21 @@ class Vehicle {
   }
 
   removeSystem(id) { this.systems = this.systems.filter(s => s.id !== id); }
-  findSystem(id) { return this.systems.find(s => s.id === id) || null; }
+  findSystem(id) {
+    if (id === "remaining") return this._remainingSys;
+    return this.systems.find(s => s.id === id) || null;
+  }
 
   paintCell(sysId, gx, gy) {
+    if (this.cellAt(gx, gy)) return false;
+    if (sysId === "remaining") {
+      const rem = this._remainingSys;
+      if (this.remainingSpaces <= 0) return false;
+      rem.cells.push({ gx, gy });
+      return true;
+    }
     const sys = this.findSystem(sysId);
-    if (!sys || sys.cells.length >= sys.spaces || this.cellAt(gx, gy)) return false;
+    if (!sys || sys.cells.length >= sys.spaces) return false;
     sys.cells.push({ gx, gy });
     return true;
   }
@@ -51,12 +67,17 @@ class Vehicle {
       const idx = sys.cells.findIndex(c => c.gx === gx && c.gy === gy);
       if (idx >= 0) { sys.cells.splice(idx, 1); return sys; }
     }
+    // Check remaining system
+    const rem = this._remainingSys;
+    const ri = rem.cells.findIndex(c => c.gx === gx && c.gy === gy);
+    if (ri >= 0) { rem.cells.splice(ri, 1); return rem; }
     return null;
   }
 
   cellAt(gx, gy) {
     for (const sys of this.systems)
       if (sys.cells.some(c => c.gx === gx && c.gy === gy)) return sys;
+    if (this._remainingSys.cells.some(c => c.gx === gx && c.gy === gy)) return this._remainingSys;
     return null;
   }
 
@@ -65,6 +86,8 @@ class Vehicle {
       const c = sys.cells.find(c => c.gx === gx && c.gy === gy);
       if (c) return { sys, cell: c };
     }
+    const rc = this._remainingSys.cells.find(c => c.gx === gx && c.gy === gy);
+    if (rc) return { sys: this._remainingSys, cell: rc };
     return null;
   }
 
@@ -176,6 +199,7 @@ class Vehicle {
       isBase: this.isBase, systems: this.systems,
       keyEntries: this.keyEntries, pictureData: this.pictureData,
       pictureHeight: this.pictureHeight, silhouette: this.silhouette,
+      remainingCells: this._remainingSys.cells,
     };
   }
 
@@ -203,6 +227,7 @@ class Vehicle {
       return s;
     });
     this.keyEntries = data.keyEntries || [];
+    this._remainingSys = { id: "remaining", desc: "Remaining", spaces: 0, cells: data.remainingCells || [] };
     this._nextId = Math.max(1, ...this.systems.map(s => s.id), 0) + 1;
     this._nextKeyId = Math.max(1, ...this.keyEntries.map(k => k.id), 0) + 1;
   }
