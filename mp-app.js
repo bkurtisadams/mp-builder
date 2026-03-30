@@ -886,6 +886,10 @@ const abilityDlg = {
     this.overlay = document.getElementById("ability-dlg-overlay");
     // Build ability dropdown with optgroups
     const sel = document.getElementById("aid-ability");
+    const blankOpt = document.createElement("option");
+    blankOpt.value = "";
+    blankOpt.textContent = "— select ability —";
+    sel.appendChild(blankOpt);
     const cats = {};
     for (const ab of MP.ABILITY_TYPES) {
       if (!cats[ab.cat]) cats[ab.cat] = [];
@@ -966,16 +970,9 @@ const abilityDlg = {
       const prText = detail.pr > 0 ? `PR=${detail.pr}` : "PR=0";
       const dmgText = detail.dmg !== "—" ? `${detail.dmg} dmg` : "";
       prEl.textContent = [prText, dmgText].filter(Boolean).join(", ");
-      // Show/hide modifier rows
-      const allMods = ["ae","ap","af","gear","ch","pr_ch","rng"];
-      for (const mod of allMods) {
-        const row = document.querySelector(`[data-mod="${mod}"]`);
-        if (row) row.classList.toggle("aid-hidden", !detail.mods.includes(mod));
-      }
     } else {
       hintEl.textContent = "";
       prEl.textContent = "";
-      document.querySelectorAll("[data-mod]").forEach(r => r.classList.remove("aid-hidden"));
     }
   },
 
@@ -1017,55 +1014,41 @@ const abilityDlg = {
     const name = ab ? ab.name : "Custom";
     const parts = [name];
 
-    // Modifiers text (only from visible rows)
+    // Modifiers text
     const areaIdx = parseInt(document.getElementById("aid-area").value);
-    if (areaIdx > 0 && !document.querySelector('[data-mod="ae"]').classList.contains("aid-hidden"))
-      parts.push("Area " + MP.AREA_EFFECT_STEPS[areaIdx].label);
+    if (areaIdx > 0) parts.push("Area " + MP.AREA_EFFECT_STEPS[areaIdx].label);
 
     const apIdx = parseInt(document.getElementById("aid-ap").value);
-    if (apIdx > 0 && !document.querySelector('[data-mod="ap"]').classList.contains("aid-hidden"))
-      parts.push("AP " + MP.ARMOR_PIERCING_STEPS[apIdx].label.replace(' pts',''));
+    if (apIdx > 0) parts.push("AP " + MP.ARMOR_PIERCING_STEPS[apIdx].label.replace(' pts',''));
 
     const afIdx = parseInt(document.getElementById("aid-autofire").value);
-    if (afIdx > 0 && !document.querySelector('[data-mod="af"]').classList.contains("aid-hidden"))
-      parts.push("AF " + MP.AUTOFIRE_STEPS[afIdx].rof);
+    if (afIdx > 0) parts.push("AF " + MP.AUTOFIRE_STEPS[afIdx].rof);
 
-    if (document.getElementById("aid-gear").checked && !document.querySelector('[data-mod="gear"]').classList.contains("aid-hidden"))
-      parts.push("Gear");
+    if (document.getElementById("aid-gear").checked) parts.push("Gear");
 
     const chIdx = parseInt(document.getElementById("aid-charges").value);
-    if (chIdx > 0 && !document.querySelector('[data-mod="ch"]').classList.contains("aid-hidden"))
-      parts.push(MP.CHARGES_STEPS[chIdx].label);
+    if (chIdx > 0) parts.push(MP.CHARGES_STEPS[chIdx].label);
 
     const prIdx = parseInt(document.getElementById("aid-pr").value);
-    if (prIdx > 0 && !document.querySelector('[data-mod="pr_ch"]').classList.contains("aid-hidden"))
-      parts.push("PR=" + MP.POWER_CHARGES_STEPS[prIdx].pr);
+    if (prIdx > 0) parts.push("PR=" + MP.POWER_CHARGES_STEPS[prIdx].pr);
 
     const rngIdx = parseInt(document.getElementById("aid-range").value);
-    if (rngIdx !== 6 && !document.querySelector('[data-mod="rng"]').classList.contains("aid-hidden"))
-      parts.push("Rng: " + MP.RANGE_STEPS[rngIdx].label.replace(' (default)',''));
+    if (rngIdx !== 6) parts.push("Rng: " + MP.RANGE_STEPS[rngIdx].label.replace(' (default)',''));
 
     const notes = document.getElementById("aid-notes").value.trim();
     if (notes) parts.push(notes);
 
     const desc = parts.join(", ");
 
-    // Calculate modifier CP adjustment (no base — that comes from spaces)
+    // Calculate modifier CP adjustment
     let modAdj = 0;
-    if (!document.querySelector('[data-mod="ae"]').classList.contains("aid-hidden"))
-      modAdj += MP.AREA_EFFECT_STEPS[areaIdx]?.cp || 0;
-    if (!document.querySelector('[data-mod="ap"]').classList.contains("aid-hidden"))
-      modAdj += MP.ARMOR_PIERCING_STEPS[apIdx]?.cp || 0;
-    if (!document.querySelector('[data-mod="af"]').classList.contains("aid-hidden"))
-      modAdj += MP.AUTOFIRE_STEPS[afIdx]?.cp || 0;
-    if (!document.querySelector('[data-mod="gear"]').classList.contains("aid-hidden") && document.getElementById("aid-gear").checked)
-      modAdj += -5;
-    if (!document.querySelector('[data-mod="ch"]').classList.contains("aid-hidden"))
-      modAdj += MP.CHARGES_STEPS[chIdx]?.cp || 0;
-    if (!document.querySelector('[data-mod="pr_ch"]').classList.contains("aid-hidden"))
-      modAdj += MP.POWER_CHARGES_STEPS[prIdx]?.cp || 0;
-    if (!document.querySelector('[data-mod="rng"]').classList.contains("aid-hidden"))
-      modAdj += MP.RANGE_STEPS[rngIdx]?.cp || 0;
+    modAdj += MP.AREA_EFFECT_STEPS[areaIdx]?.cp || 0;
+    modAdj += MP.ARMOR_PIERCING_STEPS[apIdx]?.cp || 0;
+    modAdj += MP.AUTOFIRE_STEPS[afIdx]?.cp || 0;
+    if (document.getElementById("aid-gear").checked) modAdj += -5;
+    modAdj += MP.CHARGES_STEPS[chIdx]?.cp || 0;
+    modAdj += MP.POWER_CHARGES_STEPS[prIdx]?.cp || 0;
+    modAdj += MP.RANGE_STEPS[rngIdx]?.cp || 0;
 
     // Get selected spaces
     const spaces = parseInt(document.getElementById("aid-spaces").value) || 0;
