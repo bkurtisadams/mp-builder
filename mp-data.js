@@ -643,29 +643,53 @@ MP.AUTOFIRE_STEPS = [
   {label:'RoF 7',cp:45,  rof:7},
 ];
 
-// Charges — uses per "adventure" before needing recharge/reload
-// Default is unlimited. Fewer charges = negative CP adjustment.
-MP.CHARGES_STEPS = [
-  {label:'Unlimited', cp:0},
-  {label:'32 charges',cp:-2.5},
-  {label:'16 charges',cp:-5},
-  {label:'8 charges', cp:-7.5},
-  {label:'4 charges', cp:-10},
-  {label:'2 charges', cp:-12.5},
-  {label:'1 charge',  cp:-15},
+// PR & Charges unified scale (from rulebook)
+// Each step = ±2.5 CPs. Moving UP (lower PR / more charges) = +2.5.
+// Moving DOWN (higher PR / fewer charges) = -2.5.
+// Switching between PR and Charges columns is free.
+// idx 0 = top of table (unlimited/PR 0), higher idx = worse
+MP.PR_CHARGES_SCALE = [
+  {pr:0,   charges:"unlimited", label:"PR 0 / Unlimited"},
+  {pr:1,   charges:"24",        label:"PR 1 / 24 ch"},
+  {pr:2,   charges:"12",        label:"PR 2 / 12 ch"},
+  {pr:3,   charges:"8",         label:"PR 3 / 8 ch"},
+  {pr:4,   charges:"6",         label:"PR 4 / 6 ch"},
+  {pr:5,   charges:"4",         label:"PR 5 / 4 ch"},
+  {pr:8,   charges:"3",         label:"PR 8 / 3 ch"},
+  {pr:12,  charges:"2",         label:"PR 12 / 2 ch"},
+  {pr:16,  charges:"1",         label:"PR 16 / 1 ch"},
+  {pr:24,  charges:"1@75%",     label:"PR 24 / 1@75%"},
+  {pr:32,  charges:"1@50%",     label:"PR 32 / 1@50%"},
+  {pr:48,  charges:"1@38%",     label:"PR 48 / 1@38%"},
+  {pr:64,  charges:"1@25%",     label:"PR 64 / 1@25%"},
 ];
 
-// Power Instead of Charges — replaces Charges with PR cost
-// "Each additional application of this modifier doubles the PR"
-MP.POWER_CHARGES_STEPS = [
-  {label:'None (use Charges)', cp:0, pr:0},
-  {label:'PR = 1',  cp:5,   pr:1},
-  {label:'PR = 2',  cp:10,  pr:2},
-  {label:'PR = 4',  cp:15,  pr:4},
-  {label:'PR = 8',  cp:20,  pr:8},
-  {label:'PR = 16', cp:25,  pr:16},
-  {label:'PR = 32', cp:30,  pr:32},
-];
+// Find the index in PR_CHARGES_SCALE closest to a given base PR
+MP.prScaleIndex = function(basePR) {
+  for (let i = 0; i < MP.PR_CHARGES_SCALE.length; i++) {
+    if (MP.PR_CHARGES_SCALE[i].pr >= basePR) return i;
+  }
+  return MP.PR_CHARGES_SCALE.length - 1;
+};
+
+// Build dropdown options for PR/Charges given a base PR
+// Returns array of {label, cp} where cp is cost adjustment relative to base
+MP.buildPRChargesOptions = function(basePR) {
+  const baseIdx = MP.prScaleIndex(basePR);
+  const opts = [];
+  for (let i = 0; i < MP.PR_CHARGES_SCALE.length; i++) {
+    const steps = baseIdx - i; // positive = moved up (better), negative = moved down (worse)
+    const cp = steps * 2.5;
+    const row = MP.PR_CHARGES_SCALE[i];
+    const cpStr = cp === 0 ? "base" : (cp > 0 ? "+" + cp : String(cp));
+    opts.push({
+      label: row.label + " (" + cpStr + ")",
+      cp: cp,
+      idx: i
+    });
+  }
+  return opts;
+};
 
 // Range steps — +/-2.5 per step from base 1×BC Carry
 MP.RANGE_STEPS = [

@@ -931,9 +931,8 @@ const abilityDlg = {
     this._buildSelect("aid-area", MP.AREA_EFFECT_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
     this._buildSelect("aid-ap", MP.ARMOR_PIERCING_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
     this._buildSelect("aid-autofire", MP.AUTOFIRE_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
-    this._buildSelect("aid-charges", MP.CHARGES_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
-    this._buildSelect("aid-pr", MP.POWER_CHARGES_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
     this._buildSelect("aid-range", MP.RANGE_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 6);
+    // PR/Charges built dynamically per ability in _rebuildPRCharges()
 
     // Wire spaces change to update CP display and stats
     spSel.addEventListener("change", () => { this._updateCPDisplay(); this._updateStats(); });
@@ -990,11 +989,28 @@ const abilityDlg = {
       const prText = detail.pr > 0 ? `PR=${detail.pr}` : "PR=0";
       const dmgText = detail.dmg !== "—" ? `${detail.dmg} dmg` : "";
       prEl.textContent = [prText, dmgText].filter(Boolean).join(", ");
+      this._rebuildPRCharges(detail.pr);
     } else {
       hintEl.textContent = "";
       prEl.textContent = "";
+      this._rebuildPRCharges(0);
     }
     this._updateStats();
+  },
+
+  _rebuildPRCharges(basePR) {
+    const sel = document.getElementById("aid-prch");
+    const opts = MP.buildPRChargesOptions(basePR);
+    const baseIdx = MP.prScaleIndex(basePR);
+    sel.innerHTML = "";
+    for (let i = 0; i < opts.length; i++) {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.textContent = opts[i].label;
+      opt.dataset.cp = opts[i].cp;
+      if (opts[i].idx === baseIdx) opt.selected = true;
+      sel.appendChild(opt);
+    }
   },
 
   open(rowIdx) {
@@ -1006,8 +1022,6 @@ const abilityDlg = {
     document.getElementById("aid-ap").value = "0";
     document.getElementById("aid-autofire").value = "0";
     document.getElementById("aid-gear").checked = false;
-    document.getElementById("aid-charges").value = "0";
-    document.getElementById("aid-pr").value = "0";
     document.getElementById("aid-range").value = "6";
     document.getElementById("aid-notes").value = "";
     // If the row already has spaces set, pre-select that value
@@ -1056,11 +1070,14 @@ const abilityDlg = {
 
     if (document.getElementById("aid-gear").checked) parts.push("Gear");
 
-    const chIdx = parseInt(document.getElementById("aid-charges").value);
-    if (chIdx > 0) parts.push(MP.CHARGES_STEPS[chIdx].label);
-
-    const prIdx = parseInt(document.getElementById("aid-pr").value);
-    if (prIdx > 0) parts.push("PR=" + MP.POWER_CHARGES_STEPS[prIdx].pr);
+    // PR/Charges adjustment
+    const prchSel = document.getElementById("aid-prch");
+    const prchOpt = prchSel.options[prchSel.selectedIndex];
+    const prchCp = parseFloat(prchOpt?.dataset.cp) || 0;
+    if (prchCp !== 0) {
+      const row = MP.PR_CHARGES_SCALE[parseInt(prchSel.value)];
+      if (row) parts.push(row.label.split(" / ")[0]); // e.g. "PR 1" or "PR 8"
+    }
 
     const rngIdx = parseInt(document.getElementById("aid-range").value);
     if (rngIdx !== 6) parts.push("Rng: " + MP.RANGE_STEPS[rngIdx].label.replace(' (default)',''));
@@ -1076,8 +1093,7 @@ const abilityDlg = {
     modAdj += MP.ARMOR_PIERCING_STEPS[apIdx]?.cp || 0;
     modAdj += MP.AUTOFIRE_STEPS[afIdx]?.cp || 0;
     if (document.getElementById("aid-gear").checked) modAdj += -5;
-    modAdj += MP.CHARGES_STEPS[chIdx]?.cp || 0;
-    modAdj += MP.POWER_CHARGES_STEPS[prIdx]?.cp || 0;
+    modAdj += prchCp;
     modAdj += MP.RANGE_STEPS[rngIdx]?.cp || 0;
 
     // Get selected spaces
