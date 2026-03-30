@@ -171,6 +171,7 @@ function renderSystemsTable() {
         <input type="text" value="${dmg}" data-field="dmg" data-idx="${i}" title="Damage taken by this system">
         <span class="vs-sys-val vs-sys-pts">${pts}</span>
         <input type="text" class="vs-sys-desc" value="${desc}" data-field="desc" data-idx="${i}" title="System name, abilities, arc, notes">
+        <span class="vs-sys-ins" data-idx="${i}" title="Insert Ability (Ctrl+I)">+</span>
         <span class="vs-sys-del" data-idx="${i}" title="Clear row">&times;</span>
       </div>
       <div class="vs-sys-mods">
@@ -240,6 +241,15 @@ function renderSystemsTable() {
       if (editor && editor.activeSysId === sys.id) editor.activeSysId = null;
       veh.systems.splice(idx, 1);
       updateAll();
+    });
+  });
+
+  // Wire insert ability icon
+  el.querySelectorAll(".vs-sys-ins").forEach(ins => {
+    ins.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(ins.dataset.idx);
+      if (!isNaN(idx)) abilityDlg.open(idx);
     });
   });
 
@@ -925,8 +935,8 @@ const abilityDlg = {
     this._buildSelect("aid-pr", MP.POWER_CHARGES_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
     this._buildSelect("aid-range", MP.RANGE_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 6);
 
-    // Wire spaces change to update CP display
-    spSel.addEventListener("change", () => this._updateCPDisplay());
+    // Wire spaces change to update CP display and stats
+    spSel.addEventListener("change", () => { this._updateCPDisplay(); this._updateStats(); });
 
     // Wire ability dropdown to auto-fill and show/hide modifiers
     document.getElementById("aid-ability").addEventListener("change", () => this._onAbilityChange());
@@ -959,6 +969,16 @@ const abilityDlg = {
     document.getElementById("aid-cp-display").textContent = row ? `(${row.cp}) CPs` : "";
   },
 
+  _updateStats() {
+    const abId = document.getElementById("aid-ability").value;
+    const sp = parseInt(document.getElementById("aid-spaces").value) || 1;
+    const sysRow = MP.lookupSys(sp);
+    const cp = sysRow ? sysRow.cp : 0;
+    const info = MP.computeAbilityInfo(abId, cp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
+    const el = document.getElementById("aid-stats-info");
+    el.textContent = info ? info.hint : "";
+  },
+
   _onAbilityChange() {
     const abId = document.getElementById("aid-ability").value;
     const detail = MP.ABILITY_DETAILS[abId];
@@ -974,6 +994,7 @@ const abilityDlg = {
       hintEl.textContent = "";
       prEl.textContent = "";
     }
+    this._updateStats();
   },
 
   open(rowIdx) {
@@ -1012,7 +1033,16 @@ const abilityDlg = {
     const abId = document.getElementById("aid-ability").value;
     const ab = MP.abilityById(abId);
     const name = ab ? ab.name : "Custom";
+
+    // Get computed stats description
+    const sp = parseInt(document.getElementById("aid-spaces").value) || 1;
+    const sysRow = MP.lookupSys(sp);
+    const cp = sysRow ? sysRow.cp : 0;
+    const info = MP.computeAbilityInfo(abId, cp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
+
+    // Build description: name, computed stats, then modifiers
     const parts = [name];
+    if (info && info.desc) parts.push(info.desc);
 
     // Modifiers text
     const areaIdx = parseInt(document.getElementById("aid-area").value);

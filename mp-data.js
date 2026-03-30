@@ -247,119 +247,311 @@ MP.abilityById = function(id) {
 };
 
 // ---- Ability Details for Insert Dialog ----
-// dmg = damage type, pr = PR per use, defCP = suggested default CPs,
-// hint = short description, mods = which modifier dropdowns to show
-// mods key: ae=Area Effect, ap=Armor Piercing, af=Autofire, gear=Gear, ch=Charges, pr_ch=Power/Charges, rng=Range
+// dmg=damage type, pr=PR/use, defCP=suggested CPs, hint=description
+// calc: seq="A"|"B", offset=step@cp0, cpStep=2.5|5, rng=range formula,
+//       move=true+moveOffset, armor=true, forceField=true
 MP.ABILITY_DETAILS = {
   // --- Offensive ---
-  "absorption":         {dmg:"Special",    pr:0,  defCP:5,   hint:"Absorb dmg types, ¼ damage, gain CPs",       mods:["gear"]},
-  "chemical-abilities": {dmg:"Biochem",    pr:2,  defCP:10,  hint:"Chemical Blast or Chemical Body (field)",     mods:["ae","ap","af","gear","ch","pr_ch","rng"]},
-  "death-touch":        {dmg:"Entropy",    pr:12, defCP:15,  hint:"Melee entropy, no roll-with, kill on 0 HP",   mods:["ap","gear","ch","pr_ch"]},
-  "devitalization-ray": {dmg:"Entropy",    pr:3,  defCP:10,  hint:"Power damage, range ENx2\"",                  mods:["ae","ap","af","gear","ch","pr_ch","rng"]},
-  "disintegration":     {dmg:"Other",      pr:2,  defCP:10,  hint:"Disintegration Ray or Field",                 mods:["ae","ap","af","gear","ch","pr_ch","rng"]},
-  "emotion-control":    {dmg:"Psychic",    pr:3,  defCP:10,  hint:"Mental save attack, impose emotion",          mods:["ae","gear","ch","pr_ch","rng"]},
-  "energy-blast":       {dmg:"Energy",     pr:2,  defCP:10,  hint:"Standard energy attack, range ST\"",          mods:["ae","ap","af","gear","ch","pr_ch","rng"]},
-  "experience-levels":  {dmg:"—",          pr:0,  defCP:10,  hint:"Hit/Defense/Task bonuses",                    mods:["gear"]},
-  "flame-abilities":    {dmg:"Energy",     pr:2,  defCP:10,  hint:"Flame Blast (range ST+EN\") or Flame Aura",   mods:["ae","ap","af","gear","ch","pr_ch","rng"]},
-  "force-field":        {dmg:"Special",    pr:16, defCP:15,  hint:"Personal Force Field or Force Bolt",          mods:["ae","gear","ch","pr_ch","rng"]},
-  "grapnel":            {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Snare attack, range (ST+AG)\"",               mods:["ae","af","gear","ch","pr_ch","rng"]},
-  "gravity-control":    {dmg:"Other",      pr:2,  defCP:10,  hint:"Gravity Decrease/Increase/Personal Well",     mods:["ae","gear","ch","pr_ch","rng"]},
-  "heightened-agility": {dmg:"—",          pr:0,  defCP:10,  hint:"+1 AG per CP",                                mods:["gear"]},
-  "heightened-attack":  {dmg:"—",          pr:0,  defCP:10,  hint:"Damage bonus on attacks",                     mods:["gear"]},
-  "heightened-expertise":{dmg:"—",         pr:0,  defCP:10,  hint:"Accuracy bonus on attacks",                   mods:["gear"]},
-  "heightened-strength":{dmg:"—",          pr:0,  defCP:10,  hint:"+1 ST per CP",                                mods:["gear"]},
-  "ice-abilities":      {dmg:"Entropy",    pr:1,  defCP:10,  hint:"Ice Armor, Ice Blast (snare), or Ice Shaping",mods:["ae","af","gear","ch","pr_ch","rng"]},
-  "light-control":      {dmg:"Energy",     pr:1,  defCP:10,  hint:"Laser, Flash, Glare, or Glow",               mods:["ae","ap","af","gear","ch","pr_ch","rng"]},
-  "lightning-control":  {dmg:"Energy",     pr:4,  defCP:10,  hint:"Electrical Bolt (ENx2\"), Field, or Gear Ctrl",mods:["ae","ap","af","gear","ch","pr_ch","rng"]},
-  "magnetism":          {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Magnetic Manipulation, range ST\"",           mods:["ae","gear","ch","pr_ch","rng"]},
-  "mind-control":       {dmg:"Psychic",    pr:8,  defCP:10,  hint:"Mental save attack, range IN+CL\"",           mods:["ae","gear","ch","pr_ch","rng"]},
-  "natural-weaponry":   {dmg:"Kinetic",    pr:0,  defCP:10,  hint:"Melee: blunt (KB) or sharp (+2 dmg, no KB)",  mods:["gear"]},
-  "paralysis-ray":      {dmg:"Entropy",    pr:3,  defCP:10,  hint:"Save attack, range ENx2\", immobilize",       mods:["ae","af","gear","ch","pr_ch","rng"]},
-  "poison-venom":       {dmg:"Biochem",    pr:2,  defCP:10,  hint:"Damaging or Paralytic poison",                mods:["gear","ch","pr_ch","rng"]},
-  "power-blast":        {dmg:"Energy",     pr:1,  defCP:10,  hint:"Force bolts, range (ST+EN)/2\"",              mods:["ae","ap","af","gear","ch","pr_ch","rng"]},
-  "reflection":         {dmg:"Special",    pr:0,  defCP:10,  hint:"Reflect incoming damage types",               mods:["gear"]},
-  "repulsion-blast":    {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"KB only (no hit dmg), range STx2\"",          mods:["ae","af","gear","ch","pr_ch","rng"]},
-  "shaping":            {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Create solid constructs at AG\" range",       mods:["gear","ch","pr_ch"]},
-  "siphon":             {dmg:"Entropy",    pr:0,  defCP:10,  hint:"Drain target CPs/BCs/Hits/Power, touch",      mods:["gear","ch","pr_ch","rng"]},
-  "sonic-abilities":    {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Sonic Blast (STx2\") or Sonic Boom (save)",   mods:["ae","ap","af","gear","ch","pr_ch","rng"]},
-  "special-weapon":     {dmg:"Kinetic",    pr:0,  defCP:10,  hint:"Melee or Missile weapon, blunt or sharp",     mods:["ae","ap","af","gear","ch","pr_ch","rng"]},
-  "telekinesis":        {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Kinetic Manipulation at AG\" range",          mods:["ae","gear","ch","pr_ch","rng"]},
-  "transmutation":      {dmg:"Other",      pr:8,  defCP:10,  hint:"Save attack, alter living targets, IN×2\"",   mods:["ae","gear","ch","pr_ch","rng"]},
-  "vibration-abilities":{dmg:"Kinetic",    pr:5,  defCP:10,  hint:"Vibratory Blast, AGx2\", no KB",              mods:["ae","ap","af","gear","ch","pr_ch","rng"]},
-  "weakness-detection": {dmg:"—",          pr:0,  defCP:5,   hint:"+1 to hit scanned target per 2.5 CPs",       mods:["gear"]},
-  "weather-control":    {dmg:"Varies",     pr:5,  defCP:10,  hint:"Change Weather / Command Weather",            mods:["gear"]},
+  "absorption":         {dmg:"Special",    pr:0,  defCP:5,   hint:"Absorb dmg types, ¼ damage, gain CPs"},
+  "chemical-abilities": {dmg:"Biochem",    pr:2,  defCP:10,  hint:"Chemical Blast or Chemical Body (field)", calc:{seq:"A",offset:9,rng:"ST"}},
+  "death-touch":        {dmg:"Entropy",    pr:12, defCP:15,  hint:"Melee entropy, no roll-with, kill on 0 HP", calc:{seq:"A",offset:-1,rng:"touch"}},
+  "devitalization-ray": {dmg:"Entropy",    pr:3,  defCP:10,  hint:"Power damage", calc:{seq:"A",offset:13,rng:"ENx2"}},
+  "disintegration":     {dmg:"Other",      pr:2,  defCP:10,  hint:"Disintegration Ray or Field", calc:{seq:"A",offset:5,rng:"ST"}},
+  "emotion-control":    {dmg:"Psychic",    pr:3,  defCP:10,  hint:"Mental save attack, impose emotion", calc:{rng:"CL"}},
+  "energy-blast":       {dmg:"Energy",     pr:2,  defCP:10,  hint:"Standard energy attack", calc:{seq:"A",offset:5,rng:"ST"}},
+  "experience-levels":  {dmg:"—",          pr:0,  defCP:10,  hint:"Hit/Defense/Task bonuses"},
+  "flame-abilities":    {dmg:"Energy",     pr:2,  defCP:10,  hint:"Flame Blast or Flame Aura", calc:{seq:"A",offset:5,rng:"ST+EN"}},
+  "force-field":        {dmg:"Special",    pr:16, defCP:15,  hint:"Personal Force Field or Force Bolt", calc:{forceField:true}},
+  "grapnel":            {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Snare attack", calc:{rng:"ST+AG"}},
+  "gravity-control":    {dmg:"Other",      pr:2,  defCP:10,  hint:"Gravity Decrease/Increase/Personal Well", calc:{rng:"EN"}},
+  "heightened-agility": {dmg:"—",          pr:0,  defCP:10,  hint:"+1 AG per CP"},
+  "heightened-attack":  {dmg:"—",          pr:0,  defCP:10,  hint:"Damage bonus on attacks"},
+  "heightened-expertise":{dmg:"—",         pr:0,  defCP:10,  hint:"Accuracy bonus on attacks"},
+  "heightened-strength":{dmg:"—",          pr:0,  defCP:10,  hint:"+1 ST per CP"},
+  "ice-abilities":      {dmg:"Entropy",    pr:1,  defCP:10,  hint:"Ice Armor, Ice Blast (snare), or Ice Shaping", calc:{rng:"(ST+EN)/2"}},
+  "light-control":      {dmg:"Energy",     pr:1,  defCP:10,  hint:"Laser, Flash, Glare, or Glow", calc:{seq:"A",offset:5,rng:"AGx2"}},
+  "lightning-control":  {dmg:"Energy",     pr:4,  defCP:10,  hint:"Electrical Bolt, Field, or Gear Ctrl", calc:{seq:"B",offset:6,rng:"ENx2"}},
+  "magnetism":          {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Magnetic Manipulation", calc:{rng:"ST"}},
+  "mind-control":       {dmg:"Psychic",    pr:8,  defCP:10,  hint:"Mental save attack", calc:{rng:"IN+CL"}},
+  "natural-weaponry":   {dmg:"Kinetic",    pr:0,  defCP:10,  hint:"Melee: blunt (KB) or sharp (+2 dmg, no KB)", calc:{rng:"touch"}},
+  "paralysis-ray":      {dmg:"Entropy",    pr:3,  defCP:10,  hint:"Save attack, immobilize", calc:{rng:"ENx2"}},
+  "poison-venom":       {dmg:"Biochem",    pr:2,  defCP:10,  hint:"Damaging or Paralytic poison", calc:{rng:"touch"}},
+  "power-blast":        {dmg:"Energy",     pr:1,  defCP:10,  hint:"Force bolts", calc:{seq:"A",offset:5,rng:"(ST+EN)/2"}},
+  "reflection":         {dmg:"Special",    pr:0,  defCP:10,  hint:"Reflect incoming damage types"},
+  "repulsion-blast":    {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"KB only (no hit dmg)", calc:{seq:"A",offset:9,rng:"STx2"}},
+  "shaping":            {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Create solid constructs", calc:{rng:"AG"}},
+  "siphon":             {dmg:"Entropy",    pr:0,  defCP:10,  hint:"Drain target CPs/BCs/Hits/Power", calc:{rng:"touch"}},
+  "sonic-abilities":    {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Sonic Blast or Sonic Boom (save)", calc:{seq:"B",offset:2,rng:"STx2"}},
+  "special-weapon":     {dmg:"Kinetic",    pr:0,  defCP:10,  hint:"Melee or Missile weapon, blunt or sharp", calc:{rng:"AGx2"}},
+  "telekinesis":        {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Kinetic Manipulation", calc:{rng:"AG"}},
+  "transmutation":      {dmg:"Other",      pr:8,  defCP:10,  hint:"Save attack, alter living targets", calc:{rng:"INx2"}},
+  "vibration-abilities":{dmg:"Kinetic",    pr:5,  defCP:10,  hint:"Vibratory Blast, no KB", calc:{seq:"B",offset:8,rng:"AGx2"}},
+  "weakness-detection": {dmg:"—",          pr:0,  defCP:5,   hint:"+1 to hit scanned target per 2.5 CPs"},
+  "weather-control":    {dmg:"Varies",     pr:5,  defCP:10,  hint:"Change Weather / Command Weather"},
   // --- Defensive ---
-  "adaptation":         {dmg:"—",          pr:0,  defCP:5,   hint:"Immune to natural hazard, ½ vs active atk",  mods:["gear"]},
-  "armor":              {dmg:"—",          pr:0,  defCP:15,  hint:"Protection: Kin/Eng/Bio/Ent",                 mods:["gear"]},
-  "astral-projection":  {dmg:"—",          pr:5,  defCP:10,  hint:"Intangible astral body, leave body behind",   mods:["gear"]},
-  "darkness-control":   {dmg:"—",          pr:1,  defCP:10,  hint:"Dampen senses in area, AGx2\" range",         mods:["gear","ch","pr_ch"]},
-  "density-change":     {dmg:"—",          pr:2,  defCP:10,  hint:"Increase (prot+ST) or Decrease density",      mods:["gear"]},
-  "durability":         {dmg:"—",          pr:0,  defCP:10,  hint:"Extra Hits = CPs spent",                      mods:["gear"]},
-  "heightened-defense": {dmg:"—",          pr:0,  defCP:10,  hint:"+1 Phys & Mental Def per 5 CPs",             mods:["gear"]},
-  "heightened-endurance":{dmg:"—",         pr:0,  defCP:10,  hint:"+1 EN per CP",                                mods:["gear"]},
-  "invisibility":       {dmg:"—",          pr:1,  defCP:10,  hint:"Undetectable by 1+ senses",                   mods:["gear"]},
-  "invulnerability":    {dmg:"—",          pr:0,  defCP:10,  hint:"¼ damage from chosen types, +8 vs saves",    mods:["gear"]},
-  "life-support":       {dmg:"—",          pr:0,  defCP:10,  hint:"Environmental immunity + protection",         mods:["gear"]},
-  "non-corporealness":  {dmg:"—",          pr:16, defCP:15,  hint:"Intangible, immune to non-Mental attacks",    mods:["gear"]},
-  "regeneration":       {dmg:"—",          pr:0,  defCP:10,  hint:"Heal HP faster than normal",                  mods:["gear"]},
-  "shield":             {dmg:"—",          pr:0,  defCP:10,  hint:"+4 Phys Def, breakpoint bonus",               mods:[]},
-  "stretching-abilities":{dmg:"—",         pr:0,  defCP:5,   hint:"Elongation/Flattening/Inflation/Plasticity",  mods:["gear"]},
+  "adaptation":         {dmg:"—",          pr:0,  defCP:5,   hint:"Immune to natural hazard, ½ vs active atk"},
+  "armor":              {dmg:"—",          pr:0,  defCP:15,  hint:"Protection: Kin/Eng/Bio/Ent", calc:{armor:true}},
+  "astral-projection":  {dmg:"—",          pr:5,  defCP:10,  hint:"Intangible astral body, leave body behind"},
+  "darkness-control":   {dmg:"—",          pr:1,  defCP:10,  hint:"Dampen senses in area", calc:{rng:"AGx2"}},
+  "density-change":     {dmg:"—",          pr:2,  defCP:10,  hint:"Increase (prot+ST) or Decrease density"},
+  "durability":         {dmg:"—",          pr:0,  defCP:10,  hint:"Extra Hits = CPs spent"},
+  "heightened-defense": {dmg:"—",          pr:0,  defCP:10,  hint:"+1 Phys & Mental Def per 5 CPs"},
+  "heightened-endurance":{dmg:"—",         pr:0,  defCP:10,  hint:"+1 EN per CP"},
+  "invisibility":       {dmg:"—",          pr:1,  defCP:10,  hint:"Undetectable by 1+ senses"},
+  "invulnerability":    {dmg:"—",          pr:0,  defCP:10,  hint:"¼ damage from chosen types, +8 vs saves"},
+  "life-support":       {dmg:"—",          pr:0,  defCP:10,  hint:"Environmental immunity + protection"},
+  "non-corporealness":  {dmg:"—",          pr:16, defCP:15,  hint:"Intangible, immune to non-Mental attacks"},
+  "regeneration":       {dmg:"—",          pr:0,  defCP:10,  hint:"Heal HP faster than normal"},
+  "shield":             {dmg:"—",          pr:0,  defCP:10,  hint:"+4 Phys Def, breakpoint bonus"},
+  "stretching-abilities":{dmg:"—",         pr:0,  defCP:5,   hint:"Elongation/Flattening/Inflation/Plasticity"},
   // --- Miscellaneous ---
-  "animal-plant":       {dmg:"—",          pr:0,  defCP:10,  hint:"Species abilities + BC mods",                 mods:["gear"]},
-  "arsenal":            {dmg:"—",          pr:0,  defCP:20,  hint:"Swappable ability slots (utility belt)",      mods:["gear"]},
-  "base":               {dmg:"—",          pr:0,  defCP:15,  hint:"Stationary base (vehicle rules, -15 CP)",     mods:[]},
-  "communicators":      {dmg:"—",          pr:0,  defCP:5,   hint:"Paired audio comms, 10 mi range, Gear",       mods:["gear"]},
-  "companion":          {dmg:"—",          pr:0,  defCP:10,  hint:"Familiar/minion/pet/sidekick",                mods:[]},
-  "cosmic-awareness":   {dmg:"—",          pr:12, defCP:10,  hint:"Ask GM yes/no questions about Multiverse",    mods:[]},
-  "cybernetics":        {dmg:"—",          pr:0,  defCP:10,  hint:"Mechanical body parts, 2 random abilities",   mods:["gear"]},
-  "dimensional-travel": {dmg:"—",          pr:4,  defCP:10,  hint:"Travel between dimensions",                   mods:["gear"]},
-  "duplication":        {dmg:"—",          pr:0,  defCP:20,  hint:"Split into identical copies",                  mods:[]},
-  "energy":             {dmg:"—",          pr:0,  defCP:10,  hint:"+2 Power per CP",                             mods:["gear"]},
-  "flight":             {dmg:"—",          pr:1,  defCP:15,  hint:"Accel/Top Speed, PR=1/hour",                  mods:["gear"]},
-  "healing":            {dmg:"Other",      pr:1,  defCP:10,  hint:"Restore Hits, touch range",                   mods:["gear","ch","pr_ch"]},
-  "heightened-cool":    {dmg:"—",          pr:0,  defCP:10,  hint:"+1 CL per CP",                                mods:["gear"]},
-  "heightened-initiative":{dmg:"—",        pr:0,  defCP:5,   hint:"+1 Initiative per 2.5 CPs",                   mods:["gear"]},
-  "heightened-intelligence":{dmg:"—",      pr:0,  defCP:10,  hint:"+1 IN per CP",                                mods:["gear"]},
-  "heightened-senses":  {dmg:"—",          pr:0,  defCP:10,  hint:"New or enhanced senses",                      mods:["gear"]},
-  "illusions":          {dmg:"—",          pr:1,  defCP:10,  hint:"Intangible sensory semblances",               mods:["gear","ch","pr_ch"]},
-  "inventing":          {dmg:"—",          pr:0,  defCP:10,  hint:"1 Inventing Point per CP, Gear default",      mods:["gear"]},
-  "knowledge":          {dmg:"—",          pr:0,  defCP:5,   hint:"Careers, languages, cultural background",     mods:[]},
-  "luck":               {dmg:"—",          pr:0,  defCP:5,   hint:"+1 Luck save per 2.5 CPs",                   mods:[]},
-  "mental-ability":     {dmg:"Psychic",    pr:1,  defCP:10,  hint:"Mental Blast, Photographic Memory, etc.",     mods:["ae","af","gear","ch","pr_ch","rng"]},
-  "negation":           {dmg:"—",          pr:1,  defCP:10,  hint:"Reduce duration / improve saves vs effects",  mods:["gear","ch","pr_ch","rng"]},
-  "physical-ability":   {dmg:"—",          pr:0,  defCP:5,   hint:"Ambidexterity, Extra Limbs, Wall-Crawling…",  mods:["gear"]},
-  "revivification":     {dmg:"—",          pr:24, defCP:10,  hint:"Raise the dead, touch range, task check",     mods:["gear"]},
-  "shape-shifting":     {dmg:"—",          pr:0,  defCP:10,  hint:"Change shape: people/creatures/objects",       mods:["gear"]},
-  "size-change":        {dmg:"—",          pr:0,  defCP:10,  hint:"Larger (+ST/EN) or Smaller (-Profile)",       mods:["gear"]},
-  "speed":              {dmg:"—",          pr:1,  defCP:15,  hint:"Ground movement, Accel/Top Speed, PR=1/hr",   mods:["gear"]},
-  "summoning":          {dmg:"—",          pr:2,  defCP:10,  hint:"Summon entity, 5 min, PR=2/hr maintain",      mods:[]},
-  "super-speed":        {dmg:"—",          pr:2,  defCP:10,  hint:"+1 extra turn per 10 CPs",                    mods:["gear"]},
-  "swimming":           {dmg:"—",          pr:1,  defCP:10,  hint:"Water movement, Accel/Top Speed",             mods:["gear"]},
-  "telepathy":          {dmg:"—",          pr:1,  defCP:5,   hint:"Direct mental communication",                 mods:["gear"]},
-  "teleportation":      {dmg:"—",          pr:1,  defCP:10,  hint:"Instant transfer, range depends on CPs",      mods:["gear"]},
-  "transformation":     {dmg:"—",          pr:0,  defCP:10,  hint:"Change into weaker form",                     mods:[]},
-  "tunneling":          {dmg:"—",          pr:1,  defCP:10,  hint:"Burrow through solid matter",                  mods:["gear"]},
-  "vehicle":            {dmg:"—",          pr:0,  defCP:15,  hint:"Vehicle (constructed via vehicle rules)",      mods:[]},
-  "wealth":             {dmg:"—",          pr:0,  defCP:5,   hint:"Financial resources, Wealth roll",            mods:[]},
-  "willpower":          {dmg:"—",          pr:0,  defCP:10,  hint:"Fortitude / Pain Resistance / Self-Control",  mods:[]},
+  "animal-plant":       {dmg:"—",          pr:0,  defCP:10,  hint:"Species abilities + BC mods"},
+  "arsenal":            {dmg:"—",          pr:0,  defCP:20,  hint:"Swappable ability slots (utility belt)"},
+  "base":               {dmg:"—",          pr:0,  defCP:15,  hint:"Stationary base (vehicle rules, -15 CP)"},
+  "communicators":      {dmg:"—",          pr:0,  defCP:5,   hint:"Paired audio comms, 10 mi range, Gear"},
+  "companion":          {dmg:"—",          pr:0,  defCP:10,  hint:"Familiar/minion/pet/sidekick"},
+  "cosmic-awareness":   {dmg:"—",          pr:12, defCP:10,  hint:"Ask GM yes/no questions about Multiverse"},
+  "cybernetics":        {dmg:"—",          pr:0,  defCP:10,  hint:"Mechanical body parts, 2 random abilities"},
+  "dimensional-travel": {dmg:"—",          pr:4,  defCP:10,  hint:"Travel between dimensions"},
+  "duplication":        {dmg:"—",          pr:0,  defCP:20,  hint:"Split into identical copies"},
+  "energy":             {dmg:"—",          pr:0,  defCP:10,  hint:"+2 Power per CP"},
+  "flight":             {dmg:"—",          pr:1,  defCP:15,  hint:"Accel/Top Speed, PR=1/hour", calc:{move:true,moveOffset:-5}},
+  "healing":            {dmg:"Other",      pr:1,  defCP:10,  hint:"Restore Hits, touch range", calc:{rng:"touch"}},
+  "heightened-cool":    {dmg:"—",          pr:0,  defCP:10,  hint:"+1 CL per CP"},
+  "heightened-initiative":{dmg:"—",        pr:0,  defCP:5,   hint:"+1 Initiative per 2.5 CPs"},
+  "heightened-intelligence":{dmg:"—",      pr:0,  defCP:10,  hint:"+1 IN per CP"},
+  "heightened-senses":  {dmg:"—",          pr:0,  defCP:10,  hint:"New or enhanced senses"},
+  "illusions":          {dmg:"—",          pr:1,  defCP:10,  hint:"Intangible sensory semblances"},
+  "inventing":          {dmg:"—",          pr:0,  defCP:10,  hint:"1 Inventing Point per CP, Gear default"},
+  "knowledge":          {dmg:"—",          pr:0,  defCP:5,   hint:"Careers, languages, cultural background"},
+  "luck":               {dmg:"—",          pr:0,  defCP:5,   hint:"+1 Luck save per 2.5 CPs"},
+  "mental-ability":     {dmg:"Psychic",    pr:1,  defCP:10,  hint:"Mental Blast, Photographic Memory, etc.", calc:{seq:"A",offset:1,rng:"IN"}},
+  "negation":           {dmg:"—",          pr:1,  defCP:10,  hint:"Reduce duration / improve saves vs effects", calc:{rng:"EN"}},
+  "physical-ability":   {dmg:"—",          pr:0,  defCP:5,   hint:"Ambidexterity, Extra Limbs, Wall-Crawling…"},
+  "revivification":     {dmg:"—",          pr:24, defCP:10,  hint:"Raise the dead, touch range, task check"},
+  "shape-shifting":     {dmg:"—",          pr:0,  defCP:10,  hint:"Change shape: people/creatures/objects"},
+  "size-change":        {dmg:"—",          pr:0,  defCP:10,  hint:"Larger (+ST/EN) or Smaller (-Profile)"},
+  "speed":              {dmg:"—",          pr:1,  defCP:15,  hint:"Ground movement, PR=1/hr", calc:{move:true,moveOffset:-10}},
+  "summoning":          {dmg:"—",          pr:2,  defCP:10,  hint:"Summon entity, 5 min, PR=2/hr maintain"},
+  "super-speed":        {dmg:"—",          pr:2,  defCP:10,  hint:"+1 extra turn per 10 CPs"},
+  "swimming":           {dmg:"—",          pr:1,  defCP:10,  hint:"Water movement, Accel/Top Speed", calc:{move:true,moveOffset:-5}},
+  "telepathy":          {dmg:"—",          pr:1,  defCP:5,   hint:"Direct mental communication"},
+  "teleportation":      {dmg:"—",          pr:1,  defCP:10,  hint:"Instant transfer, range depends on CPs"},
+  "transformation":     {dmg:"—",          pr:0,  defCP:10,  hint:"Change into weaker form"},
+  "tunneling":          {dmg:"—",          pr:1,  defCP:10,  hint:"Burrow through solid matter", calc:{move:true,moveOffset:-5}},
+  "vehicle":            {dmg:"—",          pr:0,  defCP:15,  hint:"Vehicle (constructed via vehicle rules)"},
+  "wealth":             {dmg:"—",          pr:0,  defCP:5,   hint:"Financial resources, Wealth roll"},
+  "willpower":          {dmg:"—",          pr:0,  defCP:10,  hint:"Fortitude / Pain Resistance / Self-Control"},
   // --- Vehicle-Specific ---
-  "robot-brain":        {dmg:"—",          pr:0,  defCP:10,  hint:"+IN per CP, vehicle AI",                      mods:[]},
-  "automation":         {dmg:"—",          pr:0,  defCP:10,  hint:"+AG per CP, autopilot",                       mods:[]},
-  "performance":        {dmg:"—",          pr:0,  defCP:10,  hint:"+CL per CP, handling",                        mods:[]},
-  "sensor-suite":       {dmg:"—",          pr:0,  defCP:10,  hint:"Heightened Senses for vehicle",               mods:["gear"]},
+  "robot-brain":        {dmg:"—",          pr:0,  defCP:10,  hint:"+IN per CP, vehicle AI"},
+  "automation":         {dmg:"—",          pr:0,  defCP:10,  hint:"+AG per CP, autopilot"},
+  "performance":        {dmg:"—",          pr:0,  defCP:10,  hint:"+CL per CP, handling"},
+  "sensor-suite":       {dmg:"—",          pr:0,  defCP:10,  hint:"Heightened Senses for vehicle"},
   // --- Crew & Cargo ---
-  "control-seat":       {dmg:"—",          pr:0,  defCP:0,   hint:"Operator seat (1 space)",                     mods:[]},
-  "passenger-seat":     {dmg:"—",          pr:0,  defCP:0,   hint:"Passenger seat (1 space each)",               mods:[]},
-  "bunk":               {dmg:"—",          pr:0,  defCP:0,   hint:"Sleeping berth (1 space, double)",            mods:[]},
-  "hands":              {dmg:"—",          pr:0,  defCP:5,   hint:"Manipulator appendages",                      mods:[]},
-  "limbs":              {dmg:"—",          pr:0,  defCP:5,   hint:"Locomotive appendages",                       mods:[]},
-  "cargo":              {dmg:"—",          pr:0,  defCP:0,   hint:"Empty / cargo space",                         mods:[]},
-  "spare-parts":        {dmg:"—",          pr:0,  defCP:0,   hint:"Repair materials",                            mods:[]},
-  "garage":             {dmg:"—",          pr:0,  defCP:0,   hint:"Vehicle bay / hangar",                        mods:[]},
-  "custom":             {dmg:"—",          pr:0,  defCP:0,   hint:"Custom system",                               mods:["ae","ap","af","gear","ch","pr_ch","rng"]},
+  "control-seat":       {dmg:"—",          pr:0,  defCP:0,   hint:"Operator seat (1 space)"},
+  "passenger-seat":     {dmg:"—",          pr:0,  defCP:0,   hint:"Passenger seat (1 space each)"},
+  "bunk":               {dmg:"—",          pr:0,  defCP:0,   hint:"Sleeping berth (1 space, double)"},
+  "hands":              {dmg:"—",          pr:0,  defCP:5,   hint:"Manipulator appendages"},
+  "limbs":              {dmg:"—",          pr:0,  defCP:5,   hint:"Locomotive appendages"},
+  "cargo":              {dmg:"—",          pr:0,  defCP:0,   hint:"Empty / cargo space"},
+  "spare-parts":        {dmg:"—",          pr:0,  defCP:0,   hint:"Repair materials"},
+  "garage":             {dmg:"—",          pr:0,  defCP:0,   hint:"Vehicle bay / hangar"},
+  "custom":             {dmg:"—",          pr:0,  defCP:0,   hint:"Custom system"},
 };
 
 MP.CATEGORIES = ["Vehicle","Crew","Cargo","Movement","Offensive","Defensive","Miscellaneous","Custom"];
+
+// ---- Computed Ability Tables & Formulas ----
+
+// Standard damage dice sequence (Seq A) — used by most attack abilities
+// Each step = +2.5 CPs for blasts, +5 CPs for fields
+MP.DMG_SEQ_A = [
+  "d2-1","1","d2","d3","d4","d6","d6+1","2d4","d4+d6","2d6",
+  "d6+d8","2d8","d8+d10","2d10","d10+d12","2d12",
+  "3d8","2d8+d10","d8+2d10","3d10","2d10+d12","d10+2d12",
+  "3d12","3d12+1","3d12+2","4d10","3d10+d12","2d10+2d12",
+  "d10+3d12","4d12"
+];
+
+// Alternate damage dice sequence (Seq B) — Lightning, Sonic, Vibratory, Fields
+// Replaces 2d4/d4+d6 with d8+1/d10+1; converges with A from 2d6 onward
+MP.DMG_SEQ_B = [
+  "d2-1","d2","d3","d4","d6","d6+1","d8+1","d10+1","2d6",
+  "d6+d8","2d8","d8+d10","2d10","d10+d12","2d12",
+  "3d8","2d8+d10","d8+2d10","3d10","2d10+d12","d10+2d12",
+  "3d12","3d12+1","3d12+2","4d10","3d10+d12","2d10+2d12",
+  "d10+3d12","4d12"
+];
+
+// Lookup damage dice: seq="A"|"B", cp=ability CPs, offset=step at cp 0, cpStep=2.5|5
+MP.damageDice = function(seq, cp, offset, cpStep) {
+  const arr = seq === "B" ? MP.DMG_SEQ_B : MP.DMG_SEQ_A;
+  const step = Math.round(cp / cpStep) + offset;
+  if (step < 0 || step >= arr.length) return null;
+  return arr[step];
+};
+
+// Movement speed table: Flight starts at cp -5 (step 0)
+// Top speed at step i: even=2^(3+i/2), odd=3*2^(2+(i-1)/2)
+// Accel = Top / 16.  MPH ≈ Top * 0.3409 (rounded per book)
+MP.movementSpeed = function(cp, cpOffset) {
+  // cpOffset: Flight=0, Speed=-5 (Speed cp 0 = Flight cp 5), Swimming=0
+  const step = Math.round((cp - cpOffset) / 2.5);
+  if (step < 0) return null;
+  let top;
+  if (step % 2 === 0) top = Math.pow(2, 3 + step / 2);
+  else top = 3 * Math.pow(2, 2 + (step - 1) / 2);
+  const accel = top / 16;
+  // MPH: use book's ratio ~0.3409, round to nearest int (match book rounding)
+  const mph = Math.round(top * 5 * 240 * 1.5 / 5280);
+  return { accel: accel, top: top, mph: mph };
+};
+
+// Armor table: CPs → total points and default Kin/Eng/Bio/Ent split
+MP.ARMOR_TABLE = [
+  {cp:2.5,  total:2,  def:"1/0/0/1"},
+  {cp:5,    total:3,  def:"1/1/0/1"},
+  {cp:7.5,  total:5,  def:"2/1/1/1"},
+  {cp:10,   total:6,  def:"2/1/1/2"},
+  {cp:12.5, total:8,  def:"2/2/2/2"},
+  {cp:15,   total:9,  def:"3/2/2/2"},
+  {cp:17.5, total:11, def:"3/3/2/3"},
+  {cp:20,   total:12, def:"3/3/3/3"},
+  {cp:22.5, total:13, def:"4/3/3/3"},
+  {cp:25,   total:14, def:"4/3/3/4"},
+  {cp:27.5, total:15, def:"4/4/3/4"},
+  {cp:30,   total:16, def:"4/4/4/4"},
+  {cp:32.5, total:17, def:"5/4/4/4"},
+  {cp:35,   total:18, def:"5/4/4/5"},
+  {cp:37.5, total:19, def:"5/5/4/5"},
+  {cp:40,   total:20, def:"5/5/5/5"},
+  {cp:42.5, total:21, def:"6/5/5/5"},
+  {cp:45,   total:22, def:"6/5/5/6"},
+  {cp:47.5, total:23, def:"6/6/5/6"},
+  {cp:50,   total:24, def:"6/6/6/6"},
+];
+
+MP.armorLookup = function(cp) {
+  for (let i = MP.ARMOR_TABLE.length - 1; i >= 0; i--) {
+    if (MP.ARMOR_TABLE[i].cp <= cp) return MP.ARMOR_TABLE[i];
+  }
+  return MP.ARMOR_TABLE[0];
+};
+
+// Force Field table: CPs → protection (Kin/Eng/Bio/Ent/Total)
+MP.FORCEFIELD_TABLE = [
+  {cp:2.5,  total:10, def:"3/3/2/2"},
+  {cp:5,    total:12, def:"3/3/3/3"},
+  {cp:7.5,  total:14, def:"4/4/3/3"},
+  {cp:10,   total:16, def:"4/4/4/4"},
+  {cp:12.5, total:18, def:"5/5/4/4"},
+  {cp:15,   total:20, def:"5/5/5/5"},
+  {cp:17.5, total:22, def:"6/6/5/5"},
+  {cp:20,   total:24, def:"6/6/6/6"},
+  {cp:22.5, total:26, def:"7/7/6/6"},
+  {cp:25,   total:28, def:"7/7/7/7"},
+  {cp:27.5, total:30, def:"8/8/7/7"},
+  {cp:30,   total:32, def:"8/8/8/8"},
+  {cp:32.5, total:34, def:"9/9/8/8"},
+  {cp:35,   total:36, def:"9/9/9/9"},
+  {cp:37.5, total:38, def:"10/10/9/9"},
+  {cp:40,   total:40, def:"10/10/10/10"},
+  {cp:42.5, total:42, def:"11/11/10/10"},
+  {cp:45,   total:44, def:"11/11/11/11"},
+  {cp:47.5, total:46, def:"12/12/11/11"},
+  {cp:50,   total:48, def:"12/12/12/12"},
+];
+
+MP.forcefieldLookup = function(cp) {
+  for (let i = MP.FORCEFIELD_TABLE.length - 1; i >= 0; i--) {
+    if (MP.FORCEFIELD_TABLE[i].cp <= cp) return MP.FORCEFIELD_TABLE[i];
+  }
+  return MP.FORCEFIELD_TABLE[0];
+};
+
+// Range formula lookup: returns range in inches given vehicle stats
+// rngFormula is a string like "ST", "ENx2", "(ST+EN)/2", "(ST+AG)", etc.
+MP.calcRange = function(formula, st, en, ag, intel, cl) {
+  if (!formula) return null;
+  switch (formula) {
+    case "ST":       return st;
+    case "STx2":     return st * 2;
+    case "EN":       return en;
+    case "ENx2":     return en * 2;
+    case "AG":       return ag;
+    case "AGx2":     return ag * 2;
+    case "IN":       return intel;
+    case "INx2":     return intel * 2;
+    case "IN+CL":    return intel + cl;
+    case "CL":       return cl;
+    case "ST+EN":    return st + en;
+    case "(ST+EN)/2":return Math.floor((st + en) / 2);
+    case "ST+AG":    return st + ag;
+    case "touch":    return 0;
+    default:         return null;
+  }
+};
+
+// Compute ability info string for the dialog, given ability id, system CPs, and vehicle stats
+// Returns {hint, desc} where hint is the display string and desc is what goes in the row
+MP.computeAbilityInfo = function(abId, cp, st, en, ag, intel, cl) {
+  const d = MP.ABILITY_DETAILS[abId];
+  if (!d || !d.calc) return null;
+  const c = d.calc;
+  const parts = [];
+  let descParts = [];
+
+  // Damage
+  if (c.seq && c.offset !== undefined) {
+    const cpStep = c.cpStep || 2.5;
+    const dice = MP.damageDice(c.seq, cp, c.offset, cpStep);
+    if (dice) {
+      parts.push(dice + " " + d.dmg + " dmg");
+      descParts.push(dice);
+    }
+  }
+
+  // Movement
+  if (c.move) {
+    const spd = MP.movementSpeed(cp, c.moveOffset || 0);
+    if (spd) {
+      parts.push(spd.accel + "/" + spd.top + ", " + spd.mph + " mph");
+      descParts.push(spd.accel + "/" + spd.top + ", " + spd.mph + " mph");
+    }
+  }
+
+  // Armor
+  if (c.armor) {
+    const a = MP.armorLookup(cp);
+    if (a) {
+      parts.push(a.total + " pts (" + a.def + " K/E/B/N)");
+      descParts.push(a.total + " pts (" + a.def + ")");
+    }
+  }
+
+  // Force Field
+  if (c.forceField) {
+    const ff = MP.forcefieldLookup(cp);
+    if (ff) {
+      parts.push(ff.total + " pts (" + ff.def + " K/E/B/N)");
+      descParts.push(ff.total + " pts (" + ff.def + ")");
+    }
+  }
+
+  // Range
+  if (c.rng) {
+    const r = MP.calcRange(c.rng, st, en, ag, intel, cl);
+    if (r !== null) {
+      if (r === 0) { parts.push("Touch"); descParts.push("Touch"); }
+      else { parts.push("Rng " + r + '"'); descParts.push("Rng " + r + '"'); }
+    }
+  }
+
+  // PR
+  if (d.pr > 0) parts.push("PR=" + d.pr);
+
+  return { hint: parts.join(", "), desc: descParts.join(", ") };
+};
 
 // ---- Weaknesses (from MP rulebook 2.1.15) ----
 MP.WEAKNESSES = [
