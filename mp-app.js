@@ -888,88 +888,57 @@ function autoLoad() {
 }
 
 // ---- Ability Insert Dialog (Ctrl+I) ----
+// Modifier type definitions
+const MOD_TYPES = [
+  {id:"area",     label:"Area Effect",   short:"Area",  type:"select", data:()=>MP.AREA_EFFECT_STEPS, fmt:s=>`${s.label} (${s.cp>=0?"+":""}${s.cp})`, defIdx:0,
+    desc:s=>s.idx>0?`Area Effect ${MP.AREA_EFFECT_STEPS[s.idx].label}`:null, cp:s=>MP.AREA_EFFECT_STEPS[s.idx]?.cp||0, tabLbl:s=>s.idx>0?MP.AREA_EFFECT_STEPS[s.idx].label:null},
+  {id:"ap",       label:"Armor Piercing", short:"AP",   type:"select", data:()=>MP.ARMOR_PIERCING_STEPS, fmt:s=>`${s.label} (${s.cp>=0?"+":""}${s.cp})`, defIdx:0,
+    desc:s=>s.idx>0?`AP ${MP.ARMOR_PIERCING_STEPS[s.idx].label.replace(" pts","")}`:null, cp:s=>MP.ARMOR_PIERCING_STEPS[s.idx]?.cp||0, tabLbl:s=>s.idx>0?MP.ARMOR_PIERCING_STEPS[s.idx].label.replace(" pts",""):null},
+  {id:"autofire", label:"Autofire",       short:"AF",   type:"select", data:()=>MP.AUTOFIRE_STEPS, fmt:s=>`${s.label} (${s.cp>=0?"+":""}${s.cp})`, defIdx:0,
+    desc:s=>s.idx>0?`AF x${MP.AUTOFIRE_STEPS[s.idx].rof}`:null, cp:s=>MP.AUTOFIRE_STEPS[s.idx]?.cp||0, tabLbl:s=>s.idx>0?"x"+MP.AUTOFIRE_STEPS[s.idx].rof:null},
+  {id:"gear",     label:"Gear",           short:"Gear", type:"fixed", cpVal:-5,
+    desc:s=>"Gear", cp:s=>-5, tabLbl:s=>null},
+  {id:"bulky",    label:"Bulky",          short:"Blk",  type:"number", min:1, max:20, def:1, step:1, hint:"+2.5 CPs/app, +4.3 Hits/app",
+    desc:s=>s.val>0?`Bulky x${s.val}`:null, cp:s=>s.val*2.5, tabLbl:s=>s.val>0?"x"+s.val:null},
+  {id:"delicate", label:"Delicate",       short:"Del",  type:"number", min:1, max:20, def:1, step:1, hint:"-2.5 CPs/app, -4.3 Hits/app",
+    desc:s=>s.val>0?`Delicate x${s.val}`:null, cp:s=>-(s.val*2.5), tabLbl:s=>s.val>0?"x"+s.val:null},
+  {id:"prch",     label:"PR / Charges",   short:"PR/Ch",type:"dynamic", builder:"prch",
+    desc:s=>s.cp!==0?s.rowLabel:null, cp:s=>s.cp, tabLbl:s=>s.cp!==0?s.rowLabel.split(" / ")[0]:null},
+  {id:"range",    label:"Range",          short:"Rng",  type:"dynamic", builder:"range",
+    desc:s=>s.cp!==0?`Range ${s.rangeLabel}`:null, cp:s=>s.cp, tabLbl:s=>s.cp!==0?s.rangeLabel:null},
+];
+
 const abilityDlg = {
   overlay: null,
   targetIdx: null,
+  tabs: [],
+  activeTab: -1,
+  _nextTabId: 0,
 
   init() {
     this.overlay = document.getElementById("ability-dlg-overlay");
-    // Build ability dropdown with optgroups
     const sel = document.getElementById("aid-ability");
     const blankOpt = document.createElement("option");
-    blankOpt.value = "";
-    blankOpt.textContent = "— select ability —";
+    blankOpt.value = ""; blankOpt.textContent = "— select ability —";
     sel.appendChild(blankOpt);
     const cats = {};
-    for (const ab of MP.ABILITY_TYPES) {
-      if (!cats[ab.cat]) cats[ab.cat] = [];
-      cats[ab.cat].push(ab);
-    }
+    for (const ab of MP.ABILITY_TYPES) { if (!cats[ab.cat]) cats[ab.cat] = []; cats[ab.cat].push(ab); }
     for (const cat of MP.CATEGORIES) {
       if (!cats[cat]) continue;
-      const og = document.createElement("optgroup");
-      og.label = cat;
-      for (const ab of cats[cat]) {
-        const opt = document.createElement("option");
-        opt.value = ab.id;
-        opt.textContent = ab.name;
-        og.appendChild(opt);
-      }
+      const og = document.createElement("optgroup"); og.label = cat;
+      for (const ab of cats[cat]) { const opt = document.createElement("option"); opt.value = ab.id; opt.textContent = ab.name; og.appendChild(opt); }
       sel.appendChild(og);
     }
-
-    // Build system spaces dropdown from SYS_TABLE
     const spSel = document.getElementById("aid-spaces");
-    for (const row of MP.SYS_TABLE) {
-      const opt = document.createElement("option");
-      opt.value = row.sp;
-      opt.textContent = `${row.sp} sp → (${row.cp}) CPs`;
-      spSel.appendChild(opt);
-    }
+    for (const row of MP.SYS_TABLE) { const opt = document.createElement("option"); opt.value = row.sp; opt.textContent = `${row.sp} sp → (${row.cp}) CPs`; spSel.appendChild(opt); }
 
-    // Build modifier dropdowns
-    this._buildSelect("aid-area", MP.AREA_EFFECT_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
-    this._buildSelect("aid-ap", MP.ARMOR_PIERCING_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
-    this._buildSelect("aid-autofire", MP.AUTOFIRE_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 0);
-    this._buildSelect("aid-range", MP.RANGE_STEPS, s => `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`, 6);
-    // PR/Charges and Range built dynamically per ability
-
-    // Wire spaces change to update stats
     spSel.addEventListener("change", () => { this._updateCPDisplay(); this._updateStats(); });
-
-    // Wire ability dropdown
-    document.getElementById("aid-ability").addEventListener("change", () => this._onAbilityChange());
-
-    // Wire all modifier inputs for live updates
-    const modInputs = ["aid-area","aid-ap","aid-autofire","aid-gear","aid-bulky","aid-delicate","aid-prch","aid-range"];
-    for (const id of modInputs) {
-      const el = document.getElementById(id);
-      if (el) {
-        el.addEventListener("change", () => this._updateStats());
-        el.addEventListener("input", () => this._updateStats());
-      }
-    }
-
-    // OK / Cancel
+    sel.addEventListener("change", () => this._onAbilityChange());
+    document.getElementById("aid-tab-add").addEventListener("click", () => this._addTab());
     document.getElementById("aid-ok").addEventListener("click", () => this._commit());
     document.getElementById("aid-cancel").addEventListener("click", () => this.close());
     this.overlay.addEventListener("mousedown", e => { if (e.target === this.overlay) this.close(); });
-    this.overlay.addEventListener("keydown", e => {
-      if (e.key === "Escape") this.close();
-      if (e.key === "Enter") this._commit();
-    });
-  },
-
-  _buildSelect(id, steps, labelFn, defaultIdx) {
-    const sel = document.getElementById(id);
-    sel.innerHTML = "";
-    for (let i = 0; i < steps.length; i++) {
-      const opt = document.createElement("option");
-      opt.value = i;
-      opt.textContent = labelFn(steps[i]);
-      if (i === defaultIdx) opt.selected = true;
-      sel.appendChild(opt);
-    }
+    this.overlay.addEventListener("keydown", e => { if (e.key === "Escape") this.close(); if (e.key === "Enter") this._commit(); });
   },
 
   _updateCPDisplay() {
@@ -984,8 +953,7 @@ const abilityDlg = {
     const sysRow = MP.lookupSys(sp);
     const cp = sysRow ? sysRow.cp : 0;
     const info = MP.computeAbilityInfo(abId, cp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
-    const el = document.getElementById("aid-stats-info");
-    el.textContent = info ? info.hint : "";
+    document.getElementById("aid-stats-info").textContent = info ? info.hint : "";
   },
 
   _onAbilityChange() {
@@ -993,210 +961,228 @@ const abilityDlg = {
     const detail = MP.ABILITY_DETAILS[abId];
     const hintEl = document.getElementById("aid-hint-info");
     const prEl = document.getElementById("aid-pr-display");
-
     if (detail) {
       hintEl.textContent = detail.hint;
       const prText = detail.pr > 0 ? `PR=${detail.pr}` : "PR=0";
       const dmgText = detail.dmg !== "—" ? `${detail.dmg} dmg` : "";
       prEl.textContent = [prText, dmgText].filter(Boolean).join(", ");
-      this._rebuildPRCharges(detail.pr);
-      this._rebuildRange(detail.calc?.baseRange || "BCx1\"");
-    } else {
-      hintEl.textContent = "";
-      prEl.textContent = "";
-      this._rebuildPRCharges(0);
-      this._rebuildRange("BCx1\"");
-    }
+    } else { hintEl.textContent = ""; prEl.textContent = ""; }
+    // Rebuild dynamic panels (PR/Charges, Range) when ability changes
+    for (const tab of this.tabs) { if (tab.modType?.type === "dynamic") { tab.value = null; this._renderPanel(tab); } }
+    this._renderTabBar();
     this._updateCPDisplay();
     this._updateStats();
   },
 
-  _rebuildRange(baseLabel) {
-    const sel = document.getElementById("aid-range");
-    const opts = MP.buildRangeOptions(baseLabel);
-    const baseIdx = MP.rangeScaleIndex(baseLabel);
-    sel.innerHTML = "";
-    for (let i = 0; i < opts.length; i++) {
-      const opt = document.createElement("option");
-      opt.value = i;
-      opt.textContent = opts[i].label;
-      opt.dataset.cp = opts[i].cp;
-      opt.dataset.rangeLabel = opts[i].rangeLabel;
-      if (opts[i].idx === baseIdx) opt.selected = true;
-      sel.appendChild(opt);
-    }
+  // ---- Tab management ----
+  _addTab() {
+    const tabId = this._nextTabId++;
+    this.tabs.push({ id: tabId, modType: null, value: null });
+    this._setActiveTab(tabId);
   },
 
-  _rebuildPRCharges(basePR) {
-    const sel = document.getElementById("aid-prch");
-    const opts = MP.buildPRChargesOptions(basePR);
-    const baseIdx = MP.prScaleIndex(basePR);
-    sel.innerHTML = "";
-    for (let i = 0; i < opts.length; i++) {
-      const opt = document.createElement("option");
-      opt.value = i;
-      opt.textContent = opts[i].label;
-      opt.dataset.cp = opts[i].cp;
-      if (opts[i].idx === baseIdx) opt.selected = true;
-      sel.appendChild(opt);
+  _removeTab(tabId) {
+    this.tabs = this.tabs.filter(t => t.id !== tabId);
+    if (this.activeTab === tabId) this.activeTab = this.tabs.length > 0 ? this.tabs[this.tabs.length - 1].id : -1;
+    this._renderTabBar();
+    this._renderActivePanel();
+  },
+
+  _setActiveTab(tabId) {
+    this.activeTab = tabId;
+    this._renderTabBar();
+    this._renderActivePanel();
+  },
+
+  _renderTabBar() {
+    const bar = document.getElementById("aid-tab-bar");
+    const addBtn = document.getElementById("aid-tab-add");
+    bar.innerHTML = "";
+    for (const tab of this.tabs) {
+      const btn = document.createElement("span");
+      btn.className = "aid-tab" + (tab.id === this.activeTab ? " active" : "");
+      const mt = tab.modType;
+      let label = mt ? mt.short : "Mod";
+      const reading = mt ? this._readValue(tab) : null;
+      const tl = mt && reading ? mt.tabLbl(reading) : null;
+      if (tl) label += " " + tl;
+      const cpVal = mt && reading ? mt.cp(reading) : 0;
+      let inner = `<span>${escAttr(label)}</span>`;
+      if (cpVal !== 0) inner += `<span class="aid-tab-cp">${cpVal > 0 ? "+" + cpVal : cpVal}</span>`;
+      inner += `<span class="aid-tab-rm" title="Remove">&times;</span>`;
+      btn.innerHTML = inner;
+      btn.querySelector(".aid-tab-rm").addEventListener("click", e => { e.stopPropagation(); this._removeTab(tab.id); });
+      btn.addEventListener("click", () => this._setActiveTab(tab.id));
+      bar.appendChild(btn);
     }
+    bar.appendChild(addBtn);
+  },
+
+  _renderActivePanel() {
+    const tab = this.tabs.find(t => t.id === this.activeTab);
+    if (!tab) { document.getElementById("aid-tab-panel").innerHTML = '<span class="aid-tp-empty">Click + to add a modifier</span>'; return; }
+    this._renderPanel(tab);
+  },
+
+  _renderPanel(tab) {
+    const panel = document.getElementById("aid-tab-panel");
+    if (tab.id !== this.activeTab) return;
+    let html = '<div class="aid-tp-row"><span class="aid-tp-lbl">Type:</span><select class="aid-mod-type-sel">';
+    html += '<option value="">— pick —</option>';
+    for (const mt of MOD_TYPES) { html += `<option value="${mt.id}"${tab.modType?.id===mt.id?" selected":""}>${mt.label}</option>`; }
+    html += '</select></div>';
+    const mt = tab.modType;
+    if (mt) {
+      if (mt.type === "select") {
+        const steps = mt.data();
+        html += '<div class="aid-tp-row"><span class="aid-tp-lbl">Value:</span><select class="aid-mod-val-sel">';
+        for (let i = 0; i < steps.length; i++) html += `<option value="${i}"${tab.value===i?" selected":""}>${mt.fmt(steps[i])}</option>`;
+        html += '</select></div>';
+      } else if (mt.type === "fixed") {
+        html += `<div class="aid-tp-row"><span class="aid-tp-hint">${mt.label} (${mt.cpVal>=0?"+":""}${mt.cpVal} CPs)</span></div>`;
+      } else if (mt.type === "number") {
+        const val = tab.value || mt.def || 1;
+        html += `<div class="aid-tp-row"><span class="aid-tp-lbl">Count:</span><input type="number" class="aid-mod-val-num" value="${val}" min="${mt.min}" max="${mt.max}" step="${mt.step}">`;
+        if (mt.hint) html += `<span class="aid-tp-hint">${mt.hint}</span>`;
+        html += '</div>';
+      } else if (mt.type === "dynamic") {
+        html += this._buildDynamic(mt, tab);
+      }
+    }
+    panel.innerHTML = html;
+    // Wire type selector
+    panel.querySelector(".aid-mod-type-sel").addEventListener("change", function() {
+      tab.modType = MOD_TYPES.find(m => m.id === this.value) || null;
+      tab.value = null;
+      if (tab.modType) {
+        if (tab.modType.type === "select") tab.value = tab.modType.defIdx || 0;
+        else if (tab.modType.type === "number") tab.value = tab.modType.def || 1;
+        else if (tab.modType.type === "fixed") tab.value = true;
+      }
+      abilityDlg._renderPanel(tab);
+      abilityDlg._renderTabBar();
+    });
+    // Wire value controls
+    const vs = panel.querySelector(".aid-mod-val-sel");
+    if (vs) vs.addEventListener("change", () => { tab.value = parseInt(vs.value); this._renderTabBar(); });
+    const vn = panel.querySelector(".aid-mod-val-num");
+    if (vn) vn.addEventListener("input", () => { tab.value = parseInt(vn.value) || 0; this._renderTabBar(); });
+    const ds = panel.querySelector(".aid-mod-dyn-sel");
+    if (ds) ds.addEventListener("change", () => { tab.value = parseInt(ds.value); this._renderTabBar(); });
+  },
+
+  _buildDynamic(mt, tab) {
+    const detail = MP.ABILITY_DETAILS[document.getElementById("aid-ability").value];
+    if (mt.builder === "prch") {
+      const basePR = detail ? detail.pr : 0;
+      const opts = MP.buildPRChargesOptions(basePR);
+      const baseIdx = MP.prScaleIndex(basePR);
+      if (tab.value === null) tab.value = baseIdx;
+      let html = '<div class="aid-tp-row"><span class="aid-tp-lbl">PR/Ch:</span><select class="aid-mod-dyn-sel">';
+      for (let i = 0; i < opts.length; i++) html += `<option value="${i}" data-cp="${opts[i].cp}"${i===tab.value?" selected":""}>${opts[i].label}</option>`;
+      return html + '</select></div>';
+    }
+    if (mt.builder === "range") {
+      const baseRange = detail?.calc?.baseRange || 'BCx1"';
+      const opts = MP.buildRangeOptions(baseRange);
+      const baseIdx = MP.rangeScaleIndex(baseRange);
+      if (tab.value === null) tab.value = baseIdx;
+      let html = '<div class="aid-tp-row"><span class="aid-tp-lbl">Range:</span><select class="aid-mod-dyn-sel">';
+      for (let i = 0; i < opts.length; i++) html += `<option value="${i}" data-cp="${opts[i].cp}" data-rng="${escAttr(opts[i].rangeLabel)}"${i===tab.value?" selected":""}>${opts[i].label}</option>`;
+      return html + '</select></div>';
+    }
+    return "";
+  },
+
+  _readValue(tab) {
+    const mt = tab.modType;
+    if (!mt) return null;
+    if (mt.type === "select") return { idx: tab.value || 0 };
+    if (mt.type === "fixed") return {};
+    if (mt.type === "number") return { val: tab.value || 0 };
+    if (mt.type === "dynamic") {
+      const detail = MP.ABILITY_DETAILS[document.getElementById("aid-ability").value];
+      if (mt.builder === "prch") {
+        const opts = MP.buildPRChargesOptions(detail ? detail.pr : 0);
+        const idx = tab.value ?? MP.prScaleIndex(detail ? detail.pr : 0);
+        const o = opts[idx];
+        return o ? { cp: o.cp, rowLabel: MP.PR_CHARGES_SCALE[idx]?.label || "" } : { cp: 0, rowLabel: "" };
+      }
+      if (mt.builder === "range") {
+        const baseRange = detail?.calc?.baseRange || 'BCx1"';
+        const opts = MP.buildRangeOptions(baseRange);
+        const idx = tab.value ?? MP.rangeScaleIndex(baseRange);
+        const o = opts[idx];
+        return o ? { cp: o.cp, rangeLabel: o.rangeLabel } : { cp: 0, rangeLabel: "" };
+      }
+    }
+    return null;
   },
 
   open(rowIdx) {
     this.targetIdx = rowIdx;
-    // Reset all fields
+    this.tabs = []; this.activeTab = -1; this._nextTabId = 0;
     document.getElementById("aid-ability").selectedIndex = 0;
     document.getElementById("aid-spaces").selectedIndex = 0;
-    document.getElementById("aid-area").value = "0";
-    document.getElementById("aid-ap").value = "0";
-    document.getElementById("aid-autofire").value = "0";
-    document.getElementById("aid-gear").checked = false;
-    document.getElementById("aid-bulky").value = "0";
-    document.getElementById("aid-delicate").value = "0";
     document.getElementById("aid-notes").value = "";
-    // If the row already has spaces set, pre-select
     const sys = veh.systems[rowIdx];
-    if (sys && sys.spaces) {
-      document.getElementById("aid-spaces").value = String(sys.spaces);
-    }
+    if (sys && sys.spaces) document.getElementById("aid-spaces").value = String(sys.spaces);
     this._onAbilityChange();
+    this._renderTabBar();
+    this._renderActivePanel();
     this.overlay.style.display = "flex";
     document.getElementById("aid-ability").focus();
   },
 
-  close() {
-    this.overlay.style.display = "none";
-    this.targetIdx = null;
-  },
+  close() { this.overlay.style.display = "none"; this.targetIdx = null; },
 
   _commit() {
     const idx = this.targetIdx;
     if (idx === null) return;
-
     const abId = document.getElementById("aid-ability").value;
     const ab = MP.abilityById(abId);
-    const detail = MP.ABILITY_DETAILS[abId];
     const name = ab ? ab.name : "Custom";
-
-    // Get budget CPs (base from spaces)
     const sp = parseInt(document.getElementById("aid-spaces").value) || 1;
     const sysRow = MP.lookupSys(sp);
     const sysCp = sysRow ? sysRow.cp : 0;
-
-    // Compute ability stats from system CPs
     const info = MP.computeAbilityInfo(abId, sysCp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
 
-    // Build description in notation style
     const parts = [];
     let basePart = name;
     if (info && info.desc) basePart += ": " + info.desc;
     basePart += " (" + sysCp + ")";
     parts.push(basePart);
 
-    // Modifiers — each with CP cost in parens
-    let modAdj = 0;
-
-    const bulky = parseInt(document.getElementById("aid-bulky").value) || 0;
-    if (bulky > 0) {
-      const bc = bulky * 2.5;
-      parts.push("Bulky x" + bulky + " (+" + bc + ")");
-      modAdj += bc;
+    let modAdj = 0, bulkyTotal = 0, delicateTotal = 0;
+    for (const tab of this.tabs) {
+      const mt = tab.modType; if (!mt) continue;
+      const r = this._readValue(tab); if (!r) continue;
+      const d = mt.desc(r), c = mt.cp(r);
+      if (d && c !== 0) { parts.push(d + " (" + (c > 0 ? "+" + c : c) + ")"); }
+      else if (d) { parts.push(d); }
+      modAdj += c;
+      if (mt.id === "bulky") bulkyTotal += r.val || 0;
+      if (mt.id === "delicate") delicateTotal += r.val || 0;
     }
-
-    const delicate = parseInt(document.getElementById("aid-delicate").value) || 0;
-    if (delicate > 0) {
-      const dc = delicate * 2.5;
-      parts.push("Delicate x" + delicate + " (-" + dc + ")");
-      modAdj -= dc;
-    }
-
-    const areaIdx = parseInt(document.getElementById("aid-area").value);
-    if (areaIdx > 0) {
-      const ac = MP.AREA_EFFECT_STEPS[areaIdx].cp;
-      parts.push("Area Effect " + MP.AREA_EFFECT_STEPS[areaIdx].label + " (+" + ac + ")");
-      modAdj += ac;
-    }
-
-    const apIdx = parseInt(document.getElementById("aid-ap").value);
-    if (apIdx > 0) {
-      const ac = MP.ARMOR_PIERCING_STEPS[apIdx].cp;
-      parts.push("AP " + MP.ARMOR_PIERCING_STEPS[apIdx].label.replace(' pts','') + " (+" + ac + ")");
-      modAdj += ac;
-    }
-
-    const afIdx = parseInt(document.getElementById("aid-autofire").value);
-    if (afIdx > 0) {
-      const ac = MP.AUTOFIRE_STEPS[afIdx].cp;
-      parts.push("Autofire " + MP.AUTOFIRE_STEPS[afIdx].rof + " (+" + ac + ")");
-      modAdj += ac;
-    }
-
-    if (document.getElementById("aid-gear").checked) {
-      parts.push("Gear (-5)");
-      modAdj += -5;
-    }
-
-    // PR/Charges
-    const prchSel = document.getElementById("aid-prch");
-    const prchOpt = prchSel.options[prchSel.selectedIndex];
-    const prchCp = parseFloat(prchOpt?.dataset.cp) || 0;
-    if (prchCp !== 0) {
-      const row = MP.PR_CHARGES_SCALE[parseInt(prchSel.value)];
-      if (row) {
-        const cpStr = prchCp > 0 ? "+" + prchCp : String(prchCp);
-        parts.push(row.label + " (" + cpStr + ")");
-      }
-      modAdj += prchCp;
-    }
-
-    // Range (dynamic scale)
-    const rngSel = document.getElementById("aid-range");
-    const rngOpt = rngSel.options[rngSel.selectedIndex];
-    const rngCp = parseFloat(rngOpt?.dataset.cp) || 0;
-    if (rngCp !== 0) {
-      const rngLabel = rngOpt?.dataset.rangeLabel || "";
-      const cpStr = rngCp > 0 ? "+" + rngCp : String(rngCp);
-      parts.push("Range " + rngLabel + " (" + cpStr + ")");
-      modAdj += rngCp;
-    }
-
     const notes = document.getElementById("aid-notes").value.trim();
     if (notes) parts.push(notes);
 
-    const desc = parts.join(", ");
-
-    // Get selected spaces
     const spaces = parseInt(document.getElementById("aid-spaces").value) || 0;
-
-    // Ensure row exists
     while (veh.systems.length <= idx) veh.addSystem();
     const sys = veh.systems[idx];
-
-    // Write spaces (overwrite if row was empty, keep if already set)
     if (!sys.spaces) sys.spaces = spaces;
-
-    // Write bulky/delicate to system row
-    const bulkyVal = parseInt(document.getElementById("aid-bulky").value) || 0;
-    const delicateVal = parseInt(document.getElementById("aid-delicate").value) || 0;
-    if (bulkyVal) sys.bulky = (sys.bulky || 0) + bulkyVal;
-    if (delicateVal) sys.delicate = (sys.delicate || 0) + delicateVal;
-
-    // Write description — append if non-empty
-    if (sys.desc && sys.desc.trim()) {
-      sys.desc = sys.desc + ", " + desc;
-    } else {
-      sys.desc = desc;
-    }
-
-    // Write modifier CP adjustment to extraCPs
+    if (bulkyTotal) sys.bulky = (sys.bulky || 0) + bulkyTotal;
+    if (delicateTotal) sys.delicate = (sys.delicate || 0) + delicateTotal;
+    if (sys.desc && sys.desc.trim()) sys.desc += ", " + parts.join(", ");
+    else sys.desc = parts.join(", ");
     if (modAdj !== 0) sys.extraCPs = (sys.extraCPs || 0) + modAdj;
-
     this.close();
     updateAll();
   }
 };
 
 abilityDlg.init();
+
 
 // Ctrl+I keydown handler on system rows
 document.addEventListener("keydown", e => {

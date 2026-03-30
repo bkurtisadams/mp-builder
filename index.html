@@ -227,40 +227,11 @@
       <span class="aid-pr-display" id="aid-pr-display"></span>
     </div>
     <div class="aid-divider"></div>
-    <div class="aid-row" data-mod="ae">
-      <label class="aid-lbl">Area Effect:</label>
-      <select id="aid-area" class="aid-sel-mod"></select>
-    </div>
-    <div class="aid-row" data-mod="ap">
-      <label class="aid-lbl">Armor Piercing:</label>
-      <select id="aid-ap" class="aid-sel-mod"></select>
-    </div>
-    <div class="aid-row" data-mod="af">
-      <label class="aid-lbl">Autofire:</label>
-      <select id="aid-autofire" class="aid-sel-mod"></select>
-    </div>
-    <div class="aid-row" data-mod="gear">
-      <label class="aid-lbl">Gear:</label>
-      <input type="checkbox" id="aid-gear" class="aid-chk">
-      <span class="aid-hint">(-5 CPs, removable/breakable, can't Push)</span>
-    </div>
-    <div class="aid-row" data-mod="bulky">
-      <label class="aid-lbl">Bulky:</label>
-      <input type="number" id="aid-bulky" class="aid-inp-num" value="0" min="0" max="20" step="1">
-      <span class="aid-hint">(+2.5 CPs/app, +4.3 Hits/app)</span>
-    </div>
-    <div class="aid-row" data-mod="delicate">
-      <label class="aid-lbl">Delicate:</label>
-      <input type="number" id="aid-delicate" class="aid-inp-num" value="0" min="0" max="20" step="1">
-      <span class="aid-hint">(-2.5 CPs/app, -4.3 Hits/app)</span>
-    </div>
-    <div class="aid-row" data-mod="prch">
-      <label class="aid-lbl">PR / Charges:</label>
-      <select id="aid-prch" class="aid-sel-mod"></select>
-    </div>
-    <div class="aid-row" data-mod="rng">
-      <label class="aid-lbl">Range:</label>
-      <select id="aid-range" class="aid-sel-mod"></select>
+    <div class="aid-mod-section">
+      <div class="aid-tab-bar" id="aid-tab-bar">
+        <button class="aid-tab-add" id="aid-tab-add" title="Add modifier">+</button>
+      </div>
+      <div class="aid-tab-panel" id="aid-tab-panel"></div>
     </div>
     <div class="aid-divider"></div>
     <div class="aid-row">
