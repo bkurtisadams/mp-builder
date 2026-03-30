@@ -13,6 +13,7 @@ class Vehicle {
     this.systems = [];
     this.keyEntries = [];
     this.pictureData = "";
+    this.pictureHeight = 120;
     this.silhouette = null; // { data, gx, gy, gw, gh }
     this._nextId = 1;
     this._nextKeyId = 1;
@@ -174,7 +175,7 @@ class Vehicle {
       maneuverMod: this.maneuverMod, wontExplode: this.wontExplode,
       isBase: this.isBase, systems: this.systems,
       keyEntries: this.keyEntries, pictureData: this.pictureData,
-      silhouette: this.silhouette,
+      pictureHeight: this.pictureHeight, silhouette: this.silhouette,
     };
   }
 
@@ -188,6 +189,7 @@ class Vehicle {
     this.wontExplode = data.wontExplode || false;
     this.isBase = data.isBase || false;
     this.pictureData = data.pictureData || "";
+    this.pictureHeight = data.pictureHeight || 120;
     this.silhouette = data.silhouette || null;
     this.systems = (data.systems || []).map(s => {
       s.cells = s.cells || [];

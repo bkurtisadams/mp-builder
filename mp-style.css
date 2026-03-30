@@ -141,6 +141,12 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 .vs-picture-btn { font-size: 8px; padding: 3px 8px; background: var(--accent); color: #fff; border: none; border-radius: 3px; cursor: pointer; font-family: var(--fb); font-weight: 700; z-index: 1 }
 .vs-picture-btn:hover { background: var(--accent-lt) }
 
+/* Picture controls bar */
+.vs-picture-controls { display: flex; align-items: center; gap: 3px; padding: 2px 0; margin-top: 2px }
+.vs-pic-label { font-size: 8px; font-weight: 700; color: var(--label); margin-left: 4px }
+.vs-pic-range { flex: 1; min-width: 40px; height: 12px; accent-color: var(--accent); cursor: pointer }
+.vs-pic-hval { font-size: 8px; color: var(--tx3); min-width: 20px }
+
 /* Bottom layout */
 .vs-bottom { display: flex; gap: 8px; margin-top: 6px; border-top: 1px solid var(--brd2); padding-top: 4px }
 .vs-bottom-left { width: 35%; min-width: 180px; flex-shrink: 0 }

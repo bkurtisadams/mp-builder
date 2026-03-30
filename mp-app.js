@@ -68,6 +68,11 @@ function syncFormFromVeh() {
     img.style.display = "none";
     document.getElementById("vs-picture-area").classList.remove("has-image");
   }
+  // Restore picture height
+  const ph = veh.pictureHeight || 120;
+  document.getElementById("vs-picture-area").style.height = ph + "px";
+  document.getElementById("vs-pic-height").value = ph;
+  document.getElementById("vs-pic-height-val").textContent = ph;
 }
 
 // ---- Update all ----
@@ -348,6 +353,29 @@ document.getElementById("inp-picture").addEventListener("change", e => {
   };
   reader.readAsDataURL(e.target.files[0]);
   e.target.value = "";
+});
+
+// Import button below picture (always visible)
+document.getElementById("btn-import-img2").addEventListener("click", () => {
+  document.getElementById("inp-picture").click();
+});
+
+// Clear picture
+document.getElementById("btn-clear-img").addEventListener("click", () => {
+  veh.pictureData = "";
+  const img = document.getElementById("vs-picture-img");
+  img.src = "";
+  img.style.display = "none";
+  document.getElementById("vs-picture-area").classList.remove("has-image");
+  updateAll();
+});
+
+// Picture height slider
+document.getElementById("vs-pic-height").addEventListener("input", () => {
+  const h = parseInt(document.getElementById("vs-pic-height").value) || 120;
+  document.getElementById("vs-picture-area").style.height = h + "px";
+  document.getElementById("vs-pic-height-val").textContent = h;
+  veh.pictureHeight = h;
 });
 
 // ---- Layout toolbar: system dropdown ----
