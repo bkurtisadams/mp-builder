@@ -120,6 +120,7 @@ function updateAll() {
   updateSystemDropdown();
   updateActiveIndicator();
   if (editor) editor.draw();
+  autoSave();
 }
 
 // HTML attribute escaper
@@ -667,6 +668,31 @@ document.getElementById("btn-png").addEventListener("click", () => {
   a.click();
 });
 
+// ---- localStorage auto-save ----
+const LS_KEY = "mp-vehicle-autosave";
+let _saveTimer = null;
+
+function autoSave() {
+  // Debounce: save 300ms after last change
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(veh.toJSON()));
+    } catch (e) { /* quota exceeded or private browsing */ }
+  }, 300);
+}
+
+function autoLoad() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || data.type !== "mp-vehicle") return false;
+    veh.fromJSON(data);
+    return true;
+  } catch (e) { return false; }
+}
+
 // ---- Init ----
 const layoutCanvasEl = document.getElementById("vs-layout-canvas");
 const layoutWrapEl = document.getElementById("vs-layout-wrap");
@@ -679,4 +705,8 @@ editor.onUpdate = () => {
 editor.panX = 20;
 editor.panY = 20;
 
+// Restore from localStorage if available
+if (autoLoad()) {
+  syncFormFromVeh();
+}
 updateAll();
