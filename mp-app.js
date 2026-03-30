@@ -413,11 +413,216 @@ document.getElementById("btn-sil-clear").addEventListener("click", () => {
 // Stub: built-in silhouettes dropdown (empty for now)
 document.getElementById("sel-silhouette").addEventListener("change", () => {
   const sel = document.getElementById("sel-silhouette");
-  // Future: load built-in silhouette by ID
-  // const id = sel.value;
-  // if (id && MP.SILHOUETTES[id]) editor.loadSilhouette(MP.SILHOUETTES[id].data, ...);
   sel.value = "";
 });
+
+// ---- Popout Layout Window ----
+let popoutWin = null;
+let popoutEditor = null;
+let popoutSyncInterval = null;
+
+function buildPopoutSysDropdown(doc) {
+  const sel = doc.getElementById("pop-sel-sys");
+  let html = '<option value="">— select system —</option>';
+  for (const sys of veh.systems) {
+    if (!sys.desc && !sys.spaces) continue;
+    const name = escAttr(sys.desc || "(unnamed)");
+    const placed = sys.cells.length;
+    const total = sys.spaces || 0;
+    const selected = (popoutEditor && popoutEditor.activeSysId === sys.id) ? " selected" : "";
+    html += `<option value="${sys.id}"${selected}>${name} (${placed}/${total})</option>`;
+  }
+  sel.innerHTML = html;
+}
+
+function updatePopoutIndicator(doc) {
+  const el = doc.getElementById("pop-active-sys");
+  if (!popoutEditor || !popoutEditor.activeSysId) {
+    el.innerHTML = '<span style="font-size:9px;color:#6a8a9a;font-style:italic">Select a system to paint</span>';
+    return;
+  }
+  const sys = veh.findSystem(popoutEditor.activeSysId);
+  if (!sys) { el.innerHTML = ''; return; }
+  const color = MP.sysColor(sys.desc);
+  el.innerHTML = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color};border:1px solid #8ab4d0;vertical-align:middle"></span> `
+    + `<b style="color:#c05a00">${escAttr(sys.desc || "?")}</b> `
+    + `<b style="color:#b03000">${sys.cells.length} / ${sys.spaces || 0}</b>`;
+}
+
+function syncPopout() {
+  if (!popoutWin || popoutWin.closed) {
+    clearInterval(popoutSyncInterval);
+    popoutWin = null;
+    popoutEditor = null;
+    popoutSyncInterval = null;
+    return;
+  }
+  // Sync main sheet from any popout painting
+  updateAll();
+}
+
+function openPopout() {
+  if (popoutWin && !popoutWin.closed) {
+    popoutWin.focus();
+    return;
+  }
+
+  popoutWin = window.open("", "mp_layout_popout", "width=1000,height=700,resizable=yes");
+  if (!popoutWin) { alert("Popup blocked. Please allow popups for this site."); return; }
+
+  const doc = popoutWin.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<title>Vehicle Layout — ${escAttr(veh.name || "Untitled")}</title>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#d6eaf8;--bg2:#c4dff0;--inp:#ffffff;--brd:#8ab4d0;--brd2:#a0c8e0;
+--tx:#1a2a3a;--tx2:#3a5a70;--tx3:#6a8a9a;--accent:#c05a00;--accent-lt:#d06a10;
+--fb:'Bitter',serif}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);font-family:var(--fb);font-size:12px;color:var(--tx);overflow:hidden}
+.pop-wrap{display:flex;flex-direction:column;height:100%}
+.pop-toolbar{display:flex;align-items:center;gap:3px;padding:4px 6px;background:var(--bg2);border-bottom:2px solid var(--brd);flex-wrap:wrap;flex-shrink:0}
+.pop-canvas-wrap{flex:1;overflow:hidden;position:relative;background:#fff}
+.pop-canvas-wrap canvas{display:block;width:100%;height:100%}
+.pop-hint{font-size:9px;color:var(--tx3);padding:3px 6px;background:var(--bg2);border-top:1px solid var(--brd);flex-shrink:0}
+.pop-hint b{color:var(--tx)}
+select{background:var(--inp);border:1px solid var(--brd);border-radius:2px;padding:2px 4px;font-family:var(--fb);font-size:9px;color:var(--tx)}
+select:focus{outline:none;border-color:var(--accent)}
+.pop-sys-sel{max-width:220px}
+.ed-btn{display:inline-flex;align-items:center;gap:2px;padding:3px 7px;font-size:10px;background:var(--accent);color:#fff;border:none;border-radius:3px;cursor:pointer;font-family:var(--fb);font-weight:700;white-space:nowrap}
+.ed-btn:hover{background:var(--accent-lt)}
+.ed-btn-mode{background:#e0e8f0;color:var(--tx2);border:1px solid var(--brd)}
+.ed-btn-mode:hover{background:#d0d8e8}
+.ed-btn-mode.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ed-sep{width:1px;height:16px;background:var(--brd);margin:0 2px}
+.pop-active{margin-left:auto;font-size:9px;white-space:nowrap}
+</style>
+</head><body>
+<div class="pop-wrap">
+  <div class="pop-toolbar">
+    <select id="pop-sel-sys" class="pop-sys-sel" title="Select a system to paint">
+      <option value="">— select system —</option>
+    </select>
+    <button id="pop-paint" class="ed-btn ed-btn-mode" title="Paint cells">Paint</button>
+    <button id="pop-erase" class="ed-btn ed-btn-mode" title="Erase">Erase</button>
+    <span class="ed-sep"></span>
+    <button id="pop-zin" class="ed-btn">+</button>
+    <button id="pop-zout" class="ed-btn">&minus;</button>
+    <button id="pop-zreset" class="ed-btn">Reset</button>
+    <span class="ed-sep"></span>
+    <button id="pop-sil-import" class="ed-btn">Import Sil.</button>
+    <button id="pop-sil-clear" class="ed-btn">Clear Sil.</button>
+    <input type="file" id="pop-inp-sil" accept="image/*" style="display:none">
+    <span id="pop-active-sys" class="pop-active"></span>
+  </div>
+  <div class="pop-canvas-wrap" id="pop-canvas-wrap">
+    <canvas id="pop-canvas"></canvas>
+  </div>
+  <div class="pop-hint">
+    <b>E</b>=erase <b>S</b>=select Right-drag=pan Scroll=zoom &bull;
+    1 cell = 1 system space (2.5') / heavy lines = 5'
+  </div>
+</div>
+</body></html>`);
+  doc.close();
+
+  // Wait for DOM ready
+  popoutWin.addEventListener("load", () => {
+    const pdoc = popoutWin.document;
+    const canvas = pdoc.getElementById("pop-canvas");
+    const wrap = pdoc.getElementById("pop-canvas-wrap");
+
+    // Inject MP and FloorPlanEditor into popout scope
+    popoutWin.MP = MP;
+    popoutWin.FloorPlanEditor = FloorPlanEditor;
+    popoutWin.CELL_PX = CELL_PX;
+
+    popoutEditor = new FloorPlanEditor(canvas, wrap, veh);
+    popoutEditor.panX = 40;
+    popoutEditor.panY = 40;
+    popoutEditor.onUpdate = () => {
+      buildPopoutSysDropdown(pdoc);
+      updatePopoutIndicator(pdoc);
+      popoutEditor.draw();
+      updateAll(); // sync main window
+    };
+
+    buildPopoutSysDropdown(pdoc);
+    updatePopoutIndicator(pdoc);
+
+    // Wire controls
+    pdoc.getElementById("pop-sel-sys").addEventListener("change", function() {
+      const sysId = parseInt(this.value) || null;
+      popoutEditor.activeSysId = sysId;
+      if (sysId) popoutEditor.setMode("paint");
+      else popoutEditor.setMode("select");
+      updatePopoutModeButtons(pdoc);
+      updatePopoutIndicator(pdoc);
+      popoutEditor.draw();
+    });
+
+    function updatePopoutModeButtons(d) {
+      d.getElementById("pop-paint").classList.toggle("active", popoutEditor.mode === "paint");
+      d.getElementById("pop-erase").classList.toggle("active", popoutEditor.mode === "erase");
+    }
+
+    pdoc.getElementById("pop-paint").addEventListener("click", () => {
+      if (popoutEditor.activeSysId) popoutEditor.setMode("paint");
+      updatePopoutModeButtons(pdoc);
+    });
+    pdoc.getElementById("pop-erase").addEventListener("click", () => {
+      popoutEditor.setMode("erase");
+      updatePopoutModeButtons(pdoc);
+    });
+    pdoc.getElementById("pop-zin").addEventListener("click", () => popoutEditor.zoomIn());
+    pdoc.getElementById("pop-zout").addEventListener("click", () => popoutEditor.zoomOut());
+    pdoc.getElementById("pop-zreset").addEventListener("click", () => popoutEditor.resetView());
+
+    // Silhouette in popout
+    pdoc.getElementById("pop-sil-import").addEventListener("click", () => {
+      pdoc.getElementById("pop-inp-sil").click();
+    });
+    pdoc.getElementById("pop-inp-sil").addEventListener("change", function(e) {
+      if (!e.target.files.length) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          const gw = 10;
+          const gh = Math.max(2, Math.round(gw * (img.height / img.width)));
+          popoutEditor.loadSilhouette(ev.target.result, gw, gh);
+          // Also update main editor
+          if (editor) { editor._ensureSilImage(); editor.draw(); }
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(e.target.files[0]);
+      e.target.value = "";
+    });
+    pdoc.getElementById("pop-sil-clear").addEventListener("click", () => {
+      popoutEditor.clearSilhouette();
+      if (editor) editor.draw();
+    });
+
+    popoutEditor.draw();
+  });
+
+  // Poll for sync and detect close
+  popoutSyncInterval = setInterval(syncPopout, 500);
+
+  popoutWin.addEventListener("beforeunload", () => {
+    clearInterval(popoutSyncInterval);
+    popoutEditor = null;
+    popoutWin = null;
+    popoutSyncInterval = null;
+    updateAll(); // refresh main
+  });
+}
+
+document.getElementById("btn-popout").addEventListener("click", openPopout);
 
 // ---- Export ----
 document.getElementById("btn-save").addEventListener("click", () => {
