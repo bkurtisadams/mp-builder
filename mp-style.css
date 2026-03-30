@@ -76,7 +76,6 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 /* Cost boxes */
 .vs-cost-box { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 42px; margin-right: 4px; flex-shrink: 0 }
 .vs-cost-box-label { font-size: 7px; font-weight: 700; color: var(--label); text-transform: uppercase; text-align: center; line-height: 1.1 }
-.vs-cost-box-spacer { min-width: 42px; margin-right: 4px }
 .vs-cost-input { width: 48px; background: var(--accent); color: #fff; font-family: var(--fb); font-size: 12px; font-weight: 700; text-align: center; border: 1px solid var(--accent); border-radius: 2px; padding: 2px 4px }
 .vs-cost-input:focus { outline: 1px solid #f4d03f; border-color: #f4d03f }
 .vs-val-box { background: var(--accent); color: #fff; padding: 2px 6px; border-radius: 2px; font-size: 11px }
@@ -98,6 +97,12 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 .vs-sys-row-wrap { display: flex; border-bottom: 1px solid var(--brd2); align-items: center }
 .vs-sys-row-wrap:hover { background: rgba(0,80,140,.06) }
 .vs-sys-row-wrap.active { background: rgba(192,90,0,.08); outline: 1px solid var(--accent) }
+
+/* Drag handle */
+.vs-sys-grip { width: 14px; font-size: 10px; color: var(--brd); cursor: grab; text-align: center; flex-shrink: 0; user-select: none }
+.vs-sys-grip:hover { color: var(--accent) }
+.vs-sys-row-wrap.vs-sys-dragging { opacity: 0.4 }
+.vs-sys-row-wrap.vs-sys-dragover { border-top: 2px solid var(--accent); margin-top: -1px }
 .vs-sys-row { display: grid; grid-template-columns: 30px 40px 40px 38px 28px 36px 1fr 14px; gap: 1px; padding: 1px 2px; flex: 1; align-items: center }
 .vs-sys-row input { background: var(--inp); border: 1px solid var(--brd2); border-radius: 2px; padding: 1px 1px; font-family: var(--fb); font-size: 9px; color: var(--tx); text-align: center; width: 100% }
 .vs-sys-row input.vs-sys-desc { text-align: left; padding-left: 3px }
@@ -191,7 +196,7 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
   /* Hide non-printable UI */
   .mp-hdr, .vs-layout-toolbar, .vs-sil-bar, .vs-layout-hint,
   .vs-picture-controls,
-  .vs-sys-row .vs-sys-del { display: none !important }
+  .vs-sys-row .vs-sys-del, .vs-sys-grip { display: none !important }
 
   /* Reset page */
   html, body { background: #fff !important; min-height: auto }

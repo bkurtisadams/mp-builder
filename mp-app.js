@@ -161,7 +161,8 @@ function renderSystemsTable() {
     const adjIN = s ? (s.adjIN || "") : "";
     const adjCL = s ? (s.adjCL || "") : "";
 
-    html += `<div class="vs-sys-row-wrap" data-idx="${i}">
+    html += `<div class="vs-sys-row-wrap" data-idx="${i}" draggable="true">
+      <span class="vs-sys-grip" title="Drag to reorder">&#9776;</span>
       <div class="vs-sys-row">
         <input type="number" value="${cost}" data-field="extraCPs" data-idx="${i}" step="2.5" min="0" title="Extra CPs added to this system (adds to vehicle cost)">
         <input type="number" value="${spaces}" data-field="spaces" data-idx="${i}" min="0" title="System spaces allocated">
@@ -238,6 +239,41 @@ function renderSystemsTable() {
       if (!sys) return;
       if (editor && editor.activeSysId === sys.id) editor.activeSysId = null;
       veh.systems.splice(idx, 1);
+      updateAll();
+    });
+  });
+
+  // Wire drag-to-reorder
+  let dragIdx = null;
+  el.querySelectorAll(".vs-sys-row-wrap[draggable]").forEach(row => {
+    row.addEventListener("dragstart", e => {
+      dragIdx = parseInt(row.dataset.idx);
+      row.classList.add("vs-sys-dragging");
+      e.dataTransfer.effectAllowed = "move";
+    });
+    row.addEventListener("dragend", () => {
+      row.classList.remove("vs-sys-dragging");
+      el.querySelectorAll(".vs-sys-row-wrap").forEach(r => r.classList.remove("vs-sys-dragover"));
+      dragIdx = null;
+    });
+    row.addEventListener("dragover", e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      el.querySelectorAll(".vs-sys-row-wrap").forEach(r => r.classList.remove("vs-sys-dragover"));
+      row.classList.add("vs-sys-dragover");
+    });
+    row.addEventListener("dragleave", () => {
+      row.classList.remove("vs-sys-dragover");
+    });
+    row.addEventListener("drop", e => {
+      e.preventDefault();
+      const dropIdx = parseInt(row.dataset.idx);
+      if (dragIdx === null || dragIdx === dropIdx) return;
+      // Ensure both indices have systems
+      while (veh.systems.length <= Math.max(dragIdx, dropIdx)) veh.addSystem();
+      const [moved] = veh.systems.splice(dragIdx, 1);
+      veh.systems.splice(dropIdx, 0, moved);
+      dragIdx = null;
       updateAll();
     });
   });
