@@ -551,7 +551,156 @@ MP.computeAbilityInfo = function(abId, cp, st, en, ag, intel, cl) {
   return { hint: parts.join(", "), desc: descParts.join(", ") };
 };
 
-// ---- Weaknesses (from MP rulebook 2.1.15) ----
+// ---- Per-Ability Modifiers (from ability descriptions) ----
+// Each entry: {id, label, short, cp} or {id, label, short, type:"number", ...}
+// cp can be a number (fixed) or a function(val) for number types
+MP.ABILITY_MODIFIERS = {
+  "absorption": [
+    {id:"absReplenish",  label:"Replenishment",       short:"Repln",  cp:5},
+    {id:"absSplit",      label:"Split Points",         short:"Split",  cp:0},
+    {id:"absExcess1",    label:"Excess: Lose All",     short:"ExcA",   cp:-5},
+    {id:"absExcess2",    label:"Excess: Half Dmg",     short:"ExcH",   cp:-10},
+    {id:"absExcess3",    label:"Excess: Full Dmg",     short:"ExcF",   cp:-15},
+  ],
+  "armor": [
+    {id:"armAblative",   label:"Ablative",             short:"Ablt",   cp:-5},
+  ],
+  "chemical-abilities": [
+    {id:"chemBody",      label:"Chemical Body (field)", short:"Body",  cp:0},
+  ],
+  "darkness-control": [
+    {id:"darkBasic",     label:"Basic Darkness",       short:"Basic",  cp:-5},
+    {id:"darkFull",      label:"Full Darkness",        short:"Full",   cp:10},
+  ],
+  "density-change": [
+    {id:"denAdj",        label:"Adjustable Density",   short:"Adj",    cp:5},
+  ],
+  "emotion-control": [
+    {id:"emoPheromone",  label:"Pheromones",           short:"Pher",   cp:0},
+    {id:"emoSingle",     label:"Single Emotion",       short:"1Emo",   cp:-5},
+  ],
+  "flame-abilities": [
+    {id:"flmBody",       label:"Flame Body (field)",   short:"Body",   cp:0},
+  ],
+  "flight": [
+    {id:"fltFastAccel",  label:"Fast Acceleration",    short:"FstAc",  cp:2.5},
+    {id:"fltAmphibious", label:"Amphibious",           short:"Amph",   cp:5},
+    {id:"fltWings",      label:"Wings",                short:"Wings",  cp:-5},
+    {id:"fltGliding",    label:"Gliding",              short:"Glide",  cp:-5},
+    {id:"fltHyper",      label:"Hyper-Flight",         short:"Hyper",  type:"number", min:1, max:20, def:1, step:1, hint:"+2.5/step, x2 top speed per step", cpFn:v=>v*2.5},
+  ],
+  "force-field": [
+    {id:"ffNoBlock",     label:"Doesn't Block Non-Corp/Gas", short:"NoNC", cp:-5},
+    {id:"ffNoBlockTP",   label:"Doesn't Block Teleport",     short:"NoTP", cp:-5},
+  ],
+  "grapnel": [
+    {id:"grpNoSwing",    label:"No Swinging",          short:"NoSw",   cp:-5},
+    {id:"grpSwingOnly",  label:"Swinging Only",        short:"SwOn",   cp:-10},
+  ],
+  "gravity-control": [
+    {id:"gravReduce",    label:"Weight Reduction Only", short:"WtRd",  cp:-10},
+    {id:"gravWeightless",label:"Weightlessness Only",   short:"Wtls",  cp:-5},
+    {id:"gravNeg",       label:"Negative Weight x2",    short:"NegW",  type:"number", min:1, max:10, def:1, step:1, hint:"+5/app", cpFn:v=>v*5},
+    {id:"gravSingle",    label:"Single Target",         short:"1Tgt",  cp:0},
+  ],
+  "ice-abilities": [
+    {id:"iceColder",     label:"Colder Ice",           short:"Cold",   type:"number", min:1, max:2, def:1, step:1, hint:"+5/app, +1 dmg/app", cpFn:v=>v*5},
+  ],
+  "illusions": [
+    {id:"illuBasic",     label:"Basic Illusions",      short:"Basic",  cp:-5},
+    {id:"illuAnalytic",  label:"Analytical Illusions",  short:"Anltc", cp:10},
+  ],
+  "invisibility": [
+    {id:"invisBlur",     label:"Blur (5/sense not 10)", short:"Blur",  cp:0},
+    {id:"invisCamo",     label:"Camouflage",           short:"Camo",   cp:-2.5},
+    {id:"invisChameleon",label:"Chameleon",             short:"Chml",   cp:-2.5},
+  ],
+  "light-control": [
+    {id:"ltFlashMild",   label:"Mild Flash",           short:"MFlsh",  cp:-5},
+    {id:"ltFlashStrong", label:"Strong Flash",          short:"SFlsh", cp:10},
+    {id:"ltGlareBasic",  label:"Basic Glare",           short:"BGlr",  cp:-5},
+    {id:"ltGlareFull",   label:"Full Glare",             short:"FGlr", cp:10},
+    {id:"ltFlashOther",  label:"Flash Other Sense",      short:"FOth", cp:0},
+  ],
+  "lightning-control": [
+    {id:"ltnSilentGear", label:"Silent Gear Control",   short:"SGC",   cp:5},
+    {id:"ltnSingleCmd",  label:"Single Command",        short:"1Cmd",  cp:-10},
+  ],
+  "magnetism": [
+    {id:"magSingle",     label:"Single Target",         short:"1Tgt",  cp:-5},
+    {id:"magMulti",      label:"Multi-Magnetics",       short:"Multi", cp:5},
+  ],
+  "mind-control": [
+    {id:"mcSilent",      label:"Silent Mind Control",   short:"Slnt",  cp:5},
+    {id:"mcSingleCmd",   label:"Single Command",        short:"1Cmd",  cp:-5},
+  ],
+  "non-corporeality": [
+    {id:"ncCorporeal",   label:"Corporeal Ability",     short:"Corp",  cp:20},
+  ],
+  "paralysis-ray": [
+    {id:"paraFrozen",    label:"Frozen",               short:"Frzn",   cp:0},
+    {id:"paraStasis",    label:"Stasis",               short:"Stss",   cp:10},
+    {id:"paraUnconsc",   label:"Unconscious",          short:"Unc",    cp:5},
+    {id:"paraSpeak",     label:"Can Speak",            short:"Spk",    cp:-5},
+  ],
+  "regeneration": [
+    {id:"regenLimited1", label:"Limited (-2.5)",        short:"Ltd1",  cp:-2.5},
+    {id:"regenLimited2", label:"Limited (-5)",          short:"Ltd2",  cp:-5},
+    {id:"regenUnlimited",label:"Unlimited",             short:"Unlm",  cp:5},
+    {id:"regenConstant", label:"Constant",              short:"Cnst",  cp:10},
+    {id:"regenDeath1",   label:"Heal From Death (+5)",  short:"HlD1",  cp:5},
+    {id:"regenDeath2",   label:"Heal From Death (+10)", short:"HlD2",  cp:10},
+    {id:"regenPower",    label:"Power Regeneration",    short:"PwRg",  cp:0},
+  ],
+  "shape-shifting": [
+    {id:"ssRealism1",    label:"Enhanced Realism (+5)",  short:"Rl+5", cp:5},
+    {id:"ssRealism2",    label:"Enhanced Realism (+10)", short:"Rl10", cp:10},
+    {id:"ssImpersonate", label:"Impersonation",          short:"Impr", cp:5},
+  ],
+  "shield": [
+    {id:"shldParry",     label:"Parry Bonus",           short:"Prry",  type:"number", min:1, max:10, def:1, step:1, hint:"+2.5/pt, +1 Parry/pt", cpFn:v=>v*2.5},
+    {id:"shldInnate",    label:"Innate",                short:"Innt",  cp:2.5},
+  ],
+  "size-change": [
+    {id:"sizeMulti",     label:"Multiple Sizes",        short:"Multi", cp:5},
+    {id:"sizeMassive",   label:"Massive",               short:"Mass",  cp:0},
+  ],
+  "sonic-abilities": [
+    {id:"sonicLoud2",    label:"Louder Boom x2",        short:"Ld2",   cp:5},
+    {id:"sonicLoud3",    label:"Louder Boom x3",        short:"Ld3",   cp:15},
+    {id:"sonicOther",    label:"Other Sense",            short:"OSns",  cp:0},
+  ],
+  "speed": [
+    {id:"spdAmphibious", label:"Amphibious",            short:"Amph",  cp:5},
+    {id:"spdWaterRun",   label:"Water Running",          short:"WRun", cp:2.5},
+    {id:"spdFastAccel",  label:"Fast Acceleration",      short:"FstA", cp:2.5},
+    {id:"spdFastSwim",   label:"Fast Swimming",           short:"FSwm", cp:0},
+  ],
+  "swimming": [
+    {id:"swimFastAccel", label:"Fast Acceleration",      short:"FstA", cp:2.5},
+  ],
+  "telekinesis": [
+    {id:"tkSingle",      label:"Single Target",          short:"1Tgt", cp:-5},
+    {id:"tkMulti",       label:"Multi-Kinesis",           short:"MltK", type:"number", min:1, max:5, def:1, step:1, hint:"+2.5/x2", cpFn:v=>v*2.5},
+    {id:"tkFastManip",   label:"Fast Manipulation",       short:"Fast", cp:5},
+  ],
+  "teleportation": [
+    {id:"tpGates",       label:"Gates",                  short:"Gate",  cp:0},
+    {id:"tpSeeThrough",  label:"Gate See-Through",        short:"See", cp:5},
+    {id:"tpPenFF",       label:"Penetrates Force Fields",  short:"PFF", cp:5},
+    {id:"tpBeamPos",     label:"Teleport Beam (+5)",       short:"Bm+", cp:5},
+    {id:"tpBeamNeg",     label:"Teleport Beam (-5)",       short:"Bm-", cp:-5},
+  ],
+  "transmutation": [
+    {id:"transAlt",      label:"Alternate Transmutation", short:"Alt",  type:"number", min:1, max:10, def:1, step:1, hint:"+5 each", cpFn:v=>v*5},
+  ],
+  "weather-control": [
+    {id:"wcLimited",     label:"Limited Weather Types",   short:"Ltd",  type:"number", min:1, max:5, def:1, step:1, hint:"-2.5/type removed", cpFn:v=>-(v*2.5)},
+  ],
+  "weakness-detection": [
+    {id:"wdStructural",  label:"Structural Weakness",     short:"Strc", cp:0},
+  ],
+};
 MP.WEAKNESSES = [
   { id:"diminished-senses",  name:"Diminished Senses",  cpMod:-5,  desc:"Reduced sensory capability" },
   { id:"distinctive",        name:"Distinctive",        cpMod:-5,  desc:"Easily identified or tracked" },

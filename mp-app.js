@@ -1020,9 +1020,13 @@ const abilityDlg = {
       const dmgText = detail.dmg !== "—" ? `${detail.dmg} dmg` : "";
       prEl.textContent = [prText, dmgText].filter(Boolean).join(", ");
     } else { hintEl.textContent = ""; prEl.textContent = ""; }
-    // Rebuild dynamic panels (PR/Charges, Range) when ability changes
-    for (const tab of this.tabs) { if (tab.modType?.type === "dynamic") { tab.value = null; this._renderPanel(tab); } }
+    // Clear tabs with per-ability modifiers from a different ability
+    for (const tab of this.tabs) {
+      if (tab.modType?._abilityMod) { tab.modType = null; tab.value = null; }
+      if (tab.modType?.type === "dynamic") { tab.value = null; }
+    }
     this._renderTabBar();
+    this._renderActivePanel();
     this._updateCPDisplay();
     this._updateStats();
   },
@@ -1080,9 +1084,21 @@ const abilityDlg = {
   _renderPanel(tab) {
     const panel = document.getElementById("aid-tab-panel");
     if (tab.id !== this.activeTab) return;
+    const allMods = this._getAllModTypes();
     let html = '<div class="aid-tp-row"><span class="aid-tp-lbl">Type:</span><select class="aid-mod-type-sel">';
     html += '<option value="">— pick —</option>';
-    for (const mt of MOD_TYPES) { html += `<option value="${mt.id}"${tab.modType?.id===mt.id?" selected":""}>${mt.label}</option>`; }
+    // Universal modifiers
+    let hasAbGroup = false;
+    for (const mt of allMods) {
+      if (mt._abilityMod && !hasAbGroup) {
+        html += '</optgroup><optgroup label="── Ability ──">';
+        hasAbGroup = true;
+      } else if (!mt._abilityMod && !hasAbGroup) {
+        // first universal, start group
+      }
+      html += `<option value="${mt.id}"${tab.modType?.id===mt.id?" selected":""}>${mt.label}</option>`;
+    }
+    if (hasAbGroup) html += '</optgroup>';
     html += '</select></div>';
     const mt = tab.modType;
     if (mt) {
@@ -1104,8 +1120,9 @@ const abilityDlg = {
     }
     panel.innerHTML = html;
     // Wire type selector
+    const allModsRef = allMods;
     panel.querySelector(".aid-mod-type-sel").addEventListener("change", function() {
-      tab.modType = MOD_TYPES.find(m => m.id === this.value) || null;
+      tab.modType = allModsRef.find(m => m.id === this.value) || null;
       tab.value = null;
       if (tab.modType) {
         if (tab.modType.type === "select") tab.value = tab.modType.defIdx || 0;
@@ -1122,6 +1139,39 @@ const abilityDlg = {
     if (vn) vn.addEventListener("input", () => { tab.value = parseInt(vn.value) || 0; this._renderTabBar(); });
     const ds = panel.querySelector(".aid-mod-dyn-sel");
     if (ds) ds.addEventListener("change", () => { tab.value = parseInt(ds.value); this._renderTabBar(); });
+  },
+
+  // Build combined list of universal + per-ability modifiers
+  _getAllModTypes() {
+    const abId = document.getElementById("aid-ability").value;
+    const abMods = MP.ABILITY_MODIFIERS[abId];
+    const result = MOD_TYPES.slice();
+    if (abMods) {
+      for (const am of abMods) {
+        if (am.type === "number") {
+          result.push({
+            id: am.id, label: am.label, short: am.short,
+            type: "number", min: am.min, max: am.max, def: am.def, step: am.step, hint: am.hint,
+            desc: s => s.val > 0 ? `${am.label} x${s.val}` : null,
+            cp: s => am.cpFn(s.val),
+            tabLbl: s => s.val > 0 ? "x" + s.val : null,
+            _abilityMod: true,
+          });
+        } else {
+          // Fixed cost
+          result.push({
+            id: am.id, label: am.label + (am.cp !== 0 ? ` (${am.cp > 0 ? "+" : ""}${am.cp})` : ""),
+            short: am.short,
+            type: "fixed", cpVal: am.cp,
+            desc: s => am.label,
+            cp: s => am.cp,
+            tabLbl: s => null,
+            _abilityMod: true,
+          });
+        }
+      }
+    }
+    return result;
   },
 
   _buildDynamic(mt, tab) {
