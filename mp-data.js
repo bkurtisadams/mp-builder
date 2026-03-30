@@ -503,3 +503,34 @@ MP.TEMPLATES = [
   },
 ];
 
+// ---- System Color Categories (for layout canvas) ----
+MP.SYS_COLORS = {
+  movement:   { color: "#3a80c0", label: "Movement",    keywords: ["flight","speed","swimming","tunneling","teleport","super speed","gliding"] },
+  weapon:     { color: "#c03838", label: "Weapon",       keywords: ["blast","attack","weapon","gun","cannon","missile","torpedo","laser","disintegrat","flame","ice abilit","lightning","sonic","chemical","death touch","natural weapon","grapnel"] },
+  crew:       { color: "#c07020", label: "Crew",         keywords: ["control seat","passenger","bunk","seat","pilot","co-pilot","driver","gunner","commander","loader","crew"] },
+  sensor:     { color: "#7050a0", label: "Sensor",       keywords: ["sensor","radar","sonar","comms","radio","communicat","countermeasure","navigation"] },
+  brain:      { color: "#b060a0", label: "AI/Brain",     keywords: ["robot brain","automation","computer","ai "] },
+  defense:    { color: "#c0a820", label: "Defense",      keywords: ["armor","shield","force field","invulnerab","adaptation","reflection","durability"] },
+  lifesupport:{ color: "#60b060", label: "Life Support", keywords: ["life support","healing","regenerat","first aid"] },
+  cargo:      { color: "#b0b0b0", label: "Cargo",        keywords: ["cargo","trunk","storage","spare part","garage","hangar","trailer","ammo","bay"] },
+  misc:       { color: "#606060", label: "Misc",         keywords: ["headlight","light","ejection","wings","performance","chaff","flare"] },
+};
+
+MP.sysColor = function(desc) {
+  if (!desc) return MP.SYS_COLORS.misc.color;
+  const d = desc.toLowerCase();
+  for (const cat of Object.values(MP.SYS_COLORS)) {
+    for (const kw of cat.keywords) {
+      if (d.includes(kw)) return cat.color;
+    }
+  }
+  return MP.SYS_COLORS.misc.color;
+};
+
+MP.isSeatSystem = function(desc) {
+  if (!desc) return false;
+  const d = desc.toLowerCase();
+  const seatWords = ["control seat","passenger","bunk","seat","pilot","co-pilot","driver","gunner","commander","loader"];
+  return seatWords.some(kw => d.includes(kw));
+};
+

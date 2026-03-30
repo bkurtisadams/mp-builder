@@ -1,4 +1,4 @@
-// mp-app.js v3.0.0 — Single-page layout, inline floor plan, templates
+// mp-app.js v3.1.0 — System dropdown in layout toolbar, color categories, no notes
 
 const veh = new Vehicle();
 let editor = null;
@@ -58,7 +58,6 @@ function syncFormFromVeh() {
   document.getElementById("vs-maneuver").value = veh.maneuverMod;
   document.getElementById("vs-noexplode").checked = veh.wontExplode;
   document.getElementById("vs-base").checked = veh.isBase;
-  document.getElementById("vs-notes").value = veh.notes || "";
   const img = document.getElementById("vs-picture-img");
   if (veh.pictureData) {
     img.src = veh.pictureData;
@@ -107,6 +106,8 @@ function updateAll() {
 
   renderSystemsTable();
   renderKey();
+  updateSystemDropdown();
+  updateActiveIndicator();
   if (editor) editor.draw();
 }
 
@@ -119,7 +120,6 @@ function renderSystemsTable() {
 
   for (let i = 0; i < SYS_ROW_COUNT; i++) {
     const s = veh.systems[i] || null;
-    const active = s && editor && editor.activeSysId === s.id ? " active" : "";
     const cost = s ? (s.extraCPs || "") : "";
     const spaces = s ? (s.spaces || "") : "";
     const prof = s && s.spaces ? veh.sysProfileDisplay(s) : "";
@@ -138,7 +138,7 @@ function renderSystemsTable() {
     const adjIN = s ? (s.adjIN || "") : "";
     const adjCL = s ? (s.adjCL || "") : "";
 
-    html += `<div class="vs-sys-row-wrap${active}" data-idx="${i}">
+    html += `<div class="vs-sys-row-wrap" data-idx="${i}">
       <div class="vs-sys-row">
         <input type="number" value="${cost}" data-field="extraCPs" data-idx="${i}" step="2.5" min="0" title="Extra CPs added to this system (adds to vehicle cost)">
         <input type="number" value="${spaces}" data-field="spaces" data-idx="${i}" min="0" title="System spaces allocated">
@@ -214,20 +214,6 @@ function renderSystemsTable() {
       updateAll();
     });
   });
-
-  // Wire row click for floor plan
-  el.querySelectorAll(".vs-sys-row-wrap").forEach(row => {
-    row.addEventListener("click", (e) => {
-      if (e.target.tagName === "INPUT" || e.target.classList.contains("vs-sys-del")) return;
-      const idx = parseInt(row.dataset.idx);
-      const sys = veh.systems[idx];
-      if (sys && editor) {
-        editor.setActiveSys(sys.id);
-        updateModeButtons();
-      }
-      updateAll();
-    });
-  });
 }
 
 // ---- Vehicle Key: 4 columns, 8 rows ----
@@ -259,6 +245,51 @@ function renderKey() {
   });
 }
 
+// ---- System dropdown in layout toolbar ----
+function updateSystemDropdown() {
+  const sel = document.getElementById("sel-layout-sys");
+  const curVal = sel.value;
+  let html = '<option value="">— select system —</option>';
+  for (const sys of veh.systems) {
+    if (!sys.desc && !sys.spaces) continue;
+    const name = sys.desc || "(unnamed)";
+    const placed = sys.cells.length;
+    const total = sys.spaces || 0;
+    const selected = (String(sys.id) === curVal) ? " selected" : "";
+    html += `<option value="${sys.id}"${selected}>${name} (${placed}/${total})</option>`;
+  }
+  sel.innerHTML = html;
+  // Restore selection if still valid
+  if (editor && editor.activeSysId) {
+    sel.value = String(editor.activeSysId);
+    if (!sel.value) {
+      editor.activeSysId = null;
+      editor.setMode("select");
+    }
+  }
+}
+
+// ---- Active system indicator ----
+function updateActiveIndicator() {
+  const el = document.getElementById("vs-active-sys");
+  if (!editor || !editor.activeSysId) {
+    el.innerHTML = '<span style="font-size:8px;color:var(--tx3);font-style:italic">Select a system to paint</span>';
+    return;
+  }
+  const sys = veh.findSystem(editor.activeSysId);
+  if (!sys) {
+    el.innerHTML = '<span style="font-size:8px;color:var(--tx3);font-style:italic">Select a system to paint</span>';
+    return;
+  }
+  const color = MP.sysColor(sys.desc);
+  const name = sys.desc || "(unnamed)";
+  const placed = sys.cells.length;
+  const total = sys.spaces || 0;
+  el.innerHTML = `<span class="vs-active-swatch" style="background:${color}"></span>`
+    + `<span class="vs-active-name">${name}</span>`
+    + `<span class="vs-active-count">${placed} / ${total}</span>`;
+}
+
 // ---- Config change handlers ----
 function onConfigChange() {
   veh.name = document.getElementById("vs-name").value;
@@ -269,7 +300,6 @@ function onConfigChange() {
   veh.maneuverMod = parseFloat(document.getElementById("vs-maneuver").value) || 0;
   veh.wontExplode = document.getElementById("vs-noexplode").checked;
   veh.isBase = document.getElementById("vs-base").checked;
-  veh.notes = document.getElementById("vs-notes").value;
   updateAll();
 }
 
@@ -282,9 +312,6 @@ function onConfigChange() {
 });
 ["vs-noexplode","vs-base"].forEach(id => {
   document.getElementById(id).addEventListener("change", onConfigChange);
-});
-document.getElementById("vs-notes").addEventListener("input", () => {
-  veh.notes = document.getElementById("vs-notes").value;
 });
 
 // ---- Import image ----
@@ -305,16 +332,41 @@ document.getElementById("inp-picture").addEventListener("change", e => {
   e.target.value = "";
 });
 
+// ---- Layout toolbar: system dropdown ----
+document.getElementById("sel-layout-sys").addEventListener("change", () => {
+  const sel = document.getElementById("sel-layout-sys");
+  const sysId = parseInt(sel.value) || null;
+  if (editor) {
+    editor.activeSysId = sysId;
+    if (sysId) {
+      editor.setMode("paint");
+    } else {
+      editor.setMode("select");
+    }
+    updateModeButtons();
+    updateActiveIndicator();
+    editor.draw();
+  }
+});
+
 // ---- Mode buttons ----
 function updateModeButtons() {
   if (!editor) return;
-  document.getElementById("btn-mode-select").classList.toggle("active", editor.mode === "select");
   document.getElementById("btn-mode-paint").classList.toggle("active", editor.mode === "paint");
   document.getElementById("btn-mode-erase").classList.toggle("active", editor.mode === "erase");
 }
-document.getElementById("btn-mode-select").addEventListener("click", () => { editor.setMode("select"); updateModeButtons(); });
-document.getElementById("btn-mode-paint").addEventListener("click", () => { if (editor.activeSysId) editor.setMode("paint"); updateModeButtons(); });
-document.getElementById("btn-mode-erase").addEventListener("click", () => { editor.setMode("erase"); updateModeButtons(); });
+document.getElementById("btn-mode-paint").addEventListener("click", () => {
+  if (editor && editor.activeSysId) {
+    editor.setMode("paint");
+    updateModeButtons();
+  }
+});
+document.getElementById("btn-mode-erase").addEventListener("click", () => {
+  if (editor) {
+    editor.setMode("erase");
+    updateModeButtons();
+  }
+});
 document.getElementById("btn-zoom-in").addEventListener("click", () => editor.zoomIn());
 document.getElementById("btn-zoom-out").addEventListener("click", () => editor.zoomOut());
 document.getElementById("btn-zoom-reset").addEventListener("click", () => editor.resetView());
@@ -366,7 +418,11 @@ document.getElementById("btn-png").addEventListener("click", () => {
 const layoutCanvasEl = document.getElementById("vs-layout-canvas");
 const layoutWrapEl = document.getElementById("vs-layout-wrap");
 editor = new FloorPlanEditor(layoutCanvasEl, layoutWrapEl, veh);
-editor.onUpdate = () => { updateAll(); };
+editor.onUpdate = () => {
+  updateActiveIndicator();
+  updateSystemDropdown();
+  editor.draw();
+};
 editor.panX = 20;
 editor.panY = 20;
 

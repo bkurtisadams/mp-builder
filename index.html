@@ -135,12 +135,6 @@
     </div>
   </div>
 
-  <!-- NOTES -->
-  <div class="vs-notes-section">
-    <div class="vs-section-hdr">NOTES</div>
-    <textarea id="vs-notes" class="vs-notes" rows="3" placeholder="Vehicle modifiers, special features, travel abilities, appearance..."></textarea>
-  </div>
-
   <!-- Bottom: Picture + Key + Layout -->
   <div class="vs-bottom">
     <div class="vs-bottom-left">
@@ -158,13 +152,16 @@
     <div class="vs-bottom-right">
       <div class="vs-section-hdr">VEHICLE LAYOUT</div>
       <div class="vs-layout-toolbar">
-        <button id="btn-mode-select" class="ed-btn ed-btn-mode active" title="Select (S)">Select</button>
+        <select id="sel-layout-sys" class="vs-sys-sel" title="Select a system to paint">
+          <option value="">— select system —</option>
+        </select>
         <button id="btn-mode-paint" class="ed-btn ed-btn-mode" title="Paint cells">Paint</button>
         <button id="btn-mode-erase" class="ed-btn ed-btn-mode" title="Erase (E)">Erase</button>
         <span class="ed-sep"></span>
         <button id="btn-zoom-in" class="ed-btn" title="Zoom in">+</button>
         <button id="btn-zoom-out" class="ed-btn" title="Zoom out">&minus;</button>
         <button id="btn-zoom-reset" class="ed-btn" title="Reset view">Reset</button>
+        <span id="vs-active-sys" class="vs-active-sys"></span>
       </div>
       <div class="vs-layout-canvas" id="vs-layout-wrap">
         <canvas id="vs-layout-canvas"></canvas>
@@ -174,23 +171,6 @@
         1 cell = 1 system space (2.5') / heavy lines = 5'
       </div>
     </div>
-  </div>
-
-  <!-- Modifiers Reference -->
-  <div class="vs-ref-section">
-    <div class="vs-section-hdr">MODIFIERS REFERENCE</div>
-    <table class="vs-ref-table">
-      <tr><td class="vs-ref-name">Integral</td><td>Hidden, can't be targeted. Half CPs.</td></tr>
-      <tr><td class="vs-ref-name">Bulky</td><td>+4.3 Hits per application. +2.5 CP each.</td></tr>
-      <tr><td class="vs-ref-name">Delicate</td><td>-4.3 Hits per application. -2.5 CP each.</td></tr>
-      <tr><td class="vs-ref-name">Gear</td><td>Removable/breakable by passengers.</td></tr>
-      <tr><td class="vs-ref-name">Indep. Power</td><td>Own 10 Power, independent of central.</td></tr>
-      <tr><td class="vs-ref-name">No Arc</td><td>Straight line only. -10 CP.</td></tr>
-      <tr><td class="vs-ref-name">Wide 240&deg;</td><td>240&deg; arc. +5 CP.</td></tr>
-      <tr><td class="vs-ref-name">Wide 360&deg;</td><td>360&deg; arc. +10 CP.</td></tr>
-      <tr><td class="vs-ref-name">Open System</td><td>Passable, 1/4 CPs. Free sub-vehicle at 1/4 size.</td></tr>
-      <tr><td class="vs-ref-name">Won't Expl.</td><td>Indep. power won't explode. +5 CP.</td></tr>
-    </table>
   </div>
 
   <div class="vs-sheet-ftr">

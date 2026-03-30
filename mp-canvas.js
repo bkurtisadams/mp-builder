@@ -247,27 +247,52 @@ class FloorPlanEditor {
 
     // Painted cells
     for (const sys of this.veh.systems) {
-      const ab = MP.abilityById(sys.abilityId);
-      const color = ab?.color || "#707070";
+      const color = MP.sysColor(sys.desc);
+      const isSeat = MP.isSeatSystem(sys.desc);
       const isActive = sys.id === this.activeSysId;
       for (const c of sys.cells) {
         const x = ox + c.gx * cell;
         const y = oy + c.gy * cell;
-        ctx.globalAlpha = 0.85;
-        ctx.fillStyle = color;
-        ctx.fillRect(x + 1, y + 1, cell - 2, cell - 2);
+        if (isSeat) {
+          // Seat: light tinted background with colored symbol
+          ctx.globalAlpha = 0.15;
+          ctx.fillStyle = color;
+          ctx.fillRect(x + 1, y + 1, cell - 2, cell - 2);
+          ctx.globalAlpha = 0.9;
+          // Draw seat shape: rounded rect body
+          const pad = cell * 0.2;
+          const sW = cell - pad * 2;
+          const sH = cell - pad * 2;
+          const sx = x + pad;
+          const sy = y + pad + sH * 0.15;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.roundRect(sx, sy, sW, sH * 0.7, 2);
+          ctx.fill();
+          // Backrest
+          ctx.beginPath();
+          ctx.roundRect(sx, y + pad, sW, sH * 0.25, 2);
+          ctx.fill();
+        } else {
+          // Standard system: solid fill
+          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = color;
+          ctx.fillRect(x + 1, y + 1, cell - 2, cell - 2);
+        }
+        ctx.globalAlpha = 1;
         ctx.strokeStyle = isActive ? "#f4d03f" : "#00000044";
         ctx.lineWidth = isActive ? 2 : 0.5;
         ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
-        ctx.globalAlpha = 1;
-        // Abbr label if cell is big enough
-        if (cell / dpr > 16) {
+        // Label if cell is big enough and not a seat
+        if (!isSeat && cell / dpr > 16) {
           const fs = Math.max(7, Math.min(11, (cell / dpr) * 0.4)) * dpr;
           ctx.font = `bold ${fs}px sans-serif`;
           ctx.fillStyle = "#ffffffdd";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(ab?.abbr || "??", x + cell / 2, y + cell / 2);
+          // Use first 2 chars of desc as label
+          const lbl = (sys.desc || "??").substring(0, 2).toUpperCase();
+          ctx.fillText(lbl, x + cell / 2, y + cell / 2);
         }
       }
     }
@@ -277,12 +302,12 @@ class FloorPlanEditor {
     // Hover ghost in paint mode
     if (this.mode === "paint" && this.activeSysId && this.hoverGx !== null) {
       const sys = this.veh.findSystem(this.activeSysId);
-      const ab = sys ? MP.abilityById(sys.abilityId) : null;
       if (sys && sys.cells.length < sys.spaces && !this.veh.cellAt(this.hoverGx, this.hoverGy)) {
+        const color = MP.sysColor(sys.desc);
         const x = ox + this.hoverGx * cell;
         const y = oy + this.hoverGy * cell;
         ctx.globalAlpha = 0.35;
-        ctx.fillStyle = ab?.color || "#707070";
+        ctx.fillStyle = color;
         ctx.fillRect(x + 1, y + 1, cell - 2, cell - 2);
         ctx.strokeStyle = "#f4d03f";
         ctx.lineWidth = 2;
@@ -341,19 +366,41 @@ class FloorPlanEditor {
       ctx.beginPath(); ctx.moveTo(0, y * cellPx + 1); ctx.lineTo(w, y * cellPx + 1); ctx.stroke();
     }
     for (const cc of allCells) {
-      const ab = MP.abilityById(cc.sys.abilityId);
+      const color = MP.sysColor(cc.sys.desc);
+      const isSeat = MP.isSeatSystem(cc.sys.desc);
       const sx = (cc.gx - minGx) * cellPx + 1;
       const sy = (cc.gy - minGy) * cellPx + 1;
-      ctx.globalAlpha = 0.85;
-      ctx.fillStyle = ab?.color || "#707070";
-      ctx.fillRect(sx + 1, sy + 1, cellPx - 2, cellPx - 2);
-      ctx.globalAlpha = 1;
-      if (cellPx > 14) {
-        ctx.font = `bold ${Math.max(7, Math.min(11, cellPx * 0.4))}px sans-serif`;
-        ctx.fillStyle = "#ffffffdd";
-        ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText(ab?.abbr || "??", sx + cellPx / 2, sy + cellPx / 2);
+      if (isSeat) {
+        ctx.globalAlpha = 0.15;
+        ctx.fillStyle = color;
+        ctx.fillRect(sx + 1, sy + 1, cellPx - 2, cellPx - 2);
+        ctx.globalAlpha = 0.9;
+        const pad = cellPx * 0.2;
+        const sW = cellPx - pad * 2;
+        const sH = cellPx - pad * 2;
+        const bx = sx + pad;
+        const by = sy + pad + sH * 0.15;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, sW, sH * 0.7, 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.roundRect(bx, sy + pad, sW, sH * 0.25, 2);
+        ctx.fill();
+      } else {
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = color;
+        ctx.fillRect(sx + 1, sy + 1, cellPx - 2, cellPx - 2);
+        ctx.globalAlpha = 1;
+        if (cellPx > 14) {
+          ctx.font = `bold ${Math.max(7, Math.min(11, cellPx * 0.4))}px sans-serif`;
+          ctx.fillStyle = "#ffffffdd";
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          const lbl = (cc.sys.desc || "??").substring(0, 2).toUpperCase();
+          ctx.fillText(lbl, sx + cellPx / 2, sy + cellPx / 2);
+        }
       }
+      ctx.globalAlpha = 1;
     }
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
     return c;

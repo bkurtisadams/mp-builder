@@ -117,11 +117,6 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 .vs-stats-row { display: flex; align-items: center; justify-content: space-between; padding: 2px 0 }
 .vs-stats-row label { font-size: 9px; font-weight: 700; color: var(--label); text-transform: uppercase; white-space: nowrap }
 
-/* Notes section */
-.vs-notes-section { margin-top: 4px; border-top: 1px solid var(--brd2); padding-top: 4px }
-.vs-notes { width: 100%; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 3px 5px; font-family: var(--fb); font-size: 9px; color: var(--tx); resize: vertical }
-.vs-notes:focus { outline: none; border-color: var(--accent) }
-
 /* Sections */
 .vs-section-hdr { font-family: var(--fd); font-size: 11px; color: var(--label); letter-spacing: .5px; margin-bottom: 3px }
 
@@ -149,17 +144,21 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 /* Layout toolbar above canvas */
 .vs-layout-toolbar { display: flex; align-items: center; gap: 3px; padding: 3px 4px; background: var(--bg2); border: 1px solid var(--brd); border-bottom: none; border-radius: 2px 2px 0 0; flex-wrap: wrap }
 
+/* System selector dropdown in layout toolbar */
+.vs-sys-sel { background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 2px 4px; font-family: var(--fb); font-size: 9px; color: var(--tx); max-width: 180px }
+.vs-sys-sel:focus { outline: none; border-color: var(--accent) }
+
+/* Active system indicator */
+.vs-active-sys { margin-left: auto; font-size: 9px; color: var(--tx2); display: flex; align-items: center; gap: 4px; white-space: nowrap }
+.vs-active-swatch { width: 10px; height: 10px; border-radius: 2px; border: 1px solid var(--brd); flex-shrink: 0 }
+.vs-active-name { font-weight: 700; color: var(--accent) }
+.vs-active-count { font-weight: 700; color: var(--val) }
+
 .vs-layout-canvas { width: 100%; aspect-ratio: 9/5; background: #fff; border: 1px solid var(--brd); border-radius: 0 0 2px 2px; overflow: hidden; position: relative }
 .vs-layout-canvas canvas { display: block; width: 100%; height: 100% }
 
 .vs-layout-hint { font-size: 8px; color: var(--tx3); padding: 2px 4px; margin-top: 1px }
 .vs-layout-hint b { color: var(--tx) }
-
-/* Modifiers Reference */
-.vs-ref-section { margin-top: 6px; border-top: 1px solid var(--brd2); padding-top: 4px }
-.vs-ref-table { width: 100%; border-collapse: collapse; font-size: 8px }
-.vs-ref-table td { padding: 2px 5px; border: 1px solid var(--brd2); color: var(--tx2) }
-.vs-ref-table .vs-ref-name { font-weight: 700; color: var(--label); width: 80px; white-space: nowrap }
 
 .vs-sheet-ftr { text-align: center; font-size: 7px; color: var(--tx3); padding: 4px 0; border-top: 1px solid var(--brd2); margin-top: 6px }
 
