@@ -618,16 +618,29 @@ MP.AREA_EFFECT_STEPS = [
   {label:'93"', cp:47.5},
 ];
 
-// Armor Piercing — each +5 pts ignored costs +2.5 CPs; "all" = +10
+// Armor Piercing — from rulebook 2.2.4
 MP.ARMOR_PIERCING_STEPS = [
-  {label:'None',  cp:0,  val:0},
-  {label:'5 pts', cp:2.5, val:5},
-  {label:'10 pts',cp:5,   val:10},
-  {label:'15 pts',cp:7.5, val:15},
-  {label:'20 pts',cp:10,  val:20},
-  {label:'25 pts',cp:12.5,val:25},
-  {label:'30 pts',cp:15,  val:30},
-  {label:'All',   cp:10,  val:'all'},
+  {label:'None',   cp:0,    val:0},
+  {label:'2 pts',  cp:2.5,  val:2},
+  {label:'3 pts',  cp:5,    val:3},
+  {label:'5 pts',  cp:7.5,  val:5},
+  {label:'6 pts',  cp:10,   val:6},
+  {label:'8 pts',  cp:12.5, val:8},
+  {label:'9 pts',  cp:15,   val:9},
+  {label:'11 pts', cp:17.5, val:11},
+  {label:'12 pts', cp:20,   val:12},
+  {label:'14 pts', cp:22.5, val:14},
+  {label:'15 pts', cp:25,   val:15},
+  {label:'17 pts', cp:27.5, val:17},
+  {label:'18 pts', cp:30,   val:18},
+  {label:'20 pts', cp:32.5, val:20},
+  {label:'21 pts', cp:35,   val:21},
+  {label:'23 pts', cp:37.5, val:23},
+  {label:'24 pts', cp:40,   val:24},
+  {label:'26 pts', cp:42.5, val:26},
+  {label:'27 pts', cp:45,   val:27},
+  {label:'29 pts', cp:47.5, val:29},
+  {label:'30 pts', cp:50,   val:30},
 ];
 
 // Autofire — Rate of Fire 2-7, cost adjustment
@@ -639,6 +652,45 @@ MP.AUTOFIRE_STEPS = [
   {label:'RoF 5',cp:30,  rof:5},
   {label:'RoF 6',cp:37.5,rof:6},
   {label:'RoF 7',cp:45,  rof:7},
+];
+
+// Duration — sliding scale, each step ±2.5 CPs
+// Default is "1 Round/Instant" (index 0, 0 CP)
+MP.DURATION_STEPS = [
+  {label:'1 Round/Instant', cp:0},
+  {label:'2 Rounds',        cp:2.5},
+  {label:'3 Rounds',        cp:5},
+  {label:'1 Minute',        cp:7.5},
+  {label:'5 Minutes',       cp:10},
+  {label:'20 Minutes',      cp:12.5},
+  {label:'1 Hour',          cp:15},
+  {label:'3 Hours',         cp:17.5},
+  {label:'10 Hours',        cp:20},
+  {label:'1.5 Days',        cp:22.5},
+  {label:'3.5 Days',        cp:25},
+  {label:'1.5 Weeks',       cp:27.5},
+  {label:'1 Month',         cp:30},
+  {label:'3 Months',        cp:32.5},
+  {label:'1 Year',          cp:35},
+  {label:'3 Years',         cp:37.5},
+  {label:'10 Years',        cp:40},
+  {label:'33 Years',        cp:42.5},
+  {label:'100 Years',       cp:45},
+];
+
+// Hardened — protection modifier, +2.5 CPs per 3 points
+MP.HARDENED_STEPS = [
+  {label:'None',    cp:0,    val:0},
+  {label:'3 pts',   cp:2.5,  val:3},
+  {label:'6 pts',   cp:5,    val:6},
+  {label:'9 pts',   cp:7.5,  val:9},
+  {label:'12 pts',  cp:10,   val:12},
+  {label:'15 pts',  cp:12.5, val:15},
+  {label:'18 pts',  cp:15,   val:18},
+  {label:'21 pts',  cp:17.5, val:21},
+  {label:'24 pts',  cp:20,   val:24},
+  {label:'27 pts',  cp:22.5, val:27},
+  {label:'30 pts',  cp:25,   val:30},
 ];
 
 // PR & Charges unified scale (from rulebook)
