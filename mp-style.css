@@ -215,25 +215,18 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 .aid-stats-info { font-size: 9px; font-weight: 700; color: var(--val) }
 .aid-pr-display { font-size: 8px; font-weight: 700; color: var(--tx2); white-space: nowrap }
 .aid-divider { border-top: 1px solid var(--brd2); margin: 4px 0 }
-/* Modifier tabs */
-.aid-mod-section { min-height: 46px }
-.aid-tab-bar { display: flex; gap: 2px; flex-wrap: wrap; padding: 2px 0 }
-.aid-tab { display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px; font-family: var(--fb); font-size: 8px; font-weight: 700; color: var(--tx2); background: #e8eff4; border: 1px solid var(--brd); border-bottom: none; border-radius: 3px 3px 0 0; cursor: pointer; white-space: nowrap; position: relative }
-.aid-tab.active { background: var(--bg3); color: var(--accent); border-color: var(--accent) }
-.aid-tab .aid-tab-cp { font-size: 7px; color: var(--val); margin-left: 1px }
-.aid-tab .aid-tab-rm { font-size: 9px; color: var(--del); cursor: pointer; margin-left: 2px; line-height: 1 }
-.aid-tab .aid-tab-rm:hover { color: #e04040 }
-.aid-tab-add { padding: 2px 8px; font-size: 11px; font-weight: 700; color: var(--accent); background: none; border: 1px dashed var(--brd); border-radius: 3px; cursor: pointer; font-family: var(--fb) }
-.aid-tab-add:hover { border-color: var(--accent); background: rgba(192,90,0,.06) }
-.aid-tab-panel { border: 1px solid var(--brd); border-radius: 0 3px 3px 3px; padding: 6px 8px; background: var(--bg3); min-height: 32px }
-.aid-tab-panel .aid-tp-row { display: flex; align-items: center; gap: 6px; padding: 2px 0 }
-.aid-tab-panel .aid-tp-lbl { font-size: 8px; font-weight: 700; color: var(--label); text-transform: uppercase; min-width: 50px; text-align: right; white-space: nowrap }
-.aid-tab-panel .aid-tp-hint { font-size: 7px; color: var(--tx3); font-style: italic }
-.aid-tab-panel select { flex: 1; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 2px 4px; font-family: var(--fb); font-size: 9px; color: var(--tx) }
-.aid-tab-panel select:focus { outline: none; border-color: var(--accent) }
-.aid-tab-panel input[type="number"] { width: 48px; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 2px 4px; font-family: var(--fb); font-size: 9px; color: var(--tx); text-align: center }
-.aid-tab-panel input[type="number"]:focus { outline: none; border-color: var(--accent) }
-.aid-tab-panel .aid-tp-empty { font-size: 8px; color: var(--tx3); font-style: italic }
+/* Modifier rows */
+.aid-section-hdr { font-size: 7px; font-weight: 700; color: var(--tx3); text-transform: uppercase; letter-spacing: 1px; padding: 4px 0 2px; border-bottom: 1px solid var(--brd2); margin: 2px 0 }
+.aid-mod-list { }
+.aid-mod-row { display: flex; align-items: center; gap: 4px; padding: 1px 0 }
+.aid-mod-row:hover { background: rgba(192,90,0,.04) }
+.aid-mlbl { font-size: 8px; font-weight: 700; color: var(--label); text-transform: uppercase; white-space: nowrap; min-width: 90px; text-align: right; flex-shrink: 0 }
+.aid-msel { flex: 1; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 1px 3px; font-family: var(--fb); font-size: 8px; color: var(--tx) }
+.aid-msel:focus { outline: none; border-color: var(--accent) }
+.aid-mnum { width: 40px; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 1px 3px; font-family: var(--fb); font-size: 8px; color: var(--tx); text-align: center }
+.aid-mnum:focus { outline: none; border-color: var(--accent) }
+.aid-mhint { font-size: 7px; color: var(--tx3); font-style: italic; white-space: nowrap }
+.aid-mchk { width: 12px; height: 12px; accent-color: var(--accent) }
 .aid-footer { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 12px; border-top: 1px solid var(--brd2) }
 .aid-btn { padding: 5px 16px; font-family: var(--fb); font-size: 10px; font-weight: 700; border: none; border-radius: 3px; cursor: pointer }
 .aid-btn-ok { background: var(--accent); color: #fff }

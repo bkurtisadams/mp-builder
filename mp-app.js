@@ -888,88 +888,53 @@ function autoLoad() {
 }
 
 // ---- Ability Insert Dialog (Ctrl+I) ----
-// Modifier type definitions
-const MOD_TYPES = [
-  // Sliding-scale select modifiers (absolute CP from table)
-  {id:"area",     label:"Area Effect",    short:"Area",  type:"select", data:()=>MP.AREA_EFFECT_STEPS, fmt:s=>`${s.label} (${s.cp>=0?"+":""}${s.cp})`, defIdx:0,
-    desc:s=>s.idx>0?`Area Effect ${MP.AREA_EFFECT_STEPS[s.idx].label}`:null, cp:s=>MP.AREA_EFFECT_STEPS[s.idx]?.cp||0, tabLbl:s=>s.idx>0?MP.AREA_EFFECT_STEPS[s.idx].label:null},
-  {id:"ap",       label:"Armor Piercing", short:"AP",    type:"select", data:()=>MP.ARMOR_PIERCING_STEPS, fmt:s=>`${s.label} (${s.cp>=0?"+":""}${s.cp})`, defIdx:0,
-    desc:s=>s.idx>0?`AP ${MP.ARMOR_PIERCING_STEPS[s.idx].val}`:null, cp:s=>MP.ARMOR_PIERCING_STEPS[s.idx]?.cp||0, tabLbl:s=>s.idx>0?String(MP.ARMOR_PIERCING_STEPS[s.idx].val):null},
-  {id:"autofire", label:"Autofire",       short:"AF",    type:"select", data:()=>MP.AUTOFIRE_STEPS, fmt:s=>`${s.label} (${s.cp>=0?"+":""}${s.cp})`, defIdx:0,
-    desc:s=>s.idx>0?`AF x${MP.AUTOFIRE_STEPS[s.idx].rof}`:null, cp:s=>MP.AUTOFIRE_STEPS[s.idx]?.cp||0, tabLbl:s=>s.idx>0?"x"+MP.AUTOFIRE_STEPS[s.idx].rof:null},
-  {id:"duration", label:"Duration",       short:"Dur",   type:"select", data:()=>MP.DURATION_STEPS, fmt:s=>`${s.label} (${s.cp>=0?"+":""}${s.cp})`, defIdx:0,
-    desc:s=>s.idx>0?`Duration ${MP.DURATION_STEPS[s.idx].label}`:null, cp:s=>MP.DURATION_STEPS[s.idx]?.cp||0, tabLbl:s=>s.idx>0?MP.DURATION_STEPS[s.idx].label:null},
-  {id:"hardened", label:"Hardened",       short:"Hard",  type:"select", data:()=>MP.HARDENED_STEPS, fmt:s=>`${s.label} (${s.cp>=0?"+":""}${s.cp})`, defIdx:0,
-    desc:s=>s.idx>0?`Hardened ${MP.HARDENED_STEPS[s.idx].val}`:null, cp:s=>MP.HARDENED_STEPS[s.idx]?.cp||0, tabLbl:s=>s.idx>0?String(MP.HARDENED_STEPS[s.idx].val):null},
-  // Fixed-cost modifiers
-  {id:"gear",          label:"Gear (-5)",              short:"Gear",  type:"fixed", cpVal:-5,
-    desc:s=>"Gear", cp:s=>-5, tabLbl:s=>null},
-  {id:"conductive",    label:"Conductive (+7.5)",      short:"Cond",  type:"fixed", cpVal:7.5,
-    desc:s=>"Conductive", cp:s=>7.5, tabLbl:s=>null},
-  {id:"concentration", label:"Concentration (-2.5)",   short:"Conc",  type:"fixed", cpVal:-2.5,
-    desc:s=>"Concentration", cp:s=>-2.5, tabLbl:s=>null},
-  {id:"concPerUse",    label:"Conc. Per Use (-5)",     short:"CpU",   type:"fixed", cpVal:-5,
-    desc:s=>"Conc. Per Use", cp:s=>-5, tabLbl:s=>null},
-  {id:"concMaint",     label:"Conc. to Maintain (-7.5)",short:"CtM",  type:"fixed", cpVal:-7.5,
-    desc:s=>"Conc. to Maintain", cp:s=>-7.5, tabLbl:s=>null},
-  {id:"knockback",     label:"Knockback (+5)",         short:"KB",    type:"fixed", cpVal:5,
-    desc:s=>"Knockback", cp:s=>5, tabLbl:s=>null},
-  {id:"noKnockback",   label:"No Knockback (-5)",      short:"NoKB",  type:"fixed", cpVal:-5,
-    desc:s=>"No Knockback", cp:s=>-5, tabLbl:s=>null},
-  {id:"immunity",      label:"Immunity (+2.5)",        short:"Imm",   type:"fixed", cpVal:2.5,
-    desc:s=>"Immunity", cp:s=>2.5, tabLbl:s=>null},
-  {id:"unobvious",     label:"Unobvious (+5)",         short:"Unob",  type:"fixed", cpVal:5,
-    desc:s=>"Unobvious", cp:s=>5, tabLbl:s=>null},
-  {id:"obvious",       label:"Obvious (-5)",           short:"Obv",   type:"fixed", cpVal:-5,
-    desc:s=>"Obvious", cp:s=>-5, tabLbl:s=>null},
-  {id:"bodyPart",      label:"Body Part (-5)",         short:"BPrt",  type:"fixed", cpVal:-5,
-    desc:s=>"Body Part", cp:s=>-5, tabLbl:s=>null},
-  {id:"partial",       label:"Partial Coverage (-5)",  short:"Part",  type:"fixed", cpVal:-5,
-    desc:s=>"Partial Coverage", cp:s=>-5, tabLbl:s=>null},
-  {id:"partialLt",     label:"Partial Cov. Light (-10)",short:"PrtL", type:"fixed", cpVal:-10,
-    desc:s=>"Partial Cov. Light", cp:s=>-10, tabLbl:s=>null},
-  {id:"carrierMain",   label:"Carrier Attack (+7.5)",  short:"Carr",  type:"fixed", cpVal:7.5,
-    desc:s=>"Carrier Attack", cp:s=>7.5, tabLbl:s=>null},
-  {id:"carrierSub",    label:"Carried Atk (+7.5)",     short:"Crd",   type:"fixed", cpVal:7.5,
-    desc:s=>"Carried Attack", cp:s=>7.5, tabLbl:s=>null},
-  {id:"contactAtk",    label:"Contact Attack (+15)",   short:"Cont",  type:"fixed", cpVal:15,
-    desc:s=>"Contact Attack", cp:s=>15, tabLbl:s=>null},
-  {id:"focused",       label:"Focused (0)",            short:"Foc",   type:"fixed", cpVal:0,
-    desc:s=>"Focused", cp:s=>0, tabLbl:s=>null},
-  {id:"reversible",    label:"Reversible (+10)",       short:"Rev",   type:"fixed", cpVal:10,
-    desc:s=>"Reversible", cp:s=>10, tabLbl:s=>null},
-  {id:"selective",     label:"Selective AE (+12.5)",   short:"Sel",   type:"fixed", cpVal:12.5,
-    desc:s=>"Selective", cp:s=>12.5, tabLbl:s=>null},
-  {id:"poorPen",       label:"Poor Penetration (-5)",  short:"PPen",  type:"fixed", cpVal:-5,
-    desc:s=>"Poor Penetration", cp:s=>-5, tabLbl:s=>null},
-  {id:"poorPenTotal",  label:"Poor Pen. Total (-10)",  short:"PPnT",  type:"fixed", cpVal:-10,
-    desc:s=>"Poor Pen. Total", cp:s=>-10, tabLbl:s=>null},
-  // Number-input modifiers
-  {id:"bulky",    label:"Bulky",          short:"Blk",  type:"number", min:1, max:20, def:1, step:1, hint:"+2.5 CPs/app, +4.3 Hits/app",
-    desc:s=>s.val>0?`Bulky x${s.val}`:null, cp:s=>s.val*2.5, tabLbl:s=>s.val>0?"x"+s.val:null},
-  {id:"delicate", label:"Delicate",       short:"Del",  type:"number", min:1, max:20, def:1, step:1, hint:"-2.5 CPs/app, -4.3 Hits/app",
-    desc:s=>s.val>0?`Delicate x${s.val}`:null, cp:s=>-(s.val*2.5), tabLbl:s=>s.val>0?"x"+s.val:null},
-  {id:"breakdown",label:"Breakdown",      short:"Bkdn", type:"number", min:1, max:6, def:1, step:1, hint:"-2.5 CPs/step, Luck save +10/+8/+6/+4/+2/0",
-    desc:s=>s.val>0?`Breakdown x${s.val}`:null, cp:s=>-(s.val*2.5), tabLbl:s=>s.val>0?"x"+s.val:null},
-  // Dynamic sliding-scale modifiers (anchored to ability's base)
-  {id:"prch",     label:"PR / Charges",   short:"PR/Ch",type:"dynamic", builder:"prch",
-    desc:s=>s.cp!==0?s.rowLabel:null, cp:s=>s.cp, tabLbl:s=>s.cp!==0?s.rowLabel.split(" / ")[0]:null},
-  {id:"range",    label:"Range",          short:"Rng",  type:"dynamic", builder:"range",
-    desc:s=>s.cp!==0?`Range ${s.rangeLabel}`:null, cp:s=>s.cp, tabLbl:s=>s.cp!==0?s.rangeLabel:null},
-  // Miscellaneous (freeform CP)
-  {id:"misc",     label:"Misc. Modifier", short:"Misc", type:"number", min:-50, max:50, def:0, step:2.5, hint:"Custom CP adjustment",
-    desc:s=>s.val!==0?"Misc. Modifier":null, cp:s=>s.val||0, tabLbl:s=>s.val!==0?String(s.val):null},
-];
+
+// Mousewheel cycling on select elements
+function wheelSelect(sel) {
+  sel.addEventListener("wheel", e => {
+    e.preventDefault();
+    const dir = e.deltaY > 0 ? 1 : -1;
+    const newIdx = Math.max(0, Math.min(sel.options.length - 1, sel.selectedIndex + dir));
+    if (newIdx !== sel.selectedIndex) { sel.selectedIndex = newIdx; sel.dispatchEvent(new Event("change")); }
+  }, {passive: false});
+}
+// Mousewheel on number inputs
+function wheelNumber(inp) {
+  inp.addEventListener("wheel", e => {
+    e.preventDefault();
+    const step = parseFloat(inp.step) || 1;
+    const dir = e.deltaY > 0 ? -step : step;
+    const min = parseFloat(inp.min); const max = parseFloat(inp.max);
+    let v = (parseFloat(inp.value) || 0) + dir;
+    if (!isNaN(min)) v = Math.max(min, v);
+    if (!isNaN(max)) v = Math.min(max, v);
+    inp.value = v;
+    inp.dispatchEvent(new Event("input"));
+  }, {passive: false});
+}
+
+// Generic modifier select builders
+function buildStepSelect(sel, steps, fmtFn, defIdx) {
+  sel.innerHTML = "";
+  for (let i = 0; i < steps.length; i++) {
+    const opt = document.createElement("option");
+    opt.value = i; opt.textContent = fmtFn(steps[i], i);
+    if (i === (defIdx || 0)) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  wheelSelect(sel);
+}
+
+function fmtCp(s) { return `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`; }
 
 const abilityDlg = {
   overlay: null,
   targetIdx: null,
-  tabs: [],
-  activeTab: -1,
-  _nextTabId: 0,
 
   init() {
     this.overlay = document.getElementById("ability-dlg-overlay");
+
+    // Build ability dropdown
     const sel = document.getElementById("aid-ability");
     const blankOpt = document.createElement("option");
     blankOpt.value = ""; blankOpt.textContent = "— select ability —";
@@ -982,12 +947,85 @@ const abilityDlg = {
       for (const ab of cats[cat]) { const opt = document.createElement("option"); opt.value = ab.id; opt.textContent = ab.name; og.appendChild(opt); }
       sel.appendChild(og);
     }
-    const spSel = document.getElementById("aid-spaces");
-    for (const row of MP.SYS_TABLE) { const opt = document.createElement("option"); opt.value = row.sp; opt.textContent = `${row.sp} sp → (${row.cp}) CPs`; spSel.appendChild(opt); }
+    wheelSelect(sel);
 
+    // Build system spaces dropdown, default to 8sp (20 CPs)
+    const spSel = document.getElementById("aid-spaces");
+    for (const row of MP.SYS_TABLE) {
+      const opt = document.createElement("option");
+      opt.value = row.sp; opt.textContent = `${row.sp} sp → (${row.cp}) CPs`;
+      if (row.sp === 8) opt.selected = true;
+      spSel.appendChild(opt);
+    }
+    wheelSelect(spSel);
+
+    // Build generic modifier dropdowns
+    buildStepSelect(document.getElementById("aid-area"), MP.AREA_EFFECT_STEPS, fmtCp, 0);
+    buildStepSelect(document.getElementById("aid-ap"), MP.ARMOR_PIERCING_STEPS, fmtCp, 0);
+    buildStepSelect(document.getElementById("aid-autofire"), MP.AUTOFIRE_STEPS, fmtCp, 0);
+    buildStepSelect(document.getElementById("aid-duration"), MP.DURATION_STEPS, fmtCp, 0);
+    buildStepSelect(document.getElementById("aid-hardened"), MP.HARDENED_STEPS, fmtCp, 0);
+
+    // Concentration dropdown
+    const concSel = document.getElementById("aid-conc");
+    [{l:"None (0)",cp:0},{l:"Activation (-2.5)",cp:-2.5},{l:"Per Use (-5)",cp:-5},{l:"Maintain (-7.5)",cp:-7.5}].forEach((o,i) => {
+      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; concSel.appendChild(opt);
+    });
+    wheelSelect(concSel);
+
+    // Knockback dropdown
+    const kbSel = document.getElementById("aid-kb");
+    [{l:"Normal (0)",cp:0},{l:"Knockback (+5)",cp:5},{l:"No Knockback (-5)",cp:-5},{l:"KB Only (-10)",cp:-10}].forEach((o,i) => {
+      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; kbSel.appendChild(opt);
+    });
+    wheelSelect(kbSel);
+
+    // Partial coverage dropdown
+    const partSel = document.getElementById("aid-partial");
+    [{l:"Full (0)",cp:0},{l:"Heavy (-5)",cp:-5},{l:"Light (-10)",cp:-10}].forEach((o,i) => {
+      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; partSel.appendChild(opt);
+    });
+    wheelSelect(partSel);
+
+    // Poor penetration dropdown
+    const ppSel = document.getElementById("aid-poorpen");
+    [{l:"Normal (0)",cp:0},{l:"Double prot (-5)",cp:-5},{l:"Any prot blocks (-10)",cp:-10}].forEach((o,i) => {
+      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; ppSel.appendChild(opt);
+    });
+    wheelSelect(ppSel);
+
+    // Obvious dropdown
+    const obvSel = document.getElementById("aid-obvious");
+    [{l:"Normal (0)",cp:0},{l:"Unobvious (+5)",cp:5},{l:"Fewer Senses (+2.5)",cp:2.5},{l:"Obvious (-5)",cp:-5},{l:"Extra Senses (-2.5)",cp:-2.5}].forEach((o,i) => {
+      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; obvSel.appendChild(opt);
+    });
+    wheelSelect(obvSel);
+
+    // Carrier/Contact dropdown
+    const carrSel = document.getElementById("aid-carrier");
+    [{l:"None (0)",cp:0},{l:"Carrier Main (+7.5)",cp:7.5},{l:"Carried Atk (+7.5)",cp:7.5},{l:"Contact Atk (+15)",cp:15},{l:"Conductive (+7.5)",cp:7.5}].forEach((o,i) => {
+      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; carrSel.appendChild(opt);
+    });
+    wheelSelect(carrSel);
+
+    // Other misc dropdown
+    const othSel = document.getElementById("aid-other");
+    [{l:"None (0)",cp:0},{l:"Immunity (+2.5)",cp:2.5},{l:"Body Part (-5)",cp:-5},{l:"Focused (0)",cp:0},
+     {l:"Reversible (+10)",cp:10},{l:"Selective AE (+12.5)",cp:12.5},{l:"Backlash (-7.5)",cp:-7.5},
+     {l:"Overload (+5)",cp:5},{l:"Non-Corp Effect (+5)",cp:5}].forEach((o,i) => {
+      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; othSel.appendChild(opt);
+    });
+    wheelSelect(othSel);
+
+    // Mousewheel on number inputs
+    wheelNumber(document.getElementById("aid-bulky"));
+    wheelNumber(document.getElementById("aid-delicate"));
+    wheelNumber(document.getElementById("aid-breakdown"));
+
+    // Wire events
     spSel.addEventListener("change", () => { this._updateCPDisplay(); this._updateStats(); });
     sel.addEventListener("change", () => this._onAbilityChange());
-    document.getElementById("aid-tab-add").addEventListener("click", () => this._addTab());
+
     document.getElementById("aid-ok").addEventListener("click", () => this._commit());
     document.getElementById("aid-cancel").addEventListener("click", () => this.close());
     this.overlay.addEventListener("mousedown", e => { if (e.target === this.overlay) this.close(); });
@@ -995,14 +1033,14 @@ const abilityDlg = {
   },
 
   _updateCPDisplay() {
-    const sp = parseInt(document.getElementById("aid-spaces").value) || 1;
+    const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
     const row = MP.lookupSys(sp);
     document.getElementById("aid-cp-display").textContent = row ? `(${row.cp}) CPs` : "";
   },
 
   _updateStats() {
     const abId = document.getElementById("aid-ability").value;
-    const sp = parseInt(document.getElementById("aid-spaces").value) || 1;
+    const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
     const sysRow = MP.lookupSys(sp);
     const cp = sysRow ? sysRow.cp : 0;
     const info = MP.computeAbilityInfo(abId, cp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
@@ -1020,232 +1058,131 @@ const abilityDlg = {
       const dmgText = detail.dmg !== "—" ? `${detail.dmg} dmg` : "";
       prEl.textContent = [prText, dmgText].filter(Boolean).join(", ");
     } else { hintEl.textContent = ""; prEl.textContent = ""; }
-    // Clear tabs with per-ability modifiers from a different ability
-    for (const tab of this.tabs) {
-      if (tab.modType?._abilityMod) { tab.modType = null; tab.value = null; }
-      if (tab.modType?.type === "dynamic") { tab.value = null; }
-    }
-    this._renderTabBar();
-    this._renderActivePanel();
+    this._rebuildPRCharges(detail ? detail.pr : 0);
+    this._rebuildRange(detail?.calc?.baseRange || 'BCx1"');
+    this._rebuildAbilityMods(abId);
     this._updateCPDisplay();
     this._updateStats();
   },
 
-  // ---- Tab management ----
-  _addTab() {
-    const tabId = this._nextTabId++;
-    this.tabs.push({ id: tabId, modType: null, value: null });
-    this._setActiveTab(tabId);
-  },
-
-  _removeTab(tabId) {
-    this.tabs = this.tabs.filter(t => t.id !== tabId);
-    if (this.activeTab === tabId) this.activeTab = this.tabs.length > 0 ? this.tabs[this.tabs.length - 1].id : -1;
-    this._renderTabBar();
-    this._renderActivePanel();
-  },
-
-  _setActiveTab(tabId) {
-    this.activeTab = tabId;
-    this._renderTabBar();
-    this._renderActivePanel();
-  },
-
-  _renderTabBar() {
-    const bar = document.getElementById("aid-tab-bar");
-    const addBtn = document.getElementById("aid-tab-add");
-    bar.innerHTML = "";
-    for (const tab of this.tabs) {
-      const btn = document.createElement("span");
-      btn.className = "aid-tab" + (tab.id === this.activeTab ? " active" : "");
-      const mt = tab.modType;
-      let label = mt ? mt.short : "Mod";
-      const reading = mt ? this._readValue(tab) : null;
-      const tl = mt && reading ? mt.tabLbl(reading) : null;
-      if (tl) label += " " + tl;
-      const cpVal = mt && reading ? mt.cp(reading) : 0;
-      let inner = `<span>${escAttr(label)}</span>`;
-      if (cpVal !== 0) inner += `<span class="aid-tab-cp">${cpVal > 0 ? "+" + cpVal : cpVal}</span>`;
-      inner += `<span class="aid-tab-rm" title="Remove">&times;</span>`;
-      btn.innerHTML = inner;
-      btn.querySelector(".aid-tab-rm").addEventListener("click", e => { e.stopPropagation(); this._removeTab(tab.id); });
-      btn.addEventListener("click", () => this._setActiveTab(tab.id));
-      bar.appendChild(btn);
+  _rebuildPRCharges(basePR) {
+    const sel = document.getElementById("aid-prch");
+    const opts = MP.buildPRChargesOptions(basePR);
+    const baseIdx = MP.prScaleIndex(basePR);
+    sel.innerHTML = "";
+    for (let i = 0; i < opts.length; i++) {
+      const opt = document.createElement("option");
+      opt.value = i; opt.textContent = opts[i].label; opt.dataset.cp = opts[i].cp;
+      if (opts[i].idx === baseIdx) opt.selected = true;
+      sel.appendChild(opt);
     }
-    bar.appendChild(addBtn);
+    wheelSelect(sel);
   },
 
-  _renderActivePanel() {
-    const tab = this.tabs.find(t => t.id === this.activeTab);
-    if (!tab) { document.getElementById("aid-tab-panel").innerHTML = '<span class="aid-tp-empty">Click + to add a modifier</span>'; return; }
-    this._renderPanel(tab);
-  },
-
-  _renderPanel(tab) {
-    const panel = document.getElementById("aid-tab-panel");
-    if (tab.id !== this.activeTab) return;
-    const allMods = this._getAllModTypes();
-    let html = '<div class="aid-tp-row"><span class="aid-tp-lbl">Type:</span><select class="aid-mod-type-sel">';
-    html += '<option value="">— pick —</option>';
-    // Universal modifiers
-    let hasAbGroup = false;
-    for (const mt of allMods) {
-      if (mt._abilityMod && !hasAbGroup) {
-        html += '</optgroup><optgroup label="── Ability ──">';
-        hasAbGroup = true;
-      } else if (!mt._abilityMod && !hasAbGroup) {
-        // first universal, start group
-      }
-      html += `<option value="${mt.id}"${tab.modType?.id===mt.id?" selected":""}>${mt.label}</option>`;
+  _rebuildRange(baseLabel) {
+    const sel = document.getElementById("aid-range");
+    const opts = MP.buildRangeOptions(baseLabel);
+    const baseIdx = MP.rangeScaleIndex(baseLabel);
+    sel.innerHTML = "";
+    for (let i = 0; i < opts.length; i++) {
+      const opt = document.createElement("option");
+      opt.value = i; opt.textContent = opts[i].label; opt.dataset.cp = opts[i].cp;
+      opt.dataset.rangeLabel = opts[i].rangeLabel;
+      if (opts[i].idx === baseIdx) opt.selected = true;
+      sel.appendChild(opt);
     }
-    if (hasAbGroup) html += '</optgroup>';
-    html += '</select></div>';
-    const mt = tab.modType;
-    if (mt) {
-      if (mt.type === "select") {
-        const steps = mt.data();
-        html += '<div class="aid-tp-row"><span class="aid-tp-lbl">Value:</span><select class="aid-mod-val-sel">';
-        for (let i = 0; i < steps.length; i++) html += `<option value="${i}"${tab.value===i?" selected":""}>${mt.fmt(steps[i])}</option>`;
-        html += '</select></div>';
-      } else if (mt.type === "fixed") {
-        html += `<div class="aid-tp-row"><span class="aid-tp-hint">${mt.label} (${mt.cpVal>=0?"+":""}${mt.cpVal} CPs)</span></div>`;
-      } else if (mt.type === "number") {
-        const val = tab.value || mt.def || 1;
-        html += `<div class="aid-tp-row"><span class="aid-tp-lbl">Count:</span><input type="number" class="aid-mod-val-num" value="${val}" min="${mt.min}" max="${mt.max}" step="${mt.step}">`;
-        if (mt.hint) html += `<span class="aid-tp-hint">${mt.hint}</span>`;
-        html += '</div>';
-      } else if (mt.type === "dynamic") {
-        html += this._buildDynamic(mt, tab);
-      }
-    }
-    panel.innerHTML = html;
-    // Wire type selector
-    const allModsRef = allMods;
-    panel.querySelector(".aid-mod-type-sel").addEventListener("change", function() {
-      tab.modType = allModsRef.find(m => m.id === this.value) || null;
-      tab.value = null;
-      if (tab.modType) {
-        if (tab.modType.type === "select") tab.value = tab.modType.defIdx || 0;
-        else if (tab.modType.type === "number") tab.value = tab.modType.def || 1;
-        else if (tab.modType.type === "fixed") tab.value = true;
-      }
-      abilityDlg._renderPanel(tab);
-      abilityDlg._renderTabBar();
-    });
-    // Wire value controls
-    const vs = panel.querySelector(".aid-mod-val-sel");
-    if (vs) vs.addEventListener("change", () => { tab.value = parseInt(vs.value); this._renderTabBar(); });
-    const vn = panel.querySelector(".aid-mod-val-num");
-    if (vn) vn.addEventListener("input", () => { tab.value = parseInt(vn.value) || 0; this._renderTabBar(); });
-    const ds = panel.querySelector(".aid-mod-dyn-sel");
-    if (ds) ds.addEventListener("change", () => { tab.value = parseInt(ds.value); this._renderTabBar(); });
+    wheelSelect(sel);
   },
 
-  // Build combined list of universal + per-ability modifiers
-  _getAllModTypes() {
-    const abId = document.getElementById("aid-ability").value;
+  _rebuildAbilityMods(abId) {
+    const container = document.getElementById("aid-ability-mods");
     const abMods = MP.ABILITY_MODIFIERS[abId];
-    const result = MOD_TYPES.slice();
-    if (abMods) {
-      for (const am of abMods) {
-        if (am.type === "number") {
-          result.push({
-            id: am.id, label: am.label, short: am.short,
-            type: "number", min: am.min, max: am.max, def: am.def, step: am.step, hint: am.hint,
-            desc: s => s.val > 0 ? `${am.label} x${s.val}` : null,
-            cp: s => am.cpFn(s.val),
-            tabLbl: s => s.val > 0 ? "x" + s.val : null,
-            _abilityMod: true,
-          });
-        } else {
-          // Fixed cost
-          result.push({
-            id: am.id, label: am.label + (am.cp !== 0 ? ` (${am.cp > 0 ? "+" : ""}${am.cp})` : ""),
-            short: am.short,
-            type: "fixed", cpVal: am.cp,
-            desc: s => am.label,
-            cp: s => am.cp,
-            tabLbl: s => null,
-            _abilityMod: true,
-          });
-        }
-      }
-    }
-    return result;
-  },
+    container.innerHTML = "";
+    if (!abMods || abMods.length === 0) return;
+    const hdr = document.createElement("div");
+    hdr.className = "aid-section-hdr";
+    hdr.textContent = "ABILITY MODIFIERS";
+    container.appendChild(hdr);
 
-  _buildDynamic(mt, tab) {
-    const detail = MP.ABILITY_DETAILS[document.getElementById("aid-ability").value];
-    if (mt.builder === "prch") {
-      const basePR = detail ? detail.pr : 0;
-      const opts = MP.buildPRChargesOptions(basePR);
-      const baseIdx = MP.prScaleIndex(basePR);
-      if (tab.value === null) tab.value = baseIdx;
-      let html = '<div class="aid-tp-row"><span class="aid-tp-lbl">PR/Ch:</span><select class="aid-mod-dyn-sel">';
-      for (let i = 0; i < opts.length; i++) html += `<option value="${i}" data-cp="${opts[i].cp}"${i===tab.value?" selected":""}>${opts[i].label}</option>`;
-      return html + '</select></div>';
-    }
-    if (mt.builder === "range") {
-      const baseRange = detail?.calc?.baseRange || 'BCx1"';
-      const opts = MP.buildRangeOptions(baseRange);
-      const baseIdx = MP.rangeScaleIndex(baseRange);
-      if (tab.value === null) tab.value = baseIdx;
-      let html = '<div class="aid-tp-row"><span class="aid-tp-lbl">Range:</span><select class="aid-mod-dyn-sel">';
-      for (let i = 0; i < opts.length; i++) html += `<option value="${i}" data-cp="${opts[i].cp}" data-rng="${escAttr(opts[i].rangeLabel)}"${i===tab.value?" selected":""}>${opts[i].label}</option>`;
-      return html + '</select></div>';
-    }
-    return "";
-  },
+    for (const am of abMods) {
+      const row = document.createElement("div");
+      row.className = "aid-mod-row";
+      row.dataset.amId = am.id;
+      const lbl = document.createElement("label");
+      lbl.className = "aid-mlbl"; lbl.textContent = am.label + ":";
+      row.appendChild(lbl);
 
-  _readValue(tab) {
-    const mt = tab.modType;
-    if (!mt) return null;
-    if (mt.type === "select") return { idx: tab.value || 0 };
-    if (mt.type === "fixed") return {};
-    if (mt.type === "number") return { val: tab.value || 0 };
-    if (mt.type === "dynamic") {
-      const detail = MP.ABILITY_DETAILS[document.getElementById("aid-ability").value];
-      if (mt.builder === "prch") {
-        const opts = MP.buildPRChargesOptions(detail ? detail.pr : 0);
-        const idx = tab.value ?? MP.prScaleIndex(detail ? detail.pr : 0);
-        const o = opts[idx];
-        return o ? { cp: o.cp, rowLabel: MP.PR_CHARGES_SCALE[idx]?.label || "" } : { cp: 0, rowLabel: "" };
+      if (am.type === "number") {
+        const inp = document.createElement("input");
+        inp.type = "number"; inp.className = "aid-mnum"; inp.value = "0";
+        inp.min = "0"; inp.max = String(am.max); inp.step = String(am.step || 1);
+        inp.dataset.amId = am.id;
+        row.appendChild(inp);
+        const hint = document.createElement("span");
+        hint.className = "aid-mhint"; hint.textContent = am.hint || "";
+        row.appendChild(hint);
+        wheelNumber(inp);
+      } else {
+        // Fixed-cost checkbox
+        const chk = document.createElement("input");
+        chk.type = "checkbox"; chk.className = "aid-mchk"; chk.dataset.amId = am.id;
+        row.appendChild(chk);
+        const cpStr = am.cp !== 0 ? (am.cp > 0 ? "+" + am.cp : String(am.cp)) : "0";
+        const hint = document.createElement("span");
+        hint.className = "aid-mhint"; hint.textContent = `(${cpStr} CPs)`;
+        row.appendChild(hint);
       }
-      if (mt.builder === "range") {
-        const baseRange = detail?.calc?.baseRange || 'BCx1"';
-        const opts = MP.buildRangeOptions(baseRange);
-        const idx = tab.value ?? MP.rangeScaleIndex(baseRange);
-        const o = opts[idx];
-        return o ? { cp: o.cp, rangeLabel: o.rangeLabel } : { cp: 0, rangeLabel: "" };
-      }
+      container.appendChild(row);
     }
-    return null;
   },
 
   open(rowIdx) {
     this.targetIdx = rowIdx;
-    this.tabs = []; this.activeTab = -1; this._nextTabId = 0;
     document.getElementById("aid-ability").selectedIndex = 0;
-    document.getElementById("aid-spaces").selectedIndex = 0;
+    // Default to 8 spaces (20 CPs)
+    const spSel = document.getElementById("aid-spaces");
+    for (let i = 0; i < spSel.options.length; i++) {
+      if (parseInt(spSel.options[i].value) === 8) { spSel.selectedIndex = i; break; }
+    }
+    // Reset generic modifiers
+    document.getElementById("aid-area").selectedIndex = 0;
+    document.getElementById("aid-ap").selectedIndex = 0;
+    document.getElementById("aid-autofire").selectedIndex = 0;
+    document.getElementById("aid-duration").selectedIndex = 0;
+    document.getElementById("aid-hardened").selectedIndex = 0;
+    document.getElementById("aid-gear").checked = false;
+    document.getElementById("aid-bulky").value = "0";
+    document.getElementById("aid-delicate").value = "0";
+    document.getElementById("aid-conc").selectedIndex = 0;
+    document.getElementById("aid-kb").selectedIndex = 0;
+    document.getElementById("aid-breakdown").value = "0";
+    document.getElementById("aid-partial").selectedIndex = 0;
+    document.getElementById("aid-poorpen").selectedIndex = 0;
+    document.getElementById("aid-obvious").selectedIndex = 0;
+    document.getElementById("aid-carrier").selectedIndex = 0;
+    document.getElementById("aid-other").selectedIndex = 0;
     document.getElementById("aid-notes").value = "";
+    // Pre-fill spaces from row
     const sys = veh.systems[rowIdx];
-    if (sys && sys.spaces) document.getElementById("aid-spaces").value = String(sys.spaces);
+    if (sys && sys.spaces) spSel.value = String(sys.spaces);
     this._onAbilityChange();
-    this._renderTabBar();
-    this._renderActivePanel();
     this.overlay.style.display = "flex";
     document.getElementById("aid-ability").focus();
   },
 
   close() { this.overlay.style.display = "none"; this.targetIdx = null; },
 
+  // Read CP from a select with data-cp attributes
+  _selCp(id) { const s = document.getElementById(id); return parseFloat(s.options[s.selectedIndex]?.dataset?.cp) || 0; },
+
   _commit() {
     const idx = this.targetIdx;
     if (idx === null) return;
     const abId = document.getElementById("aid-ability").value;
     const ab = MP.abilityById(abId);
+    const detail = MP.ABILITY_DETAILS[abId];
     const name = ab ? ab.name : "Custom";
-    const sp = parseInt(document.getElementById("aid-spaces").value) || 1;
+    const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
     const sysRow = MP.lookupSys(sp);
     const sysCp = sysRow ? sysRow.cp : 0;
     const info = MP.computeAbilityInfo(abId, sysCp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
@@ -1257,20 +1194,91 @@ const abilityDlg = {
     parts.push(basePart);
 
     let modAdj = 0, bulkyTotal = 0, delicateTotal = 0;
-    for (const tab of this.tabs) {
-      const mt = tab.modType; if (!mt) continue;
-      const r = this._readValue(tab); if (!r) continue;
-      const d = mt.desc(r), c = mt.cp(r);
-      if (d && c !== 0) { parts.push(d + " (" + (c > 0 ? "+" + c : c) + ")"); }
-      else if (d) { parts.push(d); }
-      modAdj += c;
-      if (mt.id === "bulky") bulkyTotal += r.val || 0;
-      if (mt.id === "delicate") delicateTotal += r.val || 0;
+
+    // Ability-specific modifiers first
+    const abMods = MP.ABILITY_MODIFIERS[abId] || [];
+    for (const am of abMods) {
+      if (am.type === "number") {
+        const inp = document.querySelector(`input[data-am-id="${am.id}"]`);
+        const val = parseInt(inp?.value) || 0;
+        if (val > 0) {
+          const c = am.cpFn(val);
+          const cpStr = c >= 0 ? "+" + c : String(c);
+          parts.push(`${am.label} x${val} (${cpStr})`);
+          modAdj += c;
+        }
+      } else {
+        const chk = document.querySelector(`input[data-am-id="${am.id}"]`);
+        if (chk?.checked) {
+          const cpStr = am.cp >= 0 ? "+" + am.cp : String(am.cp);
+          parts.push(am.cp !== 0 ? `${am.label} (${cpStr})` : am.label);
+          modAdj += am.cp;
+        }
+      }
     }
+
+    // Generic modifiers
+    function addSelect(id, steps, descFn) {
+      const val = parseInt(document.getElementById(id).value);
+      if (val > 0 && steps[val]) {
+        const c = steps[val].cp;
+        parts.push(descFn(steps[val], c));
+        modAdj += c;
+      }
+    }
+    addSelect("aid-area", MP.AREA_EFFECT_STEPS, (s,c) => `Area Effect ${s.label} (+${c})`);
+    addSelect("aid-ap", MP.ARMOR_PIERCING_STEPS, (s,c) => `AP ${s.val} (+${c})`);
+    addSelect("aid-autofire", MP.AUTOFIRE_STEPS, (s,c) => `AF x${s.rof} (+${c})`);
+    addSelect("aid-duration", MP.DURATION_STEPS, (s,c) => `Duration ${s.label} (+${c})`);
+    addSelect("aid-hardened", MP.HARDENED_STEPS, (s,c) => `Hardened ${s.val} (+${c})`);
+
+    if (document.getElementById("aid-gear").checked) { parts.push("Gear (-5)"); modAdj -= 5; }
+
+    const bulky = parseInt(document.getElementById("aid-bulky").value) || 0;
+    if (bulky > 0) { const c = bulky * 2.5; parts.push(`Bulky x${bulky} (+${c})`); modAdj += c; bulkyTotal = bulky; }
+    const delicate = parseInt(document.getElementById("aid-delicate").value) || 0;
+    if (delicate > 0) { const c = delicate * 2.5; parts.push(`Delicate x${delicate} (-${c})`); modAdj -= c; delicateTotal = delicate; }
+
+    // PR/Charges
+    const prchCp = this._selCp("aid-prch");
+    if (prchCp !== 0) {
+      const prchSel = document.getElementById("aid-prch");
+      const row = MP.PR_CHARGES_SCALE[parseInt(prchSel.value)];
+      if (row) { const cpStr = prchCp > 0 ? "+" + prchCp : String(prchCp); parts.push(`${row.label} (${cpStr})`); }
+      modAdj += prchCp;
+    }
+
+    // Range
+    const rngSel = document.getElementById("aid-range");
+    const rngCp = parseFloat(rngSel.options[rngSel.selectedIndex]?.dataset?.cp) || 0;
+    if (rngCp !== 0) {
+      const rngLabel = rngSel.options[rngSel.selectedIndex]?.dataset?.rangeLabel || "";
+      const cpStr = rngCp > 0 ? "+" + rngCp : String(rngCp);
+      parts.push(`Range ${rngLabel} (${cpStr})`);
+      modAdj += rngCp;
+    }
+
+    // Misc dropdowns
+    function addCpSel(id, labelFn) {
+      const c = abilityDlg._selCp(id);
+      if (c !== 0) { const s = document.getElementById(id); const txt = s.options[s.selectedIndex].textContent.replace(/ \([^)]*\)$/, "");
+        parts.push(`${labelFn ? labelFn(txt) : txt} (${c > 0 ? "+" + c : c})`); modAdj += c; }
+    }
+    addCpSel("aid-conc");
+    addCpSel("aid-kb");
+    addCpSel("aid-partial");
+    addCpSel("aid-poorpen");
+    addCpSel("aid-obvious");
+    addCpSel("aid-carrier");
+    addCpSel("aid-other");
+
+    const bkdn = parseInt(document.getElementById("aid-breakdown").value) || 0;
+    if (bkdn > 0) { const c = bkdn * 2.5; parts.push(`Breakdown x${bkdn} (-${c})`); modAdj -= c; }
+
     const notes = document.getElementById("aid-notes").value.trim();
     if (notes) parts.push(notes);
 
-    const spaces = parseInt(document.getElementById("aid-spaces").value) || 0;
+    const spaces = parseInt(document.getElementById("aid-spaces").value) || 8;
     while (veh.systems.length <= idx) veh.addSystem();
     const sys = veh.systems[idx];
     if (!sys.spaces) sys.spaces = spaces;
@@ -1285,6 +1293,7 @@ const abilityDlg = {
 };
 
 abilityDlg.init();
+
 
 
 // Ctrl+I keydown handler on system rows
