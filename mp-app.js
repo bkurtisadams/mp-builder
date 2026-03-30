@@ -172,6 +172,7 @@ function renderSystemsTable() {
         <span class="vs-sys-val vs-sys-pts">${pts}</span>
         <input type="text" class="vs-sys-desc" value="${desc}" data-field="desc" data-idx="${i}" title="System name, abilities, arc, notes">
         <span class="vs-sys-ins" data-idx="${i}" title="Insert Ability (Ctrl+I)">+</span>
+        <span class="vs-sys-edit" data-idx="${i}" title="Edit Ability (Ctrl+E)">✎</span>
         <span class="vs-sys-del" data-idx="${i}" title="Clear row">&times;</span>
       </div>
       <div class="vs-sys-mods">
@@ -249,6 +250,15 @@ function renderSystemsTable() {
     ins.addEventListener("click", (e) => {
       e.stopPropagation();
       const idx = parseInt(ins.dataset.idx);
+      if (!isNaN(idx)) abilityDlg.open(idx);
+    });
+  });
+
+  // Wire edit ability icon
+  el.querySelectorAll(".vs-sys-edit").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx);
       if (!isNaN(idx)) abilityDlg.open(idx);
     });
   });
@@ -1017,6 +1027,13 @@ const abilityDlg = {
     });
     wheelSelect(othSel);
 
+    // System Modifiers — Arc dropdown
+    const arcSel = document.getElementById("aid-arc");
+    [{l:"Forward 120° (0)",cp:0},{l:"No Arc — line only (-10)",cp:-10},{l:"Wide 240° (+5)",cp:5},{l:"Wide 360° (+10)",cp:10}].forEach((o,i) => {
+      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; arcSel.appendChild(opt);
+    });
+    wheelSelect(arcSel);
+
     // Mousewheel on number inputs
     wheelNumber(document.getElementById("aid-bulky"));
     wheelNumber(document.getElementById("aid-delicate"));
@@ -1161,10 +1178,20 @@ const abilityDlg = {
     document.getElementById("aid-obvious").selectedIndex = 0;
     document.getElementById("aid-carrier").selectedIndex = 0;
     document.getElementById("aid-other").selectedIndex = 0;
+    // Reset system modifiers
+    document.getElementById("aid-integral").checked = false;
+    document.getElementById("aid-open").checked = false;
+    document.getElementById("aid-indep").checked = false;
+    document.getElementById("aid-wontexplode").checked = false;
+    document.getElementById("aid-arc").selectedIndex = 0;
     document.getElementById("aid-notes").value = "";
-    // Pre-fill spaces from row
+    // Pre-fill spaces and system mods from row
     const sys = veh.systems[rowIdx];
-    if (sys && sys.spaces) spSel.value = String(sys.spaces);
+    if (sys) {
+      if (sys.spaces) spSel.value = String(sys.spaces);
+      if (sys.integral) document.getElementById("aid-integral").checked = true;
+      if (sys.open) document.getElementById("aid-open").checked = true;
+    }
     this._onAbilityChange();
     this.overlay.style.display = "flex";
     document.getElementById("aid-ability").focus();
@@ -1275,6 +1302,25 @@ const abilityDlg = {
     const bkdn = parseInt(document.getElementById("aid-breakdown").value) || 0;
     if (bkdn > 0) { const c = bkdn * 2.5; parts.push(`Breakdown x${bkdn} (-${c})`); modAdj -= c; }
 
+    // System modifiers
+    const isIntegral = document.getElementById("aid-integral").checked;
+    const isOpen = document.getElementById("aid-open").checked;
+    const isIndep = document.getElementById("aid-indep").checked;
+    const wontExplode = document.getElementById("aid-wontexplode").checked;
+    const arcCp = this._selCp("aid-arc");
+
+    if (isIntegral) parts.push("Integral");
+    if (isOpen) parts.push("Open");
+    if (isIndep) parts.push("Indep. Power");
+    if (wontExplode) { parts.push("Won't Explode (+5)"); modAdj += 5; }
+    if (arcCp !== 0) {
+      const arcSel = document.getElementById("aid-arc");
+      const arcTxt = arcSel.options[arcSel.selectedIndex].textContent.replace(/ \([^)]*\)$/, "");
+      const cpStr = arcCp > 0 ? "+" + arcCp : String(arcCp);
+      parts.push(`${arcTxt} (${cpStr})`);
+      modAdj += arcCp;
+    }
+
     const notes = document.getElementById("aid-notes").value.trim();
     if (notes) parts.push(notes);
 
@@ -1284,6 +1330,8 @@ const abilityDlg = {
     if (!sys.spaces) sys.spaces = spaces;
     if (bulkyTotal) sys.bulky = (sys.bulky || 0) + bulkyTotal;
     if (delicateTotal) sys.delicate = (sys.delicate || 0) + delicateTotal;
+    if (isIntegral) sys.integral = true;
+    if (isOpen) sys.open = true;
     if (sys.desc && sys.desc.trim()) sys.desc += ", " + parts.join(", ");
     else sys.desc = parts.join(", ");
     if (modAdj !== 0) sys.extraCPs = (sys.extraCPs || 0) + modAdj;
