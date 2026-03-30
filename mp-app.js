@@ -82,6 +82,17 @@ function updateAll() {
   document.getElementById("vs-basic-cost").value = veh.basicCost;
   document.getElementById("vs-hits").textContent = veh.hits;
   document.getElementById("vs-power").textContent = veh.power;
+  // Sync current to max if current exceeds max or equals old max
+  const hitsCur = document.getElementById("vs-hits-cur");
+  const powerCur = document.getElementById("vs-power-cur");
+  if (parseInt(hitsCur.value) > veh.hits || hitsCur.value === "" || hitsCur.dataset.lastMax !== String(veh.hits)) {
+    hitsCur.value = veh.hits;
+  }
+  hitsCur.dataset.lastMax = veh.hits;
+  if (parseInt(powerCur.value) > veh.power || powerCur.value === "" || powerCur.dataset.lastMax !== String(veh.power)) {
+    powerCur.value = veh.power;
+  }
+  powerCur.dataset.lastMax = veh.power;
   document.getElementById("vs-explosion").textContent = veh.explosionDice;
   document.getElementById("vs-area").textContent = veh.explosionArea;
   document.getElementById("vs-armor-kin").value = a.kin;
