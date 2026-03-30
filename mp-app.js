@@ -1046,55 +1046,81 @@ const abilityDlg = {
 
     const abId = document.getElementById("aid-ability").value;
     const ab = MP.abilityById(abId);
+    const detail = MP.ABILITY_DETAILS[abId];
     const name = ab ? ab.name : "Custom";
 
-    // Get computed stats description
+    // Get system CPs from spaces
     const sp = parseInt(document.getElementById("aid-spaces").value) || 1;
     const sysRow = MP.lookupSys(sp);
-    const cp = sysRow ? sysRow.cp : 0;
-    const info = MP.computeAbilityInfo(abId, cp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
+    const sysCp = sysRow ? sysRow.cp : 0;
 
-    // Build description: name, computed stats, then modifiers
-    const parts = [name];
-    if (info && info.desc) parts.push(info.desc);
+    // Compute ability stats (damage/speed/armor/range)
+    const info = MP.computeAbilityInfo(abId, sysCp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
 
-    // Modifiers text
+    // Build description in notation style:
+    // "Power Blast: 2d10 (20), Rng 27", AP 5 (+2.5), Gear (-5), 8 ch (-5)"
+    const parts = [];
+
+    // Base ability + computed stats + system CPs
+    let basePart = name;
+    if (info && info.desc) basePart += ": " + info.desc;
+    basePart += " (" + sysCp + ")";
+    parts.push(basePart);
+
+    // Modifiers — each with CP cost in parens
+    let modAdj = 0;
+
     const areaIdx = parseInt(document.getElementById("aid-area").value);
-    if (areaIdx > 0) parts.push("Area " + MP.AREA_EFFECT_STEPS[areaIdx].label);
+    if (areaIdx > 0) {
+      const ac = MP.AREA_EFFECT_STEPS[areaIdx].cp;
+      parts.push("Area Effect " + MP.AREA_EFFECT_STEPS[areaIdx].label + " (+" + ac + ")");
+      modAdj += ac;
+    }
 
     const apIdx = parseInt(document.getElementById("aid-ap").value);
-    if (apIdx > 0) parts.push("AP " + MP.ARMOR_PIERCING_STEPS[apIdx].label.replace(' pts',''));
+    if (apIdx > 0) {
+      const ac = MP.ARMOR_PIERCING_STEPS[apIdx].cp;
+      parts.push("AP " + MP.ARMOR_PIERCING_STEPS[apIdx].label.replace(' pts','') + " (+" + ac + ")");
+      modAdj += ac;
+    }
 
     const afIdx = parseInt(document.getElementById("aid-autofire").value);
-    if (afIdx > 0) parts.push("AF " + MP.AUTOFIRE_STEPS[afIdx].rof);
+    if (afIdx > 0) {
+      const ac = MP.AUTOFIRE_STEPS[afIdx].cp;
+      parts.push("Autofire " + MP.AUTOFIRE_STEPS[afIdx].rof + " (+" + ac + ")");
+      modAdj += ac;
+    }
 
-    if (document.getElementById("aid-gear").checked) parts.push("Gear");
+    if (document.getElementById("aid-gear").checked) {
+      parts.push("Gear (-5)");
+      modAdj += -5;
+    }
 
-    // PR/Charges adjustment
+    // PR/Charges
     const prchSel = document.getElementById("aid-prch");
     const prchOpt = prchSel.options[prchSel.selectedIndex];
     const prchCp = parseFloat(prchOpt?.dataset.cp) || 0;
     if (prchCp !== 0) {
       const row = MP.PR_CHARGES_SCALE[parseInt(prchSel.value)];
-      if (row) parts.push(row.label.split(" / ")[0]); // e.g. "PR 1" or "PR 8"
+      if (row) {
+        const cpStr = prchCp > 0 ? "+" + prchCp : String(prchCp);
+        parts.push(row.label + " (" + cpStr + ")");
+      }
+      modAdj += prchCp;
     }
 
     const rngIdx = parseInt(document.getElementById("aid-range").value);
-    if (rngIdx !== 6) parts.push("Rng: " + MP.RANGE_STEPS[rngIdx].label.replace(' (default)',''));
+    if (rngIdx !== 6) {
+      const rc = MP.RANGE_STEPS[rngIdx].cp;
+      const cpStr = rc >= 0 ? "+" + rc : String(rc);
+      parts.push("Range " + MP.RANGE_STEPS[rngIdx].label.replace(' (default)','') + " (" + cpStr + ")");
+      modAdj += rc;
+    }
 
     const notes = document.getElementById("aid-notes").value.trim();
     if (notes) parts.push(notes);
 
     const desc = parts.join(", ");
-
-    // Calculate modifier CP adjustment
-    let modAdj = 0;
-    modAdj += MP.AREA_EFFECT_STEPS[areaIdx]?.cp || 0;
-    modAdj += MP.ARMOR_PIERCING_STEPS[apIdx]?.cp || 0;
-    modAdj += MP.AUTOFIRE_STEPS[afIdx]?.cp || 0;
-    if (document.getElementById("aid-gear").checked) modAdj += -5;
-    modAdj += prchCp;
-    modAdj += MP.RANGE_STEPS[rngIdx]?.cp || 0;
 
     // Get selected spaces
     const spaces = parseInt(document.getElementById("aid-spaces").value) || 0;
