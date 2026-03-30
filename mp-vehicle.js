@@ -1,4 +1,4 @@
-// mp-vehicle.js v2.8.0 — Open System modifier, maneuver vehicle-level, tooltips
+// mp-vehicle.js v2.9.0 — Structured abilityData, Bulky/Delicate cost fix
 
 class Vehicle {
   constructor() {
@@ -37,6 +37,7 @@ class Vehicle {
       cells: [],
       integral: false, bulky: 0, delicate: 0, open: false,
       adjST: 0, adjEN: 0, adjAG: 0, adjIN: 0, adjCL: 0,
+      abilityData: null, // structured dialog state for edit mode
     };
     this.systems.push(sys);
     return sys;
@@ -109,9 +110,7 @@ class Vehicle {
     let cp = this.sysBaseCPs(sys);
     cp += (sys.extraCPs || 0);
     cp += this.techMod;
-    // Bulky reduces CPs, Delicate increases CPs
-    cp -= (sys.bulky || 0) * 2.5;
-    cp += (sys.delicate || 0) * 2.5;
+    // Bulky/Delicate only affect Hits and vehicle cost (via extraCPs), not system CPs
     if (sys.integral) cp = Math.ceil(cp / 2);
     if (sys.open) cp = Math.ceil(cp / 4);
     return Math.max(0, cp);
@@ -224,6 +223,7 @@ class Vehicle {
       s.adjST = s.adjST || 0; s.adjEN = s.adjEN || 0;
       s.adjAG = s.adjAG || 0; s.adjIN = s.adjIN || 0;
       s.adjCL = s.adjCL || 0;
+      s.abilityData = s.abilityData || null;
       return s;
     });
     this.keyEntries = data.keyEntries || [];

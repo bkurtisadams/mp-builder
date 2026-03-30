@@ -1,4 +1,4 @@
-// mp-app.js v3.1.0 — System dropdown in layout toolbar, color categories, no notes
+// mp-app.js v4.0.0 — Ability picker popup, live system stats, cost bar, edit mode
 
 const veh = new Vehicle();
 let editor = null;
@@ -250,7 +250,7 @@ function renderSystemsTable() {
     ins.addEventListener("click", (e) => {
       e.stopPropagation();
       const idx = parseInt(ins.dataset.idx);
-      if (!isNaN(idx)) abilityDlg.open(idx);
+      if (!isNaN(idx)) abilityDlg.open(idx, false);
     });
   });
 
@@ -259,7 +259,7 @@ function renderSystemsTable() {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const idx = parseInt(btn.dataset.idx);
-      if (!isNaN(idx)) abilityDlg.open(idx);
+      if (!isNaN(idx)) abilityDlg.open(idx, true);
     });
   });
 
@@ -937,33 +937,92 @@ function buildStepSelect(sel, steps, fmtFn, defIdx) {
 
 function fmtCp(s) { return `${s.label} (${s.cp >= 0 ? "+" : ""}${s.cp})`; }
 
+// ---- Ability Picker Popup ----
+const abilityPicker = {
+  overlay: null,
+  grid: null,
+  onSelect: null,
+  currentId: "",
+
+  init() {
+    this.overlay = document.getElementById("aid-picker-overlay");
+    this.grid = document.getElementById("aid-picker-grid");
+
+    // Build grouped columns
+    const cats = {};
+    for (const ab of MP.ABILITY_TYPES) { if (!cats[ab.cat]) cats[ab.cat] = []; cats[ab.cat].push(ab); }
+
+    // Layout: 4 columns, balanced by count
+    const colCats = [
+      ["Vehicle", "Crew", "Cargo", "Movement"],
+      ["Offensive"],
+      ["Defensive", "Custom"],
+      ["Miscellaneous"]
+    ];
+
+    for (const catGroup of colCats) {
+      const col = document.createElement("div");
+      col.className = "aid-picker-col";
+      for (const cat of catGroup) {
+        if (!cats[cat] || cats[cat].length === 0) continue;
+        const hdr = document.createElement("div");
+        hdr.className = "aid-picker-cat";
+        hdr.textContent = cat;
+        col.appendChild(hdr);
+        for (const ab of cats[cat]) {
+          const item = document.createElement("div");
+          item.className = "aid-picker-item";
+          item.textContent = ab.name;
+          item.dataset.abId = ab.id;
+          item.addEventListener("click", () => {
+            this._select(ab.id);
+          });
+          col.appendChild(item);
+        }
+      }
+      this.grid.appendChild(col);
+    }
+
+    this.overlay.addEventListener("mousedown", e => { if (e.target === this.overlay) this.close(); });
+    this.overlay.addEventListener("keydown", e => { if (e.key === "Escape") this.close(); });
+  },
+
+  open(currentId, callback) {
+    this.currentId = currentId || "";
+    this.onSelect = callback;
+    // Highlight current selection
+    this.grid.querySelectorAll(".aid-picker-item").forEach(el => {
+      el.classList.toggle("selected", el.dataset.abId === this.currentId);
+    });
+    this.overlay.style.display = "flex";
+    this.overlay.focus();
+  },
+
+  close() {
+    this.overlay.style.display = "none";
+    this.onSelect = null;
+  },
+
+  _select(abId) {
+    if (this.onSelect) this.onSelect(abId);
+    this.close();
+  }
+};
+
+// ---- Main Ability Dialog ----
 const abilityDlg = {
   overlay: null,
   targetIdx: null,
+  editMode: false, // true when editing existing ability
 
   init() {
     this.overlay = document.getElementById("ability-dlg-overlay");
 
-    // Build ability dropdown
-    const sel = document.getElementById("aid-ability");
-    const blankOpt = document.createElement("option");
-    blankOpt.value = ""; blankOpt.textContent = "— select ability —";
-    sel.appendChild(blankOpt);
-    const cats = {};
-    for (const ab of MP.ABILITY_TYPES) { if (!cats[ab.cat]) cats[ab.cat] = []; cats[ab.cat].push(ab); }
-    for (const cat of MP.CATEGORIES) {
-      if (!cats[cat]) continue;
-      const og = document.createElement("optgroup"); og.label = cat;
-      for (const ab of cats[cat]) { const opt = document.createElement("option"); opt.value = ab.id; opt.textContent = ab.name; og.appendChild(opt); }
-      sel.appendChild(og);
-    }
-    wheelSelect(sel);
-
-    // Build system spaces dropdown, default to 8sp (20 CPs)
+    // Build system spaces dropdown
     const spSel = document.getElementById("aid-spaces");
     for (const row of MP.SYS_TABLE) {
       const opt = document.createElement("option");
-      opt.value = row.sp; opt.textContent = `${row.sp} sp → (${row.cp}) CPs`;
+      opt.value = row.sp; opt.textContent = `${row.sp} sp`;
       if (row.sp === 8) opt.selected = true;
       spSel.appendChild(opt);
     }
@@ -1039,9 +1098,29 @@ const abilityDlg = {
     wheelNumber(document.getElementById("aid-delicate"));
     wheelNumber(document.getElementById("aid-breakdown"));
 
-    // Wire events
-    spSel.addEventListener("change", () => { this._updateCPDisplay(); this._updateStats(); });
-    sel.addEventListener("change", () => this._onAbilityChange());
+    // Wire ability picker button
+    document.getElementById("aid-ability-btn").addEventListener("click", () => {
+      const curId = document.getElementById("aid-ability-val").value;
+      abilityPicker.open(curId, (abId) => {
+        this._setAbility(abId);
+      });
+    });
+
+    // Wire events — recalc on any modifier change
+    spSel.addEventListener("change", () => { this._updateSysStats(); this._updateStats(); this._updateCostBar(); });
+
+    // Wire all modifier controls to update cost bar
+    const costInputs = "#aid-area,#aid-ap,#aid-autofire,#aid-duration,#aid-hardened,#aid-conc,#aid-kb,#aid-partial,#aid-poorpen,#aid-obvious,#aid-carrier,#aid-other,#aid-arc,#aid-prch,#aid-range";
+    costInputs.split(",").forEach(id => {
+      const el = document.querySelector(id);
+      if (el) el.addEventListener("change", () => this._updateCostBar());
+    });
+    ["aid-gear","aid-integral","aid-open","aid-indep","aid-wontexplode"].forEach(id => {
+      document.getElementById(id).addEventListener("change", () => { this._updateSysStats(); this._updateCostBar(); });
+    });
+    ["aid-bulky","aid-delicate","aid-breakdown"].forEach(id => {
+      document.getElementById(id).addEventListener("input", () => { this._updateSysStats(); this._updateCostBar(); });
+    });
 
     document.getElementById("aid-ok").addEventListener("click", () => this._commit());
     document.getElementById("aid-cancel").addEventListener("click", () => this.close());
@@ -1049,14 +1128,49 @@ const abilityDlg = {
     this.overlay.addEventListener("keydown", e => { if (e.key === "Escape") this.close(); if (e.key === "Enter") this._commit(); });
   },
 
-  _updateCPDisplay() {
+  _setAbility(abId) {
+    document.getElementById("aid-ability-val").value = abId;
+    const ab = MP.abilityById(abId);
+    const btn = document.getElementById("aid-ability-btn");
+    if (ab) {
+      btn.textContent = ab.name;
+      btn.classList.add("has-ability");
+    } else {
+      btn.textContent = "— select ability —";
+      btn.classList.remove("has-ability");
+    }
+    this._onAbilityChange();
+  },
+
+  _updateSysStats() {
     const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
-    const row = MP.lookupSys(sp);
-    document.getElementById("aid-cp-display").textContent = row ? `(${row.cp}) CPs` : "";
+    const sysRow = MP.lookupSys(sp);
+    const bulky = parseInt(document.getElementById("aid-bulky").value) || 0;
+    const delicate = parseInt(document.getElementById("aid-delicate").value) || 0;
+    const integral = document.getElementById("aid-integral").checked;
+    const open = document.getElementById("aid-open").checked;
+
+    let hits = sysRow ? sysRow.hits : 0;
+    hits += Math.ceil(4.3 * bulky);
+    hits -= Math.ceil(4.3 * delicate);
+    hits = Math.max(1, hits);
+
+    let cp = sysRow ? sysRow.cp : 0;
+    cp += veh.techMod;
+    if (integral) cp = Math.ceil(cp / 2);
+    if (open) cp = Math.ceil(cp / 4);
+    cp = Math.max(0, cp);
+
+    const prof = sysRow ? sysRow.prof : 0;
+    const profStr = prof ? "x" + (Number.isInteger(prof) ? prof : prof.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")) : "—";
+
+    document.getElementById("aid-ss-prof").textContent = profStr;
+    document.getElementById("aid-ss-hits").textContent = hits;
+    document.getElementById("aid-ss-cps").textContent = "(" + cp + ")";
   },
 
   _updateStats() {
-    const abId = document.getElementById("aid-ability").value;
+    const abId = document.getElementById("aid-ability-val").value;
     const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
     const sysRow = MP.lookupSys(sp);
     const cp = sysRow ? sysRow.cp : 0;
@@ -1064,8 +1178,93 @@ const abilityDlg = {
     document.getElementById("aid-stats-info").textContent = info ? info.hint : "";
   },
 
+  // Compute total modifier cost from current dialog state
+  _calcModCost() {
+    let modAdj = 0;
+    const abId = document.getElementById("aid-ability-val").value;
+
+    // Ability-specific modifiers
+    const abMods = MP.ABILITY_MODIFIERS[abId] || [];
+    for (const am of abMods) {
+      if (am.type === "number") {
+        const inp = document.querySelector(`input[data-am-id="${am.id}"]`);
+        const val = parseInt(inp?.value) || 0;
+        if (val > 0) modAdj += am.cpFn(val);
+      } else {
+        const chk = document.querySelector(`input[data-am-id="${am.id}"]`);
+        if (chk?.checked) modAdj += am.cp;
+      }
+    }
+
+    // Generic modifiers
+    function selCp(id) { const s = document.getElementById(id); return parseFloat(s.options[s.selectedIndex]?.dataset?.cp) || 0; }
+    function stepCp(id, steps) { const v = parseInt(document.getElementById(id).value); return (v > 0 && steps[v]) ? steps[v].cp : 0; }
+
+    modAdj += stepCp("aid-area", MP.AREA_EFFECT_STEPS);
+    modAdj += stepCp("aid-ap", MP.ARMOR_PIERCING_STEPS);
+    modAdj += stepCp("aid-autofire", MP.AUTOFIRE_STEPS);
+    modAdj += stepCp("aid-duration", MP.DURATION_STEPS);
+    modAdj += stepCp("aid-hardened", MP.HARDENED_STEPS);
+
+    if (document.getElementById("aid-gear").checked) modAdj -= 5;
+
+    const bulky = parseInt(document.getElementById("aid-bulky").value) || 0;
+    if (bulky > 0) modAdj += bulky * 2.5;
+    const delicate = parseInt(document.getElementById("aid-delicate").value) || 0;
+    if (delicate > 0) modAdj -= delicate * 2.5;
+
+    modAdj += selCp("aid-prch");
+    modAdj += selCp("aid-range");
+    modAdj += selCp("aid-conc");
+    modAdj += selCp("aid-kb");
+
+    const bkdn = parseInt(document.getElementById("aid-breakdown").value) || 0;
+    if (bkdn > 0) modAdj -= bkdn * 2.5;
+
+    modAdj += selCp("aid-partial");
+    modAdj += selCp("aid-poorpen");
+    modAdj += selCp("aid-obvious");
+    modAdj += selCp("aid-carrier");
+    modAdj += selCp("aid-other");
+
+    if (document.getElementById("aid-wontexplode").checked) modAdj += 5;
+    modAdj += selCp("aid-arc");
+
+    return modAdj;
+  },
+
+  _updateCostBar() {
+    const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
+    const sysRow = MP.lookupSys(sp);
+    let budget = sysRow ? sysRow.cp : 0;
+    budget += veh.techMod;
+    const integral = document.getElementById("aid-integral").checked;
+    const open = document.getElementById("aid-open").checked;
+    if (integral) budget = Math.ceil(budget / 2);
+    if (open) budget = Math.ceil(budget / 4);
+    budget = Math.max(0, budget);
+
+    const modAdj = this._calcModCost();
+
+    document.getElementById("aid-cost-budget").textContent = budget;
+    document.getElementById("aid-cost-spent").textContent = modAdj >= 0 ? "+" + modAdj : modAdj;
+
+    const diff = budget - modAdj;
+    const diffEl = document.getElementById("aid-cost-diff");
+    if (diff > 0) {
+      diffEl.textContent = diff + " CPs under";
+      diffEl.className = "aid-cost-diff under";
+    } else if (diff < 0) {
+      diffEl.textContent = Math.abs(diff) + " CPs over";
+      diffEl.className = "aid-cost-diff over";
+    } else {
+      diffEl.textContent = "Even";
+      diffEl.className = "aid-cost-diff even";
+    }
+  },
+
   _onAbilityChange() {
-    const abId = document.getElementById("aid-ability").value;
+    const abId = document.getElementById("aid-ability-val").value;
     const detail = MP.ABILITY_DETAILS[abId];
     const hintEl = document.getElementById("aid-hint-info");
     const prEl = document.getElementById("aid-pr-display");
@@ -1078,8 +1277,9 @@ const abilityDlg = {
     this._rebuildPRCharges(detail ? detail.pr : 0);
     this._rebuildRange(detail?.calc?.baseRange || 'BCx1"');
     this._rebuildAbilityMods(abId);
-    this._updateCPDisplay();
+    this._updateSysStats();
     this._updateStats();
+    this._updateCostBar();
   },
 
   _rebuildPRCharges(basePR) {
@@ -1139,8 +1339,8 @@ const abilityDlg = {
         hint.className = "aid-mhint"; hint.textContent = am.hint || "";
         row.appendChild(hint);
         wheelNumber(inp);
+        inp.addEventListener("input", () => this._updateCostBar());
       } else {
-        // Fixed-cost checkbox
         const chk = document.createElement("input");
         chk.type = "checkbox"; chk.className = "aid-mchk"; chk.dataset.amId = am.id;
         row.appendChild(chk);
@@ -1148,20 +1348,116 @@ const abilityDlg = {
         const hint = document.createElement("span");
         hint.className = "aid-mhint"; hint.textContent = `(${cpStr} CPs)`;
         row.appendChild(hint);
+        chk.addEventListener("change", () => this._updateCostBar());
       }
       container.appendChild(row);
     }
   },
 
-  open(rowIdx) {
-    this.targetIdx = rowIdx;
-    document.getElementById("aid-ability").selectedIndex = 0;
-    // Default to 8 spaces (20 CPs)
+  // Capture full dialog state as structured data
+  _captureState() {
+    const abId = document.getElementById("aid-ability-val").value;
+    const state = {
+      abId: abId,
+      spaces: parseInt(document.getElementById("aid-spaces").value) || 8,
+      // Generic modifiers (select indices)
+      area: parseInt(document.getElementById("aid-area").value) || 0,
+      ap: parseInt(document.getElementById("aid-ap").value) || 0,
+      autofire: parseInt(document.getElementById("aid-autofire").value) || 0,
+      duration: parseInt(document.getElementById("aid-duration").value) || 0,
+      hardened: parseInt(document.getElementById("aid-hardened").value) || 0,
+      gear: document.getElementById("aid-gear").checked,
+      bulky: parseInt(document.getElementById("aid-bulky").value) || 0,
+      delicate: parseInt(document.getElementById("aid-delicate").value) || 0,
+      prch: parseInt(document.getElementById("aid-prch").value) || 0,
+      range: parseInt(document.getElementById("aid-range").value) || 0,
+      conc: parseInt(document.getElementById("aid-conc").value) || 0,
+      kb: parseInt(document.getElementById("aid-kb").value) || 0,
+      breakdown: parseInt(document.getElementById("aid-breakdown").value) || 0,
+      partial: parseInt(document.getElementById("aid-partial").value) || 0,
+      poorpen: parseInt(document.getElementById("aid-poorpen").value) || 0,
+      obvious: parseInt(document.getElementById("aid-obvious").value) || 0,
+      carrier: parseInt(document.getElementById("aid-carrier").value) || 0,
+      other: parseInt(document.getElementById("aid-other").value) || 0,
+      // System modifiers
+      integral: document.getElementById("aid-integral").checked,
+      open: document.getElementById("aid-open").checked,
+      indep: document.getElementById("aid-indep").checked,
+      wontexplode: document.getElementById("aid-wontexplode").checked,
+      arc: parseInt(document.getElementById("aid-arc").value) || 0,
+      notes: document.getElementById("aid-notes").value.trim(),
+    };
+    // Ability-specific modifiers
+    const abMods = MP.ABILITY_MODIFIERS[abId] || [];
+    state.abilityMods = {};
+    for (const am of abMods) {
+      if (am.type === "number") {
+        const inp = document.querySelector(`input[data-am-id="${am.id}"]`);
+        state.abilityMods[am.id] = parseInt(inp?.value) || 0;
+      } else {
+        const chk = document.querySelector(`input[data-am-id="${am.id}"]`);
+        state.abilityMods[am.id] = chk?.checked || false;
+      }
+    }
+    return state;
+  },
+
+  // Restore dialog from structured data
+  _restoreState(state) {
+    if (!state) return;
+    this._setAbility(state.abId || "");
+    const spSel = document.getElementById("aid-spaces");
+    spSel.value = String(state.spaces || 8);
+
+    document.getElementById("aid-area").selectedIndex = state.area || 0;
+    document.getElementById("aid-ap").selectedIndex = state.ap || 0;
+    document.getElementById("aid-autofire").selectedIndex = state.autofire || 0;
+    document.getElementById("aid-duration").selectedIndex = state.duration || 0;
+    document.getElementById("aid-hardened").selectedIndex = state.hardened || 0;
+    document.getElementById("aid-gear").checked = state.gear || false;
+    document.getElementById("aid-bulky").value = state.bulky || 0;
+    document.getElementById("aid-delicate").value = state.delicate || 0;
+    document.getElementById("aid-prch").selectedIndex = state.prch || 0;
+    document.getElementById("aid-range").selectedIndex = state.range || 0;
+    document.getElementById("aid-conc").selectedIndex = state.conc || 0;
+    document.getElementById("aid-kb").selectedIndex = state.kb || 0;
+    document.getElementById("aid-breakdown").value = state.breakdown || 0;
+    document.getElementById("aid-partial").selectedIndex = state.partial || 0;
+    document.getElementById("aid-poorpen").selectedIndex = state.poorpen || 0;
+    document.getElementById("aid-obvious").selectedIndex = state.obvious || 0;
+    document.getElementById("aid-carrier").selectedIndex = state.carrier || 0;
+    document.getElementById("aid-other").selectedIndex = state.other || 0;
+    document.getElementById("aid-integral").checked = state.integral || false;
+    document.getElementById("aid-open").checked = state.open || false;
+    document.getElementById("aid-indep").checked = state.indep || false;
+    document.getElementById("aid-wontexplode").checked = state.wontexplode || false;
+    document.getElementById("aid-arc").selectedIndex = state.arc || 0;
+    document.getElementById("aid-notes").value = state.notes || "";
+
+    // Restore ability-specific modifiers (after _onAbilityChange rebuilds them)
+    if (state.abilityMods) {
+      for (const [amId, val] of Object.entries(state.abilityMods)) {
+        if (typeof val === "boolean") {
+          const chk = document.querySelector(`input[data-am-id="${amId}"]`);
+          if (chk) chk.checked = val;
+        } else {
+          const inp = document.querySelector(`input[data-am-id="${amId}"]`);
+          if (inp) inp.value = val;
+        }
+      }
+    }
+
+    this._updateSysStats();
+    this._updateStats();
+    this._updateCostBar();
+  },
+
+  _resetDialog() {
+    this._setAbility("");
     const spSel = document.getElementById("aid-spaces");
     for (let i = 0; i < spSel.options.length; i++) {
       if (parseInt(spSel.options[i].value) === 8) { spSel.selectedIndex = i; break; }
     }
-    // Reset generic modifiers
     document.getElementById("aid-area").selectedIndex = 0;
     document.getElementById("aid-ap").selectedIndex = 0;
     document.getElementById("aid-autofire").selectedIndex = 0;
@@ -1178,26 +1474,45 @@ const abilityDlg = {
     document.getElementById("aid-obvious").selectedIndex = 0;
     document.getElementById("aid-carrier").selectedIndex = 0;
     document.getElementById("aid-other").selectedIndex = 0;
-    // Reset system modifiers
     document.getElementById("aid-integral").checked = false;
     document.getElementById("aid-open").checked = false;
     document.getElementById("aid-indep").checked = false;
     document.getElementById("aid-wontexplode").checked = false;
     document.getElementById("aid-arc").selectedIndex = 0;
     document.getElementById("aid-notes").value = "";
-    // Pre-fill spaces and system mods from row
-    const sys = veh.systems[rowIdx];
-    if (sys) {
-      if (sys.spaces) spSel.value = String(sys.spaces);
-      if (sys.integral) document.getElementById("aid-integral").checked = true;
-      if (sys.open) document.getElementById("aid-open").checked = true;
-    }
-    this._onAbilityChange();
-    this.overlay.style.display = "flex";
-    document.getElementById("aid-ability").focus();
   },
 
-  close() { this.overlay.style.display = "none"; this.targetIdx = null; },
+  open(rowIdx, editMode) {
+    this.targetIdx = rowIdx;
+    this.editMode = editMode || false;
+
+    const sys = veh.systems[rowIdx];
+
+    if (this.editMode && sys && sys.abilityData) {
+      // Edit mode: restore from structured data
+      document.getElementById("aid-title").textContent = "Edit Ability";
+      // Need to trigger ability change first to build PR/Range/AbilityMods, then restore
+      this._setAbility(sys.abilityData.abId || "");
+      // Now restore full state (PR/Range/AbilityMods are rebuilt by _onAbilityChange)
+      this._restoreState(sys.abilityData);
+    } else {
+      // Insert mode: blank dialog
+      document.getElementById("aid-title").textContent = "Insert Ability";
+      this._resetDialog();
+      // Pre-fill spaces and system mods from existing row
+      if (sys) {
+        if (sys.spaces) document.getElementById("aid-spaces").value = String(sys.spaces);
+        if (sys.integral) document.getElementById("aid-integral").checked = true;
+        if (sys.open) document.getElementById("aid-open").checked = true;
+      }
+      this._onAbilityChange();
+    }
+
+    this.overlay.style.display = "flex";
+    document.getElementById("aid-ability-btn").focus();
+  },
+
+  close() { this.overlay.style.display = "none"; this.targetIdx = null; this.editMode = false; },
 
   // Read CP from a select with data-cp attributes
   _selCp(id) { const s = document.getElementById(id); return parseFloat(s.options[s.selectedIndex]?.dataset?.cp) || 0; },
@@ -1205,7 +1520,7 @@ const abilityDlg = {
   _commit() {
     const idx = this.targetIdx;
     if (idx === null) return;
-    const abId = document.getElementById("aid-ability").value;
+    const abId = document.getElementById("aid-ability-val").value;
     const ab = MP.abilityById(abId);
     const detail = MP.ABILITY_DETAILS[abId];
     const name = ab ? ab.name : "Custom";
@@ -1324,22 +1639,42 @@ const abilityDlg = {
     const notes = document.getElementById("aid-notes").value.trim();
     if (notes) parts.push(notes);
 
+    // Capture structured state before modifying system
+    const abilityData = this._captureState();
+
     const spaces = parseInt(document.getElementById("aid-spaces").value) || 8;
     while (veh.systems.length <= idx) veh.addSystem();
     const sys = veh.systems[idx];
-    if (!sys.spaces) sys.spaces = spaces;
-    if (bulkyTotal) sys.bulky = (sys.bulky || 0) + bulkyTotal;
-    if (delicateTotal) sys.delicate = (sys.delicate || 0) + delicateTotal;
-    if (isIntegral) sys.integral = true;
-    if (isOpen) sys.open = true;
-    if (sys.desc && sys.desc.trim()) sys.desc += ", " + parts.join(", ");
-    else sys.desc = parts.join(", ");
-    if (modAdj !== 0) sys.extraCPs = (sys.extraCPs || 0) + modAdj;
+
+    if (this.editMode) {
+      // Edit mode: replace system ability data entirely
+      sys.spaces = spaces;
+      sys.desc = parts.join(", ");
+      sys.extraCPs = modAdj;
+      sys.bulky = bulkyTotal;
+      sys.delicate = delicateTotal;
+      sys.integral = isIntegral;
+      sys.open = isOpen;
+      sys.abilityData = abilityData;
+    } else {
+      // Insert mode: append to existing system
+      if (!sys.spaces) sys.spaces = spaces;
+      if (bulkyTotal) sys.bulky = (sys.bulky || 0) + bulkyTotal;
+      if (delicateTotal) sys.delicate = (sys.delicate || 0) + delicateTotal;
+      if (isIntegral) sys.integral = true;
+      if (isOpen) sys.open = true;
+      if (sys.desc && sys.desc.trim()) sys.desc += ", " + parts.join(", ");
+      else sys.desc = parts.join(", ");
+      if (modAdj !== 0) sys.extraCPs = (sys.extraCPs || 0) + modAdj;
+      sys.abilityData = abilityData;
+    }
+
     this.close();
     updateAll();
   }
 };
 
+abilityPicker.init();
 abilityDlg.init();
 
 
@@ -1355,7 +1690,7 @@ document.addEventListener("keydown", e => {
   e.preventDefault();
   const idx = parseInt(rowWrap.dataset.idx);
   if (isNaN(idx)) return;
-  abilityDlg.open(idx);
+  abilityDlg.open(idx, false);
 });
 
 // ---- Init ----
