@@ -254,13 +254,13 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 
 /* ============ ABILITY PICKER POPUP ============ */
 .aid-picker-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 9500; display: flex; align-items: center; justify-content: center }
-.aid-picker { background: var(--bg3); border: 2px solid var(--brd); border-radius: 6px; box-shadow: 0 8px 32px rgba(0,0,0,.3); width: 700px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column }
-.aid-picker-title { font-family: var(--fd); font-size: 14px; color: var(--label); padding: 6px 12px; border-bottom: 2px solid var(--brd); letter-spacing: .5px }
+.aid-picker { background: var(--bg3); border: 2px solid var(--brd); border-radius: 6px; box-shadow: 0 8px 32px rgba(0,0,0,.3); width: 640px; max-width: 95vw; max-height: 80vh; display: flex; flex-direction: column }
+.aid-picker-title { font-family: var(--fd); font-size: 13px; color: var(--label); padding: 5px 10px; border-bottom: 2px solid var(--brd); letter-spacing: .5px }
 .aid-picker-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; padding: 0; overflow-y: auto; flex: 1 }
-.aid-picker-col { border-right: 1px solid var(--brd2); padding: 4px 0 }
+.aid-picker-col { border-right: 1px solid var(--brd2); padding: 2px 0 }
 .aid-picker-col:last-child { border-right: none }
-.aid-picker-cat { font-size: 7px; font-weight: 700; color: var(--tx3); text-transform: uppercase; letter-spacing: .5px; padding: 4px 8px 2px; border-bottom: 1px solid var(--brd2) }
-.aid-picker-item { padding: 2px 8px; font-size: 9px; color: var(--tx); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.aid-picker-cat { font-size: 7px; font-weight: 700; color: var(--tx3); text-transform: uppercase; letter-spacing: .5px; padding: 3px 6px 1px; border-bottom: 1px solid var(--brd2) }
+.aid-picker-item { padding: 1px 6px; font-size: 8.5px; color: var(--tx); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4 }
 .aid-picker-item:hover { background: rgba(192,90,0,.1); color: var(--accent) }
 .aid-picker-item.selected { background: var(--accent); color: #fff; font-weight: 700 }
 
