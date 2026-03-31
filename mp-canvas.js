@@ -1,4 +1,4 @@
-// mp-canvas.js v2.3.0 — Fix hover ghost for remaining system
+// mp-canvas.js v2.4.0 — 3-char labels via MP.sysLabel(), remaining hover ghost
 
 const CELL_PX = 28;
 
@@ -507,9 +507,9 @@ class FloorPlanEditor {
         ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
         // Label: per-cell label overrides default, show on all cells including seats
         if (cell / dpr > 16) {
-          const lbl = c.label || (isSeat ? "" : (sys.desc || "??").substring(0, 2).toUpperCase());
+          const lbl = c.label || MP.sysLabel(sys.desc);
           if (lbl) {
-            const fs = Math.max(7, Math.min(11, (cell / dpr) * 0.4)) * dpr;
+            const fs = Math.max(7, Math.min(11, (cell / dpr) * 0.35)) * dpr;
             ctx.font = `bold ${fs}px sans-serif`;
             ctx.fillStyle = isSeat ? "#000000aa" : "#ffffffdd";
             ctx.textAlign = "center";
@@ -648,9 +648,9 @@ class FloorPlanEditor {
       ctx.globalAlpha = 1;
       // Per-cell label or default
       if (cellPx > 14) {
-        const lbl = cc.label || (isSeat ? "" : (cc.sys.desc || "??").substring(0, 2).toUpperCase());
+        const lbl = cc.label || MP.sysLabel(cc.sys.desc);
         if (lbl) {
-          ctx.font = `bold ${Math.max(7, Math.min(11, cellPx * 0.4))}px sans-serif`;
+          ctx.font = `bold ${Math.max(7, Math.min(11, cellPx * 0.35))}px sans-serif`;
           ctx.fillStyle = isSeat ? "#000000aa" : "#ffffffdd";
           ctx.textAlign = "center"; ctx.textBaseline = "middle";
           ctx.fillText(lbl, sx + cellPx / 2, sy + cellPx / 2);

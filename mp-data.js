@@ -1,4 +1,4 @@
-// mp-data.js v2.3.0 — Communicators range table corrected to published values
+// mp-data.js v2.4.0 — 3-char abbr codes, sysLabel() for canvas labels
 
 const MP = {};
 
@@ -135,118 +135,118 @@ MP.lookupSysByCp = function(targetCp) {
 // color = canvas cell color, abbr = 2-char label on canvas
 MP.ABILITY_TYPES = [
   // --- Offensive Abilities ---
-  { id:"absorption",           cat:"Offensive",  name:"Absorption",           color:"#6060a0", abbr:"AB" },
-  { id:"chemical-abilities",   cat:"Offensive",  name:"Chemical Abilities",   color:"#508040", abbr:"CH" },
-  { id:"death-touch",          cat:"Offensive",  name:"Death Touch",          color:"#802040", abbr:"DT" },
-  { id:"devitalization-ray",   cat:"Offensive",  name:"Devitalization Ray",   color:"#604880", abbr:"DV" },
-  { id:"disintegration",       cat:"Offensive",  name:"Disintegration",       color:"#b02040", abbr:"DI" },
-  { id:"emotion-control",      cat:"Offensive",  name:"Emotion Control",      color:"#9060a0", abbr:"EC" },
-  { id:"experience-levels",    cat:"Offensive",  name:"Experience Levels",    color:"#707050", abbr:"XL" },
-  { id:"flame-abilities",      cat:"Offensive",  name:"Flame Abilities",      color:"#c06020", abbr:"FL" },
-  { id:"force-field",          cat:"Offensive",  name:"Force Field",          color:"#7060a0", abbr:"FF" },
-  { id:"grapnel",              cat:"Offensive",  name:"Grapnel",              color:"#706050", abbr:"GR" },
-  { id:"gravity-control",      cat:"Offensive",  name:"Gravity Control",      color:"#505080", abbr:"GC" },
-  { id:"heightened-agility",   cat:"Offensive",  name:"Heightened Agility",   color:"#408080", abbr:"HA" },
-  { id:"heightened-attack",    cat:"Offensive",  name:"Heightened Attack",    color:"#a04030", abbr:"HK" },
-  { id:"heightened-expertise", cat:"Offensive",  name:"Heightened Expertise", color:"#806040", abbr:"HX" },
-  { id:"heightened-strength",  cat:"Offensive",  name:"Heightened Strength",  color:"#804030", abbr:"HS" },
-  { id:"ice-abilities",        cat:"Offensive",  name:"Ice Abilities",        color:"#4090b0", abbr:"IC" },
-  { id:"light-control",        cat:"Offensive",  name:"Light Control",        color:"#b0a030", abbr:"LC" },
-  { id:"lightning-control",    cat:"Offensive",  name:"Lightning Control",    color:"#6080c0", abbr:"LN" },
-  { id:"magnetism",            cat:"Offensive",  name:"Magnetism",            color:"#607090", abbr:"MG" },
-  { id:"mind-control",         cat:"Offensive",  name:"Mind Control",         color:"#8060a0", abbr:"MC" },
-  { id:"natural-weaponry",     cat:"Offensive",  name:"Natural Weaponry",     color:"#706040", abbr:"NW" },
-  { id:"paralysis-ray",        cat:"Offensive",  name:"Paralysis Ray",        color:"#705090", abbr:"PR" },
-  { id:"poison-venom",         cat:"Offensive",  name:"Poison/Venom",         color:"#608030", abbr:"PV" },
-  { id:"power-blast",          cat:"Offensive",  name:"Power Blast",          color:"#b04040", abbr:"PB" },
-  { id:"reflection",           cat:"Offensive",  name:"Reflection",           color:"#607080", abbr:"RF" },
-  { id:"repulsion-blast",      cat:"Offensive",  name:"Repulsion Blast",      color:"#5070a0", abbr:"RB" },
-  { id:"shaping",              cat:"Offensive",  name:"Shaping",              color:"#607050", abbr:"SH" },
-  { id:"siphon",               cat:"Offensive",  name:"Siphon",               color:"#804060", abbr:"SI" },
-  { id:"sonic-abilities",      cat:"Offensive",  name:"Sonic Abilities",      color:"#8a4080", abbr:"SO" },
-  { id:"special-weapon",       cat:"Offensive",  name:"Special Weapon",       color:"#806050", abbr:"SW" },
-  { id:"telekinesis",          cat:"Offensive",  name:"Telekinesis",          color:"#6060a0", abbr:"TK" },
-  { id:"transmutation",        cat:"Offensive",  name:"Transmutation",        color:"#607060", abbr:"TM" },
-  { id:"vibration-abilities",  cat:"Offensive",  name:"Vibration Abilities",  color:"#708060", abbr:"VB" },
-  { id:"weakness-detection",   cat:"Offensive",  name:"Weakness Detection",   color:"#806060", abbr:"WD" },
-  { id:"weather-control",      cat:"Offensive",  name:"Weather Control",      color:"#507090", abbr:"WC" },
+  { id:"absorption",           cat:"Offensive",  name:"Absorption",           color:"#6060a0", abbr:"Abs" },
+  { id:"chemical-abilities",   cat:"Offensive",  name:"Chemical Abilities",   color:"#508040", abbr:"Chm" },
+  { id:"death-touch",          cat:"Offensive",  name:"Death Touch",          color:"#802040", abbr:"DTc" },
+  { id:"devitalization-ray",   cat:"Offensive",  name:"Devitalization Ray",   color:"#604880", abbr:"Dev" },
+  { id:"disintegration",       cat:"Offensive",  name:"Disintegration",       color:"#b02040", abbr:"Dis" },
+  { id:"emotion-control",      cat:"Offensive",  name:"Emotion Control",      color:"#9060a0", abbr:"Emo" },
+  { id:"experience-levels",    cat:"Offensive",  name:"Experience Levels",    color:"#707050", abbr:"Exp" },
+  { id:"flame-abilities",      cat:"Offensive",  name:"Flame Abilities",      color:"#c06020", abbr:"Flm" },
+  { id:"force-field",          cat:"Offensive",  name:"Force Field",          color:"#7060a0", abbr:"FFd" },
+  { id:"grapnel",              cat:"Offensive",  name:"Grapnel",              color:"#706050", abbr:"Grp" },
+  { id:"gravity-control",      cat:"Offensive",  name:"Gravity Control",      color:"#505080", abbr:"Grv" },
+  { id:"heightened-agility",   cat:"Offensive",  name:"Heightened Agility",   color:"#408080", abbr:"HAg" },
+  { id:"heightened-attack",    cat:"Offensive",  name:"Heightened Attack",    color:"#a04030", abbr:"HAt" },
+  { id:"heightened-expertise", cat:"Offensive",  name:"Heightened Expertise", color:"#806040", abbr:"HEx" },
+  { id:"heightened-strength",  cat:"Offensive",  name:"Heightened Strength",  color:"#804030", abbr:"HSt" },
+  { id:"ice-abilities",        cat:"Offensive",  name:"Ice Abilities",        color:"#4090b0", abbr:"Ice" },
+  { id:"light-control",        cat:"Offensive",  name:"Light Control",        color:"#b0a030", abbr:"Lgt" },
+  { id:"lightning-control",    cat:"Offensive",  name:"Lightning Control",    color:"#6080c0", abbr:"Ltn" },
+  { id:"magnetism",            cat:"Offensive",  name:"Magnetism",            color:"#607090", abbr:"Mag" },
+  { id:"mind-control",         cat:"Offensive",  name:"Mind Control",         color:"#8060a0", abbr:"MCt" },
+  { id:"natural-weaponry",     cat:"Offensive",  name:"Natural Weaponry",     color:"#706040", abbr:"NWp" },
+  { id:"paralysis-ray",        cat:"Offensive",  name:"Paralysis Ray",        color:"#705090", abbr:"Par" },
+  { id:"poison-venom",         cat:"Offensive",  name:"Poison/Venom",         color:"#608030", abbr:"Psn" },
+  { id:"power-blast",          cat:"Offensive",  name:"Power Blast",          color:"#b04040", abbr:"PBl" },
+  { id:"reflection",           cat:"Offensive",  name:"Reflection",           color:"#607080", abbr:"Rfl" },
+  { id:"repulsion-blast",      cat:"Offensive",  name:"Repulsion Blast",      color:"#5070a0", abbr:"Rep" },
+  { id:"shaping",              cat:"Offensive",  name:"Shaping",              color:"#607050", abbr:"Shp" },
+  { id:"siphon",               cat:"Offensive",  name:"Siphon",               color:"#804060", abbr:"Sip" },
+  { id:"sonic-abilities",      cat:"Offensive",  name:"Sonic Abilities",      color:"#8a4080", abbr:"Son" },
+  { id:"special-weapon",       cat:"Offensive",  name:"Special Weapon",       color:"#806050", abbr:"SWp" },
+  { id:"telekinesis",          cat:"Offensive",  name:"Telekinesis",          color:"#6060a0", abbr:"TKn" },
+  { id:"transmutation",        cat:"Offensive",  name:"Transmutation",        color:"#607060", abbr:"Trm" },
+  { id:"vibration-abilities",  cat:"Offensive",  name:"Vibration Abilities",  color:"#708060", abbr:"Vib" },
+  { id:"weakness-detection",   cat:"Offensive",  name:"Weakness Detection",   color:"#806060", abbr:"WkD" },
+  { id:"weather-control",      cat:"Offensive",  name:"Weather Control",      color:"#507090", abbr:"Wth" },
 
   // --- Defensive Abilities ---
-  { id:"adaptation",           cat:"Defensive",  name:"Adaptation",           color:"#508060", abbr:"AD" },
-  { id:"armor",                cat:"Defensive",  name:"Armor",                color:"#606068", abbr:"AR" },
-  { id:"astral-projection",    cat:"Defensive",  name:"Astral Projection",    color:"#706090", abbr:"AP" },
-  { id:"darkness-control",     cat:"Defensive",  name:"Darkness Control",     color:"#404060", abbr:"DC" },
-  { id:"density-change",       cat:"Defensive",  name:"Density Change",       color:"#606070", abbr:"DN" },
-  { id:"durability",           cat:"Defensive",  name:"Durability",           color:"#607058", abbr:"DU" },
-  { id:"heightened-defense",   cat:"Defensive",  name:"Heightened Defense",   color:"#407060", abbr:"HD" },
-  { id:"heightened-endurance", cat:"Defensive",  name:"Heightened Endurance", color:"#406050", abbr:"HE" },
-  { id:"invisibility",         cat:"Defensive",  name:"Invisibility",         color:"#505070", abbr:"IV" },
-  { id:"invulnerability",      cat:"Defensive",  name:"Invulnerability",      color:"#506068", abbr:"IN" },
-  { id:"life-support",         cat:"Defensive",  name:"Life Support",         color:"#308060", abbr:"LS" },
-  { id:"non-corporealness",    cat:"Defensive",  name:"Non-Corporealness",    color:"#606080", abbr:"NC" },
-  { id:"regeneration",         cat:"Defensive",  name:"Regeneration",         color:"#409050", abbr:"RG" },
-  { id:"shield",               cat:"Defensive",  name:"Shield",               color:"#506070", abbr:"SD" },
-  { id:"stretching-abilities", cat:"Defensive",  name:"Stretching Abilities", color:"#607058", abbr:"ST" },
+  { id:"adaptation",           cat:"Defensive",  name:"Adaptation",           color:"#508060", abbr:"Adp" },
+  { id:"armor",                cat:"Defensive",  name:"Armor",                color:"#606068", abbr:"Arm" },
+  { id:"astral-projection",    cat:"Defensive",  name:"Astral Projection",    color:"#706090", abbr:"Ast" },
+  { id:"darkness-control",     cat:"Defensive",  name:"Darkness Control",     color:"#404060", abbr:"Drk" },
+  { id:"density-change",       cat:"Defensive",  name:"Density Change",       color:"#606070", abbr:"Den" },
+  { id:"durability",           cat:"Defensive",  name:"Durability",           color:"#607058", abbr:"Dur" },
+  { id:"heightened-defense",   cat:"Defensive",  name:"Heightened Defense",   color:"#407060", abbr:"HDf" },
+  { id:"heightened-endurance", cat:"Defensive",  name:"Heightened Endurance", color:"#406050", abbr:"HEn" },
+  { id:"invisibility",         cat:"Defensive",  name:"Invisibility",         color:"#505070", abbr:"Inv" },
+  { id:"invulnerability",      cat:"Defensive",  name:"Invulnerability",      color:"#506068", abbr:"Ivl" },
+  { id:"life-support",         cat:"Defensive",  name:"Life Support",         color:"#308060", abbr:"LSp" },
+  { id:"non-corporealness",    cat:"Defensive",  name:"Non-Corporealness",    color:"#606080", abbr:"NCp" },
+  { id:"regeneration",         cat:"Defensive",  name:"Regeneration",         color:"#409050", abbr:"Rgn" },
+  { id:"shield",               cat:"Defensive",  name:"Shield",               color:"#506070", abbr:"Shd" },
+  { id:"stretching-abilities", cat:"Defensive",  name:"Stretching Abilities", color:"#607058", abbr:"Str" },
 
   // --- Miscellaneous Abilities ---
-  { id:"animal-plant",         cat:"Miscellaneous", name:"Animal/Plant Abilities", color:"#508040", abbr:"AP" },
-  { id:"arsenal",              cat:"Miscellaneous", name:"Arsenal",                color:"#706050", abbr:"AS" },
-  { id:"base",                 cat:"Miscellaneous", name:"Base",                   color:"#505860", abbr:"BA" },
-  { id:"communicators",        cat:"Miscellaneous", name:"Communicators",          color:"#507070", abbr:"CM" },
-  { id:"companion",            cat:"Miscellaneous", name:"Companion",              color:"#607050", abbr:"CO" },
-  { id:"cosmic-awareness",     cat:"Miscellaneous", name:"Cosmic Awareness",       color:"#6050a0", abbr:"CA" },
-  { id:"cybernetics",          cat:"Miscellaneous", name:"Cybernetics",            color:"#606878", abbr:"CY" },
-  { id:"dimensional-travel",   cat:"Miscellaneous", name:"Dimensional Travel",     color:"#7a40a0", abbr:"DM" },
-  { id:"duplication",          cat:"Miscellaneous", name:"Duplication",            color:"#606070", abbr:"DP" },
-  { id:"energy",               cat:"Miscellaneous", name:"Energy",                 color:"#a08020", abbr:"EN" },
-  { id:"flight",               cat:"Movement",      name:"Flight",                 color:"#3a80c0", abbr:"FT" },
-  { id:"healing",              cat:"Miscellaneous", name:"Healing",                color:"#409060", abbr:"HL" },
-  { id:"heightened-cool",      cat:"Miscellaneous", name:"Heightened Cool",        color:"#406080", abbr:"HC" },
-  { id:"heightened-initiative",cat:"Miscellaneous", name:"Heightened Initiative",  color:"#507060", abbr:"HI" },
-  { id:"heightened-intelligence",cat:"Miscellaneous",name:"Heightened Intelligence",color:"#506080",abbr:"HQ" },
-  { id:"heightened-senses",    cat:"Miscellaneous", name:"Heightened Senses",      color:"#908020", abbr:"HS" },
-  { id:"illusions",            cat:"Miscellaneous", name:"Illusions",              color:"#806090", abbr:"IL" },
-  { id:"inventing",            cat:"Miscellaneous", name:"Inventing",              color:"#607050", abbr:"IV" },
-  { id:"knowledge",            cat:"Miscellaneous", name:"Knowledge",              color:"#606048", abbr:"KN" },
-  { id:"luck",                 cat:"Miscellaneous", name:"Luck",                   color:"#a09030", abbr:"LK" },
-  { id:"mental-ability",       cat:"Miscellaneous", name:"Mental Ability",         color:"#6060a0", abbr:"MA" },
-  { id:"negation",             cat:"Miscellaneous", name:"Negation",               color:"#705060", abbr:"NG" },
-  { id:"physical-ability",     cat:"Miscellaneous", name:"Physical Ability",       color:"#607048", abbr:"PA" },
-  { id:"revivification",       cat:"Miscellaneous", name:"Revivification",         color:"#408050", abbr:"RV" },
-  { id:"shape-shifting",       cat:"Miscellaneous", name:"Shape-Shifting",         color:"#607060", abbr:"SS" },
-  { id:"size-change",          cat:"Miscellaneous", name:"Size Change",            color:"#607050", abbr:"SC" },
-  { id:"speed",                cat:"Movement",      name:"Speed",                  color:"#3070b0", abbr:"SP" },
-  { id:"summoning",            cat:"Miscellaneous", name:"Summoning",              color:"#706060", abbr:"SU" },
-  { id:"super-speed",          cat:"Miscellaneous", name:"Super Speed",            color:"#3060c0", abbr:"SS" },
-  { id:"swimming",             cat:"Movement",      name:"Swimming",               color:"#2a6a9a", abbr:"SM" },
-  { id:"telepathy",            cat:"Miscellaneous", name:"Telepathy",              color:"#7060a0", abbr:"TP" },
-  { id:"teleportation",        cat:"Movement",      name:"Teleportation",          color:"#6a50a0", abbr:"TL" },
-  { id:"transformation",       cat:"Miscellaneous", name:"Transformation",         color:"#707050", abbr:"TF" },
-  { id:"tunneling",            cat:"Movement",      name:"Tunneling",              color:"#4a5a80", abbr:"TU" },
-  { id:"vehicle",              cat:"Miscellaneous", name:"Vehicle",                color:"#606058", abbr:"VH" },
-  { id:"wealth",               cat:"Miscellaneous", name:"Wealth",                 color:"#a09040", abbr:"WL" },
-  { id:"willpower",            cat:"Miscellaneous", name:"Willpower",              color:"#605080", abbr:"WP" },
+  { id:"animal-plant",         cat:"Miscellaneous", name:"Animal/Plant Abilities", color:"#508040", abbr:"AnP" },
+  { id:"arsenal",              cat:"Miscellaneous", name:"Arsenal",                color:"#706050", abbr:"Ars" },
+  { id:"base",                 cat:"Miscellaneous", name:"Base",                   color:"#505860", abbr:"Bas" },
+  { id:"communicators",        cat:"Miscellaneous", name:"Communicators",          color:"#507070", abbr:"Com" },
+  { id:"companion",            cat:"Miscellaneous", name:"Companion",              color:"#607050", abbr:"Cmp" },
+  { id:"cosmic-awareness",     cat:"Miscellaneous", name:"Cosmic Awareness",       color:"#6050a0", abbr:"Cos" },
+  { id:"cybernetics",          cat:"Miscellaneous", name:"Cybernetics",            color:"#606878", abbr:"Cyb" },
+  { id:"dimensional-travel",   cat:"Miscellaneous", name:"Dimensional Travel",     color:"#7a40a0", abbr:"Dim" },
+  { id:"duplication",          cat:"Miscellaneous", name:"Duplication",            color:"#606070", abbr:"Dup" },
+  { id:"energy",               cat:"Miscellaneous", name:"Energy",                 color:"#a08020", abbr:"Nrg" },
+  { id:"flight",               cat:"Movement",      name:"Flight",                 color:"#3a80c0", abbr:"Flt" },
+  { id:"healing",              cat:"Miscellaneous", name:"Healing",                color:"#409060", abbr:"Hea" },
+  { id:"heightened-cool",      cat:"Miscellaneous", name:"Heightened Cool",        color:"#406080", abbr:"HCl" },
+  { id:"heightened-initiative",cat:"Miscellaneous", name:"Heightened Initiative",  color:"#507060", abbr:"HIn" },
+  { id:"heightened-intelligence",cat:"Miscellaneous",name:"Heightened Intelligence",color:"#506080",abbr:"HIQ" },
+  { id:"heightened-senses",    cat:"Miscellaneous", name:"Heightened Senses",      color:"#908020", abbr:"HSn" },
+  { id:"illusions",            cat:"Miscellaneous", name:"Illusions",              color:"#806090", abbr:"Ill" },
+  { id:"inventing",            cat:"Miscellaneous", name:"Inventing",              color:"#607050", abbr:"Ivt" },
+  { id:"knowledge",            cat:"Miscellaneous", name:"Knowledge",              color:"#606048", abbr:"Knw" },
+  { id:"luck",                 cat:"Miscellaneous", name:"Luck",                   color:"#a09030", abbr:"Lck" },
+  { id:"mental-ability",       cat:"Miscellaneous", name:"Mental Ability",         color:"#6060a0", abbr:"Mnt" },
+  { id:"negation",             cat:"Miscellaneous", name:"Negation",               color:"#705060", abbr:"Neg" },
+  { id:"physical-ability",     cat:"Miscellaneous", name:"Physical Ability",       color:"#607048", abbr:"Phy" },
+  { id:"revivification",       cat:"Miscellaneous", name:"Revivification",         color:"#408050", abbr:"Rvv" },
+  { id:"shape-shifting",       cat:"Miscellaneous", name:"Shape-Shifting",         color:"#607060", abbr:"ShS" },
+  { id:"size-change",          cat:"Miscellaneous", name:"Size Change",            color:"#607050", abbr:"Siz" },
+  { id:"speed",                cat:"Movement",      name:"Speed",                  color:"#3070b0", abbr:"Spd" },
+  { id:"summoning",            cat:"Miscellaneous", name:"Summoning",              color:"#706060", abbr:"Sum" },
+  { id:"super-speed",          cat:"Miscellaneous", name:"Super Speed",            color:"#3060c0", abbr:"SSp" },
+  { id:"swimming",             cat:"Movement",      name:"Swimming",               color:"#2a6a9a", abbr:"Swm" },
+  { id:"telepathy",            cat:"Miscellaneous", name:"Telepathy",              color:"#7060a0", abbr:"Tel" },
+  { id:"teleportation",        cat:"Movement",      name:"Teleportation",          color:"#6a50a0", abbr:"Tlp" },
+  { id:"transformation",       cat:"Miscellaneous", name:"Transformation",         color:"#707050", abbr:"Tfm" },
+  { id:"tunneling",            cat:"Movement",      name:"Tunneling",              color:"#4a5a80", abbr:"Tun" },
+  { id:"vehicle",              cat:"Miscellaneous", name:"Vehicle",                color:"#606058", abbr:"Veh" },
+  { id:"wealth",               cat:"Miscellaneous", name:"Wealth",                 color:"#a09040", abbr:"Wlt" },
+  { id:"willpower",            cat:"Miscellaneous", name:"Willpower",              color:"#605080", abbr:"Wil" },
 
   // --- Vehicle-Specific Systems (from vehicle construction rules) ---
-  { id:"robot-brain",     cat:"Vehicle",  name:"Robot Brain (+IN)",  color:"#6060a0", abbr:"RB" },
-  { id:"automation",      cat:"Vehicle",  name:"Automation (+AG)",   color:"#507090", abbr:"AU" },
-  { id:"performance",     cat:"Vehicle",  name:"Performance (+CL)", color:"#806050", abbr:"PF" },
-  { id:"sensor-suite",    cat:"Vehicle",  name:"Sensor Suite",       color:"#a08020", abbr:"SN" },
+  { id:"robot-brain",     cat:"Vehicle",  name:"Robot Brain (+IN)",  color:"#6060a0", abbr:"RBr" },
+  { id:"automation",      cat:"Vehicle",  name:"Automation (+AG)",   color:"#507090", abbr:"Aut" },
+  { id:"performance",     cat:"Vehicle",  name:"Performance (+CL)", color:"#806050", abbr:"Prf" },
+  { id:"sensor-suite",    cat:"Vehicle",  name:"Sensor Suite",       color:"#a08020", abbr:"Sns" },
 
   // --- Crew & Structure ---
-  { id:"control-seat",    cat:"Crew",     name:"Control Seat",       color:"#2a7a6a", abbr:"CS" },
-  { id:"passenger-seat",  cat:"Crew",     name:"Passenger Seat",     color:"#2a7a6a", abbr:"PS" },
-  { id:"bunk",            cat:"Crew",     name:"Bunk (double)",      color:"#2a7a6a", abbr:"BK" },
-  { id:"hands",           cat:"Crew",     name:"Hands",              color:"#5a7a5a", abbr:"HN" },
-  { id:"limbs",           cat:"Crew",     name:"Limbs",              color:"#4a6a4a", abbr:"LM" },
+  { id:"control-seat",    cat:"Crew",     name:"Control Seat",       color:"#2a7a6a", abbr:"CSt" },
+  { id:"passenger-seat",  cat:"Crew",     name:"Passenger Seat",     color:"#2a7a6a", abbr:"PSt" },
+  { id:"bunk",            cat:"Crew",     name:"Bunk (double)",      color:"#2a7a6a", abbr:"Bnk" },
+  { id:"hands",           cat:"Crew",     name:"Hands",              color:"#5a7a5a", abbr:"Hnd" },
+  { id:"limbs",           cat:"Crew",     name:"Limbs",              color:"#4a6a4a", abbr:"Lmb" },
 
   // --- Cargo ---
-  { id:"cargo",           cat:"Cargo",    name:"Cargo / Empty",      color:"#4a4a42", abbr:"CG" },
-  { id:"spare-parts",     cat:"Cargo",    name:"Spare Parts",        color:"#6a5a38", abbr:"PT" },
-  { id:"garage",          cat:"Cargo",    name:"Garage / Hangar",    color:"#3a4a50", abbr:"GH" },
+  { id:"cargo",           cat:"Cargo",    name:"Cargo / Empty",      color:"#4a4a42", abbr:"Cgo" },
+  { id:"spare-parts",     cat:"Cargo",    name:"Spare Parts",        color:"#6a5a38", abbr:"Spr" },
+  { id:"garage",          cat:"Cargo",    name:"Garage / Hangar",    color:"#3a4a50", abbr:"Gar" },
 
   // --- Custom ---
-  { id:"custom",          cat:"Custom",   name:"Custom",             color:"#707070", abbr:"??" },
+  { id:"custom",          cat:"Custom",   name:"Custom",             color:"#707070", abbr:"Cst" },
 ];
 
 MP.abilityById = function(id) {
@@ -1271,3 +1271,55 @@ MP.isSeatSystem = function(desc) {
   return seatWords.some(kw => d.includes(kw));
 };
 
+// Build label lookup: match system description to ability type abbr (3-char)
+// Tries ability name match first (longest match wins), then falls back to first 3 chars
+MP._sysLabelCache = {};
+MP._sysLabelKeywords = null;
+
+MP._buildLabelKeywords = function() {
+  if (MP._sysLabelKeywords) return;
+  MP._sysLabelKeywords = [];
+  for (const ab of MP.ABILITY_TYPES) {
+    // Primary: full ability name
+    MP._sysLabelKeywords.push({kw: ab.name.toLowerCase(), abbr: ab.abbr});
+    // Also match first word for things like "Speed: 64/256..." or "Flight: 48/192..."
+    const first = ab.name.split(/[\s:(\/]/)[0].toLowerCase();
+    if (first.length >= 4 && first !== ab.name.toLowerCase()) {
+      MP._sysLabelKeywords.push({kw: first, abbr: ab.abbr});
+    }
+  }
+  // Extra keywords for common template descriptions
+  const extras = [
+    {kw:"energy blast",  abbr:"PBl"}, {kw:"laser",         abbr:"Lgt"},
+    {kw:"cannon",        abbr:"PBl"}, {kw:"missile",       abbr:"SWp"},
+    {kw:"torpedo",       abbr:"SWp"}, {kw:"gun",           abbr:"SWp"},
+    {kw:"turret",        abbr:"PBl"}, {kw:"countermeasure", abbr:"Sns"},
+    {kw:"chaff",         abbr:"Sns"}, {kw:"radar",         abbr:"Sns"},
+    {kw:"sonar",         abbr:"Sns"}, {kw:"ejection",      abbr:"CSt"},
+    {kw:"ammo",          abbr:"Cgo"}, {kw:"trailer",       abbr:"Cgo"},
+    {kw:"truck bed",     abbr:"Cgo"}, {kw:"trunk",         abbr:"Cgo"},
+    {kw:"lounge",        abbr:"PSt"}, {kw:"crew",          abbr:"PSt"},
+    {kw:"troops",        abbr:"PSt"},
+  ];
+  MP._sysLabelKeywords.push(...extras);
+  // Sort by keyword length descending so longest match wins
+  MP._sysLabelKeywords.sort((a, b) => b.kw.length - a.kw.length);
+};
+
+MP.sysLabel = function(desc) {
+  if (!desc) return "???";
+  // Check cache
+  if (MP._sysLabelCache[desc] !== undefined) return MP._sysLabelCache[desc];
+  MP._buildLabelKeywords();
+  const d = desc.toLowerCase();
+  for (const entry of MP._sysLabelKeywords) {
+    if (d.includes(entry.kw)) {
+      MP._sysLabelCache[desc] = entry.abbr;
+      return entry.abbr;
+    }
+  }
+  // Fallback: first 3 chars of first word
+  const fallback = desc.replace(/[^a-zA-Z0-9 ]/g, "").substring(0, 3);
+  MP._sysLabelCache[desc] = fallback;
+  return fallback;
+};
