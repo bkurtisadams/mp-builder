@@ -1,4 +1,4 @@
-/* mp-style.css v3.1.0 — Cost breakdown panel, green active modifier tints */
+/* mp-style.css v3.2.0 — Streamlined dialog, inline CP/spaces inputs, removed obsolete rules */
 :root {
   --bg: #d6eaf8;
   --bg2: #c4dff0;
@@ -214,33 +214,23 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 .aid-inp-text { flex: 1; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 2px 4px; font-family: var(--fb); font-size: 9px; color: var(--tx) }
 .aid-inp-text:focus { outline: none; border-color: var(--accent) }
 .aid-chk { width: 14px; height: 14px; accent-color: var(--accent) }
-.aid-hint { font-size: 8px; color: var(--tx3); font-style: italic }
-.aid-hint-row { padding: 0 0 2px; margin-left: 96px }
-.aid-hint-info { font-size: 8px; color: var(--accent); font-style: italic }
-.aid-stats-info { font-size: 9px; font-weight: 700; color: var(--val) }
-.aid-pr-display { font-size: 8px; font-weight: 700; color: var(--tx2); white-space: nowrap }
 .aid-divider { border-top: 1px solid var(--brd2); margin: 4px 0 }
-/* Ability CP input */
-.aid-cp-input { width: 64px; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 3px 4px; font-family: var(--fb); font-size: 11px; font-weight: 700; color: var(--val); text-align: center }
-.aid-cp-input:focus { outline: none; border-color: var(--accent) }
-.aid-mode-toggle { display: flex; gap: 6px; margin-left: 4px }
-.aid-mode-lbl2 { font-size: 7px; font-weight: 700; color: var(--tx3); text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 2px; white-space: nowrap }
-/* Consolidated system info */
-.aid-sys-info { display: flex; gap: 12px; padding: 2px 0 0 96px; font-size: 8px; color: var(--tx2) }
-.aid-si b { font-size: 9px; color: var(--label) }
-.aid-si-tech { font-style: italic; color: var(--tx3) }
 /* Cost breakdown panel */
 .aid-cost-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--brd); border-radius: 3px; margin: 6px 0 4px; overflow: hidden; font-size: 8px; background: #fff }
 .aid-cost-left { padding: 4px 8px; border-right: 1px solid var(--brd2); background: #f0f7fc }
 .aid-cost-right { padding: 4px 8px; background: #fff }
 .aid-cost-hdr { font-size: 7px; font-weight: 700; color: var(--tx3); text-transform: uppercase; letter-spacing: 1px; padding-bottom: 2px; border-bottom: 1px solid var(--brd2); margin-bottom: 2px }
-.aid-cost-row { display: flex; justify-content: space-between; padding: 1px 0 }
+.aid-cost-row { display: flex; justify-content: space-between; align-items: center; padding: 1px 0 }
 .aid-cost-lbl { color: var(--tx2); font-size: 7px; font-weight: 700 }
 .aid-cost-val { color: var(--label); font-size: 8px; font-weight: 700 }
 .aid-cost-tech { font-style: italic; color: var(--tx3) }
 .aid-cost-tech .aid-cost-val { color: var(--tx3); font-style: italic }
 .aid-cost-budget { border-top: 1px solid var(--brd2); margin-top: 2px; padding-top: 2px }
 .aid-cost-budget .aid-cost-val { color: var(--val); font-size: 9px }
+.aid-sp-sel { width: 64px; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 1px 2px; font-family: var(--fb); font-size: 8px; font-weight: 700; color: var(--val); text-align: center }
+.aid-sp-sel:focus { outline: none; border-color: var(--accent) }
+.aid-cost-cp-input { width: 52px; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 1px 3px; font-family: var(--fb); font-size: 9px; font-weight: 700; color: var(--val); text-align: right }
+.aid-cost-cp-input:focus { outline: none; border-color: var(--accent) }
 .aid-cost-line { display: flex; justify-content: space-between; padding: 0.5px 0; font-size: 7px }
 .aid-cost-line-lbl { color: var(--tx2) }
 .aid-cost-line-val { font-weight: 700; color: var(--label); min-width: 32px; text-align: right }

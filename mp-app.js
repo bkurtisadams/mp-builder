@@ -1,4 +1,4 @@
-// mp-app.js v4.6.0 — Cost breakdown panel, green modifier tints, split system/cost display
+// mp-app.js v4.7.0 — Streamlined dialog: panel-integrated CP/spaces inputs, removed redundant top section
 
 const veh = new Vehicle();
 let editor = null;
@@ -1058,9 +1058,10 @@ const abilityDlg = {
 
   init() {
     this.overlay = document.getElementById("ability-dlg-overlay");
+    this._spManual = false; // true when user manually overrides spaces
 
-    // Build system spaces dropdown (used in "By Spaces" mode)
-    const spSel = document.getElementById("aid-spaces");
+    // Build system spaces dropdown inside cost panel
+    const spSel = document.getElementById("aid-sp-input");
     for (const row of MP.SYS_TABLE) {
       const opt = document.createElement("option");
       opt.value = row.sp; opt.textContent = `${row.sp} sp → ${row.cp} CPs`;
@@ -1068,7 +1069,7 @@ const abilityDlg = {
       spSel.appendChild(opt);
     }
     wheelSelect(spSel);
-    wheelNumber(document.getElementById("aid-cp-input"));
+    spSel.addEventListener("change", () => { this._spManual = true; this._refresh(); });
 
     // Build generic modifier dropdowns
     buildStepSelect(document.getElementById("aid-area"), MP.AREA_EFFECT_STEPS, fmtCp, 0);
@@ -1179,15 +1180,6 @@ const abilityDlg = {
       });
     });
 
-    // Wire CP input and spaces dropdown
-    document.getElementById("aid-cp-input").addEventListener("input", () => this._refresh());
-    spSel.addEventListener("change", () => this._refresh());
-
-    // Wire input mode toggle
-    document.querySelectorAll('input[name="aid-input-mode"]').forEach(radio => {
-      radio.addEventListener("change", () => this._syncInputMode());
-    });
-
     // Wire all modifier controls
     document.querySelectorAll("#aid-generic-mods select, #aid-sys-mods select").forEach(sel => {
       sel.addEventListener("change", () => this._refresh());
@@ -1233,49 +1225,24 @@ const abilityDlg = {
     this._onAbilityChange();
   },
 
-  // Get the current input mode
-  _getInputMode() {
-    const checked = document.querySelector('input[name="aid-input-mode"]:checked');
-    return checked ? checked.value : "cp";
+  // Get the ability's base CPs from the hidden input
+  _getAbilityCp() {
+    return parseFloat(document.getElementById("aid-cp-input").value) || 0;
   },
 
-  // Toggle visibility of CP input vs spaces dropdown
-  _syncInputMode() {
-    const mode = this._getInputMode();
-    const cpInp = document.getElementById("aid-cp-input");
-    const spSel = document.getElementById("aid-spaces");
-    if (mode === "cp") {
-      cpInp.style.display = "";
-      spSel.style.display = "none";
-      // Sync CP input from spaces if switching from sp mode
-      const sp = parseInt(spSel.value) || 8;
-      const row = MP.lookupSys(sp);
-      cpInp.value = row ? row.cp : 20;
-    } else {
-      cpInp.style.display = "none";
-      spSel.style.display = "";
-      // Sync spaces from CP input if switching from cp mode
-      const cp = parseFloat(cpInp.value) || 20;
-      const row = MP.lookupSysByCp(cp);
-      spSel.value = String(row.sp);
-    }
+  // Set ability CPs and refresh
+  _setAbilityCp(cp) {
+    document.getElementById("aid-cp-input").value = cp;
+    this._spManual = false;
     this._refresh();
   },
 
-  // Get the ability's base CPs (what the user wants the ability to be)
-  _getAbilityCp() {
-    if (this._getInputMode() === "cp") {
-      return parseFloat(document.getElementById("aid-cp-input").value) || 0;
-    } else {
-      const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
-      const row = MP.lookupSys(sp);
-      return row ? row.cp : 0;
-    }
-  },
-
-  // Get the system row for the total ability cost (base CPs + modifiers)
-  // This determines the system spaces needed to house the ability
+  // Get the system row — if user manually set spaces, use that; otherwise auto-size from total cost
   _getSysRow() {
+    if (this._spManual) {
+      const sp = parseInt(document.getElementById("aid-sp-input").value) || 8;
+      return MP.lookupSys(sp);
+    }
     const cp = this._getAbilityCp() + this._calcModCost();
     return MP.lookupSysByCp(Math.max(0, cp));
   },
@@ -1283,7 +1250,6 @@ const abilityDlg = {
   // Master refresh — called on any input change
   _refresh() {
     this._updateCostPanel();
-    this._updateStats();
     this._updatePreview();
     this._updateModTints();
   },
@@ -1381,16 +1347,17 @@ const abilityDlg = {
     const modItems = this._getModBreakdown();
     const modAdj = modItems.reduce((s, m) => s + m.cp, 0);
     const totalCost = abilityCp + modAdj;
-    const sysRow = MP.lookupSysByCp(Math.max(0, totalCost));
+    const sysRow = this._getSysRow();
     const bulky = parseInt(document.getElementById("aid-bulky").value) || 0;
     const delicate = parseInt(document.getElementById("aid-delicate").value) || 0;
     const integral = document.getElementById("aid-integral").checked;
     const open = document.getElementById("aid-open").checked;
 
-    // Left: system info
+    // Left: system info — sync spaces dropdown if auto-sizing
     const sp = sysRow ? sysRow.sp : 0;
     const genCp = sysRow ? sysRow.cp : 0;
-    document.getElementById("aid-cp-spaces").textContent = sp + " sp";
+    const spSel = document.getElementById("aid-sp-input");
+    if (!this._spManual) spSel.value = String(sp);
     document.getElementById("aid-cp-gen").textContent = genCp + " CPs";
 
     const prof = sysRow ? sysRow.prof : 0;
@@ -1421,18 +1388,28 @@ const abilityDlg = {
     }
     document.getElementById("aid-cp-budget").textContent = budget + " CPs";
 
-    // Right: cost breakdown
+    // Right: cost breakdown with editable ability CP
     const linesEl = document.getElementById("aid-cost-lines");
     let html = "";
     const ab = MP.abilityById(document.getElementById("aid-ability-val").value);
     const baseName = ab ? ab.name : "Base";
-    html += `<div class="aid-cost-line"><span class="aid-cost-line-lbl">${baseName}</span><span class="aid-cost-line-val">${abilityCp}</span></div>`;
+    html += `<div class="aid-cost-line"><span class="aid-cost-line-lbl">${baseName}</span>`
+      + `<input type="number" class="aid-cost-cp-input" id="aid-cp-inline" value="${abilityCp}" min="0" max="200" step="2.5" title="Base ability CPs — scroll or type to adjust"></div>`;
     for (const m of modItems) {
       const sign = m.cp >= 0 ? "+" : "";
       const cls = m.cp > 0 ? " pos" : m.cp < 0 ? " neg" : "";
       html += `<div class="aid-cost-line"><span class="aid-cost-line-lbl">${m.label}</span><span class="aid-cost-line-val${cls}">${sign}${m.cp}</span></div>`;
     }
     linesEl.innerHTML = html;
+
+    // Wire the inline CP input
+    const cpInline = document.getElementById("aid-cp-inline");
+    cpInline.addEventListener("input", () => {
+      document.getElementById("aid-cp-input").value = cpInline.value;
+      this._spManual = false;
+      this._refresh();
+    });
+    wheelNumber(cpInline);
 
     // Total
     document.getElementById("aid-cp-total").textContent = totalCost;
@@ -1498,13 +1475,6 @@ const abilityDlg = {
       else if (num) active = (parseInt(num.value) || 0) > 0;
       row.classList.toggle("aid-mod-active", active);
     });
-  },
-
-  _updateStats() {
-    const abId = document.getElementById("aid-ability-val").value;
-    const cp = this._getAbilityCp();
-    const info = MP.computeAbilityInfo(abId, cp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
-    document.getElementById("aid-stats-info").textContent = info ? info.hint : "";
   },
 
   // Compute total modifier cost from current dialog state
@@ -1579,18 +1549,11 @@ const abilityDlg = {
   _onAbilityChange() {
     const abId = document.getElementById("aid-ability-val").value;
     const detail = MP.ABILITY_DETAILS[abId];
-    const hintEl = document.getElementById("aid-hint-info");
-    const prEl = document.getElementById("aid-pr-display");
-    if (detail) {
-      hintEl.textContent = detail.hint;
-      const prText = detail.pr > 0 ? `PR=${detail.pr}` : "PR=0";
-      const dmgText = detail.dmg !== "—" ? `${detail.dmg} dmg` : "";
-      prEl.textContent = [prText, dmgText].filter(Boolean).join(", ");
-    } else { hintEl.textContent = ""; prEl.textContent = ""; }
     this._rebuildPR(detail ? detail.pr : 0);
     this._rebuildCharges(detail ? detail.pr : 0);
     this._rebuildRange(detail?.calc?.baseRange || 'BCx1"');
     this._rebuildAbilityMods(abId);
+    this._spManual = false;
     this._refresh();
   },
 
@@ -1704,8 +1667,8 @@ const abilityDlg = {
     const state = {
       abId: abId,
       abilityCp: this._getAbilityCp(),
-      inputMode: this._getInputMode(),
-      spaces: parseInt(document.getElementById("aid-spaces").value) || 8,
+      spaces: parseInt(document.getElementById("aid-sp-input").value) || 8,
+      spManual: this._spManual,
       area: parseInt(document.getElementById("aid-area").value) || 0,
       ap: parseInt(document.getElementById("aid-ap").value) || 0,
       autofire: parseInt(document.getElementById("aid-autofire").value) || 0,
@@ -1765,13 +1728,9 @@ const abilityDlg = {
     if (!state) return;
     this._setAbility(state.abId || "");
 
-    // Restore input mode and CP/spaces values
-    const inputMode = state.inputMode || "cp";
-    const modeRadio = document.querySelector(`input[name="aid-input-mode"][value="${inputMode}"]`);
-    if (modeRadio) modeRadio.checked = true;
     document.getElementById("aid-cp-input").value = state.abilityCp || 20;
-    document.getElementById("aid-spaces").value = String(state.spaces || 8);
-    this._syncInputMode();
+    document.getElementById("aid-sp-input").value = String(state.spaces || 8);
+    this._spManual = state.spManual || false;
 
     document.getElementById("aid-area").selectedIndex = state.area || 0;
     document.getElementById("aid-ap").selectedIndex = state.ap || 0;
@@ -1842,13 +1801,8 @@ const abilityDlg = {
   _resetDialog() {
     this._setAbility("");
     document.getElementById("aid-cp-input").value = "20";
-    const cpRadio = document.querySelector('input[name="aid-input-mode"][value="cp"]');
-    if (cpRadio) cpRadio.checked = true;
-    const spSel = document.getElementById("aid-spaces");
-    for (let i = 0; i < spSel.options.length; i++) {
-      if (parseInt(spSel.options[i].value) === 8) { spSel.selectedIndex = i; break; }
-    }
-    this._syncInputMode();
+    document.getElementById("aid-sp-input").value = "8";
+    this._spManual = false;
     document.getElementById("aid-area").selectedIndex = 0;
     document.getElementById("aid-ap").selectedIndex = 0;
     document.getElementById("aid-autofire").selectedIndex = 0;
@@ -1903,7 +1857,8 @@ const abilityDlg = {
         if (sys.spaces) {
           const row = MP.lookupSys(sys.spaces);
           document.getElementById("aid-cp-input").value = row ? row.cp : 20;
-          document.getElementById("aid-spaces").value = String(sys.spaces);
+          document.getElementById("aid-sp-input").value = String(sys.spaces);
+          this._spManual = true;
         }
         if (sys.integral) document.getElementById("aid-integral").checked = true;
         if (sys.open) document.getElementById("aid-open").checked = true;

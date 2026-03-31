@@ -213,34 +213,17 @@
 <div class="aid-dialog">
   <div class="aid-title" id="aid-title">Insert Ability</div>
   <div class="aid-body">
-    <!-- Ability picker row with popup trigger -->
+    <!-- Ability picker -->
     <div class="aid-row">
       <label class="aid-lbl">Ability:</label>
       <button type="button" id="aid-ability-btn" class="aid-ability-btn">— select ability —</button>
       <input type="hidden" id="aid-ability-val" value="">
     </div>
-    <div class="aid-hint-row" id="aid-hint-row">
-      <span class="aid-hint-info" id="aid-hint-info"></span>
-    </div>
-    <div class="aid-hint-row" id="aid-stats-row">
-      <span class="aid-stats-info" id="aid-stats-info"></span>
-    </div>
-    <!-- CP input with mode toggle -->
-    <div class="aid-row">
-      <label class="aid-lbl">Ability CPs:</label>
-      <input type="number" id="aid-cp-input" class="aid-cp-input" value="20" min="0" max="200" step="2.5" title="CPs for this ability">
-      <span class="aid-mode-toggle">
-        <label class="aid-mode-lbl2"><input type="radio" name="aid-input-mode" value="cp" checked class="aid-mode-radio"> By CPs</label>
-        <label class="aid-mode-lbl2"><input type="radio" name="aid-input-mode" value="sp" class="aid-mode-radio"> By Spaces</label>
-      </span>
-      <select id="aid-spaces" class="aid-sel-mod" style="display:none"></select>
-      <span class="aid-pr-display" id="aid-pr-display"></span>
-    </div>
-    <!-- Cost breakdown panel -->
+    <!-- Cost breakdown panel with integrated inputs -->
     <div class="aid-cost-panel" id="aid-cost-panel">
       <div class="aid-cost-left">
         <div class="aid-cost-hdr">SYSTEM</div>
-        <div class="aid-cost-row"><span class="aid-cost-lbl">Spaces:</span><span class="aid-cost-val" id="aid-cp-spaces">8 sp</span></div>
+        <div class="aid-cost-row"><span class="aid-cost-lbl">Spaces:</span><select id="aid-sp-input" class="aid-sp-sel"></select></div>
         <div class="aid-cost-row"><span class="aid-cost-lbl">Generates:</span><span class="aid-cost-val" id="aid-cp-gen">20 CPs</span></div>
         <div class="aid-cost-row"><span class="aid-cost-lbl">Profile:</span><span class="aid-cost-val" id="aid-cp-prof">x2.83</span></div>
         <div class="aid-cost-row"><span class="aid-cost-lbl">Hits:</span><span class="aid-cost-val" id="aid-cp-hits">20</span></div>
@@ -254,6 +237,7 @@
       </div>
       <div class="aid-cost-balance" id="aid-cost-balance">═══ balanced ═══</div>
     </div>
+    <input type="hidden" id="aid-cp-input" value="20">
     <!-- Live description preview -->
     <div class="aid-preview-wrap">
       <div class="aid-preview" id="aid-preview">—</div>
