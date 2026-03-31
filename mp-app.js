@@ -197,12 +197,13 @@ function renderSystemsTable() {
   const remAvail = veh.remainingSpaces;
   const remTotal = remPlaced + remAvail;
   html += `<div class="vs-sys-row-wrap vs-sys-remain">
+    <span class="vs-sys-grip"></span>
     <div class="vs-sys-row">
       <span class="vs-sys-val"></span>
       <span class="vs-sys-val">${remTotal}</span>
       <span></span><span></span><span></span><span></span>
       <span class="vs-remain-note"><em>Remaining spaces (${remPlaced} placed, ${remAvail} unplaced)</em></span>
-      <span></span>
+      <span></span><span></span><span></span>
     </div>
     <div class="vs-sys-mods"></div>
   </div>`;
