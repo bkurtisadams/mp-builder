@@ -1264,8 +1264,8 @@ const abilityDlg = {
   _updateCostBar() {
     const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
     const sysRow = MP.lookupSys(sp);
-    let budget = sysRow ? sysRow.cp : 0;
-    budget += veh.techMod;
+    const baseCp = sysRow ? sysRow.cp : 0;
+    let budget = baseCp + veh.techMod;
     const integral = document.getElementById("aid-integral").checked;
     const open = document.getElementById("aid-open").checked;
     if (integral) budget = Math.ceil(budget / 2);
@@ -1273,11 +1273,13 @@ const abilityDlg = {
     budget = Math.max(0, budget);
 
     const modAdj = this._calcModCost();
+    // Total cost = base ability CPs (from spaces) + modifier adjustments
+    const totalCost = baseCp + modAdj;
 
     document.getElementById("aid-cost-budget").textContent = budget + " CPs";
-    document.getElementById("aid-cost-spent").textContent = (modAdj >= 0 ? "+" : "") + modAdj;
+    document.getElementById("aid-cost-spent").textContent = totalCost;
 
-    const remaining = budget - modAdj;
+    const remaining = budget - totalCost;
     const diffEl = document.getElementById("aid-cost-diff");
     if (remaining > 0) {
       diffEl.textContent = remaining + " CPs remaining";
