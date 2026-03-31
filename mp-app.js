@@ -1022,7 +1022,7 @@ const abilityDlg = {
     const spSel = document.getElementById("aid-spaces");
     for (const row of MP.SYS_TABLE) {
       const opt = document.createElement("option");
-      opt.value = row.sp; opt.textContent = `${row.sp} sp`;
+      opt.value = row.sp; opt.textContent = `${row.sp} sp → ${row.cp} CPs`;
       if (row.sp === 8) opt.selected = true;
       spSel.appendChild(opt);
     }
@@ -1155,8 +1155,8 @@ const abilityDlg = {
     hits -= Math.ceil(4.3 * delicate);
     hits = Math.max(1, hits);
 
-    let cp = sysRow ? sysRow.cp : 0;
-    cp += veh.techMod;
+    const baseCp = sysRow ? sysRow.cp : 0;
+    let cp = baseCp + veh.techMod;
     if (integral) cp = Math.ceil(cp / 2);
     if (open) cp = Math.ceil(cp / 4);
     cp = Math.max(0, cp);
@@ -1166,14 +1166,23 @@ const abilityDlg = {
 
     document.getElementById("aid-ss-prof").textContent = profStr;
     document.getElementById("aid-ss-hits").textContent = hits;
-    document.getElementById("aid-ss-cps").textContent = "(" + cp + ")";
+
+    // Build CPs string with annotations for tech mod, integral, open
+    let cpStr = "(" + cp + ")";
+    const notes = [];
+    if (veh.techMod !== 0) notes.push((veh.techMod > 0 ? "+" : "") + veh.techMod + " tech");
+    if (integral) notes.push("½ integral");
+    if (open) notes.push("¼ open");
+    if (notes.length) cpStr += " [" + notes.join(", ") + "]";
+    document.getElementById("aid-ss-cps").textContent = cpStr;
   },
 
   _updateStats() {
     const abId = document.getElementById("aid-ability-val").value;
     const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
     const sysRow = MP.lookupSys(sp);
-    const cp = sysRow ? sysRow.cp : 0;
+    // Include tech mod so damage/movement/armor calcs reflect actual system CPs
+    const cp = (sysRow ? sysRow.cp : 0) + veh.techMod;
     const info = MP.computeAbilityInfo(abId, cp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
     document.getElementById("aid-stats-info").textContent = info ? info.hint : "";
   },
@@ -1246,19 +1255,19 @@ const abilityDlg = {
 
     const modAdj = this._calcModCost();
 
-    document.getElementById("aid-cost-budget").textContent = budget;
-    document.getElementById("aid-cost-spent").textContent = modAdj >= 0 ? "+" + modAdj : modAdj;
+    document.getElementById("aid-cost-budget").textContent = budget + " CPs";
+    document.getElementById("aid-cost-spent").textContent = (modAdj >= 0 ? "+" : "") + modAdj;
 
-    const diff = budget - modAdj;
+    const remaining = budget - modAdj;
     const diffEl = document.getElementById("aid-cost-diff");
-    if (diff > 0) {
-      diffEl.textContent = diff + " CPs under";
+    if (remaining > 0) {
+      diffEl.textContent = remaining + " CPs remaining";
       diffEl.className = "aid-cost-diff under";
-    } else if (diff < 0) {
-      diffEl.textContent = Math.abs(diff) + " CPs over";
+    } else if (remaining < 0) {
+      diffEl.textContent = Math.abs(remaining) + " CPs over → COST";
       diffEl.className = "aid-cost-diff over";
     } else {
-      diffEl.textContent = "Even";
+      diffEl.textContent = "0 CPs remaining";
       diffEl.className = "aid-cost-diff even";
     }
   },
@@ -1526,13 +1535,15 @@ const abilityDlg = {
     const name = ab ? ab.name : "Custom";
     const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
     const sysRow = MP.lookupSys(sp);
-    const sysCp = sysRow ? sysRow.cp : 0;
-    const info = MP.computeAbilityInfo(abId, sysCp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
+    const baseCp = sysRow ? sysRow.cp : 0;
+    // Include tech mod for ability info (damage/movement/armor calcs)
+    const effectiveCp = baseCp + veh.techMod;
+    const info = MP.computeAbilityInfo(abId, effectiveCp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
 
     const parts = [];
     let basePart = name;
     if (info && info.desc) basePart += ": " + info.desc;
-    basePart += " (" + sysCp + ")";
+    basePart += " (" + baseCp + ")";
     parts.push(basePart);
 
     let modAdj = 0, bulkyTotal = 0, delicateTotal = 0;
@@ -1624,8 +1635,16 @@ const abilityDlg = {
     const wontExplode = document.getElementById("aid-wontexplode").checked;
     const arcCp = this._selCp("aid-arc");
 
-    if (isIntegral) parts.push("Integral");
-    if (isOpen) parts.push("Open");
+    if (isIntegral) {
+      const halfCp = Math.ceil((baseCp + veh.techMod) / 2);
+      parts.push(`Integral (½ → ${halfCp} CPs)`);
+    }
+    if (isOpen) {
+      let openBase = baseCp + veh.techMod;
+      if (isIntegral) openBase = Math.ceil(openBase / 2);
+      const qtrCp = Math.ceil(openBase / 4);
+      parts.push(`Open (¼ → ${qtrCp} CPs)`);
+    }
     if (isIndep) parts.push("Indep. Power");
     if (wontExplode) { parts.push("Won't Explode (+5)"); modAdj += 5; }
     if (arcCp !== 0) {

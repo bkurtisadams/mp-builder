@@ -634,7 +634,7 @@ MP.ABILITY_MODIFIERS = {
     {id:"iceColder",     label:"Colder Ice",           short:"Cold",   type:"number", min:1, max:2, def:1, step:1, hint:"+5/app, +1 dmg/app", cpFn:v=>v*5},
   ],
   "heightened-senses": [
-    {id:"hsLevel",       label:"Sense Level",            short:"Lvl",  type:"number", min:0, max:2, def:0, step:1, hint:"0=Basic(5), 1=Full(10), 2=Analytical(20)", cpFn:v=>[0,5,15][v]||0},
+    {id:"hsLevel",       label:"Sense Level",            short:"Lvl",  type:"number", min:0, max:2, def:0, step:1, hint:"0=Basic, 1=Full(+5), 2=Analytical(+15)", cpFn:v=>[0,5,15][v]||0},
     {id:"hsAcute",       label:"Acute",                  short:"Acu",  type:"number", min:1, max:10, def:1, step:1, hint:"+2.5/app, +3 task bonus per app", cpFn:v=>v*2.5},
     {id:"hsAmplified",   label:"Amplified",              short:"Amp",  type:"number", min:1, max:5, def:1, step:1, hint:"+5/app, negates 1 dampening rank", cpFn:v=>v*5},
     {id:"hsGlobalHalf",  label:"Global 360° (horiz)",    short:"G360", cp:5},
