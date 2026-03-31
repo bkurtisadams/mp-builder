@@ -64,7 +64,7 @@ class Vehicle {
       return true;
     }
     const sys = this.findSystem(sysId);
-    if (!sys || sys.cells.length >= sys.spaces) return false;
+    if (!sys || sys.integral || sys.cells.length >= sys.spaces) return false;
     sys.cells.push({ gx, gy });
     return true;
   }
@@ -122,7 +122,7 @@ class Vehicle {
   }
 
   sysHits(sys) {
-    if (!sys.spaces) return 0;
+    if (!sys.spaces || sys.integral) return 0;
     let hits = MP.lookupSys(sys.spaces).hits;
     hits += Math.ceil(4.3 * (sys.bulky || 0));
     hits -= Math.ceil(4.3 * (sys.delicate || 0));
@@ -130,7 +130,7 @@ class Vehicle {
   }
 
   sysProfile(sys) {
-    if (!sys.spaces) return 0;
+    if (!sys.spaces || sys.integral) return 0;
     return MP.lookupSys(sys.spaces).prof;
   }
 

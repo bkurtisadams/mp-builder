@@ -181,7 +181,7 @@ function renderSystemsTable() {
         <span class="vs-sys-del" data-idx="${i}" title="Clear row">&times;</span>
       </div>
       <div class="vs-sys-mods">
-        <input type="checkbox" data-field="integral" data-idx="${i}" ${integral ? "checked" : ""} title="Integral — hidden, can't be targeted. Halves CPs.">
+        <input type="checkbox" data-field="integral" data-idx="${i}" ${integral ? "checked" : ""} title="Integral — hidden, can't be targeted, no profile/hits, not shown on layout. Halves CPs.">
         <input type="number" class="${bulky ? "has-val" : ""}" value="${bulky}" data-field="bulky" data-idx="${i}" min="0" title="Bulky — +4.3 Hits per dose, -2.5 CPs per dose">
         <input type="number" class="${delicate ? "has-val" : ""}" value="${delicate}" data-field="delicate" data-idx="${i}" min="0" title="Delicate — -4.3 Hits per dose, +2.5 CPs per dose">
         <input type="checkbox" data-field="open" data-idx="${i}" ${open ? "checked" : ""} title="Open System — passable, yields ¼ CPs">
@@ -229,6 +229,11 @@ function renderSystemsTable() {
 
       if (field === "integral" || field === "open") {
         sys[field] = inp.checked;
+        // Integral systems can't be painted — clear any existing cells
+        if (field === "integral" && inp.checked && sys.cells.length > 0) {
+          sys.cells = [];
+          if (editor && editor.activeSysId === sys.id) editor.activeSysId = null;
+        }
       } else if (["extraCPs","spaces","bulky","delicate","adjST","adjEN","adjAG","adjIN","adjCL"].includes(field)) {
         sys[field] = parseFloat(inp.value) || 0;
       } else {
