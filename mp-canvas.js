@@ -764,7 +764,7 @@ class FloorPlanEditor {
         ctx.lineWidth = isActive ? 2 : 0.5;
         ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
         // Label: per-cell label overrides default, show on all cells including seats
-        if (cell / dpr > 16) {
+        if (cell / dpr > 16 && !sys.hideLabels) {
           const lbl = c.label || MP.sysLabel(sys.desc);
           if (lbl) {
             const fs = Math.max(7, Math.min(11, (cell / dpr) * 0.35)) * dpr;
@@ -924,7 +924,7 @@ class FloorPlanEditor {
       }
       ctx.globalAlpha = 1;
       // Per-cell label or default
-      if (cellPx > 14) {
+      if (cellPx > 14 && !cc.sys.hideLabels) {
         const lbl = cc.label || MP.sysLabel(cc.sys.desc);
         if (lbl) {
           ctx.font = `bold ${Math.max(7, Math.min(11, cellPx * 0.35))}px sans-serif`;

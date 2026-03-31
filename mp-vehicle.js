@@ -42,7 +42,7 @@ class Vehicle {
       id: this._nextId++,
       spaces: 0, extraCPs: 0, desc: "", dmg: "",
       cells: [],
-      integral: false, bulky: 0, delicate: 0, open: false,
+      integral: false, bulky: 0, delicate: 0, open: false, hideLabels: false,
       adjST: 0, adjEN: 0, adjAG: 0, adjIN: 0, adjCL: 0,
       abilityData: null, // structured dialog state for edit mode
     };
@@ -233,6 +233,7 @@ class Vehicle {
       s.integral = s.integral || false;
       s.bulky = s.bulky || 0; s.delicate = s.delicate || 0;
       s.open = s.open || false;
+      s.hideLabels = s.hideLabels || false;
       s.adjST = s.adjST || 0; s.adjEN = s.adjEN || 0;
       s.adjAG = s.adjAG || 0; s.adjIN = s.adjIN || 0;
       s.adjCL = s.adjCL || 0;

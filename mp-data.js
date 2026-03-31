@@ -1317,6 +1317,7 @@ MP.SYS_COLORS = {
 
 MP.sysColor = function(desc) {
   if (!desc) return MP.SYS_COLORS.misc.color;
+  if (desc === "Remaining") return "#c8c8c8";
   const d = desc.toLowerCase();
   for (const cat of Object.values(MP.SYS_COLORS)) {
     for (const kw of cat.keywords) {

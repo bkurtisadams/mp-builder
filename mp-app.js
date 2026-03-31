@@ -384,7 +384,7 @@ function getActiveIndicatorHtml(ed) {
   let sys, color, name, placed, total;
   if (ed.activeSysId === "remaining") {
     sys = veh.getRemainingSys();
-    color = "#606060";
+    color = "#c8c8c8";
     name = "Remaining";
     placed = sys.cells.length;
     total = veh.remainingSpaces + placed;
@@ -759,6 +759,7 @@ select:focus{outline:none;border-color:var(--accent)}
       {action:"info", label:"System Info", style:""},
       {action:"select", label:"Select for Painting", style:""},
       {action:"label", label:"Edit Cell Label", style:""},
+      {action:"togglelabels", label:"Toggle Labels", style:""},
       {action:"sep"},
       {action:"delete", label:"Delete Cell", style:"color:#c03030"}
     ];
@@ -792,6 +793,7 @@ select:focus{outline:none;border-color:var(--accent)}
           popoutEditor.draw();
         }
         else if (mi.action === "label" && cell) popoutEditor._showCellLabelEditor(cell, gx, gy);
+        else if (mi.action === "togglelabels" && sys) { sys.hideLabels = !sys.hideLabels; popoutEditor.draw(); if (editor) editor.draw(); autoSave(); }
         else if (mi.action === "delete") {
           veh.unpaintCell(gx, gy);
           popoutEditor.selectedCell = null;
@@ -2269,6 +2271,13 @@ const cellMenu = {
       case "label":
         if (ed && cell) {
           ed._showCellLabelEditor(cell, gx, gy);
+        }
+        break;
+      case "togglelabels":
+        if (sys) {
+          sys.hideLabels = !sys.hideLabels;
+          if (ed) ed.draw();
+          autoSave();
         }
         break;
       case "delete":
