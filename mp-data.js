@@ -1071,132 +1071,163 @@ MP.TEMPLATES = [
   {
     name:"Motorcycle", basicCost:10, techMod:0, maneuverMod:5, wontExplode:false, isBase:false,
     systems:[
-      {spaces:1, desc:"Control Seat", extraCPs:0},
-      {spaces:4, desc:"Speed: 64/256, 87 mph, PR=1", extraCPs:0},
+      {spaces:1, desc:"Control Seat", extraCPs:0, cells:[{gx:0,gy:0}]},
+      {spaces:4, desc:"Speed: 64/256, 87 mph, PR=1", extraCPs:0, cells:[{gx:1,gy:0},{gx:2,gy:0},{gx:3,gy:0},{gx:4,gy:0}]},
     ]
   },
   {
     name:"Compact Car", basicCost:15, techMod:0, maneuverMod:0, wontExplode:false, isBase:false,
     systems:[
-      {spaces:1, desc:"Control Seat", extraCPs:0},
-      {spaces:3, desc:"Passenger Seats (3)", extraCPs:0},
-      {spaces:4, desc:"Speed: 64/256, 87 mph, PR=1", extraCPs:0},
-      {spaces:4, desc:"Cargo / Trunk", extraCPs:0},
+      {spaces:1, desc:"Control Seat", extraCPs:0, cells:[{gx:1,gy:0}]},
+      {spaces:3, desc:"Passenger Seats (3)", extraCPs:0, cells:[{gx:2,gy:0},{gx:1,gy:1},{gx:2,gy:1}]},
+      {spaces:4, desc:"Speed: 64/256, 87 mph, PR=1", extraCPs:0, cells:[{gx:0,gy:2},{gx:1,gy:2},{gx:2,gy:2},{gx:3,gy:2}]},
+      {spaces:4, desc:"Cargo / Trunk", extraCPs:0, cells:[{gx:0,gy:3},{gx:1,gy:3},{gx:2,gy:3},{gx:3,gy:3}]},
     ]
   },
   {
     name:"Sedan", basicCost:17.5, techMod:0, maneuverMod:0, wontExplode:false, isBase:false,
     systems:[
-      {spaces:1, desc:"Control Seat", extraCPs:0},
-      {spaces:4, desc:"Passenger Seats (4)", extraCPs:0},
-      {spaces:6, desc:"Speed: 64/256, 87 mph, PR=1", extraCPs:0},
-      {spaces:4, desc:"Cargo / Trunk", extraCPs:0},
+      {spaces:1, desc:"Control Seat", extraCPs:0, cells:[{gx:1,gy:0}]},
+      {spaces:4, desc:"Passenger Seats (4)", extraCPs:0, cells:[{gx:2,gy:0},{gx:0,gy:1},{gx:1,gy:1},{gx:2,gy:1}]},
+      {spaces:6, desc:"Speed: 64/256, 87 mph, PR=1", extraCPs:0, cells:[{gx:0,gy:2},{gx:1,gy:2},{gx:2,gy:2},{gx:3,gy:2},{gx:0,gy:3},{gx:1,gy:3}]},
+      {spaces:4, desc:"Cargo / Trunk", extraCPs:0, cells:[{gx:0,gy:4},{gx:1,gy:4},{gx:2,gy:4},{gx:3,gy:4}]},
     ]
   },
   {
     name:"Pickup Truck", basicCost:20, techMod:0, maneuverMod:-5, wontExplode:false, isBase:false,
     systems:[
-      {spaces:1, desc:"Control Seat", extraCPs:0},
-      {spaces:2, desc:"Passenger Seats (2)", extraCPs:0},
-      {spaces:6, desc:"Speed: 64/256, 87 mph, PR=1", extraCPs:0},
-      {spaces:12, desc:"Cargo / Truck Bed", extraCPs:0},
+      {spaces:1, desc:"Control Seat", extraCPs:0, cells:[{gx:1,gy:0}]},
+      {spaces:2, desc:"Passenger Seats (2)", extraCPs:0, cells:[{gx:2,gy:0},{gx:1,gy:1}]},
+      {spaces:6, desc:"Speed: 64/256, 87 mph, PR=1", extraCPs:0, cells:[{gx:0,gy:2},{gx:1,gy:2},{gx:2,gy:2},{gx:3,gy:2},{gx:0,gy:3},{gx:1,gy:3}]},
+      {spaces:12, desc:"Cargo / Truck Bed", extraCPs:0, cells:[{gx:0,gy:4},{gx:1,gy:4},{gx:2,gy:4},{gx:3,gy:4},{gx:0,gy:5},{gx:1,gy:5},{gx:2,gy:5},{gx:3,gy:5},{gx:0,gy:6},{gx:1,gy:6},{gx:2,gy:6},{gx:3,gy:6}]},
     ]
   },
   {
     name:"Semi Truck", basicCost:25, techMod:0, maneuverMod:-10, wontExplode:false, isBase:false,
     systems:[
-      {spaces:1, desc:"Control Seat", extraCPs:0},
-      {spaces:1, desc:"Passenger Seat", extraCPs:0},
-      {spaces:1, desc:"Bunk", extraCPs:0},
-      {spaces:12, desc:"Speed: 48/192, 66 mph, PR=1", extraCPs:0},
-      {spaces:32, desc:"Cargo / Trailer", extraCPs:0, open:true},
+      {spaces:1, desc:"Control Seat", extraCPs:0, cells:[{gx:1,gy:0}]},
+      {spaces:1, desc:"Passenger Seat", extraCPs:0, cells:[{gx:2,gy:0}]},
+      {spaces:1, desc:"Bunk", extraCPs:0, cells:[{gx:1,gy:1}]},
+      {spaces:12, desc:"Speed: 48/192, 66 mph, PR=1", extraCPs:0, cells:[{gx:0,gy:2},{gx:1,gy:2},{gx:2,gy:2},{gx:3,gy:2},{gx:0,gy:3},{gx:1,gy:3},{gx:2,gy:3},{gx:3,gy:3},{gx:0,gy:4},{gx:1,gy:4},{gx:2,gy:4},{gx:3,gy:4}]},
+      {spaces:32, desc:"Cargo / Trailer", extraCPs:0, open:true, cells:[
+        {gx:0,gy:6},{gx:1,gy:6},{gx:2,gy:6},{gx:3,gy:6},{gx:4,gy:6},{gx:5,gy:6},{gx:6,gy:6},{gx:7,gy:6},
+        {gx:0,gy:7},{gx:1,gy:7},{gx:2,gy:7},{gx:3,gy:7},{gx:4,gy:7},{gx:5,gy:7},{gx:6,gy:7},{gx:7,gy:7},
+        {gx:0,gy:8},{gx:1,gy:8},{gx:2,gy:8},{gx:3,gy:8},{gx:4,gy:8},{gx:5,gy:8},{gx:6,gy:8},{gx:7,gy:8},
+        {gx:0,gy:9},{gx:1,gy:9},{gx:2,gy:9},{gx:3,gy:9},{gx:4,gy:9},{gx:5,gy:9},{gx:6,gy:9},{gx:7,gy:9}]},
     ]
   },
   {
     name:"Helicopter", basicCost:20, techMod:5, maneuverMod:5, wontExplode:false, isBase:false,
     systems:[
-      {spaces:1, desc:"Control Seat (Pilot)", extraCPs:0},
-      {spaces:1, desc:"Control Seat (Co-Pilot)", extraCPs:0},
-      {spaces:4, desc:"Passenger Seats (4)", extraCPs:0},
-      {spaces:8, desc:"Flight: 48/192, 131 mph, PR=1", extraCPs:0},
-      {spaces:4, desc:"Cargo", extraCPs:0},
-      {spaces:1, desc:"Sensor Suite (Radar)", extraCPs:0},
-      {spaces:1, desc:"Communicators", extraCPs:0},
+      {spaces:1, desc:"Control Seat (Pilot)", extraCPs:0, cells:[{gx:1,gy:0}]},
+      {spaces:1, desc:"Control Seat (Co-Pilot)", extraCPs:0, cells:[{gx:2,gy:0}]},
+      {spaces:4, desc:"Passenger Seats (4)", extraCPs:0, cells:[{gx:0,gy:1},{gx:1,gy:1},{gx:2,gy:1},{gx:3,gy:1}]},
+      {spaces:8, desc:"Flight: 48/192, 131 mph, PR=1", extraCPs:0, cells:[{gx:0,gy:3},{gx:1,gy:3},{gx:2,gy:3},{gx:3,gy:3},{gx:0,gy:4},{gx:1,gy:4},{gx:2,gy:4},{gx:3,gy:4}]},
+      {spaces:4, desc:"Cargo", extraCPs:0, cells:[{gx:0,gy:2},{gx:1,gy:2},{gx:2,gy:2},{gx:3,gy:2}]},
+      {spaces:1, desc:"Sensor Suite (Radar)", extraCPs:0, cells:[{gx:0,gy:0}]},
+      {spaces:1, desc:"Communicators", extraCPs:0, cells:[{gx:3,gy:0}]},
     ]
   },
   {
     name:"Fighter Jet", basicCost:25, techMod:10, maneuverMod:0, wontExplode:false, isBase:false,
     systems:[
-      {spaces:1, desc:"Control Seat (Ejection)", extraCPs:0},
-      {spaces:16, desc:"Flight: 384/1536, 523 mph, PR=1", extraCPs:0},
-      {spaces:4, desc:"Energy Blast", extraCPs:0},
-      {spaces:2, desc:"Sensor Suite (Radar/IR)", extraCPs:0},
-      {spaces:1, desc:"Communicators", extraCPs:0},
-      {spaces:1, desc:"Countermeasures (Chaff/Flare)", extraCPs:0},
+      {spaces:1, desc:"Control Seat (Ejection)", extraCPs:0, cells:[{gx:1,gy:1}]},
+      {spaces:16, desc:"Flight: 384/1536, 523 mph, PR=1", extraCPs:0, cells:[
+        {gx:0,gy:3},{gx:1,gy:3},{gx:2,gy:3},{gx:3,gy:3},{gx:0,gy:4},{gx:1,gy:4},{gx:2,gy:4},{gx:3,gy:4},
+        {gx:0,gy:5},{gx:1,gy:5},{gx:2,gy:5},{gx:3,gy:5},{gx:0,gy:6},{gx:1,gy:6},{gx:2,gy:6},{gx:3,gy:6}]},
+      {spaces:4, desc:"Energy Blast", extraCPs:0, cells:[{gx:0,gy:2},{gx:1,gy:2},{gx:2,gy:2},{gx:3,gy:2}]},
+      {spaces:2, desc:"Sensor Suite (Radar/IR)", extraCPs:0, cells:[{gx:0,gy:0},{gx:1,gy:0}]},
+      {spaces:1, desc:"Communicators", extraCPs:0, cells:[{gx:2,gy:0}]},
+      {spaces:1, desc:"Countermeasures (Chaff/Flare)", extraCPs:0, cells:[{gx:2,gy:1}]},
     ]
   },
   {
     name:"Speedboat", basicCost:17.5, techMod:0, maneuverMod:5, wontExplode:false, isBase:false,
     systems:[
-      {spaces:1, desc:"Control Seat", extraCPs:0},
-      {spaces:3, desc:"Passenger Seats (3)", extraCPs:0},
-      {spaces:6, desc:"Swimming: 64/256, 87 mph, PR=1", extraCPs:0},
-      {spaces:4, desc:"Cargo", extraCPs:0},
+      {spaces:1, desc:"Control Seat", extraCPs:0, cells:[{gx:1,gy:0}]},
+      {spaces:3, desc:"Passenger Seats (3)", extraCPs:0, cells:[{gx:2,gy:0},{gx:1,gy:1},{gx:2,gy:1}]},
+      {spaces:6, desc:"Swimming: 64/256, 87 mph, PR=1", extraCPs:0, cells:[{gx:0,gy:2},{gx:1,gy:2},{gx:2,gy:2},{gx:3,gy:2},{gx:0,gy:3},{gx:1,gy:3}]},
+      {spaces:4, desc:"Cargo", extraCPs:0, cells:[{gx:0,gy:4},{gx:1,gy:4},{gx:2,gy:4},{gx:3,gy:4}]},
     ]
   },
   {
     name:"Tank", basicCost:30, techMod:5, maneuverMod:-10, wontExplode:true, isBase:false,
     systems:[
-      {spaces:1, desc:"Control Seat (Driver)", extraCPs:0},
-      {spaces:1, desc:"Control Seat (Commander)", extraCPs:0},
-      {spaces:1, desc:"Control Seat (Gunner)", extraCPs:0},
-      {spaces:1, desc:"Control Seat (Loader)", extraCPs:0},
-      {spaces:16, desc:"Speed: 32/128, 44 mph, PR=1", extraCPs:0},
-      {spaces:8, desc:"Power Blast, Fwd Arc", extraCPs:0},
-      {spaces:2, desc:"Energy Blast, turret 360\u00b0", extraCPs:0},
+      {spaces:1, desc:"Control Seat (Driver)", extraCPs:0, cells:[{gx:1,gy:0}]},
+      {spaces:1, desc:"Control Seat (Commander)", extraCPs:0, cells:[{gx:4,gy:0}]},
+      {spaces:1, desc:"Control Seat (Gunner)", extraCPs:0, cells:[{gx:3,gy:1}]},
+      {spaces:1, desc:"Control Seat (Loader)", extraCPs:0, cells:[{gx:4,gy:1}]},
+      {spaces:16, desc:"Speed: 32/128, 44 mph, PR=1", extraCPs:0, cells:[
+        {gx:0,gy:3},{gx:1,gy:3},{gx:2,gy:3},{gx:3,gy:3},{gx:4,gy:3},{gx:5,gy:3},
+        {gx:0,gy:4},{gx:1,gy:4},{gx:2,gy:4},{gx:3,gy:4},{gx:4,gy:4},{gx:5,gy:4},
+        {gx:1,gy:5},{gx:2,gy:5},{gx:3,gy:5},{gx:4,gy:5}]},
+      {spaces:8, desc:"Power Blast, Fwd Arc", extraCPs:0, cells:[
+        {gx:0,gy:0},{gx:2,gy:0},{gx:3,gy:0},{gx:5,gy:0},
+        {gx:0,gy:1},{gx:1,gy:1},{gx:2,gy:1},{gx:5,gy:1}]},
+      {spaces:2, desc:"Energy Blast, turret 360\u00b0", extraCPs:0, cells:[{gx:2,gy:2},{gx:3,gy:2}]},
       {spaces:16, desc:"Armor, Integral", extraCPs:0, integral:true},
-      {spaces:2, desc:"Sensor Suite (IR/Thermal)", extraCPs:0},
-      {spaces:1, desc:"Communicators", extraCPs:0},
-      {spaces:4, desc:"Spare Parts", extraCPs:0},
+      {spaces:2, desc:"Sensor Suite (IR/Thermal)", extraCPs:0, cells:[{gx:0,gy:2},{gx:1,gy:2}]},
+      {spaces:1, desc:"Communicators", extraCPs:0, cells:[{gx:4,gy:2}]},
+      {spaces:4, desc:"Spare Parts", extraCPs:0, cells:[{gx:5,gy:2},{gx:5,gy:5},{gx:0,gy:5},{gx:0,gy:6}]},
     ]
   },
   {
     name:"APC", basicCost:25, techMod:5, maneuverMod:-5, wontExplode:false, isBase:false,
     systems:[
-      {spaces:1, desc:"Control Seat (Driver)", extraCPs:0},
-      {spaces:1, desc:"Control Seat (Commander)", extraCPs:0},
-      {spaces:8, desc:"Passenger Seats (8 troops)", extraCPs:0},
-      {spaces:12, desc:"Speed: 32/128, 44 mph, PR=1", extraCPs:0},
-      {spaces:4, desc:"Energy Blast, turret 360\u00b0", extraCPs:0},
+      {spaces:1, desc:"Control Seat (Driver)", extraCPs:0, cells:[{gx:1,gy:0}]},
+      {spaces:1, desc:"Control Seat (Commander)", extraCPs:0, cells:[{gx:2,gy:0}]},
+      {spaces:8, desc:"Passenger Seats (8 troops)", extraCPs:0, cells:[
+        {gx:0,gy:1},{gx:1,gy:1},{gx:2,gy:1},{gx:3,gy:1},
+        {gx:0,gy:2},{gx:1,gy:2},{gx:2,gy:2},{gx:3,gy:2}]},
+      {spaces:12, desc:"Speed: 32/128, 44 mph, PR=1", extraCPs:0, cells:[
+        {gx:0,gy:4},{gx:1,gy:4},{gx:2,gy:4},{gx:3,gy:4},
+        {gx:0,gy:5},{gx:1,gy:5},{gx:2,gy:5},{gx:3,gy:5},
+        {gx:0,gy:6},{gx:1,gy:6},{gx:2,gy:6},{gx:3,gy:6}]},
+      {spaces:4, desc:"Energy Blast, turret 360\u00b0", extraCPs:0, cells:[{gx:0,gy:0},{gx:3,gy:0},{gx:0,gy:3},{gx:1,gy:3}]},
       {spaces:8, desc:"Armor, Integral", extraCPs:0, integral:true},
-      {spaces:2, desc:"Sensor Suite", extraCPs:0},
-      {spaces:1, desc:"Communicators", extraCPs:0},
-      {spaces:4, desc:"Cargo / Ammo", extraCPs:0},
+      {spaces:2, desc:"Sensor Suite", extraCPs:0, cells:[{gx:2,gy:3},{gx:3,gy:3}]},
+      {spaces:1, desc:"Communicators", extraCPs:0, cells:[{gx:0,gy:7}]},
+      {spaces:4, desc:"Cargo / Ammo", extraCPs:0, cells:[{gx:1,gy:7},{gx:2,gy:7},{gx:3,gy:7},{gx:0,gy:8}]},
     ]
   },
   {
     name:"Space Shuttle", basicCost:35, techMod:10, maneuverMod:0, wontExplode:false, isBase:false,
     systems:[
-      {spaces:2, desc:"Control Seats (Pilot/Co-Pilot)", extraCPs:0},
-      {spaces:4, desc:"Passenger Seats (4 crew)", extraCPs:0},
-      {spaces:32, desc:"Flight: 1024/4096, 1393 mph, PR=1", extraCPs:0},
-      {spaces:16, desc:"Cargo Bay", extraCPs:0, open:true},
-      {spaces:4, desc:"Life Support", extraCPs:0},
-      {spaces:4, desc:"Sensor Suite (Full Spectrum)", extraCPs:0},
-      {spaces:2, desc:"Communicators Array", extraCPs:0},
-      {spaces:2, desc:"Spare Parts", extraCPs:0},
+      {spaces:2, desc:"Control Seats (Pilot/Co-Pilot)", extraCPs:0, cells:[{gx:2,gy:0},{gx:3,gy:0}]},
+      {spaces:4, desc:"Passenger Seats (4 crew)", extraCPs:0, cells:[{gx:1,gy:1},{gx:2,gy:1},{gx:3,gy:1},{gx:4,gy:1}]},
+      {spaces:32, desc:"Flight: 1024/4096, 1393 mph, PR=1", extraCPs:0, cells:[
+        {gx:0,gy:4},{gx:1,gy:4},{gx:2,gy:4},{gx:3,gy:4},{gx:4,gy:4},{gx:5,gy:4},
+        {gx:0,gy:5},{gx:1,gy:5},{gx:2,gy:5},{gx:3,gy:5},{gx:4,gy:5},{gx:5,gy:5},
+        {gx:0,gy:6},{gx:1,gy:6},{gx:2,gy:6},{gx:3,gy:6},{gx:4,gy:6},{gx:5,gy:6},
+        {gx:0,gy:7},{gx:1,gy:7},{gx:2,gy:7},{gx:3,gy:7},{gx:4,gy:7},{gx:5,gy:7},
+        {gx:0,gy:8},{gx:1,gy:8},{gx:2,gy:8},{gx:3,gy:8},{gx:4,gy:8},{gx:5,gy:8},
+        {gx:2,gy:9},{gx:3,gy:9}]},
+      {spaces:16, desc:"Cargo Bay", extraCPs:0, open:true, cells:[
+        {gx:1,gy:2},{gx:2,gy:2},{gx:3,gy:2},{gx:4,gy:2},
+        {gx:1,gy:3},{gx:2,gy:3},{gx:3,gy:3},{gx:4,gy:3},
+        {gx:0,gy:2},{gx:5,gy:2},{gx:0,gy:3},{gx:5,gy:3},
+        {gx:0,gy:9},{gx:1,gy:9},{gx:4,gy:9},{gx:5,gy:9}]},
+      {spaces:4, desc:"Life Support", extraCPs:0, cells:[{gx:0,gy:0},{gx:1,gy:0},{gx:4,gy:0},{gx:5,gy:0}]},
+      {spaces:4, desc:"Sensor Suite (Full Spectrum)", extraCPs:0, cells:[{gx:0,gy:1},{gx:5,gy:1},{gx:0,gy:10},{gx:5,gy:10}]},
+      {spaces:2, desc:"Communicators Array", extraCPs:0, cells:[{gx:1,gy:10},{gx:4,gy:10}]},
+      {spaces:2, desc:"Spare Parts", extraCPs:0, cells:[{gx:2,gy:10},{gx:3,gy:10}]},
     ]
   },
   {
     name:"Yacht", basicCost:27.5, techMod:5, maneuverMod:0, wontExplode:false, isBase:false,
     systems:[
-      {spaces:1, desc:"Control Seat (Helm)", extraCPs:0},
-      {spaces:6, desc:"Passenger Seats / Lounge", extraCPs:0},
-      {spaces:4, desc:"Bunks (4, double)", extraCPs:0},
-      {spaces:12, desc:"Swimming: 24/96, 33 mph, PR=1", extraCPs:0},
-      {spaces:8, desc:"Cargo / Storage", extraCPs:0},
-      {spaces:2, desc:"Sensor Suite (Radar/Sonar)", extraCPs:0},
-      {spaces:1, desc:"Communicators", extraCPs:0},
+      {spaces:1, desc:"Control Seat (Helm)", extraCPs:0, cells:[{gx:2,gy:0}]},
+      {spaces:6, desc:"Passenger Seats / Lounge", extraCPs:0, cells:[{gx:0,gy:1},{gx:1,gy:1},{gx:2,gy:1},{gx:3,gy:1},{gx:4,gy:1},{gx:0,gy:2}]},
+      {spaces:4, desc:"Bunks (4, double)", extraCPs:0, cells:[{gx:1,gy:2},{gx:2,gy:2},{gx:3,gy:2},{gx:4,gy:2}]},
+      {spaces:12, desc:"Swimming: 24/96, 33 mph, PR=1", extraCPs:0, cells:[
+        {gx:0,gy:4},{gx:1,gy:4},{gx:2,gy:4},{gx:3,gy:4},{gx:4,gy:4},
+        {gx:0,gy:5},{gx:1,gy:5},{gx:2,gy:5},{gx:3,gy:5},{gx:4,gy:5},
+        {gx:1,gy:6},{gx:3,gy:6}]},
+      {spaces:8, desc:"Cargo / Storage", extraCPs:0, cells:[
+        {gx:0,gy:3},{gx:1,gy:3},{gx:2,gy:3},{gx:3,gy:3},{gx:4,gy:3},
+        {gx:0,gy:6},{gx:2,gy:6},{gx:4,gy:6}]},
+      {spaces:2, desc:"Sensor Suite (Radar/Sonar)", extraCPs:0, cells:[{gx:0,gy:0},{gx:4,gy:0}]},
+      {spaces:1, desc:"Communicators", extraCPs:0, cells:[{gx:1,gy:0}]},
     ]
   },
 ];

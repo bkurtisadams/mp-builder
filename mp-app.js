@@ -41,6 +41,8 @@ let editor = null;
       sys.adjAG = ts.adjAG || 0;
       sys.adjIN = ts.adjIN || 0;
       sys.adjCL = ts.adjCL || 0;
+      // Copy layout cells from template (deep copy to avoid shared refs)
+      sys.cells = (ts.cells || []).map(c => ({gx:c.gx, gy:c.gy, label:c.label}));
     }
     syncFormFromVeh();
     updateAll();
@@ -514,6 +516,15 @@ document.getElementById("btn-mode-sil").addEventListener("click", () => setLayou
 document.getElementById("btn-zoom-in").addEventListener("click", () => editor.zoomIn());
 document.getElementById("btn-zoom-out").addEventListener("click", () => editor.zoomOut());
 document.getElementById("btn-zoom-reset").addEventListener("click", () => editor.resetView());
+
+// Clear all painted cells from layout
+document.getElementById("btn-clear-layout").addEventListener("click", () => {
+  if (!confirm("Clear all painted cells from the layout?")) return;
+  for (const sys of veh.systems) sys.cells = [];
+  veh.getRemainingSys().cells = [];
+  if (editor) { editor.selectedCell = null; editor.activeSysId = null; }
+  updateAll();
+});
 
 // ---- Silhouette bar ----
 document.getElementById("btn-sil-import").addEventListener("click", () => {
