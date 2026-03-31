@@ -1352,18 +1352,23 @@ const abilityDlg = {
     hdr.textContent = "ABILITY MODIFIERS";
     container.appendChild(hdr);
 
+    const grid = document.createElement("div");
+    grid.className = "aid-2col";
+    container.appendChild(grid);
+
     for (const am of abMods) {
+      // Select-type modifiers span full width since they have long option labels
+      const isFullWidth = am.type === "select";
       const row = document.createElement("div");
-      row.className = "aid-mod-row";
+      row.className = isFullWidth ? "aid-2c-full" : "aid-2c";
       row.dataset.amId = am.id;
       const lbl = document.createElement("label");
-      lbl.className = "aid-mlbl"; lbl.textContent = am.label + ":";
+      lbl.className = "aid-mlbl2"; lbl.textContent = am.label + ":";
       row.appendChild(lbl);
 
       if (am.type === "select") {
-        // Custom select with predefined options
         const sel = document.createElement("select");
-        sel.className = "aid-msel"; sel.dataset.amId = am.id;
+        sel.className = "aid-msel2"; sel.dataset.amId = am.id;
         for (let i = 0; i < am.options.length; i++) {
           const opt = document.createElement("option");
           opt.value = i; opt.textContent = am.options[i].l; opt.dataset.cp = am.options[i].cp;
@@ -1375,12 +1380,12 @@ const abilityDlg = {
         sel.addEventListener("change", () => this._updateCostBar());
       } else if (am.type === "number") {
         const inp = document.createElement("input");
-        inp.type = "number"; inp.className = "aid-mnum"; inp.value = "0";
+        inp.type = "number"; inp.className = "aid-mnum2"; inp.value = "0";
         inp.min = "0"; inp.max = String(am.max); inp.step = String(am.step || 1);
         inp.dataset.amId = am.id;
         row.appendChild(inp);
         const hint = document.createElement("span");
-        hint.className = "aid-mhint"; hint.textContent = am.hint || "";
+        hint.className = "aid-mh2"; hint.textContent = am.hint || "";
         row.appendChild(hint);
         wheelNumber(inp);
         inp.addEventListener("input", () => this._updateCostBar());
@@ -1390,11 +1395,11 @@ const abilityDlg = {
         row.appendChild(chk);
         const cpStr = am.cp !== 0 ? (am.cp > 0 ? "+" + am.cp : String(am.cp)) : "0";
         const hint = document.createElement("span");
-        hint.className = "aid-mhint"; hint.textContent = `(${cpStr} CPs)`;
+        hint.className = "aid-mh2"; hint.textContent = `(${cpStr})`;
         row.appendChild(hint);
         chk.addEventListener("change", () => this._updateCostBar());
       }
-      container.appendChild(row);
+      grid.appendChild(row);
     }
   },
 
