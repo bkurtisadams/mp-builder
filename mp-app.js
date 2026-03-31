@@ -1029,7 +1029,7 @@ const abilityDlg = {
   init() {
     this.overlay = document.getElementById("ability-dlg-overlay");
 
-    // Build system spaces dropdown
+    // Build system spaces dropdown (used in "By Spaces" mode)
     const spSel = document.getElementById("aid-spaces");
     for (const row of MP.SYS_TABLE) {
       const opt = document.createElement("option");
@@ -1038,6 +1038,7 @@ const abilityDlg = {
       spSel.appendChild(opt);
     }
     wheelSelect(spSel);
+    wheelNumber(document.getElementById("aid-cp-input"));
 
     // Build generic modifier dropdowns
     buildStepSelect(document.getElementById("aid-area"), MP.AREA_EFFECT_STEPS, fmtCp, 0);
@@ -1117,21 +1118,24 @@ const abilityDlg = {
       });
     });
 
-    // Wire events — recalc on any modifier change
-    spSel.addEventListener("change", () => { this._updateSysStats(); this._updateStats(); this._updateCostBar(); });
+    // Wire CP input and spaces dropdown
+    document.getElementById("aid-cp-input").addEventListener("input", () => this._refresh());
+    spSel.addEventListener("change", () => this._refresh());
 
-    // Wire all modifier controls to update cost bar
-    // Selects in generic and system modifier grids
+    // Wire input mode toggle
+    document.querySelectorAll('input[name="aid-input-mode"]').forEach(radio => {
+      radio.addEventListener("change", () => this._syncInputMode());
+    });
+
+    // Wire all modifier controls
     document.querySelectorAll("#aid-generic-mods select, #aid-sys-mods select").forEach(sel => {
-      sel.addEventListener("change", () => { this._updateSysStats(); this._updateCostBar(); });
+      sel.addEventListener("change", () => this._refresh());
     });
-    // Checkboxes in generic and system modifier grids
     document.querySelectorAll("#aid-generic-mods input[type='checkbox'], #aid-sys-mods input[type='checkbox']").forEach(chk => {
-      chk.addEventListener("change", () => { this._updateSysStats(); this._updateCostBar(); });
+      chk.addEventListener("change", () => this._refresh());
     });
-    // Number inputs in generic and system modifier grids
     document.querySelectorAll("#aid-generic-mods input[type='number'], #aid-sys-mods input[type='number']").forEach(inp => {
-      inp.addEventListener("input", () => { this._updateSysStats(); this._updateCostBar(); });
+      inp.addEventListener("input", () => this._refresh());
     });
 
     // Wire description mode radios
@@ -1168,48 +1172,119 @@ const abilityDlg = {
     this._onAbilityChange();
   },
 
+  // Get the current input mode
+  _getInputMode() {
+    const checked = document.querySelector('input[name="aid-input-mode"]:checked');
+    return checked ? checked.value : "cp";
+  },
+
+  // Toggle visibility of CP input vs spaces dropdown
+  _syncInputMode() {
+    const mode = this._getInputMode();
+    const cpInp = document.getElementById("aid-cp-input");
+    const spSel = document.getElementById("aid-spaces");
+    if (mode === "cp") {
+      cpInp.style.display = "";
+      spSel.style.display = "none";
+      // Sync CP input from spaces if switching from sp mode
+      const sp = parseInt(spSel.value) || 8;
+      const row = MP.lookupSys(sp);
+      cpInp.value = row ? row.cp : 20;
+    } else {
+      cpInp.style.display = "none";
+      spSel.style.display = "";
+      // Sync spaces from CP input if switching from cp mode
+      const cp = parseFloat(cpInp.value) || 20;
+      const row = MP.lookupSysByCp(cp);
+      spSel.value = String(row.sp);
+    }
+    this._refresh();
+  },
+
+  // Get the ability's base CPs (what the user wants the ability to be)
+  _getAbilityCp() {
+    if (this._getInputMode() === "cp") {
+      return parseFloat(document.getElementById("aid-cp-input").value) || 0;
+    } else {
+      const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
+      const row = MP.lookupSys(sp);
+      return row ? row.cp : 0;
+    }
+  },
+
+  // Get the system row for the current ability CPs
+  _getSysRow() {
+    const cp = this._getAbilityCp();
+    return MP.lookupSysByCp(cp);
+  },
+
+  // Master refresh — called on any input change
+  _refresh() {
+    this._updateSysStats();
+    this._updateStats();
+    this._updatePreview();
+  },
+
   _updateSysStats() {
-    const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
-    const sysRow = MP.lookupSys(sp);
+    const abilityCp = this._getAbilityCp();
+    const sysRow = MP.lookupSysByCp(abilityCp);
     const bulky = parseInt(document.getElementById("aid-bulky").value) || 0;
     const delicate = parseInt(document.getElementById("aid-delicate").value) || 0;
     const integral = document.getElementById("aid-integral").checked;
     const open = document.getElementById("aid-open").checked;
 
+    // System info line: spaces and generated CPs
+    const genCp = sysRow ? sysRow.cp : 0;
+    let spacesStr = (sysRow ? sysRow.sp : 0) + " sp (generates " + genCp + " CPs)";
+    document.getElementById("aid-si-spaces").textContent = spacesStr;
+
+    // Tech mod annotation
+    let techStr = "";
+    let budget = genCp + veh.techMod;
+    if (integral) budget = Math.ceil(budget / 2);
+    if (open) budget = Math.ceil(budget / 4);
+    budget = Math.max(0, budget);
+    const techNotes = [];
+    if (veh.techMod !== 0) techNotes.push((veh.techMod > 0 ? "+" : "") + veh.techMod + " tech");
+    if (integral) techNotes.push("½ integral");
+    if (open) techNotes.push("¼ open");
+    if (techNotes.length) techStr = "[" + techNotes.join(", ") + " → budget " + budget + "]";
+    document.getElementById("aid-si-tech").textContent = techStr;
+
+    // Hits
     let hits = sysRow ? sysRow.hits : 0;
     hits += Math.ceil(4.3 * bulky);
     hits -= Math.ceil(4.3 * delicate);
     hits = Math.max(1, hits);
 
-    const baseCp = sysRow ? sysRow.cp : 0;
-    let cp = baseCp + veh.techMod;
-    if (integral) cp = Math.ceil(cp / 2);
-    if (open) cp = Math.ceil(cp / 4);
-    cp = Math.max(0, cp);
-
+    // Profile
     const prof = sysRow ? sysRow.prof : 0;
     const profStr = prof ? "x" + (Number.isInteger(prof) ? prof : prof.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")) : "—";
 
-    // Integral systems can't be targeted — no Profile or Hits
+    // Integral systems can't be targeted
     document.getElementById("aid-ss-prof").textContent = integral ? "—" : profStr;
     document.getElementById("aid-ss-hits").textContent = integral ? "— (hidden)" : hits;
 
-    // Build CPs string with annotations for tech mod, integral, open
-    let cpStr = "(" + cp + ")";
-    const notes = [];
-    if (veh.techMod !== 0) notes.push((veh.techMod > 0 ? "+" : "") + veh.techMod + " tech");
-    if (integral) notes.push("½ integral");
-    if (open) notes.push("¼ open");
-    if (notes.length) cpStr += " [" + notes.join(", ") + "]";
-    document.getElementById("aid-ss-cps").textContent = cpStr;
+    // Remaining CPs
+    const modAdj = this._calcModCost();
+    const totalCost = abilityCp + modAdj;
+    const remaining = budget - totalCost;
+    const remEl = document.getElementById("aid-ss-remain");
+    if (remaining > 0) {
+      remEl.textContent = remaining + " CPs remaining";
+      remEl.className = "aid-ss-remain under";
+    } else if (remaining < 0) {
+      remEl.textContent = Math.abs(remaining) + " CPs over → COST";
+      remEl.className = "aid-ss-remain over";
+    } else {
+      remEl.textContent = "0 CPs remaining";
+      remEl.className = "aid-ss-remain even";
+    }
   },
 
   _updateStats() {
     const abId = document.getElementById("aid-ability-val").value;
-    const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
-    const sysRow = MP.lookupSys(sp);
-    // Include tech mod so damage/movement/armor calcs reflect actual system CPs
-    const cp = (sysRow ? sysRow.cp : 0) + veh.techMod;
+    const cp = this._getAbilityCp();
     const info = MP.computeAbilityInfo(abId, cp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
     document.getElementById("aid-stats-info").textContent = info ? info.hint : "";
   },
@@ -1272,39 +1347,6 @@ const abilityDlg = {
     return modAdj;
   },
 
-  _updateCostBar() {
-    const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
-    const sysRow = MP.lookupSys(sp);
-    const baseCp = sysRow ? sysRow.cp : 0;
-    let budget = baseCp + veh.techMod;
-    const integral = document.getElementById("aid-integral").checked;
-    const open = document.getElementById("aid-open").checked;
-    if (integral) budget = Math.ceil(budget / 2);
-    if (open) budget = Math.ceil(budget / 4);
-    budget = Math.max(0, budget);
-
-    const modAdj = this._calcModCost();
-    // Total cost = base ability CPs (from spaces) + modifier adjustments
-    const totalCost = baseCp + modAdj;
-
-    document.getElementById("aid-cost-budget").textContent = budget + " CPs";
-    document.getElementById("aid-cost-spent").textContent = totalCost;
-
-    const remaining = budget - totalCost;
-    const diffEl = document.getElementById("aid-cost-diff");
-    if (remaining > 0) {
-      diffEl.textContent = remaining + " CPs remaining";
-      diffEl.className = "aid-cost-diff under";
-    } else if (remaining < 0) {
-      diffEl.textContent = Math.abs(remaining) + " CPs over → COST";
-      diffEl.className = "aid-cost-diff over";
-    } else {
-      diffEl.textContent = "0 CPs remaining";
-      diffEl.className = "aid-cost-diff even";
-    }
-    this._updatePreview();
-  },
-
   _onAbilityChange() {
     const abId = document.getElementById("aid-ability-val").value;
     const detail = MP.ABILITY_DETAILS[abId];
@@ -1319,9 +1361,7 @@ const abilityDlg = {
     this._rebuildPRCharges(detail ? detail.pr : 0);
     this._rebuildRange(detail?.calc?.baseRange || 'BCx1"');
     this._rebuildAbilityMods(abId);
-    this._updateSysStats();
-    this._updateStats();
-    this._updateCostBar();
+    this._refresh();
   },
 
   _rebuildPRCharges(basePR) {
@@ -1388,7 +1428,7 @@ const abilityDlg = {
         }
         row.appendChild(sel);
         wheelSelect(sel);
-        sel.addEventListener("change", () => this._updateCostBar());
+        sel.addEventListener("change", () => this._refresh());
       } else if (am.type === "number") {
         const inp = document.createElement("input");
         inp.type = "number"; inp.className = "aid-mnum2"; inp.value = "0";
@@ -1399,7 +1439,7 @@ const abilityDlg = {
         hint.className = "aid-mh2"; hint.textContent = am.hint || "";
         row.appendChild(hint);
         wheelNumber(inp);
-        inp.addEventListener("input", () => this._updateCostBar());
+        inp.addEventListener("input", () => this._refresh());
       } else {
         const chk = document.createElement("input");
         chk.type = "checkbox"; chk.className = "aid-mchk"; chk.dataset.amId = am.id;
@@ -1408,7 +1448,7 @@ const abilityDlg = {
         const hint = document.createElement("span");
         hint.className = "aid-mh2"; hint.textContent = `(${cpStr})`;
         row.appendChild(hint);
-        chk.addEventListener("change", () => this._updateCostBar());
+        chk.addEventListener("change", () => this._refresh());
       }
       grid.appendChild(row);
     }
@@ -1419,6 +1459,8 @@ const abilityDlg = {
     const abId = document.getElementById("aid-ability-val").value;
     const state = {
       abId: abId,
+      abilityCp: this._getAbilityCp(),
+      inputMode: this._getInputMode(),
       spaces: parseInt(document.getElementById("aid-spaces").value) || 8,
       // Generic modifiers (select indices)
       area: parseInt(document.getElementById("aid-area").value) || 0,
@@ -1469,8 +1511,14 @@ const abilityDlg = {
   _restoreState(state) {
     if (!state) return;
     this._setAbility(state.abId || "");
-    const spSel = document.getElementById("aid-spaces");
-    spSel.value = String(state.spaces || 8);
+
+    // Restore input mode and CP/spaces values
+    const inputMode = state.inputMode || "cp";
+    const modeRadio = document.querySelector(`input[name="aid-input-mode"][value="${inputMode}"]`);
+    if (modeRadio) modeRadio.checked = true;
+    document.getElementById("aid-cp-input").value = state.abilityCp || 20;
+    document.getElementById("aid-spaces").value = String(state.spaces || 8);
+    this._syncInputMode();
 
     document.getElementById("aid-area").selectedIndex = state.area || 0;
     document.getElementById("aid-ap").selectedIndex = state.ap || 0;
@@ -1518,17 +1566,20 @@ const abilityDlg = {
     // Restore description mode if saved with this ability
     if (state.descMode) this._setDescMode(state.descMode);
 
-    this._updateSysStats();
-    this._updateStats();
-    this._updateCostBar();
+    this._refresh();
   },
 
   _resetDialog() {
     this._setAbility("");
+    // Reset to By CPs mode, 20 CPs default
+    document.getElementById("aid-cp-input").value = "20";
+    const cpRadio = document.querySelector('input[name="aid-input-mode"][value="cp"]');
+    if (cpRadio) cpRadio.checked = true;
     const spSel = document.getElementById("aid-spaces");
     for (let i = 0; i < spSel.options.length; i++) {
       if (parseInt(spSel.options[i].value) === 8) { spSel.selectedIndex = i; break; }
     }
+    this._syncInputMode();
     document.getElementById("aid-area").selectedIndex = 0;
     document.getElementById("aid-ap").selectedIndex = 0;
     document.getElementById("aid-autofire").selectedIndex = 0;
@@ -1562,17 +1613,19 @@ const abilityDlg = {
     if (this.editMode && sys && sys.abilityData) {
       // Edit mode: restore from structured data
       document.getElementById("aid-title").textContent = "Edit Ability";
-      // Need to trigger ability change first to build PR/Range/AbilityMods, then restore
       this._setAbility(sys.abilityData.abId || "");
-      // Now restore full state (PR/Range/AbilityMods are rebuilt by _onAbilityChange)
       this._restoreState(sys.abilityData);
     } else {
       // Insert mode: blank dialog
       document.getElementById("aid-title").textContent = "Insert Ability";
       this._resetDialog();
-      // Pre-fill spaces and system mods from existing row
+      // Pre-fill from existing row
       if (sys) {
-        if (sys.spaces) document.getElementById("aid-spaces").value = String(sys.spaces);
+        if (sys.spaces) {
+          const row = MP.lookupSys(sys.spaces);
+          document.getElementById("aid-cp-input").value = row ? row.cp : 20;
+          document.getElementById("aid-spaces").value = String(sys.spaces);
+        }
         if (sys.integral) document.getElementById("aid-integral").checked = true;
         if (sys.open) document.getElementById("aid-open").checked = true;
       }
@@ -1617,18 +1670,17 @@ const abilityDlg = {
     const ab = MP.abilityById(abId);
     const detail = MP.ABILITY_DETAILS[abId];
     const name = ab ? ab.name : "Custom";
-    const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
-    const sysRow = MP.lookupSys(sp);
+    const abilityCp = this._getAbilityCp();
+    const sysRow = this._getSysRow();
     const baseCp = sysRow ? sysRow.cp : 0;
-    const effectiveCp = baseCp + veh.techMod;
-    const info = MP.computeAbilityInfo(abId, effectiveCp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
+    const info = MP.computeAbilityInfo(abId, abilityCp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
 
     const full = mode === "full";
     const min = mode === "min";
     // cp annotation helper: full/compact show CPs, min omits
     function cpA(cp) { if (min) return ""; return ` (${cp >= 0 ? "+" + cp : cp})`; }
     // base CP annotation
-    function baseCpA() { if (min) return ""; return " (" + baseCp + ")"; }
+    function baseCpA() { if (min) return ""; return " (" + abilityCp + ")"; }
 
     const parts = [];
     let basePart = name;
@@ -1780,7 +1832,7 @@ const abilityDlg = {
     if (notes) parts.push(notes);
 
     return { desc: parts.join(", "), parts, modAdj, bulkyTotal, delicateTotal,
-             isIntegral, isOpen, baseCp };
+             isIntegral, isOpen, abilityCp, spaces: sysRow ? sysRow.sp : 0 };
   },
 
   _updatePreview() {
@@ -1799,12 +1851,11 @@ const abilityDlg = {
     const abilityData = this._captureState();
     abilityData.descMode = mode;
 
-    const spaces = parseInt(document.getElementById("aid-spaces").value) || 8;
     while (veh.systems.length <= idx) veh.addSystem();
     const sys = veh.systems[idx];
 
     if (this.editMode) {
-      sys.spaces = spaces;
+      sys.spaces = r.spaces;
       sys.desc = r.desc;
       sys.extraCPs = r.modAdj;
       sys.bulky = r.bulkyTotal;
@@ -1813,7 +1864,7 @@ const abilityDlg = {
       sys.open = r.isOpen;
       sys.abilityData = abilityData;
     } else {
-      if (!sys.spaces) sys.spaces = spaces;
+      if (!sys.spaces) sys.spaces = r.spaces;
       if (r.bulkyTotal) sys.bulky = (sys.bulky || 0) + r.bulkyTotal;
       if (r.delicateTotal) sys.delicate = (sys.delicate || 0) + r.delicateTotal;
       if (r.isIntegral) sys.integral = true;

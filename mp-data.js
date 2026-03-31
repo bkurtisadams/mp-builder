@@ -122,6 +122,14 @@ MP.lookupSys = function(spaces) {
   return MP.SYS_TABLE[0];
 };
 
+// Reverse lookup: find smallest system that generates >= targetCp
+MP.lookupSysByCp = function(targetCp) {
+  for (let i = 0; i < MP.SYS_TABLE.length; i++) {
+    if (MP.SYS_TABLE[i].cp >= targetCp) return MP.SYS_TABLE[i];
+  }
+  return MP.SYS_TABLE[MP.SYS_TABLE.length - 1];
+};
+
 // ---- Ability Types (from MP rulebook 2.1.15) ----
 // cat matches the three rulebook tables plus vehicle-specific and structural
 // color = canvas cell color, abbr = 2-char label on canvas
