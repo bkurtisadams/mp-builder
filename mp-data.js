@@ -1,4 +1,4 @@
-// mp-data.js v2.5.0 — Sense type dropdown, level as select, 3-char abbrs
+// mp-data.js v2.6.0 — Separate PR/Charges builders, TIME_REQ scale, extended PR scale to PR 192
 
 const MP = {};
 
@@ -941,28 +941,28 @@ MP.HARDENED_STEPS = [
   {label:'30 pts',  cp:25,   val:30},
 ];
 
-// PR & Charges unified scale (from rulebook)
-// Each step = ±2.5 CPs. Moving UP (lower PR / more charges) = +2.5.
-// Moving DOWN (higher PR / fewer charges) = -2.5.
-// Switching between PR and Charges columns is free.
-// idx 0 = top of table (unlimited/PR 0), higher idx = worse
+// PR & Charges scale (from rulebook 2.2.4)
+// Each step = ±2.5 CPs. Free to switch between PR and Charges columns.
+// idx 0 = top (best: PR 0 / unlimited), higher idx = worse
 MP.PR_CHARGES_SCALE = [
-  {pr:0,   charges:"unlimited", label:"PR 0 / Unlimited"},
-  {pr:1,   charges:"24",        label:"PR 1 / 24 ch"},
-  {pr:2,   charges:"12",        label:"PR 2 / 12 ch"},
-  {pr:3,   charges:"8",         label:"PR 3 / 8 ch"},
-  {pr:4,   charges:"6",         label:"PR 4 / 6 ch"},
-  {pr:5,   charges:"4",         label:"PR 5 / 4 ch"},
-  {pr:8,   charges:"3",         label:"PR 8 / 3 ch"},
-  {pr:12,  charges:"2",         label:"PR 12 / 2 ch"},
-  {pr:16,  charges:"1",         label:"PR 16 / 1 ch"},
-  {pr:24,  charges:"1@75%",     label:"PR 24 / 1@75%"},
-  {pr:32,  charges:"1@50%",     label:"PR 32 / 1@50%"},
-  {pr:48,  charges:"1@38%",     label:"PR 48 / 1@38%"},
-  {pr:64,  charges:"1@25%",     label:"PR 64 / 1@25%"},
+  {pr:0,   charges:"Unlimited",  label:"PR 0 / Unlimited"},
+  {pr:1,   charges:"24",         label:"PR 1 / 24 ch"},
+  {pr:2,   charges:"12",         label:"PR 2 / 12 ch"},
+  {pr:3,   charges:"8",          label:"PR 3 / 8 ch"},
+  {pr:4,   charges:"6",          label:"PR 4 / 6 ch"},
+  {pr:5,   charges:"4",          label:"PR 5 / 4 ch"},
+  {pr:8,   charges:"3",          label:"PR 8 / 3 ch"},
+  {pr:12,  charges:"2",          label:"PR 12 / 2 ch"},
+  {pr:16,  charges:"1+50%",      label:"PR 16 / 1+50%"},
+  {pr:24,  charges:"1",          label:"PR 24 / 1 ch"},
+  {pr:32,  charges:"75%",        label:"PR 32 / 75%"},
+  {pr:48,  charges:"50%",        label:"PR 48 / 50%"},
+  {pr:64,  charges:"38%",        label:"PR 64 / 38%"},
+  {pr:96,  charges:"25%",        label:"PR 96 / 25%"},
+  {pr:128, charges:"19%",        label:"PR 128 / 19%"},
+  {pr:192, charges:"13%",        label:"PR 192 / 13%"},
 ];
 
-// Find the index in PR_CHARGES_SCALE closest to a given base PR
 MP.prScaleIndex = function(basePR) {
   for (let i = 0; i < MP.PR_CHARGES_SCALE.length; i++) {
     if (MP.PR_CHARGES_SCALE[i].pr >= basePR) return i;
@@ -970,24 +970,56 @@ MP.prScaleIndex = function(basePR) {
   return MP.PR_CHARGES_SCALE.length - 1;
 };
 
-// Build dropdown options for PR/Charges given a base PR
-// Returns array of {label, cp} where cp is cost adjustment relative to base
-MP.buildPRChargesOptions = function(basePR) {
+// Build PR-only dropdown options
+MP.buildPROptions = function(basePR) {
   const baseIdx = MP.prScaleIndex(basePR);
   const opts = [];
   for (let i = 0; i < MP.PR_CHARGES_SCALE.length; i++) {
-    const steps = baseIdx - i; // positive = moved up (better), negative = moved down (worse)
+    const steps = baseIdx - i;
     const cp = steps * 2.5;
     const row = MP.PR_CHARGES_SCALE[i];
     const cpStr = cp === 0 ? "base" : (cp > 0 ? "+" + cp : String(cp));
-    opts.push({
-      label: row.label + " (" + cpStr + ")",
-      cp: cp,
-      idx: i
-    });
+    opts.push({ label: "PR " + row.pr + " (" + cpStr + ")", cp, idx: i });
   }
   return opts;
 };
+
+// Build Charges-only dropdown options
+MP.buildChargesOptions = function(basePR) {
+  const baseIdx = MP.prScaleIndex(basePR);
+  const opts = [];
+  for (let i = 0; i < MP.PR_CHARGES_SCALE.length; i++) {
+    const steps = baseIdx - i;
+    const cp = steps * 2.5;
+    const row = MP.PR_CHARGES_SCALE[i];
+    const cpStr = cp === 0 ? "base" : (cp > 0 ? "+" + cp : String(cp));
+    opts.push({ label: row.charges + " ch (" + cpStr + ")", cp, idx: i });
+  }
+  return opts;
+};
+
+// Legacy compat
+MP.buildPRChargesOptions = MP.buildPROptions;
+
+// Time Requirement scale (from rulebook 2.2.4)
+MP.TIME_REQ_STEPS = [
+  {label:"No Time"},
+  {label:'1" Movement'},
+  {label:"1 Phase"},
+  {label:"1 Round"},
+  {label:"2 Rounds"},
+  {label:"3 Rounds"},
+  {label:"1 Minute"},
+  {label:"5 Minutes"},
+  {label:"20 Minutes"},
+  {label:"1 Hour"},
+  {label:"3 Hours"},
+  {label:"10 Hours"},
+  {label:"1.5 Days"},
+  {label:"3.5 Days"},
+  {label:"1.5 Weeks"},
+  {label:"1 Month"},
+];
 
 // Range sliding scale (from rulebook)
 // Each step = ±2.5 CPs. Moving UP (longer range) = +2.5. Moving DOWN (shorter) = -2.5.

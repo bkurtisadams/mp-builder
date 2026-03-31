@@ -1,4 +1,4 @@
-// mp-app.js v4.4.0 — System spaces sized by total cost (ability + modifiers), not base CPs alone
+// mp-app.js v4.5.0 — Split PR/Charges, 15 new modifiers, expanded PR scale
 
 const veh = new Vehicle();
 let editor = null;
@@ -1077,56 +1077,87 @@ const abilityDlg = {
     buildStepSelect(document.getElementById("aid-duration"), MP.DURATION_STEPS, fmtCp, 0);
     buildStepSelect(document.getElementById("aid-hardened"), MP.HARDENED_STEPS, fmtCp, 0);
 
-    // Concentration dropdown
-    const concSel = document.getElementById("aid-conc");
-    [{l:"None (0)",cp:0},{l:"Activation (-2.5)",cp:-2.5},{l:"Per Use (-5)",cp:-5},{l:"Maintain (-7.5)",cp:-7.5}].forEach((o,i) => {
-      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; concSel.appendChild(opt);
-    });
-    wheelSelect(concSel);
+    // Helper to build a simple select from an array of {l, cp}
+    function buildSimpleSel(id, opts) {
+      const sel = document.getElementById(id);
+      opts.forEach((o, i) => {
+        const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; sel.appendChild(opt);
+      });
+      wheelSelect(sel);
+    }
 
-    // Knockback dropdown
-    const kbSel = document.getElementById("aid-kb");
-    [{l:"Normal (0)",cp:0},{l:"Knockback (+5)",cp:5},{l:"No Knockback (-5)",cp:-5},{l:"KB Only (-10)",cp:-10}].forEach((o,i) => {
-      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; kbSel.appendChild(opt);
+    buildSimpleSel("aid-conc", [
+      {l:"None (0)",cp:0},{l:"Activation (-2.5)",cp:-2.5},{l:"Per Use (-5)",cp:-5},{l:"Maintain (-7.5)",cp:-7.5},
+      {l:"Total Conc (-5)",cp:-5},{l:"Total Per Use (-10)",cp:-10},{l:"Total Maintain (-15)",cp:-15}
+    ]);
+    buildSimpleSel("aid-kb", [
+      {l:"Normal (0)",cp:0},{l:"Knockback (+5)",cp:5},{l:"No Knockback (-5)",cp:-5},
+      {l:"KB Only (-10)",cp:-10},{l:"KB Only No Dmg (-20)",cp:-20},{l:"Won't Negate KB (-2.5)",cp:-2.5}
+    ]);
+    buildSimpleSel("aid-partial", [
+      {l:"Full (0)",cp:0},{l:"Heavy (-5)",cp:-5},{l:"Light (-10)",cp:-10},{l:"Spot Coverage (0)",cp:0}
+    ]);
+    buildSimpleSel("aid-poorpen", [{l:"Normal (0)",cp:0},{l:"Double prot (-5)",cp:-5},{l:"Any prot blocks (-10)",cp:-10}]);
+    buildSimpleSel("aid-obvious", [
+      {l:"Normal (0)",cp:0},{l:"Unobvious (+5)",cp:5},{l:"Fewer Senses (+2.5)",cp:2.5},
+      {l:"Obvious (-5)",cp:-5},{l:"Extra Senses (-2.5)",cp:-2.5}
+    ]);
+    buildSimpleSel("aid-carrier", [
+      {l:"None (0)",cp:0},{l:"Carrier Main (+7.5)",cp:7.5},{l:"Carried Atk (+7.5)",cp:7.5},
+      {l:"Carried Indep (+10)",cp:10},{l:"Contact Atk (+15)",cp:15},{l:"Contact Indep (+17.5)",cp:17.5},
+      {l:"Conductive (+7.5)",cp:7.5}
+    ]);
+    buildSimpleSel("aid-dmgtype", [
+      {l:"Normal (0)",cp:0},{l:"→Psychic (+5)",cp:5},{l:"→Other (+10)",cp:10},
+      {l:"Psychic→Std (-5)",cp:-5},{l:"Other→Std (-10)",cp:-10},{l:"Psychic→Other (+5)",cp:5},{l:"Other→Psychic (-5)",cp:-5}
+    ]);
+    buildSimpleSel("aid-indirect", [
+      {l:"None (0)",cp:0},{l:"Fixed pos, away (+2.5)",cp:2.5},{l:"Any pos, away (+5)",cp:5},
+      {l:"Fixed pos, any dir (+5)",cp:5},{l:"Any pos, any dir (+12.5)",cp:12.5}
+    ]);
+    // Time Requirement: default is index 2 (1 Phase), ±2.5/step
+    const trSel = document.getElementById("aid-timereq");
+    MP.TIME_REQ_STEPS.forEach((s, i) => {
+      const cp = (2 - i) * 2.5; // index 2 = 1 Phase = 0 CP base
+      const cpStr = cp === 0 ? "0" : (cp > 0 ? "+" + cp : String(cp));
+      const opt = document.createElement("option"); opt.value = i;
+      opt.textContent = s.label + " (" + cpStr + ")"; opt.dataset.cp = cp;
+      if (i === 2) opt.selected = true;
+      trSel.appendChild(opt);
     });
-    wheelSelect(kbSel);
+    wheelSelect(trSel);
 
-    // Partial coverage dropdown
-    const partSel = document.getElementById("aid-partial");
-    [{l:"Full (0)",cp:0},{l:"Heavy (-5)",cp:-5},{l:"Light (-10)",cp:-10}].forEach((o,i) => {
-      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; partSel.appendChild(opt);
-    });
-    wheelSelect(partSel);
-
-    // Poor penetration dropdown
-    const ppSel = document.getElementById("aid-poorpen");
-    [{l:"Normal (0)",cp:0},{l:"Double prot (-5)",cp:-5},{l:"Any prot blocks (-10)",cp:-10}].forEach((o,i) => {
-      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; ppSel.appendChild(opt);
-    });
-    wheelSelect(ppSel);
-
-    // Obvious dropdown
-    const obvSel = document.getElementById("aid-obvious");
-    [{l:"Normal (0)",cp:0},{l:"Unobvious (+5)",cp:5},{l:"Fewer Senses (+2.5)",cp:2.5},{l:"Obvious (-5)",cp:-5},{l:"Extra Senses (-2.5)",cp:-2.5}].forEach((o,i) => {
-      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; obvSel.appendChild(opt);
-    });
-    wheelSelect(obvSel);
-
-    // Carrier/Contact dropdown
-    const carrSel = document.getElementById("aid-carrier");
-    [{l:"None (0)",cp:0},{l:"Carrier Main (+7.5)",cp:7.5},{l:"Carried Atk (+7.5)",cp:7.5},{l:"Contact Atk (+15)",cp:15},{l:"Conductive (+7.5)",cp:7.5}].forEach((o,i) => {
-      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; carrSel.appendChild(opt);
-    });
-    wheelSelect(carrSel);
-
-    // Other misc dropdown
-    const othSel = document.getElementById("aid-other");
-    [{l:"None (0)",cp:0},{l:"Immunity (+2.5)",cp:2.5},{l:"Body Part (-5)",cp:-5},{l:"Focused (0)",cp:0},
-     {l:"Reversible (+10)",cp:10},{l:"Selective AE (+12.5)",cp:12.5},{l:"Backlash (-7.5)",cp:-7.5},
-     {l:"Overload (+5)",cp:5},{l:"Non-Corp Effect (+5)",cp:5}].forEach((o,i) => {
-      const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; othSel.appendChild(opt);
-    });
-    wheelSelect(othSel);
+    buildSimpleSel("aid-activation", [
+      {l:"Normal (0)",cp:0},{l:"Persistent→Voluntary (-5)",cp:-5},{l:"Continual→Persistent (-5)",cp:-5},
+      {l:"Continual→Voluntary (-10)",cp:-10},{l:"Stays Active: Vol→Pers (+5)",cp:5},
+      {l:"Stays Active: Pers→Cont (+5)",cp:5},{l:"Stays Active: Vol→Cont (+10)",cp:10}
+    ]);
+    buildSimpleSel("aid-loss", [
+      {l:"None (0)",cp:0},{l:"Req Speech (-2.5)",cp:-2.5},{l:"Req Free Move (-2.5)",cp:-2.5},
+      {l:"Req Nighttime (-5)",cp:-5},{l:"Req Daylight (-5)",cp:-5}
+    ]);
+    buildSimpleSel("aid-canthold", [
+      {l:"Normal (0)",cp:0},{l:"Voluntary (-2.5)",cp:-2.5},{l:"Persistent (-5)",cp:-5},{l:"Continual (-7.5)",cp:-7.5}
+    ]);
+    buildSimpleSel("aid-multi", [
+      {l:"None (0)",cp:0},{l:"1 of set (-10)",cp:-10},{l:"2 of set (-5)",cp:-5},{l:"3 of set (-2.5)",cp:-2.5}
+    ]);
+    buildSimpleSel("aid-usable", [
+      {l:"None (0)",cp:0},{l:"By Others (+5)",cp:5},{l:"By Others Only (0)",cp:0},
+      {l:"On Others (+10)",cp:10},{l:"On Others Only (0)",cp:0},{l:"Not On Self (-5)",cp:-5},
+      {l:"Not On Self, self-only (-10)",cp:-10},{l:"Not On Self, minor (-2.5)",cp:-2.5}
+    ]);
+    buildSimpleSel("aid-reqsave", [
+      {l:"None (0)",cp:0},{l:"Save to Use (-5)",cp:-5},{l:"Save to Activate (-2.5)",cp:-2.5},
+      {l:"Easier Save (+2.5)",cp:2.5},{l:"Harder Save (-2.5)",cp:-2.5}
+    ]);
+    buildSimpleSel("aid-other", [
+      {l:"None (0)",cp:0},{l:"Immunity (+2.5)",cp:2.5},{l:"Body Part (-5)",cp:-5},{l:"Focused (0)",cp:0},
+      {l:"Reversible (+10)",cp:10},{l:"Selective AE (+12.5)",cp:12.5},{l:"Backlash (-7.5)",cp:-7.5},
+      {l:"Overload (+5)",cp:5},{l:"Non-Corp Effect (+5)",cp:5},{l:"Ability Field (x2 base)",cp:0},
+      {l:"Uncontrollable (-20)",cp:-20},{l:"Reduced at Range (-2.5)",cp:-2.5},
+      {l:"Diff Range BC (+2.5)",cp:2.5},{l:"No Escape (+15)",cp:15}
+    ]);
 
     // System Modifiers — Arc dropdown
     const arcSel = document.getElementById("aid-arc");
@@ -1358,7 +1389,8 @@ const abilityDlg = {
     const delicate = parseInt(document.getElementById("aid-delicate").value) || 0;
     if (delicate > 0) modAdj -= delicate * 2.5;
 
-    modAdj += selCp("aid-prch");
+    modAdj += selCp("aid-pr");
+    modAdj += selCp("aid-charges");
     modAdj += selCp("aid-range");
     modAdj += selCp("aid-conc");
     modAdj += selCp("aid-kb");
@@ -1370,6 +1402,16 @@ const abilityDlg = {
     modAdj += selCp("aid-poorpen");
     modAdj += selCp("aid-obvious");
     modAdj += selCp("aid-carrier");
+    modAdj += selCp("aid-dmgtype");
+    modAdj += selCp("aid-indirect");
+    modAdj += selCp("aid-timereq");
+    modAdj += selCp("aid-activation");
+    modAdj += selCp("aid-loss");
+    modAdj += selCp("aid-canthold");
+    if (document.getElementById("aid-linked").checked) modAdj -= 2.5;
+    modAdj += selCp("aid-multi");
+    modAdj += selCp("aid-usable");
+    modAdj += selCp("aid-reqsave");
     modAdj += selCp("aid-other");
 
     if (document.getElementById("aid-wontexplode").checked) modAdj += 5;
@@ -1389,15 +1431,30 @@ const abilityDlg = {
       const dmgText = detail.dmg !== "—" ? `${detail.dmg} dmg` : "";
       prEl.textContent = [prText, dmgText].filter(Boolean).join(", ");
     } else { hintEl.textContent = ""; prEl.textContent = ""; }
-    this._rebuildPRCharges(detail ? detail.pr : 0);
+    this._rebuildPR(detail ? detail.pr : 0);
+    this._rebuildCharges(detail ? detail.pr : 0);
     this._rebuildRange(detail?.calc?.baseRange || 'BCx1"');
     this._rebuildAbilityMods(abId);
     this._refresh();
   },
 
-  _rebuildPRCharges(basePR) {
-    const sel = document.getElementById("aid-prch");
-    const opts = MP.buildPRChargesOptions(basePR);
+  _rebuildPR(basePR) {
+    const sel = document.getElementById("aid-pr");
+    const opts = MP.buildPROptions(basePR);
+    const baseIdx = MP.prScaleIndex(basePR);
+    sel.innerHTML = "";
+    for (let i = 0; i < opts.length; i++) {
+      const opt = document.createElement("option");
+      opt.value = i; opt.textContent = opts[i].label; opt.dataset.cp = opts[i].cp;
+      if (opts[i].idx === baseIdx) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    wheelSelect(sel);
+  },
+
+  _rebuildCharges(basePR) {
+    const sel = document.getElementById("aid-charges");
+    const opts = MP.buildChargesOptions(basePR);
     const baseIdx = MP.prScaleIndex(basePR);
     sel.innerHTML = "";
     for (let i = 0; i < opts.length; i++) {
@@ -1493,7 +1550,6 @@ const abilityDlg = {
       abilityCp: this._getAbilityCp(),
       inputMode: this._getInputMode(),
       spaces: parseInt(document.getElementById("aid-spaces").value) || 8,
-      // Generic modifiers (select indices)
       area: parseInt(document.getElementById("aid-area").value) || 0,
       ap: parseInt(document.getElementById("aid-ap").value) || 0,
       autofire: parseInt(document.getElementById("aid-autofire").value) || 0,
@@ -1502,7 +1558,8 @@ const abilityDlg = {
       gear: document.getElementById("aid-gear").checked,
       bulky: parseInt(document.getElementById("aid-bulky").value) || 0,
       delicate: parseInt(document.getElementById("aid-delicate").value) || 0,
-      prch: parseInt(document.getElementById("aid-prch").value) || 0,
+      pr: parseInt(document.getElementById("aid-pr").value) || 0,
+      charges: parseInt(document.getElementById("aid-charges").value) || 0,
       range: parseInt(document.getElementById("aid-range").value) || 0,
       conc: parseInt(document.getElementById("aid-conc").value) || 0,
       kb: parseInt(document.getElementById("aid-kb").value) || 0,
@@ -1511,8 +1568,17 @@ const abilityDlg = {
       poorpen: parseInt(document.getElementById("aid-poorpen").value) || 0,
       obvious: parseInt(document.getElementById("aid-obvious").value) || 0,
       carrier: parseInt(document.getElementById("aid-carrier").value) || 0,
+      dmgtype: parseInt(document.getElementById("aid-dmgtype").value) || 0,
+      indirect: parseInt(document.getElementById("aid-indirect").value) || 0,
+      timereq: parseInt(document.getElementById("aid-timereq").value) || 0,
+      activation: parseInt(document.getElementById("aid-activation").value) || 0,
+      loss: parseInt(document.getElementById("aid-loss").value) || 0,
+      canthold: parseInt(document.getElementById("aid-canthold").value) || 0,
+      linked: document.getElementById("aid-linked").checked,
+      multi: parseInt(document.getElementById("aid-multi").value) || 0,
+      usable: parseInt(document.getElementById("aid-usable").value) || 0,
+      reqsave: parseInt(document.getElementById("aid-reqsave").value) || 0,
       other: parseInt(document.getElementById("aid-other").value) || 0,
-      // System modifiers
       integral: document.getElementById("aid-integral").checked,
       open: document.getElementById("aid-open").checked,
       indep: document.getElementById("aid-indep").checked,
@@ -1559,7 +1625,14 @@ const abilityDlg = {
     document.getElementById("aid-gear").checked = state.gear || false;
     document.getElementById("aid-bulky").value = state.bulky || 0;
     document.getElementById("aid-delicate").value = state.delicate || 0;
-    document.getElementById("aid-prch").selectedIndex = state.prch || 0;
+    // Backward compat: old saves have prch, new have pr/charges
+    if (state.prch !== undefined && state.pr === undefined) {
+      document.getElementById("aid-pr").selectedIndex = state.prch || 0;
+      document.getElementById("aid-charges").selectedIndex = 0;
+    } else {
+      document.getElementById("aid-pr").selectedIndex = state.pr || 0;
+      document.getElementById("aid-charges").selectedIndex = state.charges || 0;
+    }
     document.getElementById("aid-range").selectedIndex = state.range || 0;
     document.getElementById("aid-conc").selectedIndex = state.conc || 0;
     document.getElementById("aid-kb").selectedIndex = state.kb || 0;
@@ -1568,6 +1641,16 @@ const abilityDlg = {
     document.getElementById("aid-poorpen").selectedIndex = state.poorpen || 0;
     document.getElementById("aid-obvious").selectedIndex = state.obvious || 0;
     document.getElementById("aid-carrier").selectedIndex = state.carrier || 0;
+    document.getElementById("aid-dmgtype").selectedIndex = state.dmgtype || 0;
+    document.getElementById("aid-indirect").selectedIndex = state.indirect || 0;
+    document.getElementById("aid-timereq").selectedIndex = state.timereq ?? 2;
+    document.getElementById("aid-activation").selectedIndex = state.activation || 0;
+    document.getElementById("aid-loss").selectedIndex = state.loss || 0;
+    document.getElementById("aid-canthold").selectedIndex = state.canthold || 0;
+    document.getElementById("aid-linked").checked = state.linked || false;
+    document.getElementById("aid-multi").selectedIndex = state.multi || 0;
+    document.getElementById("aid-usable").selectedIndex = state.usable || 0;
+    document.getElementById("aid-reqsave").selectedIndex = state.reqsave || 0;
     document.getElementById("aid-other").selectedIndex = state.other || 0;
     document.getElementById("aid-integral").checked = state.integral || false;
     document.getElementById("aid-open").checked = state.open || false;
@@ -1602,7 +1685,6 @@ const abilityDlg = {
 
   _resetDialog() {
     this._setAbility("");
-    // Reset to By CPs mode, 20 CPs default
     document.getElementById("aid-cp-input").value = "20";
     const cpRadio = document.querySelector('input[name="aid-input-mode"][value="cp"]');
     if (cpRadio) cpRadio.checked = true;
@@ -1626,6 +1708,16 @@ const abilityDlg = {
     document.getElementById("aid-poorpen").selectedIndex = 0;
     document.getElementById("aid-obvious").selectedIndex = 0;
     document.getElementById("aid-carrier").selectedIndex = 0;
+    document.getElementById("aid-dmgtype").selectedIndex = 0;
+    document.getElementById("aid-indirect").selectedIndex = 0;
+    document.getElementById("aid-timereq").selectedIndex = 2;
+    document.getElementById("aid-activation").selectedIndex = 0;
+    document.getElementById("aid-loss").selectedIndex = 0;
+    document.getElementById("aid-canthold").selectedIndex = 0;
+    document.getElementById("aid-linked").checked = false;
+    document.getElementById("aid-multi").selectedIndex = 0;
+    document.getElementById("aid-usable").selectedIndex = 0;
+    document.getElementById("aid-reqsave").selectedIndex = 0;
     document.getElementById("aid-other").selectedIndex = 0;
     document.getElementById("aid-integral").checked = false;
     document.getElementById("aid-open").checked = false;
@@ -1788,13 +1880,22 @@ const abilityDlg = {
       modAdj -= c; delicateTotal = delicate;
     }
 
-    // PR/Charges
-    const prchCp = this._selCp("aid-prch");
-    if (prchCp !== 0) {
-      const prchSel = document.getElementById("aid-prch");
-      const row = MP.PR_CHARGES_SCALE[parseInt(prchSel.value)];
-      if (row) parts.push(`${row.label}${cpA(prchCp)}`);
-      modAdj += prchCp;
+    // PR
+    const prCp = this._selCp("aid-pr");
+    if (prCp !== 0) {
+      const prSel = document.getElementById("aid-pr");
+      const txt = prSel.options[prSel.selectedIndex].textContent.replace(/ \([^)]*\)$/, "");
+      parts.push(`${txt}${cpA(prCp)}`);
+      modAdj += prCp;
+    }
+
+    // Charges
+    const chCp = this._selCp("aid-charges");
+    if (chCp !== 0) {
+      const chSel = document.getElementById("aid-charges");
+      const txt = chSel.options[chSel.selectedIndex].textContent.replace(/ \([^)]*\)$/, "");
+      parts.push(`${full ? "Charges" : "Ch"}: ${txt}${cpA(chCp)}`);
+      modAdj += chCp;
     }
 
     // Range
@@ -1806,16 +1907,27 @@ const abilityDlg = {
       modAdj += rngCp;
     }
 
-    // Misc dropdowns
-    const miscIds = ["aid-conc","aid-kb","aid-partial","aid-poorpen","aid-obvious","aid-carrier","aid-other"];
+    // Misc dropdowns — include if cp != 0 OR if selected index != 0 (for 0-cp selections like Spot Coverage)
+    const miscIds = [
+      "aid-conc","aid-kb","aid-partial","aid-poorpen","aid-obvious","aid-carrier",
+      "aid-dmgtype","aid-indirect","aid-timereq","aid-activation","aid-loss",
+      "aid-canthold","aid-multi","aid-usable","aid-reqsave","aid-other"
+    ];
     for (const id of miscIds) {
-      const c = this._selCp(id);
-      if (c !== 0) {
-        const s = document.getElementById(id);
+      const s = document.getElementById(id);
+      const c = parseFloat(s.options[s.selectedIndex]?.dataset?.cp) || 0;
+      const defIdx = (id === "aid-timereq") ? 2 : 0;
+      if (c !== 0 || s.selectedIndex !== defIdx) {
         const txt = s.options[s.selectedIndex].textContent.replace(/ \([^)]*\)$/, "");
-        parts.push(`${txt}${cpA(c)}`);
+        parts.push(c !== 0 ? `${txt}${cpA(c)}` : txt);
         modAdj += c;
       }
+    }
+
+    // Linked checkbox
+    if (document.getElementById("aid-linked").checked) {
+      parts.push(`${full ? "Linked" : "Lnk"}${cpA(-2.5)}`);
+      modAdj -= 2.5;
     }
 
     const bkdn = parseInt(document.getElementById("aid-breakdown").value) || 0;
