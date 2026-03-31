@@ -1,4 +1,4 @@
-// mp-app.js v4.3.0 — Del button, touch support, 0-cp select description fix
+// mp-app.js v4.4.0 — System spaces sized by total cost (ability + modifiers), not base CPs alone
 
 const veh = new Vehicle();
 let editor = null;
@@ -1242,10 +1242,11 @@ const abilityDlg = {
     }
   },
 
-  // Get the system row for the current ability CPs
+  // Get the system row for the total ability cost (base CPs + modifiers)
+  // This determines the system spaces needed to house the ability
   _getSysRow() {
-    const cp = this._getAbilityCp();
-    return MP.lookupSysByCp(cp);
+    const cp = this._getAbilityCp() + this._calcModCost();
+    return MP.lookupSysByCp(Math.max(0, cp));
   },
 
   // Master refresh — called on any input change
@@ -1257,18 +1258,20 @@ const abilityDlg = {
 
   _updateSysStats() {
     const abilityCp = this._getAbilityCp();
-    const sysRow = MP.lookupSysByCp(abilityCp);
+    const modAdj = this._calcModCost();
+    const totalCost = abilityCp + modAdj;
+    const sysRow = MP.lookupSysByCp(Math.max(0, totalCost));
     const bulky = parseInt(document.getElementById("aid-bulky").value) || 0;
     const delicate = parseInt(document.getElementById("aid-delicate").value) || 0;
     const integral = document.getElementById("aid-integral").checked;
     const open = document.getElementById("aid-open").checked;
 
-    // System info line: spaces and generated CPs
+    // System info line: spaces needed and generated CPs (based on total cost)
     const genCp = sysRow ? sysRow.cp : 0;
     let spacesStr = (sysRow ? sysRow.sp : 0) + " sp (generates " + genCp + " CPs)";
     document.getElementById("aid-si-spaces").textContent = spacesStr;
 
-    // Tech mod annotation
+    // Tech mod annotation — tech adjusts budget, not ability cost
     let techStr = "";
     let budget = genCp + veh.techMod;
     if (integral) budget = Math.ceil(budget / 2);
@@ -1295,9 +1298,7 @@ const abilityDlg = {
     document.getElementById("aid-ss-prof").textContent = integral ? "—" : profStr;
     document.getElementById("aid-ss-hits").textContent = integral ? "— (hidden)" : hits;
 
-    // Remaining CPs
-    const modAdj = this._calcModCost();
-    const totalCost = abilityCp + modAdj;
+    // Remaining CPs = budget - total ability cost
     const remaining = budget - totalCost;
     const remEl = document.getElementById("aid-ss-remain");
     if (remaining > 0) {
