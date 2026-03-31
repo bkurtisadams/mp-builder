@@ -1164,8 +1164,9 @@ const abilityDlg = {
     const prof = sysRow ? sysRow.prof : 0;
     const profStr = prof ? "x" + (Number.isInteger(prof) ? prof : prof.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")) : "—";
 
-    document.getElementById("aid-ss-prof").textContent = profStr;
-    document.getElementById("aid-ss-hits").textContent = hits;
+    // Integral systems can't be targeted — no Profile or Hits
+    document.getElementById("aid-ss-prof").textContent = integral ? "—" : profStr;
+    document.getElementById("aid-ss-hits").textContent = integral ? "— (hidden)" : hits;
 
     // Build CPs string with annotations for tech mod, integral, open
     let cpStr = "(" + cp + ")";

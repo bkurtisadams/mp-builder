@@ -197,7 +197,7 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 
 /* ============ ABILITY INSERT DIALOG (Ctrl+I) ============ */
 .aid-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9000; display: flex; align-items: center; justify-content: center }
-.aid-dialog { background: var(--bg3); border: 2px solid var(--brd); border-radius: 6px; box-shadow: 0 8px 32px rgba(0,0,0,.3); width: 420px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column }
+.aid-dialog { background: var(--bg3); border: 2px solid var(--brd); border-radius: 6px; box-shadow: 0 8px 32px rgba(0,0,0,.3); width: 520px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column }
 .aid-title { font-family: var(--fd); font-size: 16px; color: var(--label); padding: 8px 12px; border-bottom: 2px solid var(--brd); letter-spacing: .5px }
 .aid-body { padding: 8px 12px; overflow-y: auto; flex: 1 }
 .aid-row { display: flex; align-items: center; gap: 6px; padding: 3px 0 }
@@ -245,6 +245,18 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 .aid-mnum:focus { outline: none; border-color: var(--accent) }
 .aid-mhint { font-size: 7px; color: var(--tx3); font-style: italic; white-space: nowrap }
 .aid-mchk { width: 12px; height: 12px; accent-color: var(--accent) }
+/* 2-column modifier grid */
+.aid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 8px }
+.aid-2c { display: flex; align-items: center; gap: 3px; padding: 1px 0 }
+.aid-2c:hover { background: rgba(192,90,0,.04) }
+.aid-2c-full { grid-column: 1 / -1; display: flex; align-items: center; gap: 3px; padding: 1px 0 }
+.aid-2c-full:hover { background: rgba(192,90,0,.04) }
+.aid-mlbl2 { font-size: 7px; font-weight: 700; color: var(--label); text-transform: uppercase; white-space: nowrap; min-width: 58px; text-align: right; flex-shrink: 0 }
+.aid-msel2 { flex: 1; min-width: 0; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 1px 2px; font-family: var(--fb); font-size: 7px; color: var(--tx) }
+.aid-msel2:focus { outline: none; border-color: var(--accent) }
+.aid-mnum2 { width: 30px; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 1px 2px; font-family: var(--fb); font-size: 7px; color: var(--tx); text-align: center }
+.aid-mnum2:focus { outline: none; border-color: var(--accent) }
+.aid-mh2 { font-size: 6px; color: var(--tx3); font-style: italic; white-space: nowrap }
 .aid-footer { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 12px; border-top: 1px solid var(--brd2) }
 .aid-btn { padding: 5px 16px; font-family: var(--fb); font-size: 10px; font-weight: 700; border: none; border-radius: 3px; cursor: pointer }
 .aid-btn-ok { background: var(--accent); color: #fff }
