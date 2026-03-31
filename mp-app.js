@@ -1123,6 +1123,20 @@ const abilityDlg = {
       inp.addEventListener("input", () => { this._updateSysStats(); this._updateCostBar(); });
     });
 
+    // Wire description mode radios
+    document.querySelectorAll('input[name="aid-desc-mode"]').forEach(radio => {
+      radio.addEventListener("change", () => {
+        try { localStorage.setItem("mp-desc-mode", this._getDescMode()); } catch(e) {}
+        this._updatePreview();
+      });
+    });
+
+    // Wire notes input to update preview
+    document.getElementById("aid-notes").addEventListener("input", () => this._updatePreview());
+
+    // Restore saved description mode
+    this._restoreDescMode();
+
     document.getElementById("aid-ok").addEventListener("click", () => this._commit());
     document.getElementById("aid-cancel").addEventListener("click", () => this.close());
     this.overlay.addEventListener("mousedown", e => { if (e.target === this.overlay) this.close(); });
@@ -1275,6 +1289,7 @@ const abilityDlg = {
       diffEl.textContent = "0 CPs remaining";
       diffEl.className = "aid-cost-diff even";
     }
+    this._updatePreview();
   },
 
   _onAbilityChange() {
@@ -1482,6 +1497,9 @@ const abilityDlg = {
       }
     }
 
+    // Restore description mode if saved with this ability
+    if (state.descMode) this._setDescMode(state.descMode);
+
     this._updateSysStats();
     this._updateStats();
     this._updateCostBar();
@@ -1552,9 +1570,31 @@ const abilityDlg = {
   // Read CP from a select with data-cp attributes
   _selCp(id) { const s = document.getElementById(id); return parseFloat(s.options[s.selectedIndex]?.dataset?.cp) || 0; },
 
-  _commit() {
-    const idx = this.targetIdx;
-    if (idx === null) return;
+  // Get current description mode from radio buttons
+  _getDescMode() {
+    const checked = document.querySelector('input[name="aid-desc-mode"]:checked');
+    return checked ? checked.value : "compact";
+  },
+
+  // Set description mode and persist
+  _setDescMode(mode) {
+    const radio = document.querySelector(`input[name="aid-desc-mode"][value="${mode}"]`);
+    if (radio) radio.checked = true;
+    try { localStorage.setItem("mp-desc-mode", mode); } catch(e) {}
+  },
+
+  // Restore description mode from localStorage
+  _restoreDescMode() {
+    try {
+      const mode = localStorage.getItem("mp-desc-mode");
+      if (mode && ["full","compact","min"].includes(mode)) this._setDescMode(mode);
+    } catch(e) {}
+  },
+
+  // Build description string from current dialog state
+  // mode: "full" | "compact" | "min"
+  // Returns {desc, modAdj, bulkyTotal, delicateTotal}
+  _buildDescription(mode) {
     const abId = document.getElementById("aid-ability-val").value;
     const ab = MP.abilityById(abId);
     const detail = MP.ABILITY_DETAILS[abId];
@@ -1562,29 +1602,35 @@ const abilityDlg = {
     const sp = parseInt(document.getElementById("aid-spaces").value) || 8;
     const sysRow = MP.lookupSys(sp);
     const baseCp = sysRow ? sysRow.cp : 0;
-    // Include tech mod for ability info (damage/movement/armor calcs)
     const effectiveCp = baseCp + veh.techMod;
     const info = MP.computeAbilityInfo(abId, effectiveCp, veh.st, veh.en, veh.ag, veh.intel, veh.cl);
+
+    const full = mode === "full";
+    const min = mode === "min";
+    // cp annotation helper: full/compact show CPs, min omits
+    function cpA(cp) { if (min) return ""; return ` (${cp >= 0 ? "+" + cp : cp})`; }
+    // base CP annotation
+    function baseCpA() { if (min) return ""; return " (" + baseCp + ")"; }
 
     const parts = [];
     let basePart = name;
     if (info && info.desc) basePart += ": " + info.desc;
-    basePart += " (" + baseCp + ")";
+    basePart += baseCpA();
     parts.push(basePart);
 
     let modAdj = 0, bulkyTotal = 0, delicateTotal = 0;
 
-    // Ability-specific modifiers first
+    // Ability-specific modifiers
     const abMods = MP.ABILITY_MODIFIERS[abId] || [];
     for (const am of abMods) {
+      const lbl = full ? am.label : am.short;
       if (am.type === "select") {
         const sel = document.querySelector(`select[data-am-id="${am.id}"]`);
         if (sel) {
           const opt = am.options[parseInt(sel.value)];
           if (opt && opt.cp !== 0) {
-            const cpStr = opt.cp >= 0 ? "+" + opt.cp : String(opt.cp);
-            const lbl = opt.l.replace(/ \([^)]*\)$/, "");
-            parts.push(`${am.label}: ${lbl} (${cpStr})`);
+            const optLbl = opt.l.replace(/ \([^)]*\)$/, "");
+            parts.push(`${lbl}: ${optLbl}${cpA(opt.cp)}`);
             modAdj += opt.cp;
           }
         }
@@ -1593,48 +1639,58 @@ const abilityDlg = {
         const val = parseInt(inp?.value) || 0;
         if (val > 0) {
           const c = am.cpFn(val);
-          const cpStr = c >= 0 ? "+" + c : String(c);
-          parts.push(`${am.label} x${val} (${cpStr})`);
+          parts.push(`${lbl} x${val}${cpA(c)}`);
           modAdj += c;
         }
       } else {
         const chk = document.querySelector(`input[data-am-id="${am.id}"]`);
         if (chk?.checked) {
-          const cpStr = am.cp >= 0 ? "+" + am.cp : String(am.cp);
-          parts.push(am.cp !== 0 ? `${am.label} (${cpStr})` : am.label);
+          parts.push(am.cp !== 0 ? `${lbl}${cpA(am.cp)}` : lbl);
           modAdj += am.cp;
         }
       }
     }
 
     // Generic modifiers
-    function addSelect(id, steps, descFn) {
+    function addStep(id, steps, fullLbl, shortLbl, descFn) {
       const val = parseInt(document.getElementById(id).value);
       if (val > 0 && steps[val]) {
         const c = steps[val].cp;
-        parts.push(descFn(steps[val], c));
+        const s = steps[val];
+        const label = full ? fullLbl : shortLbl;
+        parts.push(descFn(label, s, c));
         modAdj += c;
       }
     }
-    addSelect("aid-area", MP.AREA_EFFECT_STEPS, (s,c) => `Area Effect ${s.label} (+${c})`);
-    addSelect("aid-ap", MP.ARMOR_PIERCING_STEPS, (s,c) => `AP ${s.val} (+${c})`);
-    addSelect("aid-autofire", MP.AUTOFIRE_STEPS, (s,c) => `AF x${s.rof} (+${c})`);
-    addSelect("aid-duration", MP.DURATION_STEPS, (s,c) => `Duration ${s.label} (+${c})`);
-    addSelect("aid-hardened", MP.HARDENED_STEPS, (s,c) => `Hardened ${s.val} (+${c})`);
+    addStep("aid-area", MP.AREA_EFFECT_STEPS, "Area Effect", "AE", (l,s,c) => `${l} ${s.label}${cpA(c)}`);
+    addStep("aid-ap", MP.ARMOR_PIERCING_STEPS, "Armor Piercing", "AP", (l,s,c) => `${l} ${s.val}${cpA(c)}`);
+    addStep("aid-autofire", MP.AUTOFIRE_STEPS, "Autofire", "AF", (l,s,c) => `${l} x${s.rof}${cpA(c)}`);
+    addStep("aid-duration", MP.DURATION_STEPS, "Duration", "Dur", (l,s,c) => `${l} ${s.label}${cpA(c)}`);
+    addStep("aid-hardened", MP.HARDENED_STEPS, "Hardened", "Hrd", (l,s,c) => `${l} ${s.val}${cpA(c)}`);
 
-    if (document.getElementById("aid-gear").checked) { parts.push("Gear (-5)"); modAdj -= 5; }
+    if (document.getElementById("aid-gear").checked) {
+      parts.push(`Gear${cpA(-5)}`); modAdj -= 5;
+    }
 
     const bulky = parseInt(document.getElementById("aid-bulky").value) || 0;
-    if (bulky > 0) { const c = bulky * 2.5; parts.push(`Bulky x${bulky} (+${c})`); modAdj += c; bulkyTotal = bulky; }
+    if (bulky > 0) {
+      const c = bulky * 2.5;
+      parts.push(`${full ? "Bulky" : "Blk"} x${bulky}${cpA(c)}`);
+      modAdj += c; bulkyTotal = bulky;
+    }
     const delicate = parseInt(document.getElementById("aid-delicate").value) || 0;
-    if (delicate > 0) { const c = delicate * 2.5; parts.push(`Delicate x${delicate} (-${c})`); modAdj -= c; delicateTotal = delicate; }
+    if (delicate > 0) {
+      const c = delicate * 2.5;
+      parts.push(`${full ? "Delicate" : "Del"} x${delicate}${cpA(-c)}`);
+      modAdj -= c; delicateTotal = delicate;
+    }
 
     // PR/Charges
     const prchCp = this._selCp("aid-prch");
     if (prchCp !== 0) {
       const prchSel = document.getElementById("aid-prch");
       const row = MP.PR_CHARGES_SCALE[parseInt(prchSel.value)];
-      if (row) { const cpStr = prchCp > 0 ? "+" + prchCp : String(prchCp); parts.push(`${row.label} (${cpStr})`); }
+      if (row) parts.push(`${row.label}${cpA(prchCp)}`);
       modAdj += prchCp;
     }
 
@@ -1643,27 +1699,28 @@ const abilityDlg = {
     const rngCp = parseFloat(rngSel.options[rngSel.selectedIndex]?.dataset?.cp) || 0;
     if (rngCp !== 0) {
       const rngLabel = rngSel.options[rngSel.selectedIndex]?.dataset?.rangeLabel || "";
-      const cpStr = rngCp > 0 ? "+" + rngCp : String(rngCp);
-      parts.push(`Range ${rngLabel} (${cpStr})`);
+      parts.push(`${full ? "Range" : "Rng"} ${rngLabel}${cpA(rngCp)}`);
       modAdj += rngCp;
     }
 
     // Misc dropdowns
-    function addCpSel(id, labelFn) {
-      const c = abilityDlg._selCp(id);
-      if (c !== 0) { const s = document.getElementById(id); const txt = s.options[s.selectedIndex].textContent.replace(/ \([^)]*\)$/, "");
-        parts.push(`${labelFn ? labelFn(txt) : txt} (${c > 0 ? "+" + c : c})`); modAdj += c; }
+    const miscIds = ["aid-conc","aid-kb","aid-partial","aid-poorpen","aid-obvious","aid-carrier","aid-other"];
+    for (const id of miscIds) {
+      const c = this._selCp(id);
+      if (c !== 0) {
+        const s = document.getElementById(id);
+        const txt = s.options[s.selectedIndex].textContent.replace(/ \([^)]*\)$/, "");
+        parts.push(`${txt}${cpA(c)}`);
+        modAdj += c;
+      }
     }
-    addCpSel("aid-conc");
-    addCpSel("aid-kb");
-    addCpSel("aid-partial");
-    addCpSel("aid-poorpen");
-    addCpSel("aid-obvious");
-    addCpSel("aid-carrier");
-    addCpSel("aid-other");
 
     const bkdn = parseInt(document.getElementById("aid-breakdown").value) || 0;
-    if (bkdn > 0) { const c = bkdn * 2.5; parts.push(`Breakdown x${bkdn} (-${c})`); modAdj -= c; }
+    if (bkdn > 0) {
+      const c = bkdn * 2.5;
+      parts.push(`${full ? "Breakdown" : "Bkdn"} x${bkdn}${cpA(-c)}`);
+      modAdj -= c;
+    }
 
     // System modifiers
     const isIntegral = document.getElementById("aid-integral").checked;
@@ -1673,55 +1730,79 @@ const abilityDlg = {
     const arcCp = this._selCp("aid-arc");
 
     if (isIntegral) {
-      const halfCp = Math.ceil((baseCp + veh.techMod) / 2);
-      parts.push(`Integral (½ → ${halfCp} CPs)`);
+      if (min) { parts.push("Integral"); }
+      else { const halfCp = Math.ceil((baseCp + veh.techMod) / 2); parts.push(`Integral (½ → ${halfCp})`); }
     }
     if (isOpen) {
-      let openBase = baseCp + veh.techMod;
-      if (isIntegral) openBase = Math.ceil(openBase / 2);
-      const qtrCp = Math.ceil(openBase / 4);
-      parts.push(`Open (¼ → ${qtrCp} CPs)`);
+      if (min) { parts.push("Open"); }
+      else {
+        let openBase = baseCp + veh.techMod;
+        if (isIntegral) openBase = Math.ceil(openBase / 2);
+        parts.push(`Open (¼ → ${Math.ceil(openBase / 4)})`);
+      }
     }
-    if (isIndep) parts.push("Indep. Power");
-    if (wontExplode) { parts.push("Won't Explode (+5)"); modAdj += 5; }
+    if (isIndep) parts.push(full ? "Indep. Power" : "Indep");
+    if (wontExplode) { parts.push(min ? "No Explode" : `Won't Explode${cpA(5)}`); modAdj += 5; }
     if (arcCp !== 0) {
       const arcSel = document.getElementById("aid-arc");
       const arcTxt = arcSel.options[arcSel.selectedIndex].textContent.replace(/ \([^)]*\)$/, "");
-      const cpStr = arcCp > 0 ? "+" + arcCp : String(arcCp);
-      parts.push(`${arcTxt} (${cpStr})`);
+      // Shorten arc labels for compact/min
+      let arcLabel = arcTxt;
+      if (!full) {
+        arcLabel = arcLabel.replace("No Arc — line only", "Line Only")
+                           .replace("Forward 120°", "Fwd")
+                           .replace("Wide 240°", "240°")
+                           .replace("Wide 360°", "360°");
+      }
+      parts.push(`${arcLabel}${cpA(arcCp)}`);
       modAdj += arcCp;
     }
 
     const notes = document.getElementById("aid-notes").value.trim();
     if (notes) parts.push(notes);
 
-    // Capture structured state before modifying system
+    return { desc: parts.join(", "), parts, modAdj, bulkyTotal, delicateTotal,
+             isIntegral, isOpen, baseCp };
+  },
+
+  _updatePreview() {
+    const mode = this._getDescMode();
+    const result = this._buildDescription(mode);
+    const el = document.getElementById("aid-preview");
+    el.textContent = result.desc || "—";
+  },
+
+  _commit() {
+    const idx = this.targetIdx;
+    if (idx === null) return;
+
+    const mode = this._getDescMode();
+    const r = this._buildDescription(mode);
     const abilityData = this._captureState();
+    abilityData.descMode = mode;
 
     const spaces = parseInt(document.getElementById("aid-spaces").value) || 8;
     while (veh.systems.length <= idx) veh.addSystem();
     const sys = veh.systems[idx];
 
     if (this.editMode) {
-      // Edit mode: replace system ability data entirely
       sys.spaces = spaces;
-      sys.desc = parts.join(", ");
-      sys.extraCPs = modAdj;
-      sys.bulky = bulkyTotal;
-      sys.delicate = delicateTotal;
-      sys.integral = isIntegral;
-      sys.open = isOpen;
+      sys.desc = r.desc;
+      sys.extraCPs = r.modAdj;
+      sys.bulky = r.bulkyTotal;
+      sys.delicate = r.delicateTotal;
+      sys.integral = r.isIntegral;
+      sys.open = r.isOpen;
       sys.abilityData = abilityData;
     } else {
-      // Insert mode: append to existing system
       if (!sys.spaces) sys.spaces = spaces;
-      if (bulkyTotal) sys.bulky = (sys.bulky || 0) + bulkyTotal;
-      if (delicateTotal) sys.delicate = (sys.delicate || 0) + delicateTotal;
-      if (isIntegral) sys.integral = true;
-      if (isOpen) sys.open = true;
-      if (sys.desc && sys.desc.trim()) sys.desc += ", " + parts.join(", ");
-      else sys.desc = parts.join(", ");
-      if (modAdj !== 0) sys.extraCPs = (sys.extraCPs || 0) + modAdj;
+      if (r.bulkyTotal) sys.bulky = (sys.bulky || 0) + r.bulkyTotal;
+      if (r.delicateTotal) sys.delicate = (sys.delicate || 0) + r.delicateTotal;
+      if (r.isIntegral) sys.integral = true;
+      if (r.isOpen) sys.open = true;
+      if (sys.desc && sys.desc.trim()) sys.desc += ", " + r.desc;
+      else sys.desc = r.desc;
+      if (r.modAdj !== 0) sys.extraCPs = (sys.extraCPs || 0) + r.modAdj;
       sys.abilityData = abilityData;
     }
 
