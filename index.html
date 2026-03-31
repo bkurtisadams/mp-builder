@@ -236,15 +236,23 @@
       <select id="aid-spaces" class="aid-sel-mod" style="display:none"></select>
       <span class="aid-pr-display" id="aid-pr-display"></span>
     </div>
-    <!-- Consolidated system info -->
-    <div class="aid-sys-info" id="aid-sys-info">
-      <span class="aid-si">System: <b id="aid-si-spaces">—</b></span>
-      <span class="aid-si" id="aid-si-tech"></span>
-    </div>
-    <div class="aid-sys-stats" id="aid-sys-stats">
-      <span class="aid-ss" title="System profile">Prof: <b id="aid-ss-prof">—</b></span>
-      <span class="aid-ss" title="System hits (with Bulky/Delicate)">Hits: <b id="aid-ss-hits">—</b></span>
-      <span class="aid-ss-remain" id="aid-ss-remain">—</span>
+    <!-- Cost breakdown panel -->
+    <div class="aid-cost-panel" id="aid-cost-panel">
+      <div class="aid-cost-left">
+        <div class="aid-cost-hdr">SYSTEM</div>
+        <div class="aid-cost-row"><span class="aid-cost-lbl">Spaces:</span><span class="aid-cost-val" id="aid-cp-spaces">8 sp</span></div>
+        <div class="aid-cost-row"><span class="aid-cost-lbl">Generates:</span><span class="aid-cost-val" id="aid-cp-gen">20 CPs</span></div>
+        <div class="aid-cost-row"><span class="aid-cost-lbl">Profile:</span><span class="aid-cost-val" id="aid-cp-prof">x2.83</span></div>
+        <div class="aid-cost-row"><span class="aid-cost-lbl">Hits:</span><span class="aid-cost-val" id="aid-cp-hits">20</span></div>
+        <div class="aid-cost-row aid-cost-tech" id="aid-cp-tech-row"><span class="aid-cost-lbl">Tech:</span><span class="aid-cost-val" id="aid-cp-tech"></span></div>
+        <div class="aid-cost-row aid-cost-budget"><span class="aid-cost-lbl">Budget:</span><span class="aid-cost-val" id="aid-cp-budget">20 CPs</span></div>
+      </div>
+      <div class="aid-cost-right">
+        <div class="aid-cost-hdr">ABILITY COST</div>
+        <div id="aid-cost-lines"></div>
+        <div class="aid-cost-total"><span class="aid-cost-lbl">Total:</span><span class="aid-cost-val" id="aid-cp-total">20</span></div>
+      </div>
+      <div class="aid-cost-balance" id="aid-cost-balance">═══ balanced ═══</div>
     </div>
     <!-- Live description preview -->
     <div class="aid-preview-wrap">

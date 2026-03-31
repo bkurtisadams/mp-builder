@@ -1,4 +1,4 @@
-/* mp-style.css v3.0.0 — Single-page layout, no tabs, inline floor plan */
+/* mp-style.css v3.1.0 — Cost breakdown panel, green active modifier tints */
 :root {
   --bg: #d6eaf8;
   --bg2: #c4dff0;
@@ -229,14 +229,32 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 .aid-sys-info { display: flex; gap: 12px; padding: 2px 0 0 96px; font-size: 8px; color: var(--tx2) }
 .aid-si b { font-size: 9px; color: var(--label) }
 .aid-si-tech { font-style: italic; color: var(--tx3) }
-/* Live system stats bar */
-.aid-sys-stats { display: flex; gap: 12px; padding: 2px 0 3px 96px; align-items: center }
-.aid-ss { font-size: 8px; color: var(--tx2); white-space: nowrap }
-.aid-ss b { font-size: 9px; color: var(--val) }
-.aid-ss-remain { font-size: 9px; font-weight: 700; margin-left: auto; white-space: nowrap }
-.aid-ss-remain.over { color: #c03030 }
-.aid-ss-remain.under { color: #2a7a2a }
-.aid-ss-remain.even { color: var(--label) }
+/* Cost breakdown panel */
+.aid-cost-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--brd); border-radius: 3px; margin: 6px 0 4px; overflow: hidden; font-size: 8px; background: #fff }
+.aid-cost-left { padding: 4px 8px; border-right: 1px solid var(--brd2); background: #f0f7fc }
+.aid-cost-right { padding: 4px 8px; background: #fff }
+.aid-cost-hdr { font-size: 7px; font-weight: 700; color: var(--tx3); text-transform: uppercase; letter-spacing: 1px; padding-bottom: 2px; border-bottom: 1px solid var(--brd2); margin-bottom: 2px }
+.aid-cost-row { display: flex; justify-content: space-between; padding: 1px 0 }
+.aid-cost-lbl { color: var(--tx2); font-size: 7px; font-weight: 700 }
+.aid-cost-val { color: var(--label); font-size: 8px; font-weight: 700 }
+.aid-cost-tech { font-style: italic; color: var(--tx3) }
+.aid-cost-tech .aid-cost-val { color: var(--tx3); font-style: italic }
+.aid-cost-budget { border-top: 1px solid var(--brd2); margin-top: 2px; padding-top: 2px }
+.aid-cost-budget .aid-cost-val { color: var(--val); font-size: 9px }
+.aid-cost-line { display: flex; justify-content: space-between; padding: 0.5px 0; font-size: 7px }
+.aid-cost-line-lbl { color: var(--tx2) }
+.aid-cost-line-val { font-weight: 700; color: var(--label); min-width: 32px; text-align: right }
+.aid-cost-line-val.pos { color: #c03030 }
+.aid-cost-line-val.neg { color: #2a7a2a }
+.aid-cost-total { display: flex; justify-content: space-between; border-top: 1px solid var(--brd2); margin-top: 2px; padding-top: 2px }
+.aid-cost-total .aid-cost-val { color: var(--val); font-size: 9px }
+.aid-cost-balance { grid-column: 1 / -1; text-align: center; font-size: 9px; font-weight: 700; padding: 3px 0; border-top: 1px solid var(--brd2) }
+.aid-cost-balance.over { color: #c03030; background: #fde8e8 }
+.aid-cost-balance.under { color: #2a7a2a; background: #e8fde8 }
+.aid-cost-balance.even { color: var(--label); background: #e8f0fd }
+/* Green tint on active (non-default) modifier rows */
+.aid-2c.aid-mod-active { background: rgba(42,122,42,.08); border-radius: 2px }
+.aid-2c-full.aid-mod-active { background: rgba(42,122,42,.08); border-radius: 2px }
 /* Live description preview */
 .aid-preview-wrap { margin-top: 4px }
 .aid-preview { font-family: var(--fb); font-size: 8px; color: var(--tx); background: #fff; border: 1px solid var(--brd); border-radius: 2px; padding: 3px 5px; min-height: 18px; line-height: 1.4; word-break: break-word }

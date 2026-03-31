@@ -1,4 +1,4 @@
-// mp-app.js v4.5.0 — Split PR/Charges, 15 new modifiers, expanded PR scale
+// mp-app.js v4.6.0 — Cost breakdown panel, green modifier tints, split system/cost display
 
 const veh = new Vehicle();
 let editor = null;
@@ -1282,14 +1282,104 @@ const abilityDlg = {
 
   // Master refresh — called on any input change
   _refresh() {
-    this._updateSysStats();
+    this._updateCostPanel();
     this._updateStats();
     this._updatePreview();
+    this._updateModTints();
   },
 
-  _updateSysStats() {
+  // Collect individual modifier contributions with labels for the cost breakdown
+  _getModBreakdown() {
+    const items = [];
+    const abId = document.getElementById("aid-ability-val").value;
+    function add(label, cp) { if (cp !== 0) items.push({label, cp}); }
+
+    // Ability-specific modifiers
+    const abMods = MP.ABILITY_MODIFIERS[abId] || [];
+    for (const am of abMods) {
+      if (am.type === "select") {
+        const sel = document.querySelector(`select[data-am-id="${am.id}"]`);
+        if (sel) {
+          const c = parseFloat(sel.options[sel.selectedIndex]?.dataset?.cp) || 0;
+          if (c !== 0) add(am.label, c);
+        }
+      } else if (am.type === "number") {
+        const inp = document.querySelector(`input[data-am-id="${am.id}"]`);
+        const val = parseInt(inp?.value) || 0;
+        if (val > 0) add(am.label + " x" + val, am.cpFn(val));
+      } else {
+        const chk = document.querySelector(`input[data-am-id="${am.id}"]`);
+        if (chk?.checked && am.cp !== 0) add(am.label, am.cp);
+      }
+    }
+
+    // Generic step selects
+    function stepItem(id, steps, label) {
+      const v = parseInt(document.getElementById(id).value);
+      if (v > 0 && steps[v]) add(label, steps[v].cp);
+    }
+    stepItem("aid-area", MP.AREA_EFFECT_STEPS, "Area Effect");
+    stepItem("aid-ap", MP.ARMOR_PIERCING_STEPS, "Armor Pierce");
+    stepItem("aid-autofire", MP.AUTOFIRE_STEPS, "Autofire");
+    stepItem("aid-duration", MP.DURATION_STEPS, "Duration");
+    stepItem("aid-hardened", MP.HARDENED_STEPS, "Hardened");
+
+    if (document.getElementById("aid-gear").checked) add("Gear", -5);
+
+    const bulky = parseInt(document.getElementById("aid-bulky").value) || 0;
+    if (bulky > 0) add("Bulky x" + bulky, bulky * 2.5);
+    const delicate = parseInt(document.getElementById("aid-delicate").value) || 0;
+    if (delicate > 0) add("Delicate x" + delicate, -(delicate * 2.5));
+
+    // Simple select modifiers
+    function selItem(id, label) {
+      const s = document.getElementById(id);
+      const c = parseFloat(s.options[s.selectedIndex]?.dataset?.cp) || 0;
+      if (c !== 0) {
+        const txt = s.options[s.selectedIndex].textContent.replace(/ \([^)]*\)$/, "");
+        add(txt, c);
+      }
+    }
+    selItem("aid-pr", "PR");
+    selItem("aid-charges", "Charges");
+    selItem("aid-range", "Range");
+    selItem("aid-conc", "Concentrate");
+    selItem("aid-kb", "Knockback");
+
+    const bkdn = parseInt(document.getElementById("aid-breakdown").value) || 0;
+    if (bkdn > 0) add("Breakdown x" + bkdn, -(bkdn * 2.5));
+
+    selItem("aid-partial", "Partial Cov");
+    selItem("aid-poorpen", "Poor Pen");
+    selItem("aid-obvious", "Obvious");
+    selItem("aid-carrier", "Carrier");
+    selItem("aid-dmgtype", "Dmg Type");
+    selItem("aid-indirect", "Indirect");
+
+    // Time Req: default is index 2
+    const trSel = document.getElementById("aid-timereq");
+    const trCp = parseFloat(trSel.options[trSel.selectedIndex]?.dataset?.cp) || 0;
+    if (trCp !== 0) add(trSel.options[trSel.selectedIndex].textContent.replace(/ \([^)]*\)$/, ""), trCp);
+
+    selItem("aid-activation", "Activation");
+    selItem("aid-loss", "Ability Loss");
+    selItem("aid-canthold", "Can't Hold");
+    if (document.getElementById("aid-linked").checked) add("Linked", -2.5);
+    selItem("aid-multi", "Multi-Ability");
+    selItem("aid-usable", "Usable");
+    selItem("aid-reqsave", "Req Save");
+    selItem("aid-other", "Other");
+
+    if (document.getElementById("aid-wontexplode").checked) add("Won't Explode", 5);
+    selItem("aid-arc", "Arc");
+
+    return items;
+  },
+
+  _updateCostPanel() {
     const abilityCp = this._getAbilityCp();
-    const modAdj = this._calcModCost();
+    const modItems = this._getModBreakdown();
+    const modAdj = modItems.reduce((s, m) => s + m.cp, 0);
     const totalCost = abilityCp + modAdj;
     const sysRow = MP.lookupSysByCp(Math.max(0, totalCost));
     const bulky = parseInt(document.getElementById("aid-bulky").value) || 0;
@@ -1297,51 +1387,117 @@ const abilityDlg = {
     const integral = document.getElementById("aid-integral").checked;
     const open = document.getElementById("aid-open").checked;
 
-    // System info line: spaces needed and generated CPs (based on total cost)
+    // Left: system info
+    const sp = sysRow ? sysRow.sp : 0;
     const genCp = sysRow ? sysRow.cp : 0;
-    let spacesStr = (sysRow ? sysRow.sp : 0) + " sp (generates " + genCp + " CPs)";
-    document.getElementById("aid-si-spaces").textContent = spacesStr;
+    document.getElementById("aid-cp-spaces").textContent = sp + " sp";
+    document.getElementById("aid-cp-gen").textContent = genCp + " CPs";
 
-    // Tech mod annotation — tech adjusts budget, not ability cost
-    let techStr = "";
-    let budget = genCp + veh.techMod;
-    if (integral) budget = Math.ceil(budget / 2);
-    if (open) budget = Math.ceil(budget / 4);
-    budget = Math.max(0, budget);
-    const techNotes = [];
-    if (veh.techMod !== 0) techNotes.push((veh.techMod > 0 ? "+" : "") + veh.techMod + " tech");
-    if (integral) techNotes.push("½ integral");
-    if (open) techNotes.push("¼ open");
-    if (techNotes.length) techStr = "[" + techNotes.join(", ") + " → budget " + budget + "]";
-    document.getElementById("aid-si-tech").textContent = techStr;
+    const prof = sysRow ? sysRow.prof : 0;
+    const profStr = prof ? "x" + (Number.isInteger(prof) ? prof : prof.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")) : "—";
+    document.getElementById("aid-cp-prof").textContent = integral ? "—" : profStr;
 
-    // Hits
     let hits = sysRow ? sysRow.hits : 0;
     hits += Math.ceil(4.3 * bulky);
     hits -= Math.ceil(4.3 * delicate);
     hits = Math.max(1, hits);
+    document.getElementById("aid-cp-hits").textContent = integral ? "— (hidden)" : String(hits);
 
-    // Profile
-    const prof = sysRow ? sysRow.prof : 0;
-    const profStr = prof ? "x" + (Number.isInteger(prof) ? prof : prof.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")) : "—";
-
-    // Integral systems can't be targeted
-    document.getElementById("aid-ss-prof").textContent = integral ? "—" : profStr;
-    document.getElementById("aid-ss-hits").textContent = integral ? "— (hidden)" : hits;
-
-    // Remaining CPs = budget - total ability cost
-    const remaining = budget - totalCost;
-    const remEl = document.getElementById("aid-ss-remain");
-    if (remaining > 0) {
-      remEl.textContent = remaining + " CPs remaining";
-      remEl.className = "aid-ss-remain under";
-    } else if (remaining < 0) {
-      remEl.textContent = Math.abs(remaining) + " CPs over → COST";
-      remEl.className = "aid-ss-remain over";
+    // Tech/budget
+    let budget = genCp + veh.techMod;
+    if (integral) budget = Math.ceil(budget / 2);
+    if (open) budget = Math.ceil(budget / 4);
+    budget = Math.max(0, budget);
+    const techRow = document.getElementById("aid-cp-tech-row");
+    if (veh.techMod !== 0 || integral || open) {
+      const parts = [];
+      if (veh.techMod !== 0) parts.push((veh.techMod > 0 ? "+" : "") + veh.techMod + " tech");
+      if (integral) parts.push("½ int");
+      if (open) parts.push("¼ open");
+      document.getElementById("aid-cp-tech").textContent = parts.join(", ");
+      techRow.style.display = "";
     } else {
-      remEl.textContent = "0 CPs remaining";
-      remEl.className = "aid-ss-remain even";
+      techRow.style.display = "none";
     }
+    document.getElementById("aid-cp-budget").textContent = budget + " CPs";
+
+    // Right: cost breakdown
+    const linesEl = document.getElementById("aid-cost-lines");
+    let html = "";
+    const ab = MP.abilityById(document.getElementById("aid-ability-val").value);
+    const baseName = ab ? ab.name : "Base";
+    html += `<div class="aid-cost-line"><span class="aid-cost-line-lbl">${baseName}</span><span class="aid-cost-line-val">${abilityCp}</span></div>`;
+    for (const m of modItems) {
+      const sign = m.cp >= 0 ? "+" : "";
+      const cls = m.cp > 0 ? " pos" : m.cp < 0 ? " neg" : "";
+      html += `<div class="aid-cost-line"><span class="aid-cost-line-lbl">${m.label}</span><span class="aid-cost-line-val${cls}">${sign}${m.cp}</span></div>`;
+    }
+    linesEl.innerHTML = html;
+
+    // Total
+    document.getElementById("aid-cp-total").textContent = totalCost;
+
+    // Balance line
+    const remaining = budget - totalCost;
+    const balEl = document.getElementById("aid-cost-balance");
+    if (remaining > 0) {
+      balEl.textContent = remaining + " CPs remaining";
+      balEl.className = "aid-cost-balance under";
+    } else if (remaining < 0) {
+      balEl.textContent = Math.abs(remaining) + " CPs over budget → adds to vehicle cost";
+      balEl.className = "aid-cost-balance over";
+    } else {
+      balEl.textContent = "═══ balanced ═══";
+      balEl.className = "aid-cost-balance even";
+    }
+  },
+
+  // Green tint on active (non-default) modifier rows
+  _updateModTints() {
+    // Generic modifier rows in aid-generic-mods
+    document.querySelectorAll("#aid-generic-mods .aid-2c, #aid-generic-mods .aid-2c-full").forEach(row => {
+      const sel = row.querySelector("select");
+      const chk = row.querySelector("input[type='checkbox']");
+      const num = row.querySelector("input[type='number']");
+      let active = false;
+      if (sel) {
+        const defIdx = (sel.id === "aid-timereq") ? 2 : 0;
+        active = sel.selectedIndex !== defIdx;
+      } else if (chk) {
+        active = chk.checked;
+      } else if (num) {
+        active = (parseInt(num.value) || 0) > 0;
+      }
+      row.classList.toggle("aid-mod-active", active);
+    });
+    // System modifier rows
+    document.querySelectorAll("#aid-sys-mods .aid-2c, #aid-sys-mods .aid-2c-full").forEach(row => {
+      const sel = row.querySelector("select");
+      const chk = row.querySelector("input[type='checkbox']");
+      const num = row.querySelector("input[type='number']");
+      let active = false;
+      if (sel) active = sel.selectedIndex !== 0;
+      else if (chk) active = chk.checked;
+      else if (num) active = (parseInt(num.value) || 0) > 0;
+      row.classList.toggle("aid-mod-active", active);
+    });
+    // Ability-specific modifier rows
+    document.querySelectorAll("#aid-ability-mods .aid-2c, #aid-ability-mods .aid-2c-full").forEach(row => {
+      const sel = row.querySelector("select");
+      const chk = row.querySelector("input[type='checkbox']");
+      const num = row.querySelector("input[type='number']");
+      let active = false;
+      if (sel) {
+        const amId = sel.dataset.amId;
+        const abId = document.getElementById("aid-ability-val").value;
+        const abMods = MP.ABILITY_MODIFIERS[abId] || [];
+        const am = abMods.find(m => m.id === amId);
+        const defIdx = am ? (am.def || 0) : 0;
+        active = sel.selectedIndex !== defIdx;
+      } else if (chk) active = chk.checked;
+      else if (num) active = (parseInt(num.value) || 0) > 0;
+      row.classList.toggle("aid-mod-active", active);
+    });
   },
 
   _updateStats() {
