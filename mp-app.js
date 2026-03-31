@@ -150,9 +150,9 @@ function renderSystemsTable() {
     const s = veh.systems[i] || null;
     const cost = s ? (s.extraCPs || "") : "";
     const spaces = s ? (s.spaces || "") : "";
-    const prof = s && s.spaces ? veh.sysProfileDisplay(s) : "";
-    const hits = s && s.spaces ? veh.sysHits(s) : "";
-    const hitsDisplay = hits !== "" ? `(${hits})` : "";
+    const prof = s && s.spaces ? (s.integral ? "—" : veh.sysProfileDisplay(s)) : "";
+    const hits = s && s.spaces ? (s.integral ? "" : veh.sysHits(s)) : "";
+    const hitsDisplay = s && s.spaces && s.integral ? "—" : (hits !== "" ? `(${hits})` : "");
     const pts = s && s.spaces ? `(${veh.sysCPs(s)})` : "";
     const dmg = s ? escAttr(s.dmg || "") : "";
     const desc = s ? escAttr(s.desc || "") : "";
@@ -346,10 +346,14 @@ function buildSysDropdownHtml(ed) {
   for (const sys of veh.systems) {
     if (!sys.desc && !sys.spaces) continue;
     const name = escAttr(sys.desc || "(unnamed)");
-    const placed = sys.cells.length;
-    const total = sys.spaces || 0;
     const selected = (ed && ed.activeSysId === sys.id) ? " selected" : "";
-    html += `<option value="${sys.id}"${selected}>${name} (${placed}/${total})</option>`;
+    if (sys.integral) {
+      html += `<option value="${sys.id}"${selected} disabled>${name} (integral)</option>`;
+    } else {
+      const placed = sys.cells.length;
+      const total = sys.spaces || 0;
+      html += `<option value="${sys.id}"${selected}>${name} (${placed}/${total})</option>`;
+    }
   }
   const remSys = veh.getRemainingSys();
   const remPlaced = remSys.cells.length;
@@ -2143,9 +2147,14 @@ document.addEventListener("keydown", e => {
 function updatePlacedCount() {
   const el = document.getElementById("vs-placed-count");
   let placed = 0;
-  for (const sys of veh.systems) placed += sys.cells.length;
+  let integralSpaces = 0;
+  for (const sys of veh.systems) {
+    if (sys.integral) { integralSpaces += (sys.spaces || 0); }
+    else { placed += sys.cells.length; }
+  }
   placed += veh.getRemainingSys().cells.length;
-  el.innerHTML = `<span class="vs-pc-n">${placed}</span> / ${veh.totalSpaces} placed`;
+  const paintable = veh.totalSpaces - integralSpaces;
+  el.innerHTML = `<span class="vs-pc-n">${placed}</span> / ${paintable} placed`;
 }
 
 // ---- Right-click context menu on canvas cells ----
