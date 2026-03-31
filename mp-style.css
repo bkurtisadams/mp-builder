@@ -189,6 +189,25 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 .vs-sil-inp { width: 42px; background: var(--inp); border: 1px solid var(--brd); border-radius: 2px; padding: 1px 2px; font-family: var(--fb); font-size: 9px; color: var(--tx); text-align: center }
 .vs-sil-inp:focus { outline: none; border-color: var(--accent) }
 
+/* Placed spaces counter in toolbar */
+.vs-placed-count { font-size: 8px; font-weight: 700; color: var(--tx2); white-space: nowrap; padding: 1px 5px; background: var(--bg3); border: 1px solid var(--brd); border-radius: 2px }
+.vs-placed-count .vs-pc-n { color: var(--val) }
+
+/* Right-click context menu on canvas cells */
+.vs-cell-menu { position: fixed; z-index: 10000; min-width: 160px; background: #fff; border: 1px solid var(--brd); border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.18); font-family: var(--fb); font-size: 11px; color: var(--tx); padding: 3px 0; user-select: none }
+.vs-cell-menu-hdr { padding: 4px 10px 3px; font-size: 9px; font-weight: 700; color: var(--accent); border-bottom: 1px solid var(--brd2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.vs-cell-menu-item { padding: 4px 10px; cursor: pointer; white-space: nowrap }
+.vs-cell-menu-item:hover { background: var(--bg2) }
+.vs-cell-menu-sep { height: 1px; background: var(--brd2); margin: 3px 0 }
+.vs-cell-menu-del { color: var(--del) }
+.vs-cell-menu-del:hover { background: #fde8e8 }
+/* System info tooltip from context menu */
+.vs-sys-info { position: fixed; z-index: 10001; min-width: 180px; max-width: 300px; background: #fffdf5; border: 2px solid var(--accent); border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.18); font-family: var(--fb); font-size: 10px; color: var(--tx); padding: 8px 10px }
+.vs-sys-info-row { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0 }
+.vs-sys-info-lbl { font-weight: 700; color: var(--label) }
+.vs-sys-info-val { font-weight: 700; color: var(--val); text-align: right }
+.vs-sys-info-desc { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--brd2); font-size: 9px; color: var(--tx2); word-break: break-word }
+
 .vs-sheet-ftr { text-align: center; font-size: 7px; color: var(--tx3); padding: 4px 0; border-top: 1px solid var(--brd2); margin-top: 6px }
 
 @media(max-width:700px) {
@@ -300,7 +319,7 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 @media print {
   /* Hide non-printable UI */
   .mp-hdr, .vs-layout-toolbar, .vs-sil-bar, .vs-layout-hint,
-  .vs-picture-controls,
+  .vs-picture-controls, .vs-cell-menu, .vs-sys-info,
   .vs-sys-row .vs-sys-del, .vs-sys-row .vs-sys-ins, .vs-sys-row .vs-sys-edit, .vs-sys-grip { display: none !important }
 
   /* Reset page */

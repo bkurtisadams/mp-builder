@@ -1,4 +1,4 @@
-// mp-app.js v4.8.0 — Independent system spaces: CP changes don't auto-resize spaces
+// mp-app.js v4.11.0 — Right-click context menu, highlight system, persistent placed count
 
 const veh = new Vehicle();
 let editor = null;
@@ -89,16 +89,18 @@ function updateAll() {
   document.getElementById("vs-basic-cost").value = veh.basicCost;
   document.getElementById("vs-hits").textContent = veh.hits;
   document.getElementById("vs-power").textContent = veh.power;
-  // Sync current to max if current exceeds max or equals old max
+  // Sync current to max if current exceeds max, is unset, or max changed
   const hitsCur = document.getElementById("vs-hits-cur");
   const powerCur = document.getElementById("vs-power-cur");
-  if (parseInt(hitsCur.value) > veh.hits || hitsCur.value === "" || hitsCur.dataset.lastMax !== String(veh.hits)) {
-    hitsCur.value = veh.hits;
+  if (veh.currentHits === null || veh.currentHits > veh.hits || hitsCur.dataset.lastMax !== String(veh.hits)) {
+    veh.currentHits = veh.hits;
   }
+  hitsCur.value = veh.currentHits;
   hitsCur.dataset.lastMax = veh.hits;
-  if (parseInt(powerCur.value) > veh.power || powerCur.value === "" || powerCur.dataset.lastMax !== String(veh.power)) {
-    powerCur.value = veh.power;
+  if (veh.currentPower === null || veh.currentPower > veh.power || powerCur.dataset.lastMax !== String(veh.power)) {
+    veh.currentPower = veh.power;
   }
+  powerCur.value = veh.currentPower;
   powerCur.dataset.lastMax = veh.power;
   document.getElementById("vs-explosion").textContent = veh.explosionDice;
   document.getElementById("vs-area").textContent = veh.explosionArea;
@@ -126,6 +128,7 @@ function updateAll() {
   renderKey();
   updateSystemDropdown();
   updateActiveIndicator();
+  updatePlacedCount();
   if (typeof updateSilBar === "function") updateSilBar();
   if (editor) editor.draw();
   autoSave();
@@ -327,39 +330,38 @@ function renderKey() {
       const kidx = parseInt(inp.dataset.kidx);
       while (veh.keyEntries.length <= kidx) veh.addKeyEntry("", "");
       veh.keyEntries[kidx][inp.dataset.field] = inp.value;
+      autoSave();
     });
   });
 }
 
 // ---- System dropdown in layout toolbar ----
-function updateSystemDropdown() {
-  const sel = document.getElementById("sel-layout-sys");
-  const curVal = sel.value;
+function buildSysDropdownHtml(ed) {
   let html = '<option value="">— select system —</option>';
   for (const sys of veh.systems) {
     if (!sys.desc && !sys.spaces) continue;
-    const name = sys.desc || "(unnamed)";
+    const name = escAttr(sys.desc || "(unnamed)");
     const placed = sys.cells.length;
     const total = sys.spaces || 0;
-    const selected = (String(sys.id) === curVal) ? " selected" : "";
+    const selected = (ed && ed.activeSysId === sys.id) ? " selected" : "";
     html += `<option value="${sys.id}"${selected}>${name} (${placed}/${total})</option>`;
   }
-  // Add remaining spaces entry
   const remSys = veh.getRemainingSys();
   const remPlaced = remSys.cells.length;
   const remTotal = veh.remainingSpaces + remPlaced;
   if (remTotal > 0) {
-    const remSelected = (curVal === "remaining") ? " selected" : "";
+    const remSelected = (ed && ed.activeSysId === "remaining") ? " selected" : "";
     html += `<option value="remaining"${remSelected}>Remaining (${remPlaced}/${remTotal})</option>`;
   }
-  sel.innerHTML = html;
+  return html;
+}
+
+function updateSystemDropdown() {
+  const sel = document.getElementById("sel-layout-sys");
+  sel.innerHTML = buildSysDropdownHtml(editor);
   // Restore selection if still valid
   if (editor && editor.activeSysId) {
-    if (editor.activeSysId === "remaining") {
-      sel.value = "remaining";
-    } else {
-      sel.value = String(editor.activeSysId);
-    }
+    sel.value = editor.activeSysId === "remaining" ? "remaining" : String(editor.activeSysId);
     if (!sel.value) {
       editor.activeSysId = null;
       editor.setMode("select");
@@ -368,33 +370,36 @@ function updateSystemDropdown() {
 }
 
 // ---- Active system indicator ----
-function updateActiveIndicator() {
-  const el = document.getElementById("vs-active-sys");
-  if (!editor || !editor.activeSysId) {
-    el.innerHTML = '<span style="font-size:8px;color:var(--tx3);font-style:italic">Select a system to paint</span>';
-    return;
-  }
+function getActiveIndicatorHtml(ed) {
+  if (!ed || !ed.activeSysId) return null;
   let sys, color, name, placed, total;
-  if (editor.activeSysId === "remaining") {
+  if (ed.activeSysId === "remaining") {
     sys = veh.getRemainingSys();
     color = "#606060";
     name = "Remaining";
     placed = sys.cells.length;
     total = veh.remainingSpaces + placed;
   } else {
-    sys = veh.findSystem(editor.activeSysId);
-    if (!sys) {
-      el.innerHTML = '<span style="font-size:8px;color:var(--tx3);font-style:italic">Select a system to paint</span>';
-      return;
-    }
+    sys = veh.findSystem(ed.activeSysId);
+    if (!sys) return null;
     color = MP.sysColor(sys.desc);
     name = sys.desc || "(unnamed)";
     placed = sys.cells.length;
     total = sys.spaces || 0;
   }
-  el.innerHTML = `<span class="vs-active-swatch" style="background:${color}"></span>`
-    + `<span class="vs-active-name">${name}</span>`
-    + `<span class="vs-active-count">${placed} / ${total}</span>`;
+  return { color, name, placed, total };
+}
+
+function updateActiveIndicator() {
+  const el = document.getElementById("vs-active-sys");
+  const info = getActiveIndicatorHtml(editor);
+  if (!info) {
+    el.innerHTML = '<span style="font-size:8px;color:var(--tx3);font-style:italic">Select a system to paint</span>';
+    return;
+  }
+  el.innerHTML = `<span class="vs-active-swatch" style="background:${info.color}"></span>`
+    + `<span class="vs-active-name">${info.name}</span>`
+    + `<span class="vs-active-count">${info.placed} / ${info.total}</span>`;
 }
 
 // ---- Config change handlers ----
@@ -421,6 +426,28 @@ function onConfigChange() {
   document.getElementById(id).addEventListener("change", onConfigChange);
 });
 
+// ---- Armor inputs ----
+["vs-armor-kin","vs-armor-eng","vs-armor-bio","vs-armor-ent","vs-armor-psy"].forEach(id => {
+  const field = {
+    "vs-armor-kin":"armorKin","vs-armor-eng":"armorEng","vs-armor-bio":"armorBio",
+    "vs-armor-ent":"armorEnt","vs-armor-psy":"armorPsy"
+  }[id];
+  document.getElementById(id).addEventListener("change", () => {
+    veh[field] = parseFloat(document.getElementById(id).value) || 0;
+    autoSave();
+  });
+});
+
+// ---- Current hits / power ----
+document.getElementById("vs-hits-cur").addEventListener("change", () => {
+  veh.currentHits = parseInt(document.getElementById("vs-hits-cur").value) || 0;
+  autoSave();
+});
+document.getElementById("vs-power-cur").addEventListener("change", () => {
+  veh.currentPower = parseInt(document.getElementById("vs-power-cur").value) || 0;
+  autoSave();
+});
+
 // ---- Import image ----
 document.getElementById("inp-picture").addEventListener("change", e => {
   if (!e.target.files.length) return;
@@ -431,6 +458,7 @@ document.getElementById("inp-picture").addEventListener("change", e => {
     img.src = veh.pictureData;
     img.style.display = "block";
     document.getElementById("vs-picture-area").classList.add("has-image");
+    autoSave();
   };
   reader.readAsDataURL(e.target.files[0]);
   e.target.value = "";
@@ -457,6 +485,7 @@ document.getElementById("vs-pic-height").addEventListener("input", () => {
   document.getElementById("vs-picture-area").style.height = h + "px";
   document.getElementById("vs-pic-height-val").textContent = h;
   veh.pictureHeight = h;
+  autoSave();
 });
 
 // ---- Layout toolbar: system dropdown ----
@@ -490,24 +519,22 @@ function setLayoutMode(mode) {
   editor.draw();
 }
 
-function updateSilBar() {
-  const bar = document.getElementById("vs-sil-bar");
+function syncSilInputs(doc, barId, inputPrefix, ed) {
+  const bar = doc.getElementById(barId);
   const sil = veh.silhouette;
-  const inSilMode = editor && editor.mode === "sil";
+  const inSilMode = ed && ed.mode === "sil";
   bar.classList.toggle("disabled", !inSilMode);
-  if (sil) {
-    document.getElementById("sil-x").value = sil.gx ?? 0;
-    document.getElementById("sil-y").value = sil.gy ?? 0;
-    document.getElementById("sil-w").value = sil.gw ?? 10;
-    document.getElementById("sil-h").value = sil.gh ?? 8;
-    document.getElementById("sil-rot").value = sil.rot ?? 0;
-  } else {
-    document.getElementById("sil-x").value = "";
-    document.getElementById("sil-y").value = "";
-    document.getElementById("sil-w").value = "";
-    document.getElementById("sil-h").value = "";
-    document.getElementById("sil-rot").value = "";
+  const fields = ["x","y","w","h","rot"];
+  const keys  = ["gx","gy","gw","gh","rot"];
+  const defs  = [0, 0, 10, 8, 0];
+  for (let i = 0; i < fields.length; i++) {
+    const el = doc.getElementById(inputPrefix + "-" + fields[i]);
+    if (el) el.value = sil ? (sil[keys[i]] ?? defs[i]) : "";
   }
+}
+
+function updateSilBar() {
+  syncSilInputs(document, "vs-sil-bar", "sil", editor);
 }
 
 document.getElementById("btn-mode-select").addEventListener("click", () => setLayoutMode("select"));
@@ -547,6 +574,7 @@ document.getElementById("inp-silhouette").addEventListener("change", e => {
       editor.loadSilhouette(ev.target.result, gw, gh);
       setLayoutMode("sil");
       updateSilBar();
+      autoSave();
     };
     img.src = ev.target.result;
   };
@@ -556,6 +584,7 @@ document.getElementById("inp-silhouette").addEventListener("change", e => {
 document.getElementById("btn-sil-clear").addEventListener("click", () => {
   if (editor) editor.clearSilhouette();
   updateSilBar();
+  autoSave();
 });
 
 // Sil X/Y/W/H/Rot inputs
@@ -569,6 +598,7 @@ document.getElementById("btn-sil-clear").addEventListener("click", () => {
     sil.gh = Math.max(1, parseFloat(document.getElementById("sil-h").value) || 1);
     sil.rot = parseFloat(document.getElementById("sil-rot").value) || 0;
     if (editor) editor.draw();
+    autoSave();
   });
 });
 
@@ -578,50 +608,19 @@ let popoutEditor = null;
 let popoutSyncInterval = null;
 
 function buildPopoutSysDropdown(doc) {
-  const sel = doc.getElementById("pop-sel-sys");
-  let html = '<option value="">— select system —</option>';
-  for (const sys of veh.systems) {
-    if (!sys.desc && !sys.spaces) continue;
-    const name = escAttr(sys.desc || "(unnamed)");
-    const placed = sys.cells.length;
-    const total = sys.spaces || 0;
-    const selected = (popoutEditor && popoutEditor.activeSysId === sys.id) ? " selected" : "";
-    html += `<option value="${sys.id}"${selected}>${name} (${placed}/${total})</option>`;
-  }
-  const remSys = veh.getRemainingSys();
-  const remPlaced = remSys.cells.length;
-  const remTotal = veh.remainingSpaces + remPlaced;
-  if (remTotal > 0) {
-    const remSelected = (popoutEditor && popoutEditor.activeSysId === "remaining") ? " selected" : "";
-    html += `<option value="remaining"${remSelected}>Remaining (${remPlaced}/${remTotal})</option>`;
-  }
-  sel.innerHTML = html;
+  doc.getElementById("pop-sel-sys").innerHTML = buildSysDropdownHtml(popoutEditor);
 }
 
 function updatePopoutIndicator(doc) {
   const el = doc.getElementById("pop-active-sys");
-  if (!popoutEditor || !popoutEditor.activeSysId) {
+  const info = getActiveIndicatorHtml(popoutEditor);
+  if (!info) {
     el.innerHTML = '<span style="font-size:9px;color:#6a8a9a;font-style:italic">Select a system to paint</span>';
     return;
   }
-  let sys, color, name, placed, total;
-  if (popoutEditor.activeSysId === "remaining") {
-    sys = veh.getRemainingSys();
-    color = "#606060";
-    name = "Remaining";
-    placed = sys.cells.length;
-    total = veh.remainingSpaces + placed;
-  } else {
-    sys = veh.findSystem(popoutEditor.activeSysId);
-    if (!sys) { el.innerHTML = ''; return; }
-    color = MP.sysColor(sys.desc);
-    name = sys.desc || "?";
-    placed = sys.cells.length;
-    total = sys.spaces || 0;
-  }
-  el.innerHTML = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color};border:1px solid #8ab4d0;vertical-align:middle"></span> `
-    + `<b style="color:#c05a00">${escAttr(name)}</b> `
-    + `<b style="color:#b03000">${placed} / ${total}</b>`;
+  el.innerHTML = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${info.color};border:1px solid #8ab4d0;vertical-align:middle"></span> `
+    + `<b style="color:#c05a00">${escAttr(info.name)}</b> `
+    + `<b style="color:#b03000">${info.placed} / ${info.total}</b>`;
 }
 
 function syncPopout() {
@@ -715,7 +714,7 @@ select:focus{outline:none;border-color:var(--accent)}
     <label class="pop-sil-label">Rot:</label><input type="number" id="pop-sil-rot" class="pop-sil-inp" step="15">
   </div>
   <div class="pop-hint">
-    <b>Del</b>=delete selected cell &bull; Right-drag=pan &bull; Scroll=zoom &bull;
+    <b>Del</b>=delete selected cell &bull; <b>Right-click</b>=cell menu &bull; Middle-drag/Scroll=pan/zoom &bull;
     1 cell = 1 system space (2.5') / heavy lines = 5'
   </div>
 </div>
@@ -743,6 +742,76 @@ select:focus{outline:none;border-color:var(--accent)}
       updateAll();
     };
 
+    // Context menu in popout
+    const popMenu = pdoc.createElement("div");
+    popMenu.style.cssText = "position:fixed;z-index:10000;min-width:150px;background:#fff;border:1px solid #8ab4d0;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,.18);font-family:'Bitter',serif;font-size:11px;color:#1a2a3a;padding:3px 0;display:none;user-select:none";
+    const popMenuItems = [
+      {action:"highlight", label:"Highlight System", style:""},
+      {action:"info", label:"System Info", style:""},
+      {action:"select", label:"Select for Painting", style:""},
+      {action:"label", label:"Edit Cell Label", style:""},
+      {action:"sep"},
+      {action:"delete", label:"Delete Cell", style:"color:#c03030"}
+    ];
+    let _popCtx = {gx:0, gy:0, sys:null, cell:null};
+    for (const mi of popMenuItems) {
+      if (mi.action === "sep") {
+        const sep = pdoc.createElement("div");
+        sep.style.cssText = "height:1px;background:#a0c8e0;margin:3px 0";
+        popMenu.appendChild(sep);
+        continue;
+      }
+      const d = pdoc.createElement("div");
+      d.textContent = mi.label;
+      d.style.cssText = "padding:4px 10px;cursor:pointer;white-space:nowrap;" + mi.style;
+      d.addEventListener("mouseover", () => d.style.background = "#c4dff0");
+      d.addEventListener("mouseout", () => d.style.background = "");
+      d.addEventListener("click", () => {
+        popMenu.style.display = "none";
+        const {gx, gy, sys, cell} = _popCtx;
+        if (mi.action === "highlight" && sys) popoutEditor.highlightSystem(sys.id, 2500);
+        else if (mi.action === "info" && sys && sys.id !== "remaining") {
+          const idx = veh.systems.indexOf(sys);
+          const msg = `${sys.desc || "(unnamed)"}\nRow #${idx+1}\nSpaces: ${sys.cells.length}/${sys.spaces||0}\nHits: ${veh.sysHits(sys)}\nCPs: ${veh.sysCPs(sys)}\nProfile: ${veh.sysProfileDisplay(sys)||"—"}\nDamage: ${sys.dmg||"—"}`;
+          popoutWin.alert(msg);
+        }
+        else if (mi.action === "select" && sys) {
+          popoutEditor.activeSysId = sys.id;
+          setPopoutMode("paint");
+          updatePopoutIndicator(pdoc);
+          buildPopoutSysDropdown(pdoc);
+          popoutEditor.draw();
+        }
+        else if (mi.action === "label" && cell) popoutEditor._showCellLabelEditor(cell, gx, gy);
+        else if (mi.action === "delete") {
+          veh.unpaintCell(gx, gy);
+          popoutEditor.selectedCell = null;
+          popoutEditor.draw();
+          if (popoutEditor.onUpdate) popoutEditor.onUpdate();
+        }
+      });
+      popMenu.appendChild(d);
+    }
+    pdoc.body.appendChild(popMenu);
+
+    popoutEditor.onContextMenu = (gx, gy, sys, cell, cx, cy) => {
+      _popCtx = {gx, gy, sys, cell};
+      popMenu.style.display = "block";
+      let x = cx, y = cy;
+      const mw = popMenu.offsetWidth, mh = popMenu.offsetHeight;
+      const ww = popoutWin.innerWidth, wh = popoutWin.innerHeight;
+      if (x + mw > ww) x = ww - mw - 4;
+      if (y + mh > wh) y = wh - mh - 4;
+      popMenu.style.left = Math.max(0, x) + "px";
+      popMenu.style.top = Math.max(0, y) + "px";
+    };
+    pdoc.addEventListener("mousedown", e => {
+      if (popMenu.style.display !== "none" && !popMenu.contains(e.target)) popMenu.style.display = "none";
+    });
+    pdoc.addEventListener("keydown", e => {
+      if (e.key === "Escape") popMenu.style.display = "none";
+    });
+
     buildPopoutSysDropdown(pdoc);
     updatePopoutIndicator(pdoc);
 
@@ -757,17 +826,7 @@ select:focus{outline:none;border-color:var(--accent)}
     }
 
     function updatePopoutSilBar(d) {
-      const bar = d.getElementById("pop-sil-bar");
-      const sil = veh.silhouette;
-      const inSil = popoutEditor && popoutEditor.mode === "sil";
-      bar.classList.toggle("disabled", !inSil);
-      if (sil) {
-        d.getElementById("pop-sil-x").value = sil.gx ?? 0;
-        d.getElementById("pop-sil-y").value = sil.gy ?? 0;
-        d.getElementById("pop-sil-w").value = sil.gw ?? 10;
-        d.getElementById("pop-sil-h").value = sil.gh ?? 8;
-        d.getElementById("pop-sil-rot").value = sil.rot ?? 0;
-      }
+      syncSilInputs(d, "pop-sil-bar", "pop-sil", popoutEditor);
     }
     updatePopoutSilBar(pdoc);
 
@@ -807,6 +866,7 @@ select:focus{outline:none;border-color:var(--accent)}
           popoutEditor.loadSilhouette(ev.target.result, gw, gh);
           setPopoutMode("sil");
           if (editor) { editor._ensureSilImage(); editor.draw(); }
+          autoSave();
         };
         img.src = ev.target.result;
       };
@@ -817,6 +877,7 @@ select:focus{outline:none;border-color:var(--accent)}
       popoutEditor.clearSilhouette();
       updatePopoutSilBar(pdoc);
       if (editor) editor.draw();
+      autoSave();
     });
 
     ["pop-sil-x","pop-sil-y","pop-sil-w","pop-sil-h","pop-sil-rot"].forEach(id => {
@@ -830,6 +891,7 @@ select:focus{outline:none;border-color:var(--accent)}
         sil.rot = parseFloat(pdoc.getElementById("pop-sil-rot").value) || 0;
         popoutEditor.draw();
         if (editor) editor.draw();
+        autoSave();
       });
     });
 
@@ -1468,75 +1530,6 @@ const abilityDlg = {
     });
   },
 
-  // Compute total modifier cost from current dialog state
-  _calcModCost() {
-    let modAdj = 0;
-    const abId = document.getElementById("aid-ability-val").value;
-
-    // Ability-specific modifiers
-    const abMods = MP.ABILITY_MODIFIERS[abId] || [];
-    for (const am of abMods) {
-      if (am.type === "select") {
-        const sel = document.querySelector(`select[data-am-id="${am.id}"]`);
-        if (sel) modAdj += parseFloat(sel.options[sel.selectedIndex]?.dataset?.cp) || 0;
-      } else if (am.type === "number") {
-        const inp = document.querySelector(`input[data-am-id="${am.id}"]`);
-        const val = parseInt(inp?.value) || 0;
-        if (val > 0) modAdj += am.cpFn(val);
-      } else {
-        const chk = document.querySelector(`input[data-am-id="${am.id}"]`);
-        if (chk?.checked) modAdj += am.cp;
-      }
-    }
-
-    // Generic modifiers
-    function selCp(id) { const s = document.getElementById(id); return parseFloat(s.options[s.selectedIndex]?.dataset?.cp) || 0; }
-    function stepCp(id, steps) { const v = parseInt(document.getElementById(id).value); return (v > 0 && steps[v]) ? steps[v].cp : 0; }
-
-    modAdj += stepCp("aid-area", MP.AREA_EFFECT_STEPS);
-    modAdj += stepCp("aid-ap", MP.ARMOR_PIERCING_STEPS);
-    modAdj += stepCp("aid-autofire", MP.AUTOFIRE_STEPS);
-    modAdj += stepCp("aid-duration", MP.DURATION_STEPS);
-    modAdj += stepCp("aid-hardened", MP.HARDENED_STEPS);
-
-    if (document.getElementById("aid-gear").checked) modAdj -= 5;
-
-    const bulky = parseInt(document.getElementById("aid-bulky").value) || 0;
-    if (bulky > 0) modAdj += bulky * 2.5;
-    const delicate = parseInt(document.getElementById("aid-delicate").value) || 0;
-    if (delicate > 0) modAdj -= delicate * 2.5;
-
-    modAdj += selCp("aid-pr");
-    modAdj += selCp("aid-charges");
-    modAdj += selCp("aid-range");
-    modAdj += selCp("aid-conc");
-    modAdj += selCp("aid-kb");
-
-    const bkdn = parseInt(document.getElementById("aid-breakdown").value) || 0;
-    if (bkdn > 0) modAdj -= bkdn * 2.5;
-
-    modAdj += selCp("aid-partial");
-    modAdj += selCp("aid-poorpen");
-    modAdj += selCp("aid-obvious");
-    modAdj += selCp("aid-carrier");
-    modAdj += selCp("aid-dmgtype");
-    modAdj += selCp("aid-indirect");
-    modAdj += selCp("aid-timereq");
-    modAdj += selCp("aid-activation");
-    modAdj += selCp("aid-loss");
-    modAdj += selCp("aid-canthold");
-    if (document.getElementById("aid-linked").checked) modAdj -= 2.5;
-    modAdj += selCp("aid-multi");
-    modAdj += selCp("aid-usable");
-    modAdj += selCp("aid-reqsave");
-    modAdj += selCp("aid-other");
-
-    if (document.getElementById("aid-wontexplode").checked) modAdj += 5;
-    modAdj += selCp("aid-arc");
-
-    return modAdj;
-  },
-
   _onAbilityChange() {
     const abId = document.getElementById("aid-ability-val").value;
     const detail = MP.ABILITY_DETAILS[abId];
@@ -2141,6 +2134,158 @@ document.addEventListener("keydown", e => {
   abilityDlg.open(idx, false);
 });
 
+// ---- Placed spaces counter ----
+function updatePlacedCount() {
+  const el = document.getElementById("vs-placed-count");
+  let placed = 0;
+  for (const sys of veh.systems) placed += sys.cells.length;
+  placed += veh.getRemainingSys().cells.length;
+  el.innerHTML = `<span class="vs-pc-n">${placed}</span> / ${veh.totalSpaces} placed`;
+}
+
+// ---- Right-click context menu on canvas cells ----
+const cellMenu = {
+  el: document.getElementById("vs-cell-menu"),
+  hdr: document.getElementById("vs-cell-menu-hdr"),
+  _gx: 0, _gy: 0, _sys: null, _cell: null, _editor: null,
+  _infoEl: null,
+
+  show(gx, gy, sys, cell, cx, cy, ed) {
+    this._gx = gx; this._gy = gy; this._sys = sys; this._cell = cell; this._editor = ed;
+    this.hdr.textContent = sys.desc || "(unnamed)";
+    // Position: keep on screen
+    this.el.style.display = "block";
+    const mw = this.el.offsetWidth;
+    const mh = this.el.offsetHeight;
+    let x = cx, y = cy;
+    if (x + mw > window.innerWidth) x = window.innerWidth - mw - 4;
+    if (y + mh > window.innerHeight) y = window.innerHeight - mh - 4;
+    if (x < 0) x = 4;
+    if (y < 0) y = 4;
+    this.el.style.left = x + "px";
+    this.el.style.top = y + "px";
+  },
+
+  hide() {
+    this.el.style.display = "none";
+    this.hideInfo();
+  },
+
+  hideInfo() {
+    if (this._infoEl && this._infoEl.parentNode) this._infoEl.parentNode.removeChild(this._infoEl);
+    this._infoEl = null;
+  },
+
+  _showInfo() {
+    this.hideInfo();
+    const sys = this._sys;
+    const ed = this._editor;
+    if (!sys || sys.id === "remaining") return;
+
+    const idx = veh.systems.indexOf(sys);
+    const placed = sys.cells.length;
+    const total = sys.spaces || 0;
+    const hits = veh.sysHits(sys);
+    const cps = veh.sysCPs(sys);
+    const prof = veh.sysProfileDisplay(sys);
+    const dmg = sys.dmg || "—";
+    const flags = [];
+    if (sys.integral) flags.push("Integral");
+    if (sys.open) flags.push("Open");
+    if (sys.bulky) flags.push("Bulky x" + sys.bulky);
+    if (sys.delicate) flags.push("Delicate x" + sys.delicate);
+
+    const div = document.createElement("div");
+    div.className = "vs-sys-info";
+    let html = "";
+    html += `<div class="vs-sys-info-row"><span class="vs-sys-info-lbl">Row</span><span class="vs-sys-info-val">#${idx + 1}</span></div>`;
+    html += `<div class="vs-sys-info-row"><span class="vs-sys-info-lbl">Spaces</span><span class="vs-sys-info-val">${placed} / ${total}</span></div>`;
+    html += `<div class="vs-sys-info-row"><span class="vs-sys-info-lbl">Profile</span><span class="vs-sys-info-val">${prof || "—"}</span></div>`;
+    html += `<div class="vs-sys-info-row"><span class="vs-sys-info-lbl">Hits</span><span class="vs-sys-info-val">${hits || "—"}</span></div>`;
+    html += `<div class="vs-sys-info-row"><span class="vs-sys-info-lbl">CPs</span><span class="vs-sys-info-val">${cps}</span></div>`;
+    html += `<div class="vs-sys-info-row"><span class="vs-sys-info-lbl">Damage</span><span class="vs-sys-info-val">${escAttr(dmg)}</span></div>`;
+    if (flags.length) html += `<div class="vs-sys-info-row"><span class="vs-sys-info-lbl">Flags</span><span class="vs-sys-info-val">${flags.join(", ")}</span></div>`;
+    if (sys.desc) html += `<div class="vs-sys-info-desc">${escAttr(sys.desc)}</div>`;
+    div.innerHTML = html;
+
+    // Position near the menu
+    const mr = this.el.getBoundingClientRect();
+    div.style.left = (mr.right + 4) + "px";
+    div.style.top = mr.top + "px";
+    document.body.appendChild(div);
+    // If off-screen right, flip to left
+    if (div.getBoundingClientRect().right > window.innerWidth) {
+      div.style.left = (mr.left - div.offsetWidth - 4) + "px";
+    }
+    this._infoEl = div;
+  },
+
+  _doAction(action) {
+    const sys = this._sys;
+    const cell = this._cell;
+    const ed = this._editor;
+    const gx = this._gx;
+    const gy = this._gy;
+    this.hide();
+
+    switch (action) {
+      case "highlight":
+        if (ed && sys) ed.highlightSystem(sys.id, 2500);
+        break;
+      case "info":
+        // Re-show menu briefly to anchor info panel
+        this.show(gx, gy, sys, cell, parseInt(this.el.style.left), parseInt(this.el.style.top), ed);
+        this._showInfo();
+        // Hide menu but keep info
+        this.el.style.display = "none";
+        break;
+      case "select":
+        if (ed && sys) {
+          ed.activeSysId = sys.id;
+          if (sys.id === "remaining") {
+            document.getElementById("sel-layout-sys").value = "remaining";
+          } else {
+            document.getElementById("sel-layout-sys").value = String(sys.id);
+          }
+          setLayoutMode("paint");
+          updateActiveIndicator();
+          ed.draw();
+        }
+        break;
+      case "label":
+        if (ed && cell) {
+          ed._showCellLabelEditor(cell, gx, gy);
+        }
+        break;
+      case "delete":
+        if (ed) {
+          veh.unpaintCell(gx, gy);
+          ed.selectedCell = null;
+          ed.draw();
+          if (ed.onUpdate) ed.onUpdate();
+        }
+        break;
+    }
+  }
+};
+
+// Wire menu item clicks
+cellMenu.el.querySelectorAll(".vs-cell-menu-item").forEach(item => {
+  item.addEventListener("click", e => {
+    e.stopPropagation();
+    cellMenu._doAction(item.dataset.action);
+  });
+});
+
+// Close menu on click outside
+document.addEventListener("mousedown", e => {
+  if (cellMenu.el.style.display !== "none" && !cellMenu.el.contains(e.target)) cellMenu.hide();
+  if (cellMenu._infoEl && !cellMenu._infoEl.contains(e.target) && !cellMenu.el.contains(e.target)) cellMenu.hideInfo();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { cellMenu.hide(); }
+});
+
 // ---- Init ----
 const layoutCanvasEl = document.getElementById("vs-layout-canvas");
 const layoutWrapEl = document.getElementById("vs-layout-wrap");
@@ -2148,7 +2293,11 @@ editor = new FloorPlanEditor(layoutCanvasEl, layoutWrapEl, veh);
 editor.onUpdate = () => {
   updateActiveIndicator();
   updateSystemDropdown();
+  updatePlacedCount();
   editor.draw();
+};
+editor.onContextMenu = (gx, gy, sys, cell, cx, cy) => {
+  cellMenu.show(gx, gy, sys, cell, cx, cy, editor);
 };
 editor.panX = 20;
 editor.panY = 20;

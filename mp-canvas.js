@@ -1,4 +1,4 @@
-// mp-canvas.js v2.5.0 — Touch support: tap paint/select/move, pinch-zoom, long-press label edit
+// mp-canvas.js v2.7.0 — Right-click context menu, highlight system, persistent space count
 
 const CELL_PX = 28;
 
@@ -9,7 +9,7 @@ class FloorPlanEditor {
     this.ctx = canvasEl.getContext("2d");
     this.veh = vehicle;
 
-    this.mode = "select";   // "select" | "paint" | "erase"
+    this.mode = "select";   // "select" | "paint" | "sil"
     this.activeSysId = null; // system id being painted
 
     this.panX = 0;
@@ -24,6 +24,11 @@ class FloorPlanEditor {
     this._cellDrag = null;   // {fromGx, fromGy, toGx, toGy, sysId}
 
     this.onUpdate = null;
+    this.onContextMenu = null; // callback(gx, gy, sys, cell, cssX, cssY)
+
+    // Highlight overlay — flash all cells for a system
+    this.highlightSysId = null;
+    this._highlightTimer = null;
 
     // Silhouette overlay
     this._silImg = null;      // loaded Image element
@@ -46,7 +51,16 @@ class FloorPlanEditor {
       this.draw();
     });
     this.canvas.addEventListener("wheel", e => this._onWheel(e), { passive: false });
-    this.canvas.addEventListener("contextmenu", e => e.preventDefault());
+    this.canvas.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      if (!this.onContextMenu) return;
+      const { cx, cy } = this._canvasPos(e);
+      const { gx, gy } = this._cssToGrid(cx, cy);
+      const result = this.veh.cellObjAt(gx, gy);
+      if (result) {
+        this.onContextMenu(gx, gy, result.sys, result.cell, e.clientX, e.clientY);
+      }
+    });
 
     // Touch events
     this._touchState = { fingers: 0, lastTap: 0, longTimer: null, pinchDist: 0, panCx: 0, panCy: 0 };
@@ -94,11 +108,6 @@ class FloorPlanEditor {
     if (mode === "paint") this.canvas.style.cursor = "crosshair";
     else if (mode === "sil") this.canvas.style.cursor = "default";
     else this.canvas.style.cursor = "default";
-    this.draw();
-  }
-
-  setActiveSys(sysId) {
-    this.activeSysId = sysId;
     this.draw();
   }
 
@@ -165,8 +174,19 @@ class FloorPlanEditor {
   }
 
   _onMouseDown(ev) {
-    if (ev.button === 2 || ev.button === 1) {
+    if (ev.button === 1) {
+      // Middle-click: always pan
       this.panStart = { clientX: ev.clientX, clientY: ev.clientY, panX: this.panX, panY: this.panY };
+      ev.preventDefault();
+      return;
+    }
+    if (ev.button === 2) {
+      // Right-click: pan only if no cell under cursor (context menu handles cells)
+      const { cx, cy } = this._canvasPos(ev);
+      const { gx, gy } = this._cssToGrid(cx, cy);
+      if (!this.veh.cellAt(gx, gy)) {
+        this.panStart = { clientX: ev.clientX, clientY: ev.clientY, panX: this.panX, panY: this.panY };
+      }
       ev.preventDefault();
       return;
     }
@@ -495,6 +515,24 @@ class FloorPlanEditor {
     return true;
   }
 
+  highlightSystem(sysId, duration) {
+    clearTimeout(this._highlightTimer);
+    this.highlightSysId = sysId;
+    this.draw();
+    this._highlightTimer = setTimeout(() => {
+      this.highlightSysId = null;
+      this.draw();
+    }, duration || 2000);
+  }
+
+  // Total placed cells across all systems + remaining
+  get totalPlacedCells() {
+    let n = 0;
+    for (const sys of this.veh.systems) n += sys.cells.length;
+    n += this.veh.getRemainingSys().cells.length;
+    return n;
+  }
+
   _showCellLabelEditor(cellObj, gx, gy) {
     // Position an input over the cell
     const cell = CELL_PX * this.zoom;
@@ -741,6 +779,25 @@ class FloorPlanEditor {
     }
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
+
+    // Highlight system overlay (bright outline on all cells of highlighted system)
+    if (this.highlightSysId) {
+      const hlSys = this.veh.findSystem(this.highlightSysId);
+      if (hlSys && hlSys.cells.length > 0) {
+        ctx.save();
+        ctx.strokeStyle = "#f4d03f";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([4 * dpr, 3 * dpr]);
+        ctx.shadowColor = "#f4d03f";
+        ctx.shadowBlur = 6 * dpr;
+        for (const c of hlSys.cells) {
+          const x = ox + c.gx * cell;
+          const y = oy + c.gy * cell;
+          ctx.strokeRect(x, y, cell, cell);
+        }
+        ctx.restore();
+      }
+    }
 
     // Hover ghost in paint mode
     if (this.mode === "paint" && this.activeSysId && this.hoverGx !== null) {
