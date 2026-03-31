@@ -1,4 +1,4 @@
-// mp-data.js v2.4.0 — 3-char abbr codes, sysLabel() for canvas labels
+// mp-data.js v2.5.0 — Sense type dropdown, level as select, 3-char abbrs
 
 const MP = {};
 
@@ -659,7 +659,37 @@ MP.ABILITY_MODIFIERS = {
     {id:"iceColder",     label:"Colder Ice",           short:"Cold",   type:"number", min:1, max:2, def:1, step:1, hint:"+5/app, +1 dmg/app", cpFn:v=>v*5},
   ],
   "heightened-senses": [
-    {id:"hsLevel",       label:"Sense Level",            short:"Lvl",  type:"number", min:0, max:2, def:0, step:1, hint:"0=Basic, 1=Full(+5), 2=Analytical(+15)", cpFn:v=>[0,5,15][v]||0},
+    {id:"hsSenseType",   label:"Sense Type",              short:"Type", type:"select",
+      options:[
+        {v:"custom",     l:"(custom)",           cp:0},
+        {v:"danger",     l:"Danger",             cp:0},
+        {v:"emotion",    l:"Emotion",            cp:0},
+        {v:"flavors",    l:"Flavors",            cp:0},
+        {v:"ir",         l:"Light, Infrared",    cp:0},
+        {v:"uv",         l:"Light, Ultraviolet",  cp:0},
+        {v:"visible",    l:"Light, Visible",     cp:0},
+        {v:"life",       l:"Life",               cp:0},
+        {v:"magic",      l:"Magic",              cp:0},
+        {v:"magnetism",  l:"Magnetism",          cp:0},
+        {v:"mental",     l:"Mental Waves",       cp:0},
+        {v:"motion",     l:"Motion",             cp:0},
+        {v:"odors",      l:"Odors",              cp:0},
+        {v:"radar",      l:"Radar",              cp:0},
+        {v:"radiation",  l:"Radiation",          cp:0},
+        {v:"radio",      l:"Radio Waves",        cp:0},
+        {v:"shapes",     l:"Shapes",             cp:0},
+        {v:"audible",    l:"Sounds, Audible",    cp:0},
+        {v:"subsonic",   l:"Sounds, Subsonic",   cp:0},
+        {v:"ultrasonic", l:"Sounds, Ultrasonic",  cp:0},
+        {v:"time",       l:"Time",               cp:0},
+        {v:"xray",       l:"X-Rays",             cp:0},
+      ], def:0},
+    {id:"hsLevel",       label:"Sense Level",            short:"Lvl",  type:"select",
+      options:[
+        {v:0, l:"Basic (base)",       cp:0},
+        {v:1, l:"Full (+5)",          cp:5},
+        {v:2, l:"Analytical (+15)",   cp:15},
+      ], def:0},
     {id:"hsAcute",       label:"Acute",                  short:"Acu",  type:"number", min:1, max:10, def:1, step:1, hint:"+2.5/app, +3 task bonus per app", cpFn:v=>v*2.5},
     {id:"hsAmplified",   label:"Amplified",              short:"Amp",  type:"number", min:1, max:5, def:1, step:1, hint:"+5/app, negates 1 dampening rank", cpFn:v=>v*5},
     {id:"hsGlobalHalf",  label:"Global 360° (horiz)",    short:"G360", cp:5},

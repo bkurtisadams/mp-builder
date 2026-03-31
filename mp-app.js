@@ -1,4 +1,4 @@
-// mp-app.js v4.1.0 — Popout remaining system support, popout indicator fix
+// mp-app.js v4.2.0 — 0-cp select modifiers in descriptions, popout remaining fix
 
 const veh = new Vehicle();
 let editor = null;
@@ -1722,10 +1722,12 @@ const abilityDlg = {
       if (am.type === "select") {
         const sel = document.querySelector(`select[data-am-id="${am.id}"]`);
         if (sel) {
-          const opt = am.options[parseInt(sel.value)];
-          if (opt && opt.cp !== 0) {
+          const selIdx = parseInt(sel.value);
+          const opt = am.options[selIdx];
+          const defIdx = am.def || 0;
+          if (opt && (opt.cp !== 0 || selIdx !== defIdx)) {
             const optLbl = opt.l.replace(/ \([^)]*\)$/, "");
-            parts.push(`${lbl}: ${optLbl}${cpA(opt.cp)}`);
+            parts.push(opt.cp !== 0 ? `${lbl}: ${optLbl}${cpA(opt.cp)}` : `${lbl}: ${optLbl}`);
             modAdj += opt.cp;
           }
         }
