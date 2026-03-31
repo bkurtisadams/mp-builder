@@ -1073,7 +1073,6 @@ MP.TEMPLATES = [
     systems:[
       {spaces:1, desc:"Control Seat", extraCPs:0},
       {spaces:4, desc:"Speed: 64/256, 87 mph, PR=1", extraCPs:0},
-      {spaces:1, desc:"Headlight", extraCPs:0},
     ]
   },
   {
@@ -1082,9 +1081,7 @@ MP.TEMPLATES = [
       {spaces:1, desc:"Control Seat", extraCPs:0},
       {spaces:3, desc:"Passenger Seats (3)", extraCPs:0},
       {spaces:4, desc:"Speed: 64/256, 87 mph, PR=1", extraCPs:0},
-      {spaces:2, desc:"Cargo / Trunk", extraCPs:0},
-      {spaces:1, desc:"Headlights", extraCPs:0},
-      {spaces:1, desc:"Radio", extraCPs:0},
+      {spaces:4, desc:"Cargo / Trunk", extraCPs:0},
     ]
   },
   {
@@ -1094,8 +1091,6 @@ MP.TEMPLATES = [
       {spaces:4, desc:"Passenger Seats (4)", extraCPs:0},
       {spaces:6, desc:"Speed: 64/256, 87 mph, PR=1", extraCPs:0},
       {spaces:4, desc:"Cargo / Trunk", extraCPs:0},
-      {spaces:1, desc:"Headlights", extraCPs:0},
-      {spaces:1, desc:"Radio", extraCPs:0},
     ]
   },
   {
@@ -1104,9 +1099,7 @@ MP.TEMPLATES = [
       {spaces:1, desc:"Control Seat", extraCPs:0},
       {spaces:2, desc:"Passenger Seats (2)", extraCPs:0},
       {spaces:6, desc:"Speed: 64/256, 87 mph, PR=1", extraCPs:0},
-      {spaces:8, desc:"Cargo / Truck Bed", extraCPs:0},
-      {spaces:1, desc:"Headlights", extraCPs:0},
-      {spaces:1, desc:"Radio", extraCPs:0},
+      {spaces:12, desc:"Cargo / Truck Bed", extraCPs:0},
     ]
   },
   {
@@ -1117,8 +1110,6 @@ MP.TEMPLATES = [
       {spaces:1, desc:"Bunk", extraCPs:0},
       {spaces:12, desc:"Speed: 48/192, 66 mph, PR=1", extraCPs:0},
       {spaces:32, desc:"Cargo / Trailer", extraCPs:0, open:true},
-      {spaces:1, desc:"Headlights", extraCPs:0},
-      {spaces:1, desc:"Radio / CB", extraCPs:0},
     ]
   },
   {
@@ -1130,7 +1121,7 @@ MP.TEMPLATES = [
       {spaces:8, desc:"Flight: 48/192, 131 mph, PR=1", extraCPs:0},
       {spaces:4, desc:"Cargo", extraCPs:0},
       {spaces:1, desc:"Sensor Suite (Radar)", extraCPs:0},
-      {spaces:1, desc:"Radio / Comms", extraCPs:0},
+      {spaces:1, desc:"Communicators", extraCPs:0},
     ]
   },
   {
@@ -1140,7 +1131,7 @@ MP.TEMPLATES = [
       {spaces:16, desc:"Flight: 384/1536, 523 mph, PR=1", extraCPs:0},
       {spaces:4, desc:"Energy Blast", extraCPs:0},
       {spaces:2, desc:"Sensor Suite (Radar/IR)", extraCPs:0},
-      {spaces:1, desc:"Radio / Comms", extraCPs:0},
+      {spaces:1, desc:"Communicators", extraCPs:0},
       {spaces:1, desc:"Countermeasures (Chaff/Flare)", extraCPs:0},
     ]
   },
@@ -1150,9 +1141,7 @@ MP.TEMPLATES = [
       {spaces:1, desc:"Control Seat", extraCPs:0},
       {spaces:3, desc:"Passenger Seats (3)", extraCPs:0},
       {spaces:6, desc:"Swimming: 64/256, 87 mph, PR=1", extraCPs:0},
-      {spaces:2, desc:"Cargo", extraCPs:0},
-      {spaces:1, desc:"Navigation Lights", extraCPs:0},
-      {spaces:1, desc:"Radio", extraCPs:0},
+      {spaces:4, desc:"Cargo", extraCPs:0},
     ]
   },
   {
@@ -1165,8 +1154,9 @@ MP.TEMPLATES = [
       {spaces:16, desc:"Speed: 32/128, 44 mph, PR=1", extraCPs:0},
       {spaces:8, desc:"Power Blast, Fwd Arc", extraCPs:0},
       {spaces:2, desc:"Energy Blast, turret 360\u00b0", extraCPs:0},
+      {spaces:16, desc:"Armor, Integral", extraCPs:0, integral:true},
       {spaces:2, desc:"Sensor Suite (IR/Thermal)", extraCPs:0},
-      {spaces:1, desc:"Radio / Comms", extraCPs:0},
+      {spaces:1, desc:"Communicators", extraCPs:0},
       {spaces:4, desc:"Spare Parts", extraCPs:0},
     ]
   },
@@ -1178,8 +1168,9 @@ MP.TEMPLATES = [
       {spaces:8, desc:"Passenger Seats (8 troops)", extraCPs:0},
       {spaces:12, desc:"Speed: 32/128, 44 mph, PR=1", extraCPs:0},
       {spaces:4, desc:"Energy Blast, turret 360\u00b0", extraCPs:0},
+      {spaces:8, desc:"Armor, Integral", extraCPs:0, integral:true},
       {spaces:2, desc:"Sensor Suite", extraCPs:0},
-      {spaces:1, desc:"Radio / Comms", extraCPs:0},
+      {spaces:1, desc:"Communicators", extraCPs:0},
       {spaces:4, desc:"Cargo / Ammo", extraCPs:0},
     ]
   },
@@ -1192,7 +1183,7 @@ MP.TEMPLATES = [
       {spaces:16, desc:"Cargo Bay", extraCPs:0, open:true},
       {spaces:4, desc:"Life Support", extraCPs:0},
       {spaces:4, desc:"Sensor Suite (Full Spectrum)", extraCPs:0},
-      {spaces:2, desc:"Radio / Comms Array", extraCPs:0},
+      {spaces:2, desc:"Communicators Array", extraCPs:0},
       {spaces:2, desc:"Spare Parts", extraCPs:0},
     ]
   },
@@ -1205,7 +1196,7 @@ MP.TEMPLATES = [
       {spaces:12, desc:"Swimming: 24/96, 33 mph, PR=1", extraCPs:0},
       {spaces:8, desc:"Cargo / Storage", extraCPs:0},
       {spaces:2, desc:"Sensor Suite (Radar/Sonar)", extraCPs:0},
-      {spaces:1, desc:"Radio / Comms", extraCPs:0},
+      {spaces:1, desc:"Communicators", extraCPs:0},
     ]
   },
 ];
