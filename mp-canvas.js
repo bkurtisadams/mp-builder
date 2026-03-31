@@ -1,4 +1,4 @@
-// mp-canvas.js v2.2.0 — Cell-painting canvas for system space assignment
+// mp-canvas.js v2.3.0 — Fix hover ghost for remaining system
 
 const CELL_PX = 28;
 
@@ -525,7 +525,10 @@ class FloorPlanEditor {
     // Hover ghost in paint mode
     if (this.mode === "paint" && this.activeSysId && this.hoverGx !== null) {
       const sys = this.veh.findSystem(this.activeSysId);
-      if (sys && sys.cells.length < sys.spaces && !this.veh.cellAt(this.hoverGx, this.hoverGy)) {
+      const canPaint = sys && (this.activeSysId === "remaining"
+        ? this.veh.remainingSpaces > 0
+        : sys.cells.length < sys.spaces);
+      if (canPaint && !this.veh.cellAt(this.hoverGx, this.hoverGy)) {
         const color = MP.sysColor(sys.desc);
         const x = ox + this.hoverGx * cell;
         const y = oy + this.hoverGy * cell;

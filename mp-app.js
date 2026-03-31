@@ -1,4 +1,4 @@
-// mp-app.js v4.0.0 — Ability picker popup, live system stats, cost bar, edit mode
+// mp-app.js v4.1.0 — Popout remaining system support, popout indicator fix
 
 const veh = new Vehicle();
 let editor = null;
@@ -583,6 +583,13 @@ function buildPopoutSysDropdown(doc) {
     const selected = (popoutEditor && popoutEditor.activeSysId === sys.id) ? " selected" : "";
     html += `<option value="${sys.id}"${selected}>${name} (${placed}/${total})</option>`;
   }
+  const remSys = veh.getRemainingSys();
+  const remPlaced = remSys.cells.length;
+  const remTotal = veh.remainingSpaces + remPlaced;
+  if (remTotal > 0) {
+    const remSelected = (popoutEditor && popoutEditor.activeSysId === "remaining") ? " selected" : "";
+    html += `<option value="remaining"${remSelected}>Remaining (${remPlaced}/${remTotal})</option>`;
+  }
   sel.innerHTML = html;
 }
 
@@ -592,12 +599,24 @@ function updatePopoutIndicator(doc) {
     el.innerHTML = '<span style="font-size:9px;color:#6a8a9a;font-style:italic">Select a system to paint</span>';
     return;
   }
-  const sys = veh.findSystem(popoutEditor.activeSysId);
-  if (!sys) { el.innerHTML = ''; return; }
-  const color = MP.sysColor(sys.desc);
+  let sys, color, name, placed, total;
+  if (popoutEditor.activeSysId === "remaining") {
+    sys = veh.getRemainingSys();
+    color = "#606060";
+    name = "Remaining";
+    placed = sys.cells.length;
+    total = veh.remainingSpaces + placed;
+  } else {
+    sys = veh.findSystem(popoutEditor.activeSysId);
+    if (!sys) { el.innerHTML = ''; return; }
+    color = MP.sysColor(sys.desc);
+    name = sys.desc || "?";
+    placed = sys.cells.length;
+    total = sys.spaces || 0;
+  }
   el.innerHTML = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color};border:1px solid #8ab4d0;vertical-align:middle"></span> `
-    + `<b style="color:#c05a00">${escAttr(sys.desc || "?")}</b> `
-    + `<b style="color:#b03000">${sys.cells.length} / ${sys.spaces || 0}</b>`;
+    + `<b style="color:#c05a00">${escAttr(name)}</b> `
+    + `<b style="color:#b03000">${placed} / ${total}</b>`;
 }
 
 function syncPopout() {
@@ -748,7 +767,12 @@ select:focus{outline:none;border-color:var(--accent)}
     updatePopoutSilBar(pdoc);
 
     pdoc.getElementById("pop-sel-sys").addEventListener("change", function() {
-      const sysId = parseInt(this.value) || null;
+      let sysId = null;
+      if (this.value === "remaining") {
+        sysId = "remaining";
+      } else {
+        sysId = parseInt(this.value) || null;
+      }
       popoutEditor.activeSysId = sysId;
       if (sysId) setPopoutMode("paint");
       updatePopoutIndicator(pdoc);
