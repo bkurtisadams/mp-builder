@@ -1110,16 +1110,17 @@ const abilityDlg = {
     spSel.addEventListener("change", () => { this._updateSysStats(); this._updateStats(); this._updateCostBar(); });
 
     // Wire all modifier controls to update cost bar
-    const costInputs = "#aid-area,#aid-ap,#aid-autofire,#aid-duration,#aid-hardened,#aid-conc,#aid-kb,#aid-partial,#aid-poorpen,#aid-obvious,#aid-carrier,#aid-other,#aid-arc,#aid-prch,#aid-range";
-    costInputs.split(",").forEach(id => {
-      const el = document.querySelector(id);
-      if (el) el.addEventListener("change", () => this._updateCostBar());
+    // Selects in generic and system modifier grids
+    document.querySelectorAll("#aid-generic-mods select, #aid-sys-mods select").forEach(sel => {
+      sel.addEventListener("change", () => { this._updateSysStats(); this._updateCostBar(); });
     });
-    ["aid-gear","aid-integral","aid-open","aid-indep","aid-wontexplode"].forEach(id => {
-      document.getElementById(id).addEventListener("change", () => { this._updateSysStats(); this._updateCostBar(); });
+    // Checkboxes in generic and system modifier grids
+    document.querySelectorAll("#aid-generic-mods input[type='checkbox'], #aid-sys-mods input[type='checkbox']").forEach(chk => {
+      chk.addEventListener("change", () => { this._updateSysStats(); this._updateCostBar(); });
     });
-    ["aid-bulky","aid-delicate","aid-breakdown"].forEach(id => {
-      document.getElementById(id).addEventListener("input", () => { this._updateSysStats(); this._updateCostBar(); });
+    // Number inputs in generic and system modifier grids
+    document.querySelectorAll("#aid-generic-mods input[type='number'], #aid-sys-mods input[type='number']").forEach(inp => {
+      inp.addEventListener("input", () => { this._updateSysStats(); this._updateCostBar(); });
     });
 
     document.getElementById("aid-ok").addEventListener("click", () => this._commit());
@@ -1196,7 +1197,10 @@ const abilityDlg = {
     // Ability-specific modifiers
     const abMods = MP.ABILITY_MODIFIERS[abId] || [];
     for (const am of abMods) {
-      if (am.type === "number") {
+      if (am.type === "select") {
+        const sel = document.querySelector(`select[data-am-id="${am.id}"]`);
+        if (sel) modAdj += parseFloat(sel.options[sel.selectedIndex]?.dataset?.cp) || 0;
+      } else if (am.type === "number") {
         const inp = document.querySelector(`input[data-am-id="${am.id}"]`);
         const val = parseInt(inp?.value) || 0;
         if (val > 0) modAdj += am.cpFn(val);
@@ -1339,7 +1343,20 @@ const abilityDlg = {
       lbl.className = "aid-mlbl"; lbl.textContent = am.label + ":";
       row.appendChild(lbl);
 
-      if (am.type === "number") {
+      if (am.type === "select") {
+        // Custom select with predefined options
+        const sel = document.createElement("select");
+        sel.className = "aid-msel"; sel.dataset.amId = am.id;
+        for (let i = 0; i < am.options.length; i++) {
+          const opt = document.createElement("option");
+          opt.value = i; opt.textContent = am.options[i].l; opt.dataset.cp = am.options[i].cp;
+          if (i === (am.def || 0)) opt.selected = true;
+          sel.appendChild(opt);
+        }
+        row.appendChild(sel);
+        wheelSelect(sel);
+        sel.addEventListener("change", () => this._updateCostBar());
+      } else if (am.type === "number") {
         const inp = document.createElement("input");
         inp.type = "number"; inp.className = "aid-mnum"; inp.value = "0";
         inp.min = "0"; inp.max = String(am.max); inp.step = String(am.step || 1);
@@ -1401,7 +1418,10 @@ const abilityDlg = {
     const abMods = MP.ABILITY_MODIFIERS[abId] || [];
     state.abilityMods = {};
     for (const am of abMods) {
-      if (am.type === "number") {
+      if (am.type === "select") {
+        const sel = document.querySelector(`select[data-am-id="${am.id}"]`);
+        state.abilityMods[am.id] = parseInt(sel?.value) || 0;
+      } else if (am.type === "number") {
         const inp = document.querySelector(`input[data-am-id="${am.id}"]`);
         state.abilityMods[am.id] = parseInt(inp?.value) || 0;
       } else {
@@ -1451,8 +1471,13 @@ const abilityDlg = {
           const chk = document.querySelector(`input[data-am-id="${amId}"]`);
           if (chk) chk.checked = val;
         } else {
+          // Could be a number input or a select
           const inp = document.querySelector(`input[data-am-id="${amId}"]`);
-          if (inp) inp.value = val;
+          if (inp) { inp.value = val; }
+          else {
+            const sel = document.querySelector(`select[data-am-id="${amId}"]`);
+            if (sel) sel.selectedIndex = val;
+          }
         }
       }
     }
@@ -1552,7 +1577,18 @@ const abilityDlg = {
     // Ability-specific modifiers first
     const abMods = MP.ABILITY_MODIFIERS[abId] || [];
     for (const am of abMods) {
-      if (am.type === "number") {
+      if (am.type === "select") {
+        const sel = document.querySelector(`select[data-am-id="${am.id}"]`);
+        if (sel) {
+          const opt = am.options[parseInt(sel.value)];
+          if (opt && opt.cp !== 0) {
+            const cpStr = opt.cp >= 0 ? "+" + opt.cp : String(opt.cp);
+            const lbl = opt.l.replace(/ \([^)]*\)$/, "");
+            parts.push(`${am.label}: ${lbl} (${cpStr})`);
+            modAdj += opt.cp;
+          }
+        }
+      } else if (am.type === "number") {
         const inp = document.querySelector(`input[data-am-id="${am.id}"]`);
         const val = parseInt(inp?.value) || 0;
         if (val > 0) {
