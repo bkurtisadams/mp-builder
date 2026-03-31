@@ -1,4 +1,4 @@
-// mp-canvas.js v2.4.0 — 3-char labels via MP.sysLabel(), remaining hover ghost
+// mp-canvas.js v2.5.0 — Touch support: tap paint/select/move, pinch-zoom, long-press label edit
 
 const CELL_PX = 28;
 
@@ -47,6 +47,14 @@ class FloorPlanEditor {
     });
     this.canvas.addEventListener("wheel", e => this._onWheel(e), { passive: false });
     this.canvas.addEventListener("contextmenu", e => e.preventDefault());
+
+    // Touch events
+    this._touchState = { fingers: 0, lastTap: 0, longTimer: null, pinchDist: 0, panCx: 0, panCy: 0 };
+    this.canvas.addEventListener("touchstart", e => this._onTouchStart(e), { passive: false });
+    this.canvas.addEventListener("touchmove", e => this._onTouchMove(e), { passive: false });
+    this.canvas.addEventListener("touchend", e => this._onTouchEnd(e), { passive: false });
+    this.canvas.addEventListener("touchcancel", e => this._onTouchEnd(e), { passive: false });
+
     this._keyHandler = e => this._onKey(e);
     window.addEventListener("keydown", this._keyHandler);
     this._resizeObs = new ResizeObserver(() => { this._resize(); this.draw(); });
@@ -273,6 +281,218 @@ class FloorPlanEditor {
     if (!result) return;
     ev.preventDefault();
     this._showCellLabelEditor(result.cell, gx, gy);
+  }
+
+  // ---- Touch support ----
+
+  _touchPos(touch) {
+    const rect = this.canvas.getBoundingClientRect();
+    return { cx: touch.clientX - rect.left, cy: touch.clientY - rect.top };
+  }
+
+  _pinchDist(t1, t2) {
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  _pinchCenter(t1, t2) {
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      cx: (t1.clientX + t2.clientX) / 2 - rect.left,
+      cy: (t1.clientY + t2.clientY) / 2 - rect.top
+    };
+  }
+
+  _onTouchStart(ev) {
+    ev.preventDefault();
+    const ts = this._touchState;
+    const touches = ev.touches;
+    ts.fingers = touches.length;
+    clearTimeout(ts.longTimer);
+
+    if (touches.length === 2) {
+      // Two fingers: start pinch-zoom / pan
+      this.painting = false;
+      this._cellDrag = null;
+      this._silDrag = null;
+      ts.pinchDist = this._pinchDist(touches[0], touches[1]);
+      const mid = this._pinchCenter(touches[0], touches[1]);
+      ts.panCx = mid.cx; ts.panCy = mid.cy;
+      ts.panStartX = this.panX; ts.panStartY = this.panY;
+      ts.zoomStart = this.zoom;
+      return;
+    }
+
+    if (touches.length !== 1) return;
+
+    const { cx, cy } = this._touchPos(touches[0]);
+    const { gx, gy } = this._cssToGrid(cx, cy);
+    ts.startCx = cx; ts.startCy = cy;
+    ts.startGx = gx; ts.startGy = gy;
+    ts.moved = false;
+    ts.startTime = Date.now();
+
+    // Long-press timer for label edit (500ms)
+    if (this.mode === "select") {
+      ts.longTimer = setTimeout(() => {
+        if (!ts.moved) {
+          const result = this.veh.cellObjAt(gx, gy);
+          if (result) {
+            ts.longFired = true;
+            this._showCellLabelEditor(result.cell, gx, gy);
+          }
+        }
+      }, 500);
+    }
+    ts.longFired = false;
+
+    // Sil mode: start drag
+    if (this.mode === "sil" && this.veh.silhouette && this._silImg) {
+      const hit = this._silhouetteHitTest(cx, cy);
+      if (hit) {
+        const sil = this.veh.silhouette;
+        this._silDrag = {
+          type: hit,
+          startCx: cx, startCy: cy,
+          origGx: sil.gx, origGy: sil.gy,
+          origGw: sil.gw, origGh: sil.gh
+        };
+        return;
+      }
+    }
+  }
+
+  _onTouchMove(ev) {
+    ev.preventDefault();
+    const ts = this._touchState;
+    const touches = ev.touches;
+
+    // Two-finger: pinch-zoom + pan
+    if (touches.length === 2 && ts.fingers >= 2) {
+      const newDist = this._pinchDist(touches[0], touches[1]);
+      const mid = this._pinchCenter(touches[0], touches[1]);
+      const scale = newDist / (ts.pinchDist || 1);
+      const newZoom = Math.max(0.25, Math.min(4, ts.zoomStart * scale));
+      const ratio = newZoom / ts.zoomStart;
+      this.zoom = newZoom;
+      // Pan follows pinch center
+      this.panX = ts.panStartX + (mid.cx - ts.panCx) - (ts.panCx - ts.panStartX) * (ratio - 1);
+      this.panY = ts.panStartY + (mid.cy - ts.panCy) - (ts.panCy - ts.panStartY) * (ratio - 1);
+      this.draw();
+      return;
+    }
+
+    if (touches.length !== 1) return;
+    const { cx, cy } = this._touchPos(touches[0]);
+    const dx = cx - ts.startCx;
+    const dy = cy - ts.startCy;
+
+    // If finger moved more than 8px, it's a drag not a tap
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+      ts.moved = true;
+      clearTimeout(ts.longTimer);
+    }
+
+    // Sil drag
+    if (this._silDrag) {
+      const cell = CELL_PX * this.zoom;
+      const ddx = (cx - this._silDrag.startCx) / cell;
+      const ddy = (cy - this._silDrag.startCy) / cell;
+      const sil = this.veh.silhouette;
+      if (this._silDrag.type === "move") {
+        sil.gx = Math.round((this._silDrag.origGx + ddx) * 2) / 2;
+        sil.gy = Math.round((this._silDrag.origGy + ddy) * 2) / 2;
+      } else if (this._silDrag.type === "resize") {
+        sil.gw = Math.max(1, Math.round((this._silDrag.origGw + ddx) * 2) / 2);
+        sil.gh = Math.max(1, Math.round((this._silDrag.origGh + ddy) * 2) / 2);
+      }
+      this.draw();
+      if (this.onUpdate) this.onUpdate();
+      return;
+    }
+
+    // If moved, treat as pan (single finger pan in all modes when dragging)
+    if (ts.moved) {
+      this.panX = (this._touchPanStartX ?? this.panX) + dx;
+      this.panY = (this._touchPanStartY ?? this.panY) + dy;
+      if (this._touchPanStartX === undefined) {
+        this._touchPanStartX = this.panX - dx;
+        this._touchPanStartY = this.panY - dy;
+      }
+      this.draw();
+    }
+  }
+
+  _onTouchEnd(ev) {
+    ev.preventDefault();
+    const ts = this._touchState;
+    clearTimeout(ts.longTimer);
+
+    // Finalize sil drag
+    if (this._silDrag) {
+      this._silDrag = null;
+      if (this.onUpdate) this.onUpdate();
+    }
+
+    // Clean up pan state
+    delete this._touchPanStartX;
+    delete this._touchPanStartY;
+
+    // If long-press fired, skip tap logic
+    if (ts.longFired) { ts.fingers = 0; return; }
+
+    // If it was a multi-finger gesture or finger moved, skip tap
+    if (ts.fingers > 1 || ts.moved) { ts.fingers = 0; return; }
+
+    // Single finger tap (no drag)
+    if (ev.touches.length === 0 && !ts.moved) {
+      const gx = ts.startGx;
+      const gy = ts.startGy;
+
+      if (this.mode === "paint" && this.activeSysId) {
+        // Tap to paint — toggle: if occupied by same system, unpaint; else paint
+        const existing = this.veh.cellAt(gx, gy);
+        if (existing && existing.id === this.activeSysId) {
+          this.veh.unpaintCell(gx, gy);
+        } else if (!existing) {
+          this.veh.paintCell(this.activeSysId, gx, gy);
+        }
+        this.draw();
+        if (this.onUpdate) this.onUpdate();
+      } else if (this.mode === "select") {
+        const existing = this.veh.cellAt(gx, gy);
+        if (this.selectedCell && !existing) {
+          // Second tap on empty cell: move selected cell here
+          const sc = this.selectedCell;
+          this.veh.unpaintCell(sc.gx, sc.gy);
+          this.veh.paintCell(sc.sysId, gx, gy);
+          this.selectedCell = { gx, gy, sysId: sc.sysId };
+          this.draw();
+          if (this.onUpdate) this.onUpdate();
+        } else if (existing) {
+          // Tap on occupied cell: select it
+          this.selectedCell = { gx, gy, sysId: existing.id };
+          this.draw();
+          if (this.onUpdate) this.onUpdate();
+        } else {
+          // Tap on empty with nothing selected: deselect
+          this.selectedCell = null;
+          this.draw();
+        }
+      }
+    }
+    ts.fingers = 0;
+  }
+
+  // Public method for toolbar Delete button
+  deleteSelectedCell() {
+    if (!this.selectedCell) return false;
+    this.veh.unpaintCell(this.selectedCell.gx, this.selectedCell.gy);
+    this.selectedCell = null;
+    this.draw();
+    if (this.onUpdate) this.onUpdate();
+    return true;
   }
 
   _showCellLabelEditor(cellObj, gx, gy) {

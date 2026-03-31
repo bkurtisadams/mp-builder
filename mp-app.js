@@ -1,4 +1,4 @@
-// mp-app.js v4.2.0 — 0-cp select modifiers in descriptions, popout remaining fix
+// mp-app.js v4.3.0 — Del button, touch support, 0-cp select description fix
 
 const veh = new Vehicle();
 let editor = null;
@@ -517,6 +517,11 @@ document.getElementById("btn-mode-sil").addEventListener("click", () => setLayou
 document.getElementById("btn-zoom-in").addEventListener("click", () => editor.zoomIn());
 document.getElementById("btn-zoom-out").addEventListener("click", () => editor.zoomOut());
 document.getElementById("btn-zoom-reset").addEventListener("click", () => editor.resetView());
+
+// Delete selected cell button (for mobile/touch)
+document.getElementById("btn-del-cell").addEventListener("click", () => {
+  if (editor) editor.deleteSelectedCell();
+});
 
 // Clear all painted cells from layout
 document.getElementById("btn-clear-layout").addEventListener("click", () => {
