@@ -1,4 +1,4 @@
-// mp-app.js v4.7.0 — Streamlined dialog: panel-integrated CP/spaces inputs, removed redundant top section
+// mp-app.js v4.8.0 — Independent system spaces: CP changes don't auto-resize spaces
 
 const veh = new Vehicle();
 let editor = null;
@@ -1058,7 +1058,6 @@ const abilityDlg = {
 
   init() {
     this.overlay = document.getElementById("ability-dlg-overlay");
-    this._spManual = false; // true when user manually overrides spaces
 
     // Build system spaces dropdown inside cost panel
     const spSel = document.getElementById("aid-sp-input");
@@ -1069,7 +1068,7 @@ const abilityDlg = {
       spSel.appendChild(opt);
     }
     wheelSelect(spSel);
-    spSel.addEventListener("change", () => { this._spManual = true; this._refresh(); });
+    spSel.addEventListener("change", () => this._refresh());
 
     // Build generic modifier dropdowns
     buildStepSelect(document.getElementById("aid-area"), MP.AREA_EFFECT_STEPS, fmtCp, 0);
@@ -1233,18 +1232,13 @@ const abilityDlg = {
   // Set ability CPs and refresh
   _setAbilityCp(cp) {
     document.getElementById("aid-cp-input").value = cp;
-    this._spManual = false;
     this._refresh();
   },
 
-  // Get the system row — if user manually set spaces, use that; otherwise auto-size from total cost
+  // Get the system row from the spaces dropdown (user controls spaces independently)
   _getSysRow() {
-    if (this._spManual) {
-      const sp = parseInt(document.getElementById("aid-sp-input").value) || 8;
-      return MP.lookupSys(sp);
-    }
-    const cp = this._getAbilityCp() + this._calcModCost();
-    return MP.lookupSysByCp(Math.max(0, cp));
+    const sp = parseInt(document.getElementById("aid-sp-input").value) || 8;
+    return MP.lookupSys(sp);
   },
 
   // Master refresh — called on any input change
@@ -1353,11 +1347,9 @@ const abilityDlg = {
     const integral = document.getElementById("aid-integral").checked;
     const open = document.getElementById("aid-open").checked;
 
-    // Left: system info — sync spaces dropdown if auto-sizing
+    // Left: system info from current spaces selection
     const sp = sysRow ? sysRow.sp : 0;
     const genCp = sysRow ? sysRow.cp : 0;
-    const spSel = document.getElementById("aid-sp-input");
-    if (!this._spManual) spSel.value = String(sp);
     document.getElementById("aid-cp-gen").textContent = genCp + " CPs";
 
     const prof = sysRow ? sysRow.prof : 0;
@@ -1406,7 +1398,6 @@ const abilityDlg = {
     const cpInline = document.getElementById("aid-cp-inline");
     cpInline.addEventListener("input", () => {
       document.getElementById("aid-cp-input").value = cpInline.value;
-      this._spManual = false;
       this._refresh();
     });
     wheelNumber(cpInline);
@@ -1553,7 +1544,6 @@ const abilityDlg = {
     this._rebuildCharges(detail ? detail.pr : 0);
     this._rebuildRange(detail?.calc?.baseRange || 'BCx1"');
     this._rebuildAbilityMods(abId);
-    this._spManual = false;
     this._refresh();
   },
 
@@ -1668,7 +1658,6 @@ const abilityDlg = {
       abId: abId,
       abilityCp: this._getAbilityCp(),
       spaces: parseInt(document.getElementById("aid-sp-input").value) || 8,
-      spManual: this._spManual,
       area: parseInt(document.getElementById("aid-area").value) || 0,
       ap: parseInt(document.getElementById("aid-ap").value) || 0,
       autofire: parseInt(document.getElementById("aid-autofire").value) || 0,
@@ -1730,7 +1719,6 @@ const abilityDlg = {
 
     document.getElementById("aid-cp-input").value = state.abilityCp || 20;
     document.getElementById("aid-sp-input").value = String(state.spaces || 8);
-    this._spManual = state.spManual || false;
 
     document.getElementById("aid-area").selectedIndex = state.area || 0;
     document.getElementById("aid-ap").selectedIndex = state.ap || 0;
@@ -1802,7 +1790,6 @@ const abilityDlg = {
     this._setAbility("");
     document.getElementById("aid-cp-input").value = "20";
     document.getElementById("aid-sp-input").value = "8";
-    this._spManual = false;
     document.getElementById("aid-area").selectedIndex = 0;
     document.getElementById("aid-ap").selectedIndex = 0;
     document.getElementById("aid-autofire").selectedIndex = 0;
@@ -1858,7 +1845,6 @@ const abilityDlg = {
           const row = MP.lookupSys(sys.spaces);
           document.getElementById("aid-cp-input").value = row ? row.cp : 20;
           document.getElementById("aid-sp-input").value = String(sys.spaces);
-          this._spManual = true;
         }
         if (sys.integral) document.getElementById("aid-integral").checked = true;
         if (sys.open) document.getElementById("aid-open").checked = true;
