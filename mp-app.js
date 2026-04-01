@@ -562,6 +562,13 @@ function syncSilInputs(doc, barId, inputPrefix, ed) {
   }
   const colorEl = doc.getElementById(inputPrefix + "-color");
   if (colorEl) colorEl.value = (sil && sil.color) || "#4a7a9a";
+  const alphaEl = doc.getElementById(inputPrefix + "-alpha");
+  if (alphaEl) {
+    const av = sil && sil.alpha != null ? Math.round(sil.alpha * 100) : 25;
+    alphaEl.value = av;
+    const valEl = doc.getElementById(inputPrefix + "-alpha-val");
+    if (valEl) valEl.textContent = av + "%";
+  }
 }
 
 function updateSilBar() {
@@ -686,6 +693,16 @@ function onSilColorChange() {
   if (editor) { editor._silTinted = null; editor.draw(); }
   autoSave();
 }
+document.getElementById("sil-alpha").addEventListener("input", onSilAlphaChange);
+function onSilAlphaChange() {
+  const sil = veh.silhouette;
+  if (!sil) return;
+  const v = parseInt(document.getElementById("sil-alpha").value) || 25;
+  sil.alpha = v / 100;
+  document.getElementById("sil-alpha-val").textContent = v + "%";
+  if (editor) editor.draw();
+  autoSave();
+}
 
 // ---- Popout Layout Window ----
 let popoutWin = null;
@@ -805,6 +822,7 @@ select:focus{outline:none;border-color:var(--accent)}
     <label class="pop-sil-label">Rot:</label><input type="number" id="pop-sil-rot" class="pop-sil-inp" step="15">
     <span class="ed-sep"></span>
     <input type="color" id="pop-sil-color" class="pop-sil-color" value="#4a7a9a" title="Silhouette tint color">
+    <label class="pop-sil-label" title="Silhouette opacity">Op:</label><input type="range" id="pop-sil-alpha" min="5" max="100" value="25" step="5" class="pop-sil-range" style="width:60px;height:14px;cursor:pointer" title="Silhouette opacity"><span id="pop-sil-alpha-val" class="pop-sil-label" style="min-width:22px;text-align:right">25%</span>
   </div>
   <div class="pop-hint">
     <b>Del</b>=delete selected cell &bull; <b>Right-click</b>=cell menu &bull; Middle-drag/Scroll=pan/zoom &bull;
@@ -1028,6 +1046,19 @@ select:focus{outline:none;border-color:var(--accent)}
     };
     pdoc.getElementById("pop-sil-color").addEventListener("input", onPopSilColor);
     pdoc.getElementById("pop-sil-color").addEventListener("change", onPopSilColor);
+
+    const onPopSilAlpha = () => {
+      const sil = veh.silhouette;
+      if (!sil) return;
+      const v = parseInt(pdoc.getElementById("pop-sil-alpha").value) || 25;
+      sil.alpha = v / 100;
+      pdoc.getElementById("pop-sil-alpha-val").textContent = v + "%";
+      if (popoutEditor) popoutEditor.draw();
+      if (editor) editor.draw();
+      syncSilInputs(document, "vs-sil-bar", "sil", editor);
+      autoSave();
+    };
+    pdoc.getElementById("pop-sil-alpha").addEventListener("input", onPopSilAlpha);
 
     popoutEditor.draw();
   });

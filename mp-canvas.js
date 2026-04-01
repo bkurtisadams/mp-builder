@@ -853,7 +853,7 @@ class FloorPlanEditor {
       ctx.save();
       ctx.translate(cx2, cy2);
       ctx.rotate(rot);
-      ctx.globalAlpha = 0.25;
+      ctx.globalAlpha = sil.alpha != null ? sil.alpha : 0.25;
       ctx.drawImage(this._silTinted, -sw / 2, -sh / 2, sw, sh);
       ctx.globalAlpha = 1;
       // Border
