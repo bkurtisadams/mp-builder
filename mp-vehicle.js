@@ -14,7 +14,7 @@ class Vehicle {
     this.keyEntries = [];
     this.pictureData = "";
     this.pictureHeight = 120;
-    this.silhouette = null; // { data, gx, gy, gw, gh, rot }
+    this.silhouette = null; // { data, gx, gy, gw, gh, rot, color }
     this.armorKin = 3;
     this.armorEng = 3;
     this.armorBio = 3;

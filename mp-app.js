@@ -180,8 +180,9 @@ function renderSystemsTable() {
     const adjCL = s ? (s.adjCL || "") : "";
 
     const sysColor = s && s.desc ? MP.sysColor(s.desc) : "";
+    const descLong = desc.length > 60;
 
-    html += `<div class="vs-sys-row-wrap" data-idx="${i}" draggable="true">
+    html += `<div class="vs-sys-row-wrap${descLong ? " vs-sys-expanded" : ""}" data-idx="${i}" draggable="true">
       <span class="vs-sys-grip" title="Drag to reorder">&#9776;</span>
       <div class="vs-sys-row">
         <input type="number" value="${cost}" data-field="extraCPs" data-idx="${i}" step="2.5" min="0" title="Extra CPs added to this system (adds to vehicle cost)">
@@ -194,7 +195,8 @@ function renderSystemsTable() {
         <input type="text" class="vs-sys-desc" value="${desc}" data-field="desc" data-idx="${i}" title="System name, abilities, arc, facing">
         <span class="vs-sys-ins" data-idx="${i}" title="Insert Ability (Ctrl+I)">+</span>
         <span class="vs-sys-edit" data-idx="${i}" title="Edit Ability (Ctrl+E)">✎</span>
-        <span class="vs-sys-del" data-idx="${i}" title="Clear row">&times;</span>
+        <span class="vs-sys-del" data-idx="${i}" title="Clear row">&times;</span>${descLong ? `
+        <div class="vs-sys-overflow">${(s.desc || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>` : ""}
       </div>
       <div class="vs-sys-mods">
         <input type="checkbox" data-field="integral" data-idx="${i}" ${integral ? "checked" : ""} title="Integral — hidden, can't be targeted, no profile/hits, not shown on layout. Halves CPs.">
@@ -293,6 +295,16 @@ function renderSystemsTable() {
 
   // Wire drag-to-reorder
   let dragIdx = null;
+
+  // Wire overflow click to focus desc input
+  el.querySelectorAll(".vs-sys-overflow").forEach(ov => {
+    ov.addEventListener("click", () => {
+      const wrap = ov.closest(".vs-sys-row-wrap");
+      const inp = wrap.querySelector("input.vs-sys-desc");
+      if (inp) inp.focus();
+    });
+  });
+
   el.querySelectorAll(".vs-sys-row-wrap[draggable]").forEach(row => {
     row.addEventListener("dragstart", e => {
       dragIdx = parseInt(row.dataset.idx);
@@ -559,6 +571,8 @@ function syncSilInputs(doc, barId, inputPrefix, ed) {
     const el = doc.getElementById(inputPrefix + "-" + fields[i]);
     if (el) el.value = sil ? (sil[keys[i]] ?? defs[i]) : "";
   }
+  const colorEl = doc.getElementById(inputPrefix + "-color");
+  if (colorEl) colorEl.value = (sil && sil.color) || "#4a7a9a";
 }
 
 function updateSilBar() {
@@ -674,6 +688,13 @@ document.getElementById("btn-sil-clear").addEventListener("click", () => {
     autoSave();
   });
 });
+document.getElementById("sil-color").addEventListener("input", () => {
+  const sil = veh.silhouette;
+  if (!sil) return;
+  sil.color = document.getElementById("sil-color").value;
+  if (editor) { editor._silTinted = null; editor.draw(); }
+  autoSave();
+});
 
 // ---- Popout Layout Window ----
 let popoutWin = null;
@@ -751,6 +772,7 @@ select:focus{outline:none;border-color:var(--accent)}
 .pop-sil-bar.disabled{opacity:0.4;pointer-events:none}
 .pop-sil-label{font-size:8px;font-weight:700;color:#0a4a6a;white-space:nowrap}
 .pop-sil-inp{width:42px;background:var(--inp);border:1px solid var(--brd);border-radius:2px;padding:1px 2px;font-family:var(--fb);font-size:9px;color:var(--tx);text-align:center}
+.pop-sil-color{width:22px;height:18px;border:1px solid var(--brd);border-radius:2px;padding:0;cursor:pointer;background:none}
 .ed-btn-sm{padding:3px 7px;font-size:9px;background:#2a3a4a;border:1px solid #4a6a7a;color:#ccc;border-radius:2px;cursor:pointer;font-family:var(--fb);font-weight:700}
 .ed-btn-sm:hover{border-color:var(--accent)}
 </style>
@@ -790,6 +812,8 @@ select:focus{outline:none;border-color:var(--accent)}
     <label class="pop-sil-label">W:</label><input type="number" id="pop-sil-w" class="pop-sil-inp" step="0.5" min="1">
     <label class="pop-sil-label">H:</label><input type="number" id="pop-sil-h" class="pop-sil-inp" step="0.5" min="1">
     <label class="pop-sil-label">Rot:</label><input type="number" id="pop-sil-rot" class="pop-sil-inp" step="15">
+    <span class="ed-sep"></span>
+    <input type="color" id="pop-sil-color" class="pop-sil-color" value="#4a7a9a" title="Silhouette tint color">
   </div>
   <div class="pop-hint">
     <b>Del</b>=delete selected cell &bull; <b>Right-click</b>=cell menu &bull; Middle-drag/Scroll=pan/zoom &bull;
@@ -1001,6 +1025,15 @@ select:focus{outline:none;border-color:var(--accent)}
         if (editor) editor.draw();
         autoSave();
       });
+    });
+    pdoc.getElementById("pop-sil-color").addEventListener("input", () => {
+      const sil = veh.silhouette;
+      if (!sil) return;
+      sil.color = pdoc.getElementById("pop-sil-color").value;
+      if (popoutEditor) { popoutEditor._silTinted = null; popoutEditor.draw(); }
+      if (editor) { editor._silTinted = null; editor.draw(); }
+      syncSilInputs(document, "vs-sil-bar", "sil", editor);
+      autoSave();
     });
 
     popoutEditor.draw();

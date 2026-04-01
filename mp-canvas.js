@@ -36,6 +36,8 @@ class FloorPlanEditor {
 
     // Silhouette overlay
     this._silImg = null;      // loaded Image element
+    this._silTinted = null;   // offscreen canvas with color-tinted silhouette
+    this._silTintColor = null;// last tint color used
     this._silDrag = null;     // {type:"move"|"resize", startGx, startGy, origSil}
     this._silHover = "";      // "" | "move" | "resize"
 
@@ -668,6 +670,7 @@ class FloorPlanEditor {
     sil.rot = sil.rot || 0;
     this.veh.silhouette = sil;
     this._silImg = new Image();
+    this._silTinted = null;
     this._silImg.onload = () => this.draw();
     this._silImg.src = dataUrl;
   }
@@ -675,6 +678,7 @@ class FloorPlanEditor {
   clearSilhouette() {
     this.veh.silhouette = null;
     this._silImg = null;
+    this._silTinted = null;
     this._silDrag = null;
     this.draw();
   }
@@ -799,6 +803,21 @@ class FloorPlanEditor {
     // Silhouette overlay (behind grid)
     const sil = this.veh.silhouette;
     if (sil && this._silImg && this._silImg.complete) {
+      // Build/cache tinted version
+      const tintColor = sil.color || "#4a7a9a";
+      if (!this._silTinted || this._silTintColor !== tintColor) {
+        const iw = this._silImg.naturalWidth;
+        const ih = this._silImg.naturalHeight;
+        const oc = document.createElement("canvas");
+        oc.width = iw; oc.height = ih;
+        const octx = oc.getContext("2d");
+        octx.drawImage(this._silImg, 0, 0, iw, ih);
+        octx.globalCompositeOperation = "source-in";
+        octx.fillStyle = tintColor;
+        octx.fillRect(0, 0, iw, ih);
+        this._silTinted = oc;
+        this._silTintColor = tintColor;
+      }
       const sx = ox + sil.gx * cell;
       const sy = oy + sil.gy * cell;
       const sw = sil.gw * cell;
@@ -809,8 +828,8 @@ class FloorPlanEditor {
       ctx.save();
       ctx.translate(cx2, cy2);
       ctx.rotate(rot);
-      ctx.globalAlpha = 0.2;
-      ctx.drawImage(this._silImg, -sw / 2, -sh / 2, sw, sh);
+      ctx.globalAlpha = 0.25;
+      ctx.drawImage(this._silTinted, -sw / 2, -sh / 2, sw, sh);
       ctx.globalAlpha = 1;
       // Border
       ctx.strokeStyle = "#00000030";
