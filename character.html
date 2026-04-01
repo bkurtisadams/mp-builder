@@ -367,7 +367,7 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
 </div>
 
 <div class="mp-ftr">
-  Mighty Protectors&trade; &amp; Jeff Dee &amp; Jack Herman &mdash; Monkey House Games
+  Mighty Protectors is a registered trademark of Monkey House Games.
 </div>
 
 <script>
@@ -479,16 +479,38 @@ function clearAll() {
   });
 }
 
+// ── Slot management ──
+const CHARS_LIST_KEY = 'mp-char-list';
+function getEditIdx() {
+  const v = localStorage.getItem('mp-char-edit-idx');
+  return v != null ? parseInt(v) : -1;
+}
+function saveToSlot() {
+  const data = gatherData();
+  // Always save to the working key for auto-save
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
+  // Also sync to the slot list
+  try {
+    const list = JSON.parse(localStorage.getItem(CHARS_LIST_KEY)) || [];
+    const idx = getEditIdx();
+    if (idx >= 0 && idx < list.length) {
+      list[idx] = data;
+    } else {
+      list.push(data);
+      localStorage.setItem('mp-char-edit-idx', list.length - 1);
+    }
+    localStorage.setItem(CHARS_LIST_KEY, JSON.stringify(list));
+  } catch(e) {}
+}
+
 // Auto-save on any input change
-document.addEventListener('input', () => {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(gatherData())); } catch(e) {}
-});
+document.addEventListener('input', () => { saveToSlot(); });
 
 // Save button
 document.getElementById('btn-save').addEventListener('click', () => {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(gatherData()));
-    alert('Character saved to browser storage.');
+    saveToSlot();
+    alert('Character saved.');
   } catch(e) { alert('Save failed: ' + e.message); }
 });
 
@@ -506,7 +528,8 @@ document.getElementById('btn-load').addEventListener('click', () => {
 document.getElementById('btn-new').addEventListener('click', () => {
   if (!confirm('Clear all fields and start a new character?')) return;
   clearAll();
-  try { localStorage.removeItem(STORE_KEY); } catch(e) {}
+  localStorage.removeItem(STORE_KEY);
+  localStorage.setItem('mp-char-edit-idx', '-1');
 });
 
 // Export JSON
@@ -533,6 +556,7 @@ document.getElementById('inp-import').addEventListener('change', (e) => {
     try {
       clearAll();
       populateData(JSON.parse(ev.target.result));
+      saveToSlot();
       alert('Character imported: ' + (file.name));
     } catch(err) { alert('Import failed: ' + err.message); }
   };

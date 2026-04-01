@@ -1251,14 +1251,30 @@ document.getElementById("btn-pdf").addEventListener("click", () => {
 
 // ---- localStorage auto-save ----
 const LS_KEY = "mp-vehicle-autosave";
+const VEHS_LIST_KEY = "mp-veh-list";
 let _saveTimer = null;
 
+function _getVehEditIdx() {
+  const v = localStorage.getItem('mp-veh-edit-idx');
+  return v != null ? parseInt(v) : -1;
+}
+
 function autoSave() {
-  // Debounce: save 300ms after last change
   clearTimeout(_saveTimer);
   _saveTimer = setTimeout(() => {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify(veh.toJSON()));
+      const data = veh.toJSON();
+      localStorage.setItem(LS_KEY, JSON.stringify(data));
+      // Sync to slot list for landing page
+      const list = JSON.parse(localStorage.getItem(VEHS_LIST_KEY)) || [];
+      const idx = _getVehEditIdx();
+      if (idx >= 0 && idx < list.length) {
+        list[idx] = data;
+      } else {
+        list.push(data);
+        localStorage.setItem('mp-veh-edit-idx', list.length - 1);
+      }
+      localStorage.setItem(VEHS_LIST_KEY, JSON.stringify(list));
     } catch (e) { /* quota exceeded or private browsing */ }
   }, 300);
 }

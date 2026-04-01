@@ -327,10 +327,50 @@ body {
 
 <!-- Footer -->
 <div class="ftr">
-  Mighty Protectors&trade; &amp; Jeff Dee &amp; Jack Herman &mdash; Monkey House Games
+  Mighty Protectors is a registered trademark of Monkey House Games.
 </div>
 
 <script>
+// ── Storage keys ──
+const CHARS_KEY = 'mp-char-list';
+const VEHS_KEY = 'mp-veh-list';
+const AUTH_KEY = 'mp-auth';
+const CHAR_SLOTS = 5;
+const VEH_SLOTS = 3;
+
+// ── Storage helpers ──
+function loadList(key) {
+  try { return JSON.parse(localStorage.getItem(key)) || []; } catch(e) { return []; }
+}
+function saveList(key, list) {
+  try { localStorage.setItem(key, JSON.stringify(list)); } catch(e) {}
+}
+
+// Migrate: if old single-save keys exist, import them as slot 0
+function migrateOldData() {
+  // Migrate old single vehicle
+  const oldVeh = localStorage.getItem('mp-vehicle-autosave');
+  if (oldVeh && loadList(VEHS_KEY).length === 0) {
+    try {
+      const d = JSON.parse(oldVeh);
+      if (d && d.type === 'mp-vehicle') {
+        saveList(VEHS_KEY, [d]);
+      }
+    } catch(e) {}
+  }
+  // Migrate old single character
+  const oldChar = localStorage.getItem('mp-char-sheet');
+  if (oldChar && loadList(CHARS_KEY).length === 0) {
+    try {
+      const d = JSON.parse(oldChar);
+      if (d) {
+        saveList(CHARS_KEY, [d]);
+      }
+    } catch(e) {}
+  }
+}
+migrateOldData();
+
 // ── Tab switching ──
 const tabs = document.querySelectorAll('.tab');
 const panels = { chars: document.getElementById('panel-chars'), vehicles: document.getElementById('panel-vehicles') };
@@ -343,50 +383,55 @@ tabs.forEach(tab => {
   });
 });
 
-// ── Demo data ──
-const CHAR_SLOTS = 5;
-const VEH_SLOTS = 3;
+// ── Rendering ──
+function escH(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
-const demoChars = [
-  { name: 'Starbolt', trueId: 'Marcus Chen', cps: 150, origin: 'Modified', side: 'Good' },
-  { name: 'Nightshade', trueId: 'Yuki Tanaka', cps: 175, origin: 'Psionic', side: 'Good' },
-];
-
-const demoVehs = [
-  { name: 'Skyrider', dims: '8×12', cps: 210, move: 'Ground + Air', type: 'Jet' },
-];
-
-function escH(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-
-function renderCharCard(c) {
-  return `<div class="card">
-    <div class="card-name">${escH(c.name)}</div>
-    <div class="card-id">${escH(c.trueId)}</div>
+function renderCharCard(c, idx) {
+  const name = c.name || 'Unnamed';
+  const trueId = c.trueId || '';
+  const origin = c.originType || '';
+  const side = c.side || '';
+  // Try to sum stat CPs for a rough total
+  let cps = '';
+  if (c.stats) {
+    let total = 0;
+    for (const s of Object.values(c.stats)) total += parseInt(s.cp) || 0;
+    // Add ability CPs
+    if (c.abilities) {
+      for (const ab of c.abilities) total += parseInt(ab.cp) || 0;
+    }
+    if (total) cps = total + ' CPs';
+  }
+  return `<div class="card" data-type="char" data-idx="${idx}">
+    <div class="card-name">${escH(name)}</div>
+    <div class="card-id">${escH(trueId)}</div>
     <div class="card-stats">
-      <div class="card-stat"><span class="card-badge badge-cp">${c.cps} CPs</span></div>
-      <div class="card-stat"><span class="card-badge badge-origin">${escH(c.origin)}</span></div>
-      <div class="card-stat"><span style="font-size:9px;color:var(--tx3)">Side: ${escH(c.side)}</span></div>
+      ${cps ? `<div class="card-stat"><span class="card-badge badge-cp">${escH(cps)}</span></div>` : ''}
+      ${origin ? `<div class="card-stat"><span class="card-badge badge-origin">${escH(origin)}</span></div>` : ''}
+      ${side ? `<div class="card-stat"><span style="font-size:9px;color:var(--tx3)">Side: ${escH(side)}</span></div>` : ''}
     </div>
     <div class="card-actions">
-      <button class="card-btn card-btn-edit">Edit</button>
-      <button class="card-btn">Export</button>
-      <button class="card-btn card-btn-del">Del</button>
+      <button class="card-btn card-btn-edit" data-action="edit">Edit</button>
+      <button class="card-btn" data-action="export">Export</button>
+      <button class="card-btn card-btn-del" data-action="del">Del</button>
     </div>
   </div>`;
 }
 
-function renderVehCard(v) {
-  return `<div class="card">
-    <div class="card-name">${escH(v.name)}</div>
-    <div class="card-id">${escH(v.type)} / ${escH(v.dims)}</div>
+function renderVehCard(v, idx) {
+  const name = v.name || 'Unnamed';
+  const model = v.model || '';
+  const chassis = v.basicCost ? (v.basicCost + ' BC') : '';
+  return `<div class="card" data-type="veh" data-idx="${idx}">
+    <div class="card-name">${escH(name)}</div>
+    <div class="card-id">${escH(model)}</div>
     <div class="card-stats">
-      <div class="card-stat"><span class="card-badge badge-cp">${v.cps} CPs</span></div>
-      <div class="card-stat"><span class="card-badge badge-move">${escH(v.move)}</span></div>
+      ${chassis ? `<div class="card-stat"><span class="card-badge badge-cp">${escH(chassis)}</span></div>` : ''}
     </div>
     <div class="card-actions">
-      <button class="card-btn card-btn-edit">Edit</button>
-      <button class="card-btn">Export</button>
-      <button class="card-btn card-btn-del">Del</button>
+      <button class="card-btn card-btn-edit" data-action="edit">Edit</button>
+      <button class="card-btn" data-action="export">Export</button>
+      <button class="card-btn card-btn-del" data-action="del">Del</button>
     </div>
   </div>`;
 }
@@ -399,49 +444,161 @@ function renderEmptySlot(n, total) {
   </div>`;
 }
 
-function renderGrid(gridId, items, renderFn, totalSlots, slotCountId) {
-  const grid = document.getElementById(gridId);
-  let html = items.map(renderFn).join('');
-  for (let i = items.length + 1; i <= totalSlots; i++) {
-    html += renderEmptySlot(i, totalSlots);
+function renderAll() {
+  const chars = loadList(CHARS_KEY);
+  const vehs = loadList(VEHS_KEY);
+
+  const charGrid = document.getElementById('grid-chars');
+  let html = chars.map((c, i) => renderCharCard(c, i)).join('');
+  for (let i = chars.length + 1; i <= CHAR_SLOTS; i++) html += renderEmptySlot(i, CHAR_SLOTS);
+  charGrid.innerHTML = html;
+  document.getElementById('char-slot-count').textContent = `${chars.length} of ${CHAR_SLOTS}`;
+
+  const vehGrid = document.getElementById('grid-vehicles');
+  html = vehs.map((v, i) => renderVehCard(v, i)).join('');
+  for (let i = vehs.length + 1; i <= VEH_SLOTS; i++) html += renderEmptySlot(i, VEH_SLOTS);
+  vehGrid.innerHTML = html;
+  document.getElementById('veh-slot-count').textContent = `${vehs.length} of ${VEH_SLOTS}`;
+}
+
+renderAll();
+
+// ── Card button actions (Edit / Export / Del) ──
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const card = btn.closest('.card');
+  if (!card || !card.dataset.type) return;
+  const type = card.dataset.type;
+  const idx = parseInt(card.dataset.idx);
+  const action = btn.dataset.action;
+  const listKey = type === 'char' ? CHARS_KEY : VEHS_KEY;
+
+  if (action === 'edit') {
+    if (type === 'char') {
+      // Write this slot to the char builder key and navigate
+      const list = loadList(CHARS_KEY);
+      localStorage.setItem('mp-char-sheet', JSON.stringify(list[idx]));
+      localStorage.setItem('mp-char-edit-idx', idx);
+      window.location.href = 'character.html';
+    } else {
+      const list = loadList(VEHS_KEY);
+      localStorage.setItem('mp-vehicle-autosave', JSON.stringify(list[idx]));
+      localStorage.setItem('mp-veh-edit-idx', idx);
+      window.location.href = 'vehicle.html';
+    }
   }
-  grid.innerHTML = html;
-  document.getElementById(slotCountId).textContent = `${items.length} of ${totalSlots}`;
-}
 
-renderGrid('grid-chars', demoChars, renderCharCard, CHAR_SLOTS, 'char-slot-count');
-renderGrid('grid-vehicles', demoVehs, renderVehCard, VEH_SLOTS, 'veh-slot-count');
+  if (action === 'export') {
+    const list = loadList(listKey);
+    const item = list[idx];
+    if (!item) return;
+    const name = (item.name || 'export').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const blob = new Blob([JSON.stringify(item, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
 
-// ── Auth toggle demo ──
-let loggedIn = false;
-function setAuth(state) {
-  loggedIn = state;
-  document.getElementById('auth-guest').style.display = state ? 'none' : 'flex';
-  document.getElementById('auth-user').style.display = state ? 'flex' : 'none';
-}
-document.getElementById('btn-login').addEventListener('click', () => setAuth(true));
-document.getElementById('btn-register').addEventListener('click', () => setAuth(true));
-document.getElementById('btn-logout').addEventListener('click', () => setAuth(false));
+  if (action === 'del') {
+    const list = loadList(listKey);
+    const item = list[idx];
+    const label = item.name || 'this item';
+    if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
+    list.splice(idx, 1);
+    saveList(listKey, list);
+    renderAll();
+  }
+});
 
-// ── New buttons (placeholder) ──
+// ── New buttons ──
 document.getElementById('btn-new-char').addEventListener('click', () => {
+  const chars = loadList(CHARS_KEY);
+  if (chars.length >= CHAR_SLOTS) { alert(`All ${CHAR_SLOTS} character slots are full. Delete one to make room.`); return; }
+  // Clear the char builder key so it starts fresh
+  localStorage.removeItem('mp-char-sheet');
+  localStorage.setItem('mp-char-edit-idx', '-1'); // -1 = new
   window.location.href = 'character.html';
 });
 document.getElementById('btn-new-veh').addEventListener('click', () => {
+  const vehs = loadList(VEHS_KEY);
+  if (vehs.length >= VEH_SLOTS) { alert(`All ${VEH_SLOTS} vehicle slots are full. Delete one to make room.`); return; }
+  localStorage.removeItem('mp-vehicle-autosave');
+  localStorage.setItem('mp-veh-edit-idx', '-1');
   window.location.href = 'vehicle.html';
 });
 
-// Edit buttons on cards navigate to the appropriate builder
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest('.card-btn-edit');
-  if (!btn) return;
-  const card = btn.closest('.card');
-  const panel = card.closest('.panel');
-  if (panel.id === 'panel-chars') {
-    window.location.href = 'character.html';
-  } else {
-    window.location.href = 'vehicle.html';
-  }
+// ── Import JSON buttons ──
+function setupImport(btnId, listKey, maxSlots, validator) {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.json'; inp.style.display = 'none';
+  document.body.appendChild(inp);
+  document.getElementById(btnId).addEventListener('click', () => {
+    const list = loadList(listKey);
+    if (list.length >= maxSlots) { alert('All slots are full.'); return; }
+    inp.click();
+  });
+  inp.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (validator && !validator(data)) { alert('Invalid file format.'); return; }
+        const list = loadList(listKey);
+        list.push(data);
+        saveList(listKey, list);
+        renderAll();
+        alert('Imported: ' + (data.name || file.name));
+      } catch(err) { alert('Import failed: ' + err.message); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+}
+setupImport('btn-import-char-json', CHARS_KEY, CHAR_SLOTS, null);
+setupImport('btn-import-veh-json', VEHS_KEY, VEH_SLOTS, (d) => d.type === 'mp-vehicle');
+
+// ── Auth (persistent via localStorage) ──
+function loadAuth() {
+  try { return JSON.parse(localStorage.getItem(AUTH_KEY)); } catch(e) { return null; }
+}
+function saveAuth(data) {
+  try {
+    if (data) localStorage.setItem(AUTH_KEY, JSON.stringify(data));
+    else localStorage.removeItem(AUTH_KEY);
+  } catch(e) {}
+}
+function setAuthUI(user) {
+  document.getElementById('auth-guest').style.display = user ? 'none' : 'flex';
+  document.getElementById('auth-user').style.display = user ? 'flex' : 'none';
+  if (user) document.getElementById('user-name').textContent = user.name || 'User';
+}
+
+// Check on load
+const savedAuth = loadAuth();
+if (savedAuth) setAuthUI(savedAuth);
+
+document.getElementById('btn-login').addEventListener('click', () => {
+  const name = prompt('Enter username:');
+  if (!name) return;
+  const user = { name };
+  saveAuth(user);
+  setAuthUI(user);
+});
+document.getElementById('btn-register').addEventListener('click', () => {
+  const name = prompt('Choose a username:');
+  if (!name) return;
+  const user = { name };
+  saveAuth(user);
+  setAuthUI(user);
+});
+document.getElementById('btn-logout').addEventListener('click', () => {
+  saveAuth(null);
+  setAuthUI(null);
 });
 </script>
 
