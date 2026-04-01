@@ -136,6 +136,7 @@ MP.lookupSysByCp = function(targetCp) {
 MP.ABILITY_TYPES = [
   // --- Offensive Abilities ---
   { id:"absorption",           cat:"Offensive",  name:"Absorption",           color:"#6060a0", abbr:"Abs" },
+  { id:"change-environment",   cat:"Offensive",  name:"Change Environment",   color:"#5a7a60", abbr:"CEn" },
   { id:"chemical-abilities",   cat:"Offensive",  name:"Chemical Abilities",   color:"#508040", abbr:"Chm" },
   { id:"death-touch",          cat:"Offensive",  name:"Death Touch",          color:"#802040", abbr:"DTc" },
   { id:"devitalization-ray",   cat:"Offensive",  name:"Devitalization Ray",   color:"#604880", abbr:"Dev" },
@@ -151,6 +152,7 @@ MP.ABILITY_TYPES = [
   { id:"heightened-expertise", cat:"Offensive",  name:"Heightened Expertise", color:"#806040", abbr:"HEx" },
   { id:"heightened-strength",  cat:"Offensive",  name:"Heightened Strength",  color:"#804030", abbr:"HSt" },
   { id:"ice-abilities",        cat:"Offensive",  name:"Ice Abilities",        color:"#4090b0", abbr:"Ice" },
+  { id:"inertia",              cat:"Offensive",  name:"Inertia",              color:"#5a6a90", abbr:"Inr" },
   { id:"light-control",        cat:"Offensive",  name:"Light Control",        color:"#b0a030", abbr:"Lgt" },
   { id:"lightning-control",    cat:"Offensive",  name:"Lightning Control",    color:"#6080c0", abbr:"Ltn" },
   { id:"magnetism",            cat:"Offensive",  name:"Magnetism",            color:"#607090", abbr:"Mag" },
@@ -158,6 +160,7 @@ MP.ABILITY_TYPES = [
   { id:"natural-weaponry",     cat:"Offensive",  name:"Natural Weaponry",     color:"#706040", abbr:"NWp" },
   { id:"paralysis-ray",        cat:"Offensive",  name:"Paralysis Ray",        color:"#705090", abbr:"Par" },
   { id:"poison-venom",         cat:"Offensive",  name:"Poison/Venom",         color:"#608030", abbr:"Psn" },
+  { id:"possession",           cat:"Offensive",  name:"Possession",           color:"#7a5090", abbr:"Pos" },
   { id:"power-blast",          cat:"Offensive",  name:"Power Blast",          color:"#b04040", abbr:"PBl" },
   { id:"reflection",           cat:"Offensive",  name:"Reflection",           color:"#607080", abbr:"Rfl" },
   { id:"repulsion-blast",      cat:"Offensive",  name:"Repulsion Blast",      color:"#5070a0", abbr:"Rep" },
@@ -167,6 +170,7 @@ MP.ABILITY_TYPES = [
   { id:"special-weapon",       cat:"Offensive",  name:"Special Weapon",       color:"#806050", abbr:"SWp" },
   { id:"telekinesis",          cat:"Offensive",  name:"Telekinesis",          color:"#6060a0", abbr:"TKn" },
   { id:"transmutation",        cat:"Offensive",  name:"Transmutation",        color:"#607060", abbr:"Trm" },
+  { id:"unprotection",         cat:"Offensive",  name:"Unprotection",         color:"#8a5050", abbr:"UPr" },
   { id:"vibration-abilities",  cat:"Offensive",  name:"Vibration Abilities",  color:"#708060", abbr:"Vib" },
   { id:"weakness-detection",   cat:"Offensive",  name:"Weakness Detection",   color:"#806060", abbr:"WkD" },
   { id:"weather-control",      cat:"Offensive",  name:"Weather Control",      color:"#507090", abbr:"Wth" },
@@ -199,6 +203,7 @@ MP.ABILITY_TYPES = [
   { id:"dimensional-travel",   cat:"Miscellaneous", name:"Dimensional Travel",     color:"#7a40a0", abbr:"Dim" },
   { id:"duplication",          cat:"Miscellaneous", name:"Duplication",            color:"#606070", abbr:"Dup" },
   { id:"energy",               cat:"Miscellaneous", name:"Energy",                 color:"#a08020", abbr:"Nrg" },
+  { id:"bridge-travel",        cat:"Movement",      name:"Bridge Travel",          color:"#5a7080", abbr:"Brd" },
   { id:"flight",               cat:"Movement",      name:"Flight",                 color:"#3a80c0", abbr:"Flt" },
   { id:"healing",              cat:"Miscellaneous", name:"Healing",                color:"#409060", abbr:"Hea" },
   { id:"heightened-cool",      cat:"Miscellaneous", name:"Heightened Cool",        color:"#406080", abbr:"HCl" },
@@ -259,6 +264,8 @@ MP.abilityById = function(id) {
 MP.ABILITY_DETAILS = {
   // --- Offensive ---
   "absorption":         {dmg:"Special",    pr:0,  defCP:5,   hint:"Absorb dmg types, ¼ damage, gain CPs"},
+  "bridge-travel":      {dmg:"—",          pr:0,  defCP:10,  hint:"3D movement leaving solid bridge, PR=0/hr", calc:{bridgeTravel:true}},
+  "change-environment": {dmg:"Special",    pr:1,  defCP:10,  hint:"Damaging area effect, 1 dmg/rnd, PR=1/rnd", calc:{changeEnv:true}},
   "chemical-abilities": {dmg:"Biochem",    pr:2,  defCP:10,  hint:"Chem Blast (rng ST\") or Chem Body (field)", calc:{seq:"A",offset:9,rng:"ST",baseRange:"BCx1\""}},
   "death-touch":        {dmg:"Entropy",    pr:12, defCP:15,  hint:"Melee entropy, no roll-with, kill on 0 HP", calc:{seq:"A",offset:-1,rng:"touch",baseRange:"Touch/Melee"}},
   "devitalization-ray": {dmg:"Entropy",    pr:3,  defCP:10,  hint:"Power damage, rng ENx2\"", calc:{seq:"A",offset:13,rng:"ENx2",baseRange:"BCx2\""}},
@@ -274,6 +281,7 @@ MP.ABILITY_DETAILS = {
   "heightened-expertise":{dmg:"—",         pr:0,  defCP:10,  hint:"Accuracy bonus on attacks"},
   "heightened-strength":{dmg:"—",          pr:0,  defCP:10,  hint:"+1 ST per CP"},
   "ice-abilities":      {dmg:"Entropy",    pr:1,  defCP:10,  hint:"Ice Armor, Ice Blast (snare), or Ice Shaping", calc:{rng:"(ST+EN)/2",baseRange:"BCx1\""}},
+  "inertia":            {dmg:"Other",      pr:1,  defCP:10,  hint:"Reduce target movement, rng STx2\", 6 rnds", calc:{inertia:true,rng:"STx2",baseRange:"BCx2\""}},
   "light-control":      {dmg:"Energy",     pr:1,  defCP:10,  hint:"Laser, Flash, Glare, or Glow", calc:{seq:"A",offset:5,rng:"AGx2",baseRange:"BCx2\""}},
   "lightning-control":  {dmg:"Energy",     pr:4,  defCP:10,  hint:"Electrical Bolt, Field, or Gear Ctrl", calc:{seq:"B",offset:6,rng:"ENx2",baseRange:"BCx2\""}},
   "magnetism":          {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Magnetic Manipulation", calc:{rng:"ST",baseRange:"BCx1\""}},
@@ -281,6 +289,7 @@ MP.ABILITY_DETAILS = {
   "natural-weaponry":   {dmg:"Kinetic",    pr:0,  defCP:10,  hint:"Melee: blunt (KB) or sharp (+2 dmg, no KB)", calc:{rng:"touch",baseRange:"Touch/Melee"}},
   "paralysis-ray":      {dmg:"Entropy",    pr:3,  defCP:10,  hint:"Save attack, immobilize", calc:{rng:"ENx2",baseRange:"BCx2\""}},
   "poison-venom":       {dmg:"Biochem",    pr:2,  defCP:10,  hint:"Damaging or Paralytic poison", calc:{rng:"touch",baseRange:"Touch/Melee"}},
+  "possession":         {dmg:"Other",      pr:4,  defCP:10,  hint:"CL save attack, control target body, Touch", calc:{possession:true}},
   "power-blast":        {dmg:"Energy",     pr:1,  defCP:10,  hint:"Force bolts", calc:{seq:"A",offset:5,rng:"(ST+EN)/2",baseRange:"BCx1\""}},
   "reflection":         {dmg:"Special",    pr:0,  defCP:10,  hint:"Reflect incoming damage types"},
   "repulsion-blast":    {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"KB only (no hit dmg)", calc:{seq:"A",offset:9,rng:"STx2",baseRange:"BCx2\""}},
@@ -290,6 +299,7 @@ MP.ABILITY_DETAILS = {
   "special-weapon":     {dmg:"Kinetic",    pr:0,  defCP:10,  hint:"Melee or Missile weapon, blunt or sharp", calc:{rng:"AGx2",baseRange:"BCx2\""}},
   "telekinesis":        {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Kinetic Manipulation", calc:{rng:"AG",baseRange:"BCx1\""}},
   "transmutation":      {dmg:"Other",      pr:8,  defCP:10,  hint:"Save attack, alter living targets", calc:{rng:"INx2",baseRange:"BCx2\""}},
+  "unprotection":       {dmg:"Kinetic",    pr:1,  defCP:10,  hint:"Reduce target armor, Touch, 6 rnds", calc:{unprotection:true}},
   "vibration-abilities":{dmg:"Kinetic",    pr:5,  defCP:10,  hint:"Vibratory Blast, no KB", calc:{seq:"B",offset:8,rng:"AGx2",baseRange:"BCx2\""}},
   "weakness-detection": {dmg:"—",          pr:0,  defCP:5,   hint:"+1 to hit scanned target per 2.5 CPs"},
   "weather-control":    {dmg:"Varies",     pr:5,  defCP:10,  hint:"Change Weather / Command Weather"},
@@ -308,7 +318,7 @@ MP.ABILITY_DETAILS = {
   "non-corporealness":  {dmg:"—",          pr:16, defCP:15,  hint:"Intangible, immune to non-Mental attacks"},
   "regeneration":       {dmg:"—",          pr:0,  defCP:10,  hint:"Heal HP faster than normal"},
   "shield":             {dmg:"—",          pr:0,  defCP:10,  hint:"+4 Phys Def, breakpoint bonus"},
-  "stretching-abilities":{dmg:"—",         pr:0,  defCP:5,   hint:"Elongation/Flattening/Inflation/Plasticity"},
+  "stretching-abilities":{dmg:"—",         pr:0,  defCP:5,   hint:"Elongation/Flattening/Inflation/Plasticity", calc:{plasticity:true}},
   // --- Miscellaneous ---
   "animal-plant":       {dmg:"—",          pr:0,  defCP:10,  hint:"Species abilities + BC mods"},
   "arsenal":            {dmg:"—",          pr:0,  defCP:20,  hint:"Swappable ability slots (utility belt)"},
@@ -332,7 +342,7 @@ MP.ABILITY_DETAILS = {
   "luck":               {dmg:"—",          pr:0,  defCP:5,   hint:"+1 Luck save per 2.5 CPs"},
   "mental-ability":     {dmg:"Psychic",    pr:1,  defCP:10,  hint:"Mental Blast, Photographic Memory, etc.", calc:{seq:"A",offset:1,rng:"IN"}},
   "negation":           {dmg:"—",          pr:1,  defCP:10,  hint:"Reduce duration / improve saves vs effects", calc:{rng:"EN"}},
-  "physical-ability":   {dmg:"—",          pr:0,  defCP:5,   hint:"Ambidexterity, Extra Limbs, Wall-Crawling…"},
+  "physical-ability":   {dmg:"—",          pr:0,  defCP:5,   hint:"Ambidexterity, Extra Limbs, Swarm, Wall-Crawling…"},
   "revivification":     {dmg:"—",          pr:24, defCP:10,  hint:"Raise the dead, touch range, task check"},
   "shape-shifting":     {dmg:"—",          pr:0,  defCP:10,  hint:"Change shape: people/creatures/objects"},
   "size-change":        {dmg:"—",          pr:0,  defCP:10,  hint:"Larger (+ST/EN) or Smaller (-Profile)"},
@@ -342,7 +352,7 @@ MP.ABILITY_DETAILS = {
   "telepathy":          {dmg:"—",          pr:1,  defCP:5,   hint:"Direct mental communication"},
   "teleportation":      {dmg:"—",          pr:1,  defCP:10,  hint:"Instant transfer, range depends on CPs", calc:{teleport:true}},
   "transformation":     {dmg:"—",          pr:0,  defCP:10,  hint:"Change into weaker form"},
-  "tunneling":          {dmg:"—",          pr:1,  defCP:10,  hint:"Burrow through solid matter", calc:{move:true,moveOffset:-5}},
+  "tunneling":          {dmg:"—",          pr:1,  defCP:10,  hint:"Burrow through solid matter, SR + speed tables", calc:{tunneling:true}},
   "vehicle":            {dmg:"—",          pr:0,  defCP:15,  hint:"Vehicle (constructed via vehicle rules)"},
   "wealth":             {dmg:"—",          pr:0,  defCP:5,   hint:"Financial resources, Wealth roll"},
   "willpower":          {dmg:"—",          pr:0,  defCP:10,  hint:"Fortitude / Pain Resistance / Self-Control"},
@@ -426,6 +436,154 @@ MP.TELEPORT_TABLE = [
 MP.teleportRange = function(cp) {
   for (let i = MP.TELEPORT_TABLE.length - 1; i >= 0; i--) {
     if (cp >= MP.TELEPORT_TABLE[i].cp) return MP.TELEPORT_TABLE[i].range;
+  }
+  return null;
+};
+
+// Bridge Travel: CPs → breakpoint, SR, material
+MP.BRIDGE_TABLE = [
+  {cp:-5,  bp:6,  sr:1,  mat:"clay, earth"},
+  {cp:0,   bp:7,  sr:2,  mat:"bamboo, electronics"},
+  {cp:5,   bp:8,  sr:3,  mat:"ice, quartz"},
+  {cp:10,  bp:9,  sr:4,  mat:"bone, glass"},
+  {cp:15,  bp:10, sr:5,  mat:"brick"},
+  {cp:20,  bp:11, sr:6,  mat:"concrete, granite"},
+  {cp:25,  bp:12, sr:7,  mat:"marble, machinery"},
+  {cp:30,  bp:13, sr:8,  mat:"aluminum, lead"},
+  {cp:35,  bp:14, sr:9,  mat:"bronze, silver"},
+  {cp:40,  bp:15, sr:10, mat:"iron, platinum"},
+  {cp:45,  bp:16, sr:11, mat:"steel"},
+  {cp:50,  bp:17, sr:12, mat:"tungsten"},
+];
+
+MP.bridgeLookup = function(cp) {
+  for (let i = MP.BRIDGE_TABLE.length - 1; i >= 0; i--) {
+    if (cp >= MP.BRIDGE_TABLE[i].cp) return MP.BRIDGE_TABLE[i];
+  }
+  return null;
+};
+
+// Change Environment (Damaging): CPs → diameter
+MP.CHANGE_ENV_TABLE = [
+  {cp:2.5,  diam:'5"'},  {cp:5,    diam:'7"'},  {cp:7.5,  diam:'9"'},
+  {cp:10,   diam:'11"'}, {cp:12.5, diam:'15"'}, {cp:15,   diam:'19"'},
+  {cp:17.5, diam:'23"'}, {cp:20,   diam:'27"'}, {cp:22.5, diam:'33"'},
+  {cp:25,   diam:'39"'}, {cp:27.5, diam:'45"'}, {cp:30,   diam:'51"'},
+  {cp:32.5, diam:'59"'}, {cp:35,   diam:'67"'}, {cp:37.5, diam:'75"'},
+  {cp:40,   diam:'83"'},
+];
+
+MP.changeEnvDiam = function(cp) {
+  for (let i = MP.CHANGE_ENV_TABLE.length - 1; i >= 0; i--) {
+    if (cp >= MP.CHANGE_ENV_TABLE[i].cp) return MP.CHANGE_ENV_TABLE[i].diam;
+  }
+  return null;
+};
+
+// Inertia: CPs → divisor
+MP.INERTIA_TABLE = [
+  {cp:2.5,  div:1.5}, {cp:5,    div:2},   {cp:7.5,  div:3},
+  {cp:10,   div:4},   {cp:12.5, div:6},   {cp:15,   div:8},
+  {cp:17.5, div:12},  {cp:20,   div:16},  {cp:22.5, div:24},
+  {cp:25,   div:32},  {cp:27.5, div:48},  {cp:30,   div:64},
+  {cp:32.5, div:96},  {cp:35,   div:128}, {cp:37.5, div:192},
+  {cp:40,   div:256}, {cp:42.5, div:384}, {cp:45,   div:512},
+  {cp:47.5, div:768}, {cp:50,   div:1024},
+];
+
+MP.inertiaDiv = function(cp) {
+  for (let i = MP.INERTIA_TABLE.length - 1; i >= 0; i--) {
+    if (cp >= MP.INERTIA_TABLE[i].cp) return MP.INERTIA_TABLE[i].div;
+  }
+  return null;
+};
+
+// Possession: CPs → save modifier
+MP.POSSESSION_TABLE = [
+  {cp:2.5,  mod:4},  {cp:5,    mod:3},  {cp:7.5,  mod:2},
+  {cp:10,   mod:1},  {cp:12.5, mod:0},  {cp:15,   mod:-1},
+  {cp:17.5, mod:-2}, {cp:20,   mod:-3}, {cp:22.5, mod:-4},
+  {cp:25,   mod:-5}, {cp:27.5, mod:-6}, {cp:30,   mod:-7},
+  {cp:32.5, mod:-8}, {cp:35,   mod:-9}, {cp:37.5, mod:-10},
+  {cp:40,   mod:-11},{cp:42.5, mod:-12},{cp:45,   mod:-13},
+  {cp:47.5, mod:-14},{cp:50,   mod:-15},
+];
+
+MP.possessionMod = function(cp) {
+  for (let i = MP.POSSESSION_TABLE.length - 1; i >= 0; i--) {
+    if (cp >= MP.POSSESSION_TABLE[i].cp) return MP.POSSESSION_TABLE[i].mod;
+  }
+  return null;
+};
+
+// Stretching E) Plasticity: CPs → kinetic protection
+MP.PLASTICITY_TABLE = [
+  {cp:2.5,  prot:0},  {cp:5,    prot:1},  {cp:7.5,  prot:2},
+  {cp:10,   prot:3},  {cp:12.5, prot:5},  {cp:15,   prot:6},
+  {cp:17.5, prot:8},  {cp:20,   prot:9},  {cp:22.5, prot:11},
+  {cp:25,   prot:12}, {cp:27.5, prot:13}, {cp:30,   prot:14},
+  {cp:32.5, prot:15}, {cp:35,   prot:16}, {cp:37.5, prot:17},
+  {cp:40,   prot:18}, {cp:42.5, prot:19}, {cp:45,   prot:20},
+  {cp:47.5, prot:21}, {cp:50,   prot:22},
+];
+
+MP.plasticityProt = function(cp) {
+  for (let i = MP.PLASTICITY_TABLE.length - 1; i >= 0; i--) {
+    if (cp >= MP.PLASTICITY_TABLE[i].cp) return MP.PLASTICITY_TABLE[i].prot;
+  }
+  return null;
+};
+
+// Tunneling: CPs → max SR (separate from speed)
+MP.TUNNEL_SR_TABLE = [
+  {cp:2.5,  sr:1},  {cp:5,    sr:2},  {cp:7.5,  sr:3},
+  {cp:10,   sr:4},  {cp:12.5, sr:5},  {cp:15,   sr:6},
+  {cp:17.5, sr:7},  {cp:20,   sr:8},  {cp:22.5, sr:9},
+  {cp:25,   sr:10}, {cp:27.5, sr:11}, {cp:30,   sr:12},
+  {cp:32.5, sr:13}, {cp:35,   sr:14}, {cp:37.5, sr:15},
+  {cp:40,   sr:16}, {cp:42.5, sr:17}, {cp:45,   sr:18},
+  {cp:47.5, sr:19}, {cp:50,   sr:20},
+];
+
+// Tunneling speed: CPs → max dig speed in inches
+MP.TUNNEL_SPEED_TABLE = [
+  {cp:-5,   spd:1},   {cp:-2.5, spd:2},   {cp:0,    spd:3},
+  {cp:2.5,  spd:4},   {cp:5,    spd:6},   {cp:7.5,  spd:8},
+  {cp:10,   spd:12},  {cp:12.5, spd:16},  {cp:15,   spd:24},
+  {cp:17.5, spd:32},  {cp:20,   spd:48},  {cp:22.5, spd:64},
+  {cp:25,   spd:96},  {cp:27.5, spd:128}, {cp:30,   spd:192},
+  {cp:32.5, spd:256}, {cp:35,   spd:384}, {cp:37.5, spd:512},
+  {cp:40,   spd:768}, {cp:42.5, spd:1024},{cp:45,   spd:1536},
+  {cp:47.5, spd:2048},{cp:50,   spd:3072},
+];
+
+MP.tunnelSR = function(cp) {
+  for (let i = MP.TUNNEL_SR_TABLE.length - 1; i >= 0; i--) {
+    if (cp >= MP.TUNNEL_SR_TABLE[i].cp) return MP.TUNNEL_SR_TABLE[i].sr;
+  }
+  return null;
+};
+
+MP.tunnelSpeed = function(cp) {
+  for (let i = MP.TUNNEL_SPEED_TABLE.length - 1; i >= 0; i--) {
+    if (cp >= MP.TUNNEL_SPEED_TABLE[i].cp) return MP.TUNNEL_SPEED_TABLE[i].spd;
+  }
+  return null;
+};
+
+// Unprotection: CPs → points removed per use, max removal
+MP.UNPROTECTION_TABLE = [
+  {cp:0,   pts:1, max:2},  {cp:5,   pts:2, max:4},
+  {cp:10,  pts:3, max:6},  {cp:15,  pts:4, max:8},
+  {cp:20,  pts:5, max:10}, {cp:25,  pts:6, max:12},
+  {cp:30,  pts:7, max:14}, {cp:35,  pts:8, max:16},
+  {cp:40,  pts:9, max:18}, {cp:45,  pts:10,max:20},
+  {cp:50,  pts:11,max:22}, {cp:55,  pts:12,max:24},
+];
+
+MP.unprotectionLookup = function(cp) {
+  for (let i = MP.UNPROTECTION_TABLE.length - 1; i >= 0; i--) {
+    if (cp >= MP.UNPROTECTION_TABLE[i].cp) return MP.UNPROTECTION_TABLE[i];
   }
   return null;
 };
@@ -570,6 +728,68 @@ MP.computeAbilityInfo = function(abId, cp, st, en, ag, intel, cl) {
     }
   }
 
+  // Bridge Travel
+  if (c.bridgeTravel) {
+    const b = MP.bridgeLookup(cp);
+    if (b) {
+      parts.push("BP " + b.bp + ", SR " + b.sr + " (" + b.mat + ")");
+      descParts.push("BP " + b.bp + ", SR " + b.sr);
+    }
+  }
+
+  // Change Environment
+  if (c.changeEnv) {
+    const d2 = MP.changeEnvDiam(cp);
+    if (d2) {
+      parts.push(d2 + " diam, 1 dmg/rnd");
+      descParts.push(d2 + " diam");
+    }
+  }
+
+  // Inertia
+  if (c.inertia) {
+    const div = MP.inertiaDiv(cp);
+    if (div != null) {
+      parts.push("÷" + div + " move, 6 rnds");
+      descParts.push("÷" + div);
+    }
+  }
+
+  // Possession
+  if (c.possession) {
+    const m = MP.possessionMod(cp);
+    if (m != null) {
+      parts.push("Save mod " + (m >= 0 ? "+" + m : m));
+      descParts.push("Save " + (m >= 0 ? "+" + m : m));
+    }
+  }
+
+  // Tunneling (SR + speed, not movement table)
+  if (c.tunneling) {
+    const sr = MP.tunnelSR(cp);
+    const spd = MP.tunnelSpeed(cp);
+    if (sr != null) { parts.push("Max SR " + sr); descParts.push("SR " + sr); }
+    if (spd != null) { parts.push("Dig " + spd + '"'); descParts.push("Dig " + spd + '"'); }
+  }
+
+  // Unprotection
+  if (c.unprotection) {
+    const u = MP.unprotectionLookup(cp);
+    if (u) {
+      parts.push("-" + u.pts + " prot (max -" + u.max + "), Touch, 6 rnds");
+      descParts.push("-" + u.pts + " (max -" + u.max + ")");
+    }
+  }
+
+  // Plasticity (Stretching E)
+  if (c.plasticity) {
+    const p = MP.plasticityProt(cp);
+    if (p !== null) {
+      parts.push(p + " Kin prot");
+      descParts.push(p + " Kin prot");
+    }
+  }
+
   // Range
   if (c.rng) {
     const r = MP.calcRange(c.rng, st, en, ag, intel, cl);
@@ -657,6 +877,20 @@ MP.ABILITY_MODIFIERS = {
     {id:"emoPheromone",  label:"Pheromones",           short:"Pher",   cp:0},
     {id:"emoSingle",     label:"Single Emotion",       short:"1Emo",   cp:-5},
   ],
+  "bridge-travel": [
+    {id:"brdFaster",     label:"Faster/Slower Bridge",    short:"Spd",  type:"number", min:-9, max:12, def:0, step:1, hint:"±2.5/step on speed table", cpFn:v=>v*2.5},
+    {id:"brdMaze",       label:"Maze Travel",             short:"Maze", cp:0},
+    {id:"brdMazeBoth",   label:"Maze + Bridge (both)",    short:"M+B",  cp:5},
+  ],
+  "change-environment": [
+    {id:"ceHarmless",    label:"Harmless",                short:"Hrm",  cp:-2.5},
+    {id:"ceMoreDmg",     label:"More Damage",             short:"+Dmg", type:"number", min:1, max:10, def:1, step:1, hint:"+1 dmg/rnd per +2.5", cpFn:v=>v*2.5},
+    {id:"ceVacuum",      label:"Vacuum",                  short:"Vac",  cp:10},
+    {id:"ceHighPressure",label:"High Atmospheric Pressure",short:"HiP", cp:10},
+    {id:"ceChlorine",    label:"Chlorine Gas",            short:"Cl",   cp:12.5},
+    {id:"cePhosphene",   label:"Phosphene Gas",           short:"Ph",   cp:15},
+    {id:"ceRadiation",   label:"Hard Radiation",          short:"Rad",  cp:2.5},
+  ],
   "flame-abilities": [
     {id:"flmBody",       label:"Flame Body (field)",   short:"Body",   cp:0},
   ],
@@ -683,6 +917,9 @@ MP.ABILITY_MODIFIERS = {
   ],
   "ice-abilities": [
     {id:"iceColder",     label:"Colder Ice",           short:"Cold",   type:"number", min:1, max:2, def:1, step:1, hint:"+5/app, +1 dmg/app", cpFn:v=>v*5},
+  ],
+  "inertia": [
+    {id:"inrLimited",   label:"Limited Movement Types", short:"Ltd",  cp:-5},
   ],
   "heightened-senses": [
     {id:"hsSenseType",   label:"Sense Type",              short:"Type", type:"select",
@@ -766,6 +1003,12 @@ MP.ABILITY_MODIFIERS = {
     {id:"paraUnconsc",   label:"Unconscious",          short:"Unc",    cp:5},
     {id:"paraSpeak",     label:"Can Speak",            short:"Spk",    cp:-5},
   ],
+  "physical-ability": [
+    {id:"phySwarm",      label:"J) Swarm (5 CPs, immune KO)", short:"Swm", cp:0},
+  ],
+  "possession": [
+    {id:"posEmotional",  label:"Emotional Only",          short:"Emo",  cp:-5},
+  ],
   "regeneration": [
     {id:"regenLimited1", label:"Limited (-2.5)",        short:"Ltd1",  cp:-2.5},
     {id:"regenLimited2", label:"Limited (-5)",          short:"Ltd2",  cp:-5},
@@ -799,6 +1042,13 @@ MP.ABILITY_MODIFIERS = {
     {id:"spdFastAccel",  label:"Fast Acceleration",      short:"FstA", type:"number", min:1, max:10, def:1, step:1, hint:"+2.5/app, x2 accel per 2 steps", cpFn:v=>v*2.5},
     {id:"spdFastSwim",   label:"Fast Swimming",           short:"FSwm", cp:0},
   ],
+  "stretching-abilities": [
+    {id:"strElongation",  label:"A) Elongation",           short:"Elong", cp:0},
+    {id:"strFlattening",  label:"B) Flattening",           short:"Flat",  cp:0},
+    {id:"strInflation",   label:"C) Inflation",            short:"Infl",  cp:0},
+    {id:"strGrapple",     label:"D) Grappling Bonus",      short:"Grpl",  cp:0},
+    {id:"strPlasticity",  label:"E) Plasticity (Kin prot)", short:"Plst", cp:0},
+  ],
   "telekinesis": [
     {id:"tkSingle",      label:"Single Target",          short:"1Tgt", cp:-5},
     {id:"tkMulti",       label:"Multi-Kinesis",           short:"MltK", type:"number", min:1, max:5, def:1, step:1, hint:"+2.5/x2", cpFn:v=>v*2.5},
@@ -814,6 +1064,19 @@ MP.ABILITY_MODIFIERS = {
   "transmutation": [
     {id:"transAlt",      label:"Alternate Transmutation", short:"Alt",  type:"number", min:1, max:10, def:1, step:1, hint:"+5 each", cpFn:v=>v*5},
   ],
+  "tunneling": [
+    {id:"tunCollapse",   label:"Collapse",               short:"Clps", cp:7.5},
+    {id:"tunAlwaysClps", label:"Always Collapses",        short:"AClp", cp:0},
+    {id:"tunWider",      label:"Wider Tunnel",            short:"Wdr",  type:"number", min:1, max:5, def:1, step:1, hint:"x2 width per app, +2.5 each", cpFn:v=>v*2.5},
+    {id:"tunNarrower",   label:"Narrower Tunnel",         short:"Nrw",  type:"number", min:1, max:5, def:1, step:1, hint:"½ width per app, +2.5 each", cpFn:v=>v*2.5},
+  ],
+  "unprotection": [
+    {id:"uprSpot",       label:"Unprotect Spot",          short:"Spot", cp:-10},
+    {id:"uprAltType",    label:"Alternate Damage Type",   short:"Alt",  cp:0},
+    {id:"uprMultiType",  label:"Multiple Damage Types",   short:"Mlt",  cp:0},
+    {id:"uprSubType",    label:"Affects Damage Sub-Type", short:"Sub",  cp:-5},
+    {id:"uprSpecific",   label:"Affects Specific Form",   short:"Spc",  cp:-7.5},
+  ],
   "weather-control": [
     {id:"wcLimited",     label:"Limited Weather Types",   short:"Ltd",  type:"number", min:1, max:5, def:1, step:1, hint:"-2.5/type removed", cpFn:v=>-(v*2.5)},
   ],
@@ -826,9 +1089,15 @@ MP.ABILITY_MODIFIERS["sensor-suite"] = MP.ABILITY_MODIFIERS["heightened-senses"]
 MP.WEAKNESSES = [
   { id:"diminished-senses",  name:"Diminished Senses",  cpMod:-5,  desc:"Reduced sensory capability" },
   { id:"distinctive",        name:"Distinctive",        cpMod:-5,  desc:"Easily identified or tracked" },
+  { id:"frailty",            name:"Frailty",            cpMod:-1,  desc:"-1 HP per application" },
+  { id:"hemophilia",         name:"Hemophilia",         cpMod:-5,  desc:"Sharp Kinetic causes 1 Other (Bleeding)/rnd" },
+  { id:"low-energy",         name:"Low Energy",         cpMod:-2.5,desc:"-5 Power per application" },
   { id:"low-self-control",   name:"Low Self-Control",   cpMod:-5,  desc:"Compulsive behavior" },
+  { id:"lsc-anti-reflect",   name:"LSC: Anti-Reflection",cpMod:-10,desc:"25% chance attacks self or target gets defensive ability" },
+  { id:"lsc-split-personality",name:"LSC: Split Personality",cpMod:-5,desc:"Random alt personality, req -2.5 mental weakness" },
   { id:"lowered-intelligence",name:"Lowered Intelligence",cpMod:-2.5,desc:"-1 IN per application" },
   { id:"nemesis",            name:"Nemesis",            cpMod:-5,  desc:"Recurring enemy" },
+  { id:"obvious",            name:"Obvious",            cpMod:-5,  desc:"Always on, worth x2 CPs vs Limitation" },
   { id:"personal-problem",   name:"Personal Problem",   cpMod:-5,  desc:"Ongoing personal issue" },
   { id:"phobia",             name:"Phobia",             cpMod:-5,  desc:"Irrational fear" },
   { id:"physical-disability",name:"Physical Disability",cpMod:-5,  desc:"Structural flaw or limitation" },
@@ -840,6 +1109,7 @@ MP.WEAKNESSES = [
   { id:"reduced-en",         name:"Reduced Endurance",  cpMod:-2.5,desc:"-1 EN per application" },
   { id:"reduced-st",         name:"Reduced Strength",   cpMod:-2.5,desc:"-1 ST per application" },
   { id:"special-requirement",name:"Special Requirement",cpMod:-5,  desc:"Needs fuel, sunlight, etc." },
+  { id:"surplus-arm",       name:"Surplus Arm",        cpMod:-2.5,desc:"-1 AG save per arm, can replace disabled arm" },
   { id:"susceptibility",     name:"Susceptibility",     cpMod:-5,  desc:"Takes extra damage from a source" },
   { id:"uneducated",         name:"Uneducated",         cpMod:-5,  desc:"Lack of formal education" },
   { id:"unliving",           name:"Unliving",           cpMod:-5,  desc:"Not alive (construct, undead)" },
@@ -1327,8 +1597,8 @@ MP.TEMPLATES = [
 
 // ---- System Color Categories (for layout canvas) ----
 MP.SYS_COLORS = {
-  movement:   { color: "#d89040", label: "Movement",    keywords: ["flight","speed","tunneling","teleport","super speed","gliding"] },
-  weapon:     { color: "#c03838", label: "Weapon",       keywords: ["blast","attack","weapon","gun","cannon","missile","torpedo","laser","disintegrat","flame","ice abilit","lightning","sonic","chemical","death touch","natural weapon","grapnel"] },
+  movement:   { color: "#d89040", label: "Movement",    keywords: ["flight","speed","tunneling","teleport","super speed","gliding","bridge travel"] },
+  weapon:     { color: "#c03838", label: "Weapon",       keywords: ["blast","attack","weapon","gun","cannon","missile","torpedo","laser","disintegrat","flame","ice abilit","lightning","sonic","chemical","death touch","natural weapon","grapnel","inertia","possession","unprotection","change environment"] },
   crew:       { color: "#5080a0", label: "Crew",         keywords: ["control seat","passenger","bunk","seat","pilot","co-pilot","driver","gunner","commander","loader","crew"] },
   sensor:     { color: "#7050a0", label: "Sensor",       keywords: ["sensor","radar","sonar","countermeasure","navigation","heightened sense"] },
   comms:      { color: "#60c0d0", label: "Comms",        keywords: ["communicat","comms","radio","beacon","signal"] },
