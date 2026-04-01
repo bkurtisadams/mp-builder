@@ -1,4 +1,4 @@
-// mp-canvas.js v3.0.0 — Walls, doors, hatches, hull auto-trace, wall mode
+// mp-canvas.js v3.1.0 — Canvas lock mode
 
 const CELL_PX = 28;
 
@@ -22,6 +22,8 @@ class FloorPlanEditor {
     this.hoverGy = null;
     this.selectedCell = null; // {gx, gy, sysId} for Delete key
     this._cellDrag = null;   // {fromGx, fromGy, toGx, toGy, sysId}
+
+    this.locked = false; // When true, disable all editing (paint/drag/wall/sil/delete/label)
 
     this.onUpdate = null;
     this.onContextMenu = null; // callback(gx, gy, sys, cell, cssX, cssY)
@@ -53,7 +55,7 @@ class FloorPlanEditor {
     this.canvas.addEventListener("wheel", e => this._onWheel(e), { passive: false });
     this.canvas.addEventListener("contextmenu", e => {
       e.preventDefault();
-      if (!this.onContextMenu || this.mode === "wall") return;
+      if (!this.onContextMenu || this.mode === "wall" || this.locked) return;
       const { cx, cy } = this._canvasPos(e);
       const { gx, gy } = this._cssToGrid(cx, cy);
       const result = this.veh.cellObjAt(gx, gy);
@@ -227,6 +229,7 @@ class FloorPlanEditor {
     }
     if (ev.button !== 0) return;
     ev.preventDefault();
+    if (this.locked) return; // Lock: block all editing interactions
     const { cx, cy } = this._canvasPos(ev);
     const { gx, gy } = this._cssToGrid(cx, cy);
 
@@ -341,7 +344,7 @@ class FloorPlanEditor {
       this.draw();
       if (this.onUpdate) this.onUpdate();
     }
-    if ((ev.key === "Delete" || ev.key === "Backspace") && this.mode === "select" && this.selectedCell) {
+    if ((ev.key === "Delete" || ev.key === "Backspace") && this.mode === "select" && this.selectedCell && !this.locked) {
       ev.preventDefault();
       this.veh.unpaintCell(this.selectedCell.gx, this.selectedCell.gy);
       this.selectedCell = null;
@@ -351,7 +354,7 @@ class FloorPlanEditor {
   }
 
   _onDblClick(ev) {
-    if (this.mode !== "select") return;
+    if (this.mode !== "select" || this.locked) return;
     const { cx, cy } = this._canvasPos(ev);
     const { gx, gy } = this._cssToGrid(cx, cy);
     const result = this.veh.cellObjAt(gx, gy);
@@ -409,6 +412,8 @@ class FloorPlanEditor {
     ts.startGx = gx; ts.startGy = gy;
     ts.moved = false;
     ts.startTime = Date.now();
+
+    if (this.locked) return; // Lock: allow pinch-zoom but block single-finger editing
 
     // Long-press timer for label edit (500ms)
     if (this.mode === "select") {
@@ -523,7 +528,7 @@ class FloorPlanEditor {
     if (ts.fingers > 1 || ts.moved) { ts.fingers = 0; return; }
 
     // Single finger tap (no drag)
-    if (ev.touches.length === 0 && !ts.moved) {
+    if (ev.touches.length === 0 && !ts.moved && !this.locked) {
       const gx = ts.startGx;
       const gy = ts.startGy;
 
@@ -1013,6 +1018,22 @@ class FloorPlanEditor {
         ctx.moveTo(tx + cell - 4, ty + 4); ctx.lineTo(tx + 4, ty + cell - 4);
         ctx.stroke();
       }
+    }
+
+    // Locked badge overlay
+    if (this.locked) {
+      const bw = 70 * dpr, bh = 22 * dpr, bx = W - bw - 8 * dpr, by = 8 * dpr;
+      ctx.fillStyle = "rgba(180,100,20,0.7)";
+      ctx.beginPath();
+      ctx.roundRect(bx, by, bw, bh, 4 * dpr);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = `bold ${11 * dpr}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("\u{1F512} LOCKED", bx + bw / 2, by + bh / 2);
+      ctx.textAlign = "start";
+      ctx.textBaseline = "alphabetic";
     }
   }
 

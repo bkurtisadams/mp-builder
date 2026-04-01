@@ -1,4 +1,4 @@
-// mp-app.js v4.12.0 — Wall mode, hull auto-trace, door/hatch cycling
+// mp-app.js v4.13.0 — File System Access API (Save/Save As/Open), canvas lock
 
 const veh = new Vehicle();
 let editor = null;
@@ -735,6 +735,8 @@ select:focus{outline:none;border-color:var(--accent)}
     <button id="pop-zout" class="ed-btn">&minus;</button>
     <button id="pop-zreset" class="ed-btn">Reset</button>
     <span class="ed-sep"></span>
+    <button id="pop-lock" class="ed-btn" title="Lock layout">&#x1F513;</button>
+    <span class="ed-sep"></span>
     <button id="pop-popout-close" class="ed-btn">Close</button>
     <span id="pop-active-sys" class="pop-active"></span>
   </div>
@@ -899,6 +901,20 @@ select:focus{outline:none;border-color:var(--accent)}
     pdoc.getElementById("pop-zin").addEventListener("click", () => popoutEditor.zoomIn());
     pdoc.getElementById("pop-zout").addEventListener("click", () => popoutEditor.zoomOut());
     pdoc.getElementById("pop-zreset").addEventListener("click", () => popoutEditor.resetView());
+    pdoc.getElementById("pop-lock").addEventListener("click", () => {
+      popoutEditor.locked = !popoutEditor.locked;
+      const btn = pdoc.getElementById("pop-lock");
+      btn.innerHTML = popoutEditor.locked ? "&#x1F512;" : "&#x1F513;";
+      btn.style.background = popoutEditor.locked ? "#c07020" : "";
+      const lockIds = ["pop-select","pop-paint","pop-wall","pop-sil","pop-hull","pop-sel-sys"];
+      for (const id of lockIds) {
+        const el = pdoc.getElementById(id);
+        if (!el) continue;
+        if (popoutEditor.locked) { el.classList.add("ed-btn-disabled"); el.disabled = true; }
+        else { el.classList.remove("ed-btn-disabled"); el.disabled = false; }
+      }
+      popoutEditor.draw();
+    });
     pdoc.getElementById("pop-popout-close").addEventListener("click", () => popoutWin.close());
 
     // Silhouette controls in popout
@@ -962,18 +978,91 @@ select:focus{outline:none;border-color:var(--accent)}
 
 document.getElementById("btn-popout").addEventListener("click", openPopout);
 
-// ---- Export ----
-document.getElementById("btn-save").addEventListener("click", () => {
+// ---- File System Access API (Save / Save As / Open) ----
+let _fileHandle = null; // Retained handle for "Save" overwrite
+
+const _hasFileSystemAccess = typeof window.showSaveFilePicker === "function";
+
+const _jsonFileOpts = {
+  types: [{ description: "JSON Files", accept: { "application/json": [".json"] } }],
+};
+
+function _defaultFileName() {
+  return (veh.name || "vehicle").replace(/\s+/g, "_") + ".json";
+}
+
+async function _writeToHandle(handle) {
+  const writable = await handle.createWritable();
+  await writable.write(JSON.stringify(veh.toJSON(), null, 2));
+  await writable.close();
+  _fileHandle = handle;
+  document.title = handle.name + " — MP Vehicle Builder";
+}
+
+function _fallbackDownload() {
   const blob = new Blob([JSON.stringify(veh.toJSON(), null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a"); a.href = url;
-  a.download = (veh.name || "vehicle").replace(/\s+/g, "_") + ".json";
+  a.download = _defaultFileName();
   a.click(); URL.revokeObjectURL(url);
-});
+}
 
-document.getElementById("btn-load").addEventListener("click", () => {
-  document.getElementById("inp-json").click();
-});
+// Save As — always prompt for location
+async function fileSaveAs() {
+  if (!_hasFileSystemAccess) { _fallbackDownload(); return; }
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: _defaultFileName(),
+      ..._jsonFileOpts,
+    });
+    await _writeToHandle(handle);
+  } catch (e) {
+    if (e.name !== "AbortError") alert("Save failed: " + e.message);
+  }
+}
+
+// Save — overwrite current handle, or prompt if none
+async function fileSave() {
+  if (!_hasFileSystemAccess) { _fallbackDownload(); return; }
+  if (_fileHandle) {
+    try {
+      const perm = await _fileHandle.queryPermission({ mode: "readwrite" });
+      if (perm === "granted") { await _writeToHandle(_fileHandle); return; }
+      const req = await _fileHandle.requestPermission({ mode: "readwrite" });
+      if (req === "granted") { await _writeToHandle(_fileHandle); return; }
+    } catch (e) { /* fall through to Save As */ }
+  }
+  await fileSaveAs();
+}
+
+// Open — pick a file to load
+async function fileOpen() {
+  if (!_hasFileSystemAccess) {
+    document.getElementById("inp-json").click();
+    return;
+  }
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      ..._jsonFileOpts,
+      multiple: false,
+    });
+    const file = await handle.getFile();
+    const text = await file.text();
+    veh.fromJSON(JSON.parse(text));
+    syncFormFromVeh();
+    updateAll();
+    _fileHandle = handle;
+    document.title = handle.name + " — MP Vehicle Builder";
+  } catch (e) {
+    if (e.name !== "AbortError") alert("Open failed: " + e.message);
+  }
+}
+
+document.getElementById("btn-save").addEventListener("click", fileSave);
+document.getElementById("btn-save-as").addEventListener("click", fileSaveAs);
+document.getElementById("btn-load").addEventListener("click", fileOpen);
+
+// Fallback file input (Firefox/Safari)
 document.getElementById("inp-json").addEventListener("change", e => {
   if (!e.target.files.length) return;
   const reader = new FileReader();
@@ -982,10 +1071,46 @@ document.getElementById("inp-json").addEventListener("change", e => {
       veh.fromJSON(JSON.parse(ev.target.result));
       syncFormFromVeh();
       updateAll();
+      _fileHandle = null;
+      document.title = (veh.name || "Vehicle") + " — MP Vehicle Builder";
     } catch (err) { alert("Invalid JSON: " + err.message); }
   };
   reader.readAsText(e.target.files[0]);
   e.target.value = "";
+});
+
+// Keyboard shortcuts: Ctrl+S = Save, Ctrl+Shift+S = Save As, Ctrl+O = Open
+window.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+    e.preventDefault();
+    if (e.shiftKey) fileSaveAs(); else fileSave();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === "o") {
+    e.preventDefault();
+    fileOpen();
+  }
+});
+
+// ---- Lock button ----
+document.getElementById("btn-lock").addEventListener("click", () => {
+  if (!editor) return;
+  editor.locked = !editor.locked;
+  const btn = document.getElementById("btn-lock");
+  btn.innerHTML = editor.locked ? "&#x1F512;" : "&#x1F513;";
+  btn.style.background = editor.locked ? "#c07020" : "";
+  btn.title = editor.locked
+    ? "Unlock layout to allow editing"
+    : "Lock layout to prevent editing (pan/zoom still work)";
+  // Disable mode buttons and destructive buttons when locked
+  const lockTargets = ["btn-mode-select","btn-mode-paint","btn-mode-wall","btn-mode-sil",
+    "btn-hull-trace","btn-del-cell","btn-clear-layout","btn-clear-walls","sel-layout-sys"];
+  for (const id of lockTargets) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    if (editor.locked) { el.classList.add("ed-btn-disabled"); el.disabled = true; }
+    else { el.classList.remove("ed-btn-disabled"); el.disabled = false; }
+  }
+  editor.draw();
 });
 
 document.getElementById("btn-csv").addEventListener("click", () => {

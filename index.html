@@ -21,8 +21,9 @@
       </select>
     </div>
     <div class="mp-hdr-export">
-      <button class="ed-btn-sm" id="btn-save">Save JSON</button>
-      <button class="ed-btn-sm" id="btn-load">Load JSON</button>
+      <button class="ed-btn-sm" id="btn-save" title="Save (Ctrl+S)">Save</button>
+      <button class="ed-btn-sm" id="btn-save-as" title="Save As — choose folder and filename">Save As</button>
+      <button class="ed-btn-sm" id="btn-load" title="Open (Ctrl+O)">Open</button>
       <button class="ed-btn-sm" id="btn-csv">CSV</button>
       <button class="ed-btn-sm" id="btn-pdf">PDF</button>
       <input type="file" id="inp-json" accept=".json" style="display:none">
@@ -175,6 +176,8 @@
         <button id="btn-zoom-in" class="ed-btn" title="Zoom in">+</button>
         <button id="btn-zoom-out" class="ed-btn" title="Zoom out">&minus;</button>
         <button id="btn-zoom-reset" class="ed-btn" title="Reset view">Reset</button>
+        <span class="ed-sep"></span>
+        <button id="btn-lock" class="ed-btn" title="Lock layout to prevent editing (pan/zoom still work)">&#x1F513;</button>
         <span class="ed-sep"></span>
         <button id="btn-popout" class="ed-btn" title="Open layout in a separate window">Popout</button>
         <button id="btn-del-cell" class="ed-btn" title="Delete selected cell" style="background:#c03030">Del</button>
