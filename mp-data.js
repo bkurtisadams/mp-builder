@@ -218,7 +218,6 @@ MP.ABILITY_TYPES = [
   { id:"speed",                cat:"Movement",      name:"Speed",                  color:"#3070b0", abbr:"Spd" },
   { id:"summoning",            cat:"Miscellaneous", name:"Summoning",              color:"#706060", abbr:"Sum" },
   { id:"super-speed",          cat:"Miscellaneous", name:"Super Speed",            color:"#3060c0", abbr:"SSp" },
-  { id:"swimming",             cat:"Movement",      name:"Swimming",               color:"#2a6a9a", abbr:"Swm" },
   { id:"telepathy",            cat:"Miscellaneous", name:"Telepathy",              color:"#7060a0", abbr:"Tel" },
   { id:"teleportation",        cat:"Movement",      name:"Teleportation",          color:"#6a50a0", abbr:"Tlp" },
   { id:"transformation",       cat:"Miscellaneous", name:"Transformation",         color:"#707050", abbr:"Tfm" },
@@ -340,9 +339,8 @@ MP.ABILITY_DETAILS = {
   "speed":              {dmg:"—",          pr:1,  defCP:15,  hint:"Ground movement, PR=1/hr", calc:{move:true,moveOffset:-10}},
   "summoning":          {dmg:"—",          pr:2,  defCP:10,  hint:"Summon entity, 5 min, PR=2/hr maintain"},
   "super-speed":        {dmg:"—",          pr:2,  defCP:10,  hint:"+1 extra turn per 10 CPs"},
-  "swimming":           {dmg:"—",          pr:1,  defCP:10,  hint:"Water movement, Accel/Top Speed", calc:{move:true,moveOffset:-5}},
   "telepathy":          {dmg:"—",          pr:1,  defCP:5,   hint:"Direct mental communication"},
-  "teleportation":      {dmg:"—",          pr:1,  defCP:10,  hint:"Instant transfer, range depends on CPs"},
+  "teleportation":      {dmg:"—",          pr:1,  defCP:10,  hint:"Instant transfer, range depends on CPs", calc:{teleport:true}},
   "transformation":     {dmg:"—",          pr:0,  defCP:10,  hint:"Change into weaker form"},
   "tunneling":          {dmg:"—",          pr:1,  defCP:10,  hint:"Burrow through solid matter", calc:{move:true,moveOffset:-5}},
   "vehicle":            {dmg:"—",          pr:0,  defCP:15,  hint:"Vehicle (constructed via vehicle rules)"},
@@ -401,16 +399,35 @@ MP.damageDice = function(seq, cp, offset, cpStep) {
 // Top speed at step i: even=2^(3+i/2), odd=3*2^(2+(i-1)/2)
 // Accel = Top / 16.  MPH ≈ Top * 0.3409 (rounded per book)
 MP.movementSpeed = function(cp, cpOffset) {
-  // cpOffset: Flight=0, Speed=-5 (Speed cp 0 = Flight cp 5), Swimming=0
+  // cpOffset: Flight=-5, Speed=-10, Tunneling=-5
   const step = Math.round((cp - cpOffset) / 2.5);
   if (step < 0) return null;
   let top;
   if (step % 2 === 0) top = Math.pow(2, 3 + step / 2);
   else top = 3 * Math.pow(2, 2 + (step - 1) / 2);
-  const accel = top / 16;
+  const accel = top / 4;
   // MPH: use book's ratio ~0.3409, round to nearest int (match book rounding)
   const mph = Math.round(top * 5 * 240 * 1.5 / 5280);
   return { accel: accel, top: top, mph: mph };
+};
+
+// Teleportation range table: CPs → range string
+MP.TELEPORT_TABLE = [
+  {cp:2.5,  range:'1"'},    {cp:5,    range:'2"'},    {cp:7.5,  range:'3"'},
+  {cp:10,   range:'4"'},    {cp:12.5, range:'8"'},    {cp:15,   range:'12"'},
+  {cp:17.5, range:'31"'},   {cp:20,   range:'50"'},   {cp:22.5, range:'250"'},
+  {cp:25,   range:"1.5 mi"},{cp:27.5, range:"10 mi"}, {cp:30,   range:"80 mi"},
+  {cp:32.5, range:"700 mi"},{cp:35,   range:"7000 mi"},{cp:37.5, range:"80000 mi"},
+  {cp:40,   range:"1M mi"}, {cp:42.5, range:"12M mi"},{cp:45,   range:"170M mi"},
+  {cp:47.5, range:"2.5T mi"},{cp:50,  range:"7 ly"},  {cp:52.5, range:"117 ly"},
+  {cp:55,   range:"2100 ly"},
+];
+
+MP.teleportRange = function(cp) {
+  for (let i = MP.TELEPORT_TABLE.length - 1; i >= 0; i--) {
+    if (cp >= MP.TELEPORT_TABLE[i].cp) return MP.TELEPORT_TABLE[i].range;
+  }
+  return null;
 };
 
 // Armor table: CPs → total points and default Kin/Eng/Bio/Ent split
@@ -541,6 +558,15 @@ MP.computeAbilityInfo = function(abId, cp, st, en, ag, intel, cl) {
     if (ff) {
       parts.push(ff.total + " pts (" + ff.def + " K/E/B/N)");
       descParts.push(ff.total + " pts (" + ff.def + ")");
+    }
+  }
+
+  // Teleportation range
+  if (c.teleport) {
+    const r = MP.teleportRange(cp);
+    if (r) {
+      parts.push("Range " + r);
+      descParts.push("Range " + r);
     }
   }
 
@@ -772,9 +798,6 @@ MP.ABILITY_MODIFIERS = {
     {id:"spdWaterRun",   label:"Water Running",          short:"WRun", cp:2.5},
     {id:"spdFastAccel",  label:"Fast Acceleration",      short:"FstA", type:"number", min:1, max:10, def:1, step:1, hint:"+2.5/app, x2 accel per 2 steps", cpFn:v=>v*2.5},
     {id:"spdFastSwim",   label:"Fast Swimming",           short:"FSwm", cp:0},
-  ],
-  "swimming": [
-    {id:"swimFastAccel", label:"Fast Acceleration",      short:"FstA", cp:2.5},
   ],
   "telekinesis": [
     {id:"tkSingle",      label:"Single Target",          short:"1Tgt", cp:-5},
@@ -1216,7 +1239,7 @@ MP.TEMPLATES = [
     systems:[
       {spaces:1, desc:"Control Seat", extraCPs:0, cells:[{gx:1,gy:0}]},
       {spaces:3, desc:"Passenger Seats (3)", extraCPs:0, cells:[{gx:2,gy:0},{gx:1,gy:1},{gx:2,gy:1}]},
-      {spaces:6, desc:"Swimming: 64/256, 87 mph, PR=1", extraCPs:0, cells:[{gx:0,gy:2},{gx:1,gy:2},{gx:2,gy:2},{gx:3,gy:2},{gx:0,gy:3},{gx:1,gy:3}]},
+      {spaces:6, desc:"Speed (Fast Swimming): 64/256, 87 mph, PR=1", extraCPs:0, cells:[{gx:0,gy:2},{gx:1,gy:2},{gx:2,gy:2},{gx:3,gy:2},{gx:0,gy:3},{gx:1,gy:3}]},
       {spaces:4, desc:"Cargo", extraCPs:0, cells:[{gx:0,gy:4},{gx:1,gy:4},{gx:2,gy:4},{gx:3,gy:4}]},
     ]
   },
@@ -1289,7 +1312,7 @@ MP.TEMPLATES = [
       {spaces:1, desc:"Control Seat (Helm)", extraCPs:0, cells:[{gx:2,gy:0}]},
       {spaces:6, desc:"Passenger Seats / Lounge", extraCPs:0, cells:[{gx:0,gy:1},{gx:1,gy:1},{gx:2,gy:1},{gx:3,gy:1},{gx:4,gy:1},{gx:0,gy:2}]},
       {spaces:4, desc:"Bunks (4, double)", extraCPs:0, cells:[{gx:1,gy:2},{gx:2,gy:2},{gx:3,gy:2},{gx:4,gy:2}]},
-      {spaces:12, desc:"Swimming: 24/96, 33 mph, PR=1", extraCPs:0, cells:[
+      {spaces:12, desc:"Speed (Fast Swimming): 24/96, 33 mph, PR=1", extraCPs:0, cells:[
         {gx:0,gy:4},{gx:1,gy:4},{gx:2,gy:4},{gx:3,gy:4},{gx:4,gy:4},
         {gx:0,gy:5},{gx:1,gy:5},{gx:2,gy:5},{gx:3,gy:5},{gx:4,gy:5},
         {gx:1,gy:6},{gx:3,gy:6}]},
@@ -1304,7 +1327,7 @@ MP.TEMPLATES = [
 
 // ---- System Color Categories (for layout canvas) ----
 MP.SYS_COLORS = {
-  movement:   { color: "#d89040", label: "Movement",    keywords: ["flight","speed","swimming","tunneling","teleport","super speed","gliding"] },
+  movement:   { color: "#d89040", label: "Movement",    keywords: ["flight","speed","tunneling","teleport","super speed","gliding"] },
   weapon:     { color: "#c03838", label: "Weapon",       keywords: ["blast","attack","weapon","gun","cannon","missile","torpedo","laser","disintegrat","flame","ice abilit","lightning","sonic","chemical","death touch","natural weapon","grapnel"] },
   crew:       { color: "#5080a0", label: "Crew",         keywords: ["control seat","passenger","bunk","seat","pilot","co-pilot","driver","gunner","commander","loader","crew"] },
   sensor:     { color: "#7050a0", label: "Sensor",       keywords: ["sensor","radar","sonar","countermeasure","navigation","heightened sense"] },
