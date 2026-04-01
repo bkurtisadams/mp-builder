@@ -30,7 +30,7 @@ class Vehicle {
   get chassis() { return MP.lookupChassis(this.basicCost); }
   get totalSpaces() { return this.chassis.sp; }
   get allocatedSpaces() { return this.systems.reduce((s, sys) => s + (sys.spaces || 0), 0); }
-  get remainingSpaces() { return this.totalSpaces - this.allocatedSpaces - this._remainingSys.cells.length; }
+  get remainingSpaces() { return Math.max(0, this.totalSpaces - this.allocatedSpaces - this._remainingSys.cells.length); }
 
   // Special system for remaining/unallocated spaces (not in systems array)
   getRemainingSys() {
@@ -231,6 +231,8 @@ class Vehicle {
       s.cells = s.cells || [];
       s.extraCPs = s.extraCPs || 0;
       s.integral = s.integral || false;
+      if (s.integral) s.cells = []; // integral systems can't have painted cells
+      else if (s.spaces && s.cells.length > s.spaces) s.cells.length = s.spaces;
       s.bulky = s.bulky || 0; s.delicate = s.delicate || 0;
       s.open = s.open || false;
       s.hideLabels = s.hideLabels || false;
@@ -242,6 +244,11 @@ class Vehicle {
     });
     this.keyEntries = data.keyEntries || [];
     this._remainingSys = { id: "remaining", desc: "Remaining", spaces: 0, cells: data.remainingCells || [] };
+    // Trim excess remaining cells if they exceed available space (e.g. from older saves)
+    const maxRemCells = Math.max(0, this.totalSpaces - this.allocatedSpaces);
+    if (this._remainingSys.cells.length > maxRemCells) {
+      this._remainingSys.cells.length = maxRemCells;
+    }
     this._nextId = Math.max(1, ...this.systems.map(s => s.id), 0) + 1;
     this._nextKeyId = Math.max(1, ...this.keyEntries.map(k => k.id), 0) + 1;
   }
