@@ -95,6 +95,11 @@ function updateAll() {
   document.getElementById("vs-weight").textContent = ch.wt.replace(" lbs", "");
   document.getElementById("vs-mass").textContent = ch.mass;
   document.getElementById("vs-basic-cost").value = veh.basicCost;
+  // Tint tech/maneuver fields: red = increasing cost, green = decreasing
+  const techInp = document.getElementById("vs-tech");
+  const manInp = document.getElementById("vs-maneuver");
+  techInp.style.background = veh.techMod > 0 ? "rgba(200,60,60,0.25)" : veh.techMod < 0 ? "rgba(60,160,60,0.25)" : "";
+  manInp.style.background = veh.maneuverMod > 0 ? "rgba(200,60,60,0.25)" : veh.maneuverMod < 0 ? "rgba(60,160,60,0.25)" : "";
   document.getElementById("vs-hits").textContent = veh.hits;
   document.getElementById("vs-power").textContent = veh.power;
   // Sync current to max if current exceeds max, is unset, or max changed
@@ -442,6 +447,7 @@ function onConfigChange() {
 ["vs-basic-cost","vs-tech","vs-maneuver"].forEach(id => {
   document.getElementById(id).addEventListener("change", onConfigChange);
   document.getElementById(id).addEventListener("input", onConfigChange);
+  wheelNumber(document.getElementById(id));
 });
 ["vs-noexplode","vs-base"].forEach(id => {
   document.getElementById(id).addEventListener("change", onConfigChange);
