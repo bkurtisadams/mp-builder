@@ -173,6 +173,8 @@ body {
 .card-btn:hover { border-color: var(--red); color: var(--red) }
 .card-btn-edit { border-color: var(--red); color: var(--red) }
 .card-btn-edit:hover { background: var(--red); color: #fff }
+.card-click { cursor: pointer }
+.card-click:hover .card-name { color: var(--red) }
 .card-btn-del:hover { border-color: var(--danger); color: var(--danger) }
 
 /* ── Empty slot ── */
@@ -402,7 +404,7 @@ function renderCharCard(c, idx) {
     }
     if (total) cps = total + ' CPs';
   }
-  return `<div class="card" data-type="char" data-idx="${idx}">
+  return `<div class="card card-click" data-type="char" data-idx="${idx}">
     <div class="card-name">${escH(name)}</div>
     <div class="card-id">${escH(trueId)}</div>
     <div class="card-stats">
@@ -411,7 +413,6 @@ function renderCharCard(c, idx) {
       ${side ? `<div class="card-stat"><span style="font-size:9px;color:var(--tx3)">Side: ${escH(side)}</span></div>` : ''}
     </div>
     <div class="card-actions">
-      <button class="card-btn card-btn-edit" data-action="edit">Edit</button>
       <button class="card-btn" data-action="export">Export</button>
       <button class="card-btn card-btn-del" data-action="del">Del</button>
     </div>
@@ -421,15 +422,21 @@ function renderCharCard(c, idx) {
 function renderVehCard(v, idx) {
   const name = v.name || 'Unnamed';
   const model = v.model || '';
-  const chassis = v.basicCost ? (v.basicCost + ' BC') : '';
-  return `<div class="card" data-type="veh" data-idx="${idx}">
+  // Calculate total cost like mp-vehicle.js totalCost getter
+  let totalCost = (v.basicCost || 0) + (v.techMod || 0) + (v.maneuverMod || 0);
+  if (v.wontExplode) totalCost += 5;
+  if (v.isBase) totalCost -= 15;
+  if (v.systems) {
+    for (const s of v.systems) totalCost += (s.extraCPs || 0);
+  }
+  const cps = totalCost ? (totalCost + ' CPs') : '';
+  return `<div class="card card-click" data-type="veh" data-idx="${idx}">
     <div class="card-name">${escH(name)}</div>
     <div class="card-id">${escH(model)}</div>
     <div class="card-stats">
-      ${chassis ? `<div class="card-stat"><span class="card-badge badge-cp">${escH(chassis)}</span></div>` : ''}
+      ${cps ? `<div class="card-stat"><span class="card-badge badge-cp">${escH(cps)}</span></div>` : ''}
     </div>
     <div class="card-actions">
-      <button class="card-btn card-btn-edit" data-action="edit">Edit</button>
       <button class="card-btn" data-action="export">Export</button>
       <button class="card-btn card-btn-del" data-action="del">Del</button>
     </div>
@@ -463,53 +470,59 @@ function renderAll() {
 
 renderAll();
 
-// ── Card button actions (Edit / Export / Del) ──
+// ── Click on card body opens the builder ──
 document.addEventListener('click', (e) => {
+  // If they clicked a button action, handle that instead
   const btn = e.target.closest('[data-action]');
-  if (!btn) return;
-  const card = btn.closest('.card');
+  if (btn) {
+    const card = btn.closest('.card');
+    if (!card || !card.dataset.type) return;
+    const type = card.dataset.type;
+    const idx = parseInt(card.dataset.idx);
+    const action = btn.dataset.action;
+    const listKey = type === 'char' ? CHARS_KEY : VEHS_KEY;
+
+    if (action === 'export') {
+      const list = loadList(listKey);
+      const item = list[idx];
+      if (!item) return;
+      const name = (item.name || 'export').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const blob = new Blob([JSON.stringify(item, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name + '.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    if (action === 'del') {
+      const list = loadList(listKey);
+      const item = list[idx];
+      const label = item.name || 'this item';
+      if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
+      list.splice(idx, 1);
+      saveList(listKey, list);
+      renderAll();
+    }
+    return;
+  }
+
+  // Click on card body = open builder
+  const card = e.target.closest('.card-click');
   if (!card || !card.dataset.type) return;
   const type = card.dataset.type;
   const idx = parseInt(card.dataset.idx);
-  const action = btn.dataset.action;
-  const listKey = type === 'char' ? CHARS_KEY : VEHS_KEY;
 
-  if (action === 'edit') {
-    if (type === 'char') {
-      // Write this slot to the char builder key and navigate
-      const list = loadList(CHARS_KEY);
-      localStorage.setItem('mp-char-sheet', JSON.stringify(list[idx]));
-      localStorage.setItem('mp-char-edit-idx', idx);
-      window.location.href = 'character.html';
-    } else {
-      const list = loadList(VEHS_KEY);
-      localStorage.setItem('mp-vehicle-autosave', JSON.stringify(list[idx]));
-      localStorage.setItem('mp-veh-edit-idx', idx);
-      window.location.href = 'vehicle.html';
-    }
-  }
-
-  if (action === 'export') {
-    const list = loadList(listKey);
-    const item = list[idx];
-    if (!item) return;
-    const name = (item.name || 'export').replace(/[^a-zA-Z0-9_-]/g, '_');
-    const blob = new Blob([JSON.stringify(item, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name + '.json';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
-  if (action === 'del') {
-    const list = loadList(listKey);
-    const item = list[idx];
-    const label = item.name || 'this item';
-    if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
-    list.splice(idx, 1);
-    saveList(listKey, list);
-    renderAll();
+  if (type === 'char') {
+    const list = loadList(CHARS_KEY);
+    localStorage.setItem('mp-char-sheet', JSON.stringify(list[idx]));
+    localStorage.setItem('mp-char-edit-idx', idx);
+    window.location.href = 'character.html';
+  } else {
+    const list = loadList(VEHS_KEY);
+    localStorage.setItem('mp-vehicle-autosave', JSON.stringify(list[idx]));
+    localStorage.setItem('mp-veh-edit-idx', idx);
+    window.location.href = 'vehicle.html';
   }
 });
 
