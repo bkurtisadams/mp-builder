@@ -2012,22 +2012,30 @@ const abilityDlg = {
       modAdj -= c; delicateTotal = delicate;
     }
 
-    // PR
+    // PR — always show current value; annotate CP only when modified
+    const prSel = document.getElementById("aid-pr");
     const prCp = this._selCp("aid-pr");
-    if (prCp !== 0) {
-      const prSel = document.getElementById("aid-pr");
+    if (prSel && prSel.selectedIndex >= 0) {
       const txt = prSel.options[prSel.selectedIndex].textContent.replace(/ \([^)]*\)$/, "");
-      parts.push(`${txt}${cpA(prCp)}`);
-      modAdj += prCp;
+      if (prCp !== 0) {
+        parts.push(`${txt}${cpA(prCp)}`);
+        modAdj += prCp;
+      } else if (detail && detail.pr > 0) {
+        parts.push(txt); // show base PR without CP annotation
+      }
     }
 
-    // Charges
+    // Charges — always show current value; annotate CP only when modified
+    const chSel = document.getElementById("aid-charges");
     const chCp = this._selCp("aid-charges");
-    if (chCp !== 0) {
-      const chSel = document.getElementById("aid-charges");
+    if (chSel && chSel.selectedIndex >= 0) {
       const txt = chSel.options[chSel.selectedIndex].textContent.replace(/ \([^)]*\)$/, "");
-      parts.push(`${full ? "Charges" : "Ch"}: ${txt}${cpA(chCp)}`);
-      modAdj += chCp;
+      if (chCp !== 0) {
+        parts.push(`${full ? "Charges" : "Ch"}: ${txt}${cpA(chCp)}`);
+        modAdj += chCp;
+      } else if (detail && detail.pr > 0) {
+        parts.push(`${full ? "Charges" : "Ch"}: ${txt}`);
+      }
     }
 
     // Range
