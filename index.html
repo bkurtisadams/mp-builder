@@ -128,114 +128,150 @@ body {
 /* ── Card grid ── */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
 }
 
 /* ── Slot card ── */
 .card {
-  border-radius: 5px;
+  border-radius: 6px;
   display: flex; flex-direction: column;
   transition: box-shadow 0.15s, transform 0.1s;
   position: relative;
   background: var(--card-bg);
   overflow: hidden;
-  border: none;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  border: 2px solid #222;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
-.card:hover { box-shadow: 0 4px 16px rgba(26,20,48,0.2); transform: translateY(-1px) }
+.card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.22); transform: translateY(-2px) }
 
-/* ── Dark bar (top strip with portrait + name) ── */
+/* ── Color bar (top strip with portrait + all info) ── */
 .card-bar {
-  background: var(--dark-bar);
-  display: flex; align-items: center; gap: 0;
-  min-height: 64px; position: relative;
-  cursor: pointer;
+  display: flex; align-items: stretch; min-height: 100px;
+  position: relative; cursor: pointer;
 }
-.card:hover .card-bar { background: var(--dark-bar-hover) }
 
-/* ── Thumbnail in dark bar ── */
+/* ── Thumbnail ── */
 .card-thumb {
-  width: 60px; height: 64px; flex-shrink: 0;
-  overflow: hidden; position: relative;
+  width: 68px; flex-shrink: 0; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.06);
+  position: relative; border-right: 2px solid rgba(0,0,0,0.15);
 }
 .card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block }
-.card-thumb-placeholder { color: rgba(255,255,255,0.2) }
+.card-thumb svg { opacity: 0.2 }
 .card-thumb-del {
   position: absolute; top: 2px; right: 2px;
   width: 16px; height: 16px; border-radius: 2px;
   border: none; cursor: pointer; padding: 0;
-  background: rgba(0,0,0,0.5); color: rgba(255,255,255,0.6);
+  background: rgba(0,0,0,0.4); color: rgba(255,255,255,0.7);
   display: flex; align-items: center; justify-content: center;
   opacity: 0; transition: opacity 0.12s;
   font-size: 10px; line-height: 1;
 }
 .card-thumb:hover .card-thumb-del { opacity: 1 }
-.card-thumb-del:hover { background: rgba(0,0,0,0.8); color: #ff6060 }
+.card-thumb-del:hover { background: rgba(0,0,0,0.7); color: #ff6060 }
 .card-thumb-del svg { width: 10px; height: 10px; fill: currentColor }
-
-/* ── Gradient fade from portrait into bar ── */
 .card-thumb::after {
-  content: '';
-  position: absolute; right: 0; top: 0; bottom: 0; width: 16px;
-  background: linear-gradient(to right, transparent, #1a1030);
+  content: ''; position: absolute; right: -2px; top: 0; bottom: 0; width: 16px;
   pointer-events: none;
 }
 
-/* ── Name/stats overlay on dark bar ── */
+/* ── Bar info ── */
 .card-bar-info {
-  flex: 1; padding: 8px 12px 8px 4px; min-width: 0;
+  flex: 1; padding: 7px 12px 7px 8px; min-width: 0;
+  display: flex; flex-direction: column; justify-content: center;
 }
 .card-name {
-  font-family: var(--fd); font-size: 17px; letter-spacing: 0.5px;
-  color: #fff; line-height: 1.2;
+  font-family: var(--fd); font-size: 19px; letter-spacing: 1px;
+  line-height: 1.15; color: #fff;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  -webkit-text-stroke: 0.5px rgba(0,0,0,0.3);
 }
-.card-bar-sub {
-  font-size: 10px; color: rgba(255,255,255,0.6); margin-top: 1px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.card-bar-bcs {
-  font-family: monospace; font-size: 9px; color: rgba(255,255,255,0.45);
-  letter-spacing: 0.2px; margin-top: 3px;
-}
+.card-bar-sub { font-size: 10px; margin-top: 2px; font-weight: 700 }
+.card-bar-bcs { font-family: monospace; font-size: 9px; margin-top: 4px; font-weight: 700 }
+.card-bar-derived { font-size: 10px; font-weight: 700; margin-top: 3px }
+.card-bar-derived span { margin-right: 8px }
 
-/* ── Card body (below dark bar) ── */
-.card-body {
-  padding: 6px 10px 8px; display: flex; flex-direction: column;
+/* ── Campaign button badge ── */
+.card-campaign-badge {
+  display: inline-block; margin-top: 5px;
+  padding: 2px 10px; border-radius: 3px;
+  font-size: 9px; font-weight: 700;
+  background: #FFD420; color: #3a2800;
+  border: 1.5px solid #C8A010;
+  letter-spacing: 0.2px;
+  cursor: default;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  transition: background 0.12s;
 }
-.card-derived {
-  font-size: 10px; color: var(--tx2); font-weight: 700;
-}
-.card-derived span { margin-right: 10px }
-.card-campaign {
-  font-size: 9px; color: #8a7a60; margin-top: 3px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.card-campaign b { font-weight: 700; color: #6a5a40 }
+.card-campaign-badge:hover { background: #FFE050 }
 
 .card-click { cursor: pointer }
 
-/* ── Card actions (DnD Beyond style: spread evenly) ── */
+/* ── Card actions ── */
 .card-actions {
-  display: flex; gap: 0; margin-top: 6px; border-top: 1px solid #e8e8f0;
+  display: flex; border-top: 2px solid #222; background: #f8f8f4;
 }
 .card-btn {
-  flex: 1; padding: 6px 0; font-size: 10px; font-family: var(--fb); font-weight: 700;
+  flex: 1; padding: 5px 0; font-size: 10px; font-family: var(--fb); font-weight: 700;
   border: none; background: transparent;
-  cursor: pointer; color: var(--tx2);
+  cursor: pointer; color: #333;
   text-align: center; transition: all 0.12s;
-  border-right: 1px solid #e8e8f0;
+  border-right: 1px solid #ddd;
+  letter-spacing: 0.3px;
 }
 .card-btn:last-child { border-right: none }
-.card-btn:hover { background: #f4f4f8; color: var(--red) }
-.card-btn-edit { color: var(--hdr-bg) }
-.card-btn-edit:hover { background: var(--hdr-bg); color: #fff }
-.card-btn-del { color: var(--danger) }
-.card-btn-del:hover { background: #fdf0f0; color: var(--danger) }
+.card-btn:hover { background: #eee }
+.card-btn-del { color: #cc2020 }
+.card-btn-del:hover { background: #ffe8e8 }
+
+/* ════════════════════════════════════════
+   V&V SIDE COLORS
+   Good = Orange #F07830
+   Neutral = Blue #3080D0
+   Evil = Lime Green #50B820
+   No side = Slate #5a6a80
+   ════════════════════════════════════════ */
+.card-side-good .card-bar { background: #F07830 }
+.card-side-good .card-thumb { background: rgba(0,0,0,0.06) }
+.card-side-good .card-thumb::after { background: linear-gradient(to right, transparent, #F07830) }
+.card-side-good .card-name { color: #fff; -webkit-text-stroke: 1px #6a2800; text-shadow: 2px 2px 0 #6a2800 }
+.card-side-good .card-bar-sub { color: #fff2e0 }
+.card-side-good .card-bar-bcs { color: #ffe8d0 }
+.card-side-good .card-bar-derived { color: #fff }
+
+.card-side-neutral .card-bar { background: #3080D0 }
+.card-side-neutral .card-thumb { background: rgba(0,0,0,0.06) }
+.card-side-neutral .card-thumb::after { background: linear-gradient(to right, transparent, #3080D0) }
+.card-side-neutral .card-name { color: #fff; -webkit-text-stroke: 1px #0a2a5a; text-shadow: 2px 2px 0 #0a2a5a }
+.card-side-neutral .card-bar-sub { color: #e0f0ff }
+.card-side-neutral .card-bar-bcs { color: #c8e0f8 }
+.card-side-neutral .card-bar-derived { color: #f0f8ff }
+
+.card-side-evil .card-bar { background: #50B820 }
+.card-side-evil .card-thumb { background: rgba(0,0,0,0.06) }
+.card-side-evil .card-thumb::after { background: linear-gradient(to right, transparent, #50B820) }
+.card-side-evil .card-name { color: #fff; -webkit-text-stroke: 1px #1a4a00; text-shadow: 2px 2px 0 #1a4a00 }
+.card-side-evil .card-bar-sub { color: #f0ffe0 }
+.card-side-evil .card-bar-bcs { color: #e0ffd0 }
+.card-side-evil .card-bar-derived { color: #fff }
+
+.card-side-none .card-bar { background: #5a6a80 }
+.card-side-none .card-thumb { background: rgba(0,0,0,0.06) }
+.card-side-none .card-thumb::after { background: linear-gradient(to right, transparent, #5a6a80) }
+.card-side-none .card-name { color: #fff; -webkit-text-stroke: 1px #1a2a3a; text-shadow: 2px 2px 0 #1a2a3a }
+.card-side-none .card-bar-sub { color: #dde4ee }
+.card-side-none .card-bar-bcs { color: #c8d0dd }
+.card-side-none .card-bar-derived { color: #eef2f8 }
+
+/* Vehicles use blue (neutral) by default */
+.card-side-vehicle .card-bar { background: #3080D0 }
+.card-side-vehicle .card-thumb { background: rgba(0,0,0,0.06) }
+.card-side-vehicle .card-thumb::after { background: linear-gradient(to right, transparent, #3080D0) }
+.card-side-vehicle .card-name { color: #fff; -webkit-text-stroke: 1px #0a2a5a; text-shadow: 2px 2px 0 #0a2a5a }
+.card-side-vehicle .card-bar-sub { color: #e0f0ff }
+.card-side-vehicle .card-bar-bcs { color: #c8e0f8 }
+.card-side-vehicle .card-bar-derived { color: #f0f8ff }
 
 /* ── Empty slot ── */
 .card-empty {
@@ -247,7 +283,7 @@ body {
   color: var(--tx3);
   cursor: default;
   min-height: 100px;
-  border-radius: 5px;
+  border-radius: 6px;
   box-shadow: none;
 }
 .card-empty:hover { border-color: var(--card-brd); box-shadow: none; transform: none }
@@ -679,9 +715,20 @@ function getCampaignName(item) {
   return c ? c.name : '';
 }
 
+function getSideClass(side) {
+  if (!side) return 'card-side-none';
+  const s = side.toLowerCase();
+  if (s === 'good') return 'card-side-good';
+  if (s === 'evil') return 'card-side-evil';
+  if (s === 'neutral') return 'card-side-neutral';
+  return 'card-side-none';
+}
+
 function renderCharCard(c, idx) {
   const name = c.name || 'Unnamed';
   const species = c.species || '';
+  const side = c.side || '';
+  const sideClass = getSideClass(side);
   let totalCPs = 0;
   if (c.stats) { for (const s of Object.values(c.stats)) totalCPs += parseFloat(s.cp) || 0; }
   if (c.abilities) { for (const ab of c.abilities) totalCPs += parseFloat(ab.cp) || 0; }
@@ -696,25 +743,22 @@ function renderCharCard(c, idx) {
   }
   const subParts = [cpsStr, species].filter(Boolean);
   const campName = getCampaignName(c);
-  // Derived
   let derivedHtml = '';
   const bits = [];
-  if (c.power) bits.push('<span>Pow ' + escH(c.power) + '</span>');
+  if (c.power) bits.push('<span>Power ' + escH(c.power) + '</span>');
   if (c.hitPts) bits.push('<span>HP ' + escH(c.hitPts) + '</span>');
   if (c.initiative) bits.push('<span>Init ' + escH(c.initiative) + '</span>');
   if (bits.length) derivedHtml = bits.join('');
-  return `<div class="card card-click" data-type="char" data-idx="${idx}" data-cps="${totalCPs}" data-name="${escH(name).toLowerCase()}">
+  return `<div class="card card-click ${sideClass}" data-type="char" data-idx="${idx}" data-cps="${totalCPs}" data-name="${escH(name).toLowerCase()}">
     <div class="card-bar" data-action="edit">
       ${renderThumb(c, 'char', idx, thumbPlaceholder)}
       <div class="card-bar-info">
         <div class="card-name">${escH(name)}</div>
         <div class="card-bar-sub">${escH(subParts.join(' · '))}</div>
         ${bcLine ? `<div class="card-bar-bcs">${escH(bcLine)}</div>` : ''}
+        ${derivedHtml ? `<div class="card-bar-derived">${derivedHtml}</div>` : ''}
+        ${campName ? `<span class="card-campaign-badge">${escH(campName)}</span>` : ''}
       </div>
-    </div>
-    <div class="card-body">
-      ${derivedHtml ? `<div class="card-derived">${derivedHtml}</div>` : ''}
-      ${campName ? `<div class="card-campaign"><b>Campaign:</b> ${escH(campName)}</div>` : ''}
     </div>
     <div class="card-actions">
       <button class="card-btn card-btn-edit" data-action="edit">EDIT</button>
@@ -741,18 +785,16 @@ function renderVehCard(v, idx) {
   if (v.totalHits) bits.push('<span>Hits ' + escH(String(v.totalHits)) + '</span>');
   if (v.totalPower) bits.push('<span>Power ' + escH(String(v.totalPower)) + '</span>');
   if (bits.length) derivedHtml = bits.join('');
-  return `<div class="card card-click" data-type="veh" data-idx="${idx}" data-cps="${totalCost}" data-name="${escH(name).toLowerCase()}">
+  return `<div class="card card-click card-side-vehicle" data-type="veh" data-idx="${idx}" data-cps="${totalCost}" data-name="${escH(name).toLowerCase()}">
     <div class="card-bar" data-action="edit">
       ${renderThumb(v, 'veh', idx, thumbPlaceholderVeh)}
       <div class="card-bar-info">
         <div class="card-name">${escH(name)}</div>
         <div class="card-bar-sub">${escH(subParts.join(' · '))}</div>
         ${model ? `<div class="card-bar-bcs">${escH(model)}</div>` : ''}
+        ${derivedHtml ? `<div class="card-bar-derived">${derivedHtml}</div>` : ''}
+        ${campName ? `<span class="card-campaign-badge">${escH(campName)}</span>` : ''}
       </div>
-    </div>
-    <div class="card-body">
-      ${derivedHtml ? `<div class="card-derived">${derivedHtml}</div>` : ''}
-      ${campName ? `<div class="card-campaign"><b>Campaign:</b> ${escH(campName)}</div>` : ''}
     </div>
     <div class="card-actions">
       <button class="card-btn card-btn-edit" data-action="edit">EDIT</button>
