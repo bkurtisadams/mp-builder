@@ -1,4 +1,4 @@
-// mp-canvas.js v2.7.0 — Right-click context menu, highlight system, persistent space count
+// mp-canvas.js v3.0.0 — Walls, doors, hatches, hull auto-trace, wall mode
 
 const CELL_PX = 28;
 
@@ -9,7 +9,7 @@ class FloorPlanEditor {
     this.ctx = canvasEl.getContext("2d");
     this.veh = vehicle;
 
-    this.mode = "select";   // "select" | "paint" | "sil"
+    this.mode = "select";   // "select" | "paint" | "sil" | "wall"
     this.activeSysId = null; // system id being painted
 
     this.panX = 0;
@@ -53,7 +53,7 @@ class FloorPlanEditor {
     this.canvas.addEventListener("wheel", e => this._onWheel(e), { passive: false });
     this.canvas.addEventListener("contextmenu", e => {
       e.preventDefault();
-      if (!this.onContextMenu) return;
+      if (!this.onContextMenu || this.mode === "wall") return;
       const { cx, cy } = this._canvasPos(e);
       const { gx, gy } = this._cssToGrid(cx, cy);
       const result = this.veh.cellObjAt(gx, gy);
@@ -105,10 +105,31 @@ class FloorPlanEditor {
   setMode(mode) {
     this.mode = mode;
     this.painting = false;
+    this._wallDrag = null;
     if (mode === "paint") this.canvas.style.cursor = "crosshair";
-    else if (mode === "sil") this.canvas.style.cursor = "default";
+    else if (mode === "wall") this.canvas.style.cursor = "crosshair";
     else this.canvas.style.cursor = "default";
     this.draw();
+  }
+
+  // Detect which cell edge the mouse is nearest to
+  _nearestEdge(cx, cy) {
+    const cell = CELL_PX * this.zoom;
+    const fx = (cx - this.panX) / cell;
+    const fy = (cy - this.panY) / cell;
+    const gx = Math.floor(fx);
+    const gy = Math.floor(fy);
+    const lx = fx - gx; // 0..1 local position within cell
+    const ly = fy - gy;
+    // Distance to each edge
+    const dTop = ly, dBot = 1 - ly, dLeft = lx, dRight = 1 - lx;
+    const min = Math.min(dTop, dBot, dLeft, dRight);
+    const threshold = 0.3; // must be within 30% of cell size from edge
+    if (min > threshold) return null;
+    if (min === dTop) return { gx, gy, edge: "t" };
+    if (min === dBot) return { gx, gy, edge: "b" };
+    if (min === dLeft) return { gx, gy, edge: "l" };
+    return { gx, gy, edge: "r" };
   }
 
   _onMouseMove(ev) {
@@ -164,6 +185,20 @@ class FloorPlanEditor {
       this.canvas.style.cursor = sys ? "grab" : "default";
     }
 
+    // Wall mode: track hovered edge, drag-draw walls
+    if (this.mode === "wall") {
+      this._hoverEdge = this._nearestEdge(cx, cy);
+      if (this._wallDrag && this._hoverEdge) {
+        const e = this._hoverEdge;
+        if (!this.veh.findWall(e.gx, e.gy, e.edge)) {
+          this.veh.setWall(e.gx, e.gy, e.edge, "wall");
+          if (this.onUpdate) this.onUpdate();
+        }
+      }
+    } else {
+      this._hoverEdge = null;
+    }
+
     // Drag-paint
     if (this.painting && this.mode === "paint" && this.activeSysId) {
       if (this.veh.paintCell(this.activeSysId, gx, gy)) {
@@ -181,10 +216,10 @@ class FloorPlanEditor {
       return;
     }
     if (ev.button === 2) {
-      // Right-click: pan only if no cell under cursor (context menu handles cells)
+      // Right-click: pan (always in wall mode, otherwise only if no cell)
       const { cx, cy } = this._canvasPos(ev);
       const { gx, gy } = this._cssToGrid(cx, cy);
-      if (!this.veh.cellAt(gx, gy)) {
+      if (this.mode === "wall" || !this.veh.cellAt(gx, gy)) {
         this.panStart = { clientX: ev.clientX, clientY: ev.clientY, panX: this.panX, panY: this.panY };
       }
       ev.preventDefault();
@@ -209,6 +244,27 @@ class FloorPlanEditor {
         this.canvas.style.cursor = hit === "resize" ? "nwse-resize" : "grabbing";
         return;
       }
+    }
+
+    // Wall mode — click to toggle, shift+click to cycle type, drag to draw
+    if (this.mode === "wall") {
+      const edge = this._nearestEdge(cx, cy);
+      if (edge) {
+        if (ev.shiftKey) {
+          this.veh.toggleWall(edge.gx, edge.gy, edge.edge);
+        } else {
+          const existing = this.veh.findWall(edge.gx, edge.gy, edge.edge);
+          if (existing) {
+            this.veh.setWall(edge.gx, edge.gy, edge.edge, null); // remove
+          } else {
+            this.veh.setWall(edge.gx, edge.gy, edge.edge, "wall");
+            this._wallDrag = true; // enable drag-draw
+          }
+        }
+        if (this.onUpdate) this.onUpdate();
+      }
+      this.draw();
+      return;
     }
 
     // Paint mode
@@ -261,6 +317,7 @@ class FloorPlanEditor {
       if (this.onUpdate) this.onUpdate();
     }
     this.painting = false;
+    this._wallDrag = null;
   }
 
   _onWheel(ev) {
@@ -500,6 +557,14 @@ class FloorPlanEditor {
           this.selectedCell = null;
           this.draw();
         }
+      } else if (this.mode === "wall") {
+        // Tap to toggle wall on nearest edge
+        const edge = this._nearestEdge(ts.startCx, ts.startCy);
+        if (edge) {
+          this.veh.toggleWall(edge.gx, edge.gy, edge.edge);
+          this.draw();
+          if (this.onUpdate) this.onUpdate();
+        }
       }
     }
     ts.fingers = 0;
@@ -636,6 +701,73 @@ class FloorPlanEditor {
     // Move: anywhere inside in local space
     if (lx >= -sw / 2 && lx <= sw / 2 && ly >= -sh / 2 && ly <= sh / 2) return "move";
     return "";
+  }
+
+  // ---- Wall rendering helpers ----
+
+  _edgeCoords(gx, gy, edge, ox, oy, cell) {
+    // "t" edge: top of cell (gx,gy) = horizontal line at y
+    // "l" edge: left of cell (gx,gy) = vertical line at x
+    if (edge === "t") {
+      return { x1: ox + gx * cell, y1: oy + gy * cell, x2: ox + (gx + 1) * cell, y2: oy + gy * cell };
+    }
+    // "l"
+    return { x1: ox + gx * cell, y1: oy + gy * cell, x2: ox + gx * cell, y2: oy + (gy + 1) * cell };
+  }
+
+  _drawWalls(ctx, ox, oy, cell, dpr) {
+    if (!this.veh.walls.length) return;
+    ctx.save();
+    for (const w of this.veh.walls) {
+      const { x1, y1, x2, y2 } = this._edgeCoords(w.gx, w.gy, w.edge, ox, oy, cell);
+      if (w.type === "wall") {
+        ctx.strokeStyle = "#1a1a1a";
+        ctx.lineWidth = 3 * dpr;
+        ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      } else if (w.type === "door") {
+        // Door: gap in the middle third, arc symbol
+        const dx = x2 - x1, dy = y2 - y1;
+        const g1x = x1 + dx * 0.3, g1y = y1 + dy * 0.3;
+        const g2x = x1 + dx * 0.7, g2y = y1 + dy * 0.7;
+        ctx.strokeStyle = "#1a1a1a";
+        ctx.lineWidth = 3 * dpr;
+        ctx.setLineDash([]);
+        // Wall segments on each side of gap
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(g1x, g1y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(g2x, g2y); ctx.lineTo(x2, y2); ctx.stroke();
+        // Door arc: quarter-circle from hinge at g1 sweeping to open position
+        const arcR = Math.sqrt((g2x - g1x) ** 2 + (g2y - g1y) ** 2);
+        ctx.strokeStyle = "#c05a00";
+        ctx.lineWidth = 1.5 * dpr;
+        const baseAngle = Math.atan2(g2y - g1y, g2x - g1x);
+        // Perpendicular direction (into the cell)
+        const isHoriz = (w.edge === "t");
+        const sweepDir = isHoriz ? 1 : -1;
+        ctx.beginPath();
+        ctx.arc(g1x, g1y, arcR, baseAngle, baseAngle + sweepDir * Math.PI / 2, sweepDir < 0);
+        ctx.stroke();
+        // Small line for door leaf
+        ctx.beginPath(); ctx.moveTo(g1x, g1y); ctx.lineTo(g2x, g2y); ctx.stroke();
+      } else if (w.type === "hatch") {
+        // Hatch: dashed line with X marks
+        ctx.strokeStyle = "#1a1a1a";
+        ctx.lineWidth = 2 * dpr;
+        ctx.setLineDash([4 * dpr, 4 * dpr]);
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.setLineDash([]);
+        // Small X at midpoint
+        const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+        const xSize = 3 * dpr;
+        ctx.strokeStyle = "#c05a00";
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(mx - xSize, my - xSize); ctx.lineTo(mx + xSize, my + xSize);
+        ctx.moveTo(mx + xSize, my - xSize); ctx.lineTo(mx - xSize, my + xSize);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
 
   // ---- Drawing ----
@@ -779,6 +911,25 @@ class FloorPlanEditor {
     }
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
+
+    // ---- Walls ----
+    this._drawWalls(ctx, ox, oy, cell, dpr);
+
+    // Wall mode: hover edge preview
+    if (this.mode === "wall" && this._hoverEdge) {
+      const e = this._hoverEdge;
+      const n = Vehicle._normEdge(e.gx, e.gy, e.edge);
+      const existing = this.veh.findWall(e.gx, e.gy, e.edge);
+      ctx.save();
+      ctx.strokeStyle = existing ? "#ef4444" : "#c05a00";
+      ctx.lineWidth = 3 * dpr;
+      ctx.globalAlpha = 0.6;
+      ctx.setLineDash([4 * dpr, 3 * dpr]);
+      const { x1, y1, x2, y2 } = this._edgeCoords(n.gx, n.gy, n.edge, ox, oy, cell);
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
 
     // Highlight system overlay (bright outline on all cells of highlighted system)
     if (this.highlightSysId) {
@@ -936,6 +1087,48 @@ class FloorPlanEditor {
       ctx.globalAlpha = 1;
     }
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    // Walls on exported image
+    if (this.veh.walls.length) {
+      const imgOx = 1, imgOy = 1;
+      for (const wd of this.veh.walls) {
+        const wgx = wd.gx - minGx, wgy = wd.gy - minGy;
+        let wx1, wy1, wx2, wy2;
+        if (wd.edge === "t") {
+          wx1 = imgOx + wgx * cellPx; wy1 = imgOy + wgy * cellPx;
+          wx2 = imgOx + (wgx + 1) * cellPx; wy2 = wy1;
+        } else {
+          wx1 = imgOx + wgx * cellPx; wy1 = imgOy + wgy * cellPx;
+          wx2 = wx1; wy2 = imgOy + (wgy + 1) * cellPx;
+        }
+        if (wd.type === "wall") {
+          ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 2.5; ctx.setLineDash([]);
+          ctx.beginPath(); ctx.moveTo(wx1, wy1); ctx.lineTo(wx2, wy2); ctx.stroke();
+        } else if (wd.type === "door") {
+          const ddx = wx2 - wx1, ddy = wy2 - wy1;
+          const dg1x = wx1 + ddx * 0.3, dg1y = wy1 + ddy * 0.3;
+          const dg2x = wx1 + ddx * 0.7, dg2y = wy1 + ddy * 0.7;
+          ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 2.5; ctx.setLineDash([]);
+          ctx.beginPath(); ctx.moveTo(wx1, wy1); ctx.lineTo(dg1x, dg1y); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(dg2x, dg2y); ctx.lineTo(wx2, wy2); ctx.stroke();
+          const arcR = Math.sqrt((dg2x - dg1x) ** 2 + (dg2y - dg1y) ** 2);
+          ctx.strokeStyle = "#c05a00"; ctx.lineWidth = 1;
+          const baseA = Math.atan2(dg2y - dg1y, dg2x - dg1x);
+          const sweepD = (wd.edge === "t") ? 1 : -1;
+          ctx.beginPath(); ctx.arc(dg1x, dg1y, arcR, baseA, baseA + sweepD * Math.PI / 2, sweepD < 0); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(dg1x, dg1y); ctx.lineTo(dg2x, dg2y); ctx.stroke();
+        } else if (wd.type === "hatch") {
+          ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+          ctx.beginPath(); ctx.moveTo(wx1, wy1); ctx.lineTo(wx2, wy2); ctx.stroke();
+          ctx.setLineDash([]);
+          const hmx = (wx1 + wx2) / 2, hmy = (wy1 + wy2) / 2;
+          ctx.strokeStyle = "#c05a00"; ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(hmx - 2, hmy - 2); ctx.lineTo(hmx + 2, hmy + 2);
+          ctx.moveTo(hmx + 2, hmy - 2); ctx.lineTo(hmx - 2, hmy + 2);
+          ctx.stroke();
+        }
+      }
+    }
     return c;
   }
 }

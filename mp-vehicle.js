@@ -1,4 +1,4 @@
-// mp-vehicle.js v3.1.0 — Armor, currentHits, currentPower backed by model and saved
+// mp-vehicle.js v3.2.0 — Walls data model, hull auto-trace, wall serialization
 
 class Vehicle {
   constructor() {
@@ -22,6 +22,7 @@ class Vehicle {
     this.armorPsy = 0;
     this.currentHits = null;  // null = track max
     this.currentPower = null; // null = track max
+    this.walls = []; // [{gx, gy, edge:"t"|"l", type:"wall"|"door"|"hatch"}]
     this._remainingSys = { id: "remaining", desc: "Remaining", spaces: 0, cells: [] };
     this._nextId = 1;
     this._nextKeyId = 1;
@@ -192,9 +193,91 @@ class Vehicle {
     return r % 2 === 0 ? r + 1 : r;
   }
 
+  // ---- Walls ----
+  // Edges are normalized: "t" = top edge of cell (gx,gy), "l" = left edge
+  // Bottom of (gx,gy) = top of (gx,gy+1), right of (gx,gy) = left of (gx+1,gy)
+  static _normEdge(gx, gy, edge) {
+    if (edge === "b") return { gx, gy: gy + 1, edge: "t" };
+    if (edge === "r") return { gx: gx + 1, gy, edge: "l" };
+    return { gx, gy, edge };
+  }
+
+  findWall(gx, gy, edge) {
+    const n = Vehicle._normEdge(gx, gy, edge);
+    return this.walls.find(w => w.gx === n.gx && w.gy === n.gy && w.edge === n.edge) || null;
+  }
+
+  setWall(gx, gy, edge, type) {
+    const n = Vehicle._normEdge(gx, gy, edge);
+    const idx = this.walls.findIndex(w => w.gx === n.gx && w.gy === n.gy && w.edge === n.edge);
+    if (type === null || type === undefined) {
+      if (idx >= 0) this.walls.splice(idx, 1);
+    } else {
+      if (idx >= 0) this.walls[idx].type = type;
+      else this.walls.push({ gx: n.gx, gy: n.gy, edge: n.edge, type });
+    }
+  }
+
+  toggleWall(gx, gy, edge) {
+    const existing = this.findWall(gx, gy, edge);
+    if (!existing) this.setWall(gx, gy, edge, "wall");
+    else if (existing.type === "wall") this.setWall(gx, gy, edge, "door");
+    else if (existing.type === "door") this.setWall(gx, gy, edge, "hatch");
+    else this.setWall(gx, gy, edge, null); // remove
+  }
+
+  clearWalls() { this.walls.length = 0; }
+
+  // Hull auto-trace: add walls on exterior edges of all painted cells
+  autoTraceHull() {
+    const occupied = new Set();
+    const allSys = [...this.systems, this._remainingSys];
+    for (const sys of allSys) {
+      for (const c of sys.cells) occupied.add(`${c.gx},${c.gy}`);
+    }
+    if (!occupied.size) return;
+    // Remove existing hull walls (all walls that border empty space)
+    // Then re-add them. Preserve interior walls.
+    const isOccupied = (gx, gy) => occupied.has(`${gx},${gy}`);
+    // Collect all exterior edges
+    const exteriorEdges = [];
+    for (const key of occupied) {
+      const [gx, gy] = key.split(",").map(Number);
+      if (!isOccupied(gx, gy - 1)) exteriorEdges.push({ gx, gy, edge: "t" });
+      if (!isOccupied(gx, gy + 1)) exteriorEdges.push({ gx, gy, edge: "b" });
+      if (!isOccupied(gx - 1, gy)) exteriorEdges.push({ gx, gy, edge: "l" });
+      if (!isOccupied(gx + 1, gy)) exteriorEdges.push({ gx, gy, edge: "r" });
+    }
+    // Normalize and dedupe
+    const edgeSet = new Set();
+    for (const e of exteriorEdges) {
+      const n = Vehicle._normEdge(e.gx, e.gy, e.edge);
+      edgeSet.add(`${n.gx},${n.gy},${n.edge}`);
+    }
+    // Remove old hull walls (exterior edges), preserve interior
+    const interiorWalls = this.walls.filter(w => {
+      const key = `${w.gx},${w.gy},${w.edge}`;
+      return !edgeSet.has(key); // not an exterior edge
+    });
+    // Also preserve doors/hatches on exterior that user placed
+    const preservedExterior = this.walls.filter(w => {
+      const key = `${w.gx},${w.gy},${w.edge}`;
+      return edgeSet.has(key) && w.type !== "wall";
+    });
+    const preservedKeys = new Set(preservedExterior.map(w => `${w.gx},${w.gy},${w.edge}`));
+    // Build new wall list
+    this.walls = [...interiorWalls, ...preservedExterior];
+    for (const key of edgeSet) {
+      if (!preservedKeys.has(key)) {
+        const [gx, gy, edge] = key.split(",");
+        this.walls.push({ gx: +gx, gy: +gy, edge, type: "wall" });
+      }
+    }
+  }
+
   toJSON() {
     return {
-      version: 9, type: "mp-vehicle",
+      version: 10, type: "mp-vehicle",
       name: this.name, model: this.model, operator: this.operator,
       basicCost: this.basicCost, techMod: this.techMod,
       maneuverMod: this.maneuverMod, wontExplode: this.wontExplode,
@@ -202,6 +285,7 @@ class Vehicle {
       keyEntries: this.keyEntries, pictureData: this.pictureData,
       pictureHeight: this.pictureHeight, silhouette: this.silhouette,
       remainingCells: this._remainingSys.cells,
+      walls: this.walls,
       armorKin: this.armorKin, armorEng: this.armorEng,
       armorBio: this.armorBio, armorEnt: this.armorEnt, armorPsy: this.armorPsy,
       currentHits: this.currentHits, currentPower: this.currentPower,
@@ -243,6 +327,7 @@ class Vehicle {
       return s;
     });
     this.keyEntries = data.keyEntries || [];
+    this.walls = (data.walls || []).map(w => ({ gx: w.gx, gy: w.gy, edge: w.edge, type: w.type || "wall" }));
     this._remainingSys = { id: "remaining", desc: "Remaining", spaces: 0, cells: data.remainingCells || [] };
     // Trim excess remaining cells if they exceed available space (e.g. from older saves)
     const maxRemCells = Math.max(0, this.totalSpaces - this.allocatedSpaces);
@@ -269,6 +354,11 @@ class Vehicle {
         this.sysBaseCPs(s), s.dmg||"", s.desc||"",
         s.integral?1:0, s.bulky||0, s.delicate||0, s.open?1:0,
         s.adjST||0, s.adjEN||0, s.adjAG||0, s.adjIN||0, s.adjCL||0]);
+    }
+    if (this.walls.length) {
+      rows.push([]);
+      rows.push(["Wall GX","Wall GY","Edge","Type"]);
+      for (const w of this.walls) rows.push([w.gx, w.gy, w.edge, w.type]);
     }
     return rows.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
   }

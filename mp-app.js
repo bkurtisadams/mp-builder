@@ -1,4 +1,4 @@
-// mp-app.js v4.11.0 — Right-click context menu, highlight system, persistent placed count
+// mp-app.js v4.12.0 — Wall mode, hull auto-trace, door/hatch cycling
 
 const veh = new Vehicle();
 let editor = null;
@@ -527,6 +527,7 @@ function setLayoutMode(mode) {
   editor.selectedCell = null;
   document.getElementById("btn-mode-select").classList.toggle("active", mode === "select");
   document.getElementById("btn-mode-paint").classList.toggle("active", mode === "paint");
+  document.getElementById("btn-mode-wall").classList.toggle("active", mode === "wall");
   document.getElementById("btn-mode-sil").classList.toggle("active", mode === "sil");
   updateSilBar();
   editor.draw();
@@ -552,7 +553,22 @@ function updateSilBar() {
 
 document.getElementById("btn-mode-select").addEventListener("click", () => setLayoutMode("select"));
 document.getElementById("btn-mode-paint").addEventListener("click", () => setLayoutMode("paint"));
+document.getElementById("btn-mode-wall").addEventListener("click", () => setLayoutMode("wall"));
 document.getElementById("btn-mode-sil").addEventListener("click", () => setLayoutMode("sil"));
+
+document.getElementById("btn-hull-trace").addEventListener("click", () => {
+  veh.autoTraceHull();
+  if (editor) editor.draw();
+  updateAll();
+});
+
+document.getElementById("btn-clear-walls").addEventListener("click", () => {
+  if (!veh.walls.length) return;
+  if (!confirm("Remove all walls?")) return;
+  veh.clearWalls();
+  if (editor) editor.draw();
+  updateAll();
+});
 
 document.getElementById("btn-zoom-in").addEventListener("click", () => editor.zoomIn());
 document.getElementById("btn-zoom-out").addEventListener("click", () => editor.zoomOut());
@@ -702,7 +718,10 @@ select:focus{outline:none;border-color:var(--accent)}
     </select>
     <button id="pop-select" class="ed-btn ed-btn-mode active" title="Select cell, Delete to remove">Select</button>
     <button id="pop-paint" class="ed-btn ed-btn-mode" title="Paint cells">Paint</button>
+    <button id="pop-wall" class="ed-btn ed-btn-mode" title="Click edges for walls. Shift=cycle type. Drag=draw.">Wall</button>
     <button id="pop-sil" class="ed-btn ed-btn-mode" title="Move/resize silhouette">Sil.</button>
+    <span class="ed-sep"></span>
+    <button id="pop-hull" class="ed-btn" title="Auto-trace hull">Hull</button>
     <span class="ed-sep"></span>
     <button id="pop-zin" class="ed-btn">+</button>
     <button id="pop-zout" class="ed-btn">&minus;</button>
@@ -835,6 +854,7 @@ select:focus{outline:none;border-color:var(--accent)}
       popoutEditor.selectedCell = null;
       pdoc.getElementById("pop-select").classList.toggle("active", mode === "select");
       pdoc.getElementById("pop-paint").classList.toggle("active", mode === "paint");
+      pdoc.getElementById("pop-wall").classList.toggle("active", mode === "wall");
       pdoc.getElementById("pop-sil").classList.toggle("active", mode === "sil");
       updatePopoutSilBar(pdoc);
       popoutEditor.draw();
@@ -860,7 +880,14 @@ select:focus{outline:none;border-color:var(--accent)}
 
     pdoc.getElementById("pop-select").addEventListener("click", () => setPopoutMode("select"));
     pdoc.getElementById("pop-paint").addEventListener("click", () => setPopoutMode("paint"));
+    pdoc.getElementById("pop-wall").addEventListener("click", () => setPopoutMode("wall"));
     pdoc.getElementById("pop-sil").addEventListener("click", () => setPopoutMode("sil"));
+    pdoc.getElementById("pop-hull").addEventListener("click", () => {
+      veh.autoTraceHull();
+      popoutEditor.draw();
+      if (editor) editor.draw();
+      updateAll();
+    });
     pdoc.getElementById("pop-zin").addEventListener("click", () => popoutEditor.zoomIn());
     pdoc.getElementById("pop-zout").addEventListener("click", () => popoutEditor.zoomOut());
     pdoc.getElementById("pop-zreset").addEventListener("click", () => popoutEditor.resetView());
