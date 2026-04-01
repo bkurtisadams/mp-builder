@@ -217,6 +217,22 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
   .mp-hdr-in { flex-wrap: wrap; height: auto; padding: 4px 0 }
 }
 
+/* Narrow: hide modifier columns, keep systems & description visible */
+@media(max-width:860px) {
+  .vs-mod-hdr { display: none }
+  .vs-sys-mods { display: none }
+  .vs-sys-row-wrap { position: relative }
+  .vs-sys-row-wrap.active .vs-sys-mods {
+    display: grid; grid-template-columns: repeat(9, 18px);
+    position: absolute; right: 0; top: 100%;
+    background: var(--bg3); border: 1px solid var(--accent); border-radius: 0 0 4px 4px;
+    padding: 4px 4px 3px; z-index: 10; box-shadow: 0 3px 8px rgba(0,0,0,.12);
+    gap: 1px;
+  }
+  .vs-sys-inner { min-width: 0 }
+  .vs-sheet { max-width: 100% }
+}
+
 /* ============ ABILITY INSERT DIALOG (Ctrl+I) ============ */
 .aid-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9000; display: flex; align-items: center; justify-content: center }
 .aid-dialog { background: var(--bg3); border: 2px solid var(--brd); border-radius: 6px; box-shadow: 0 8px 32px rgba(0,0,0,.3); width: 520px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column }
