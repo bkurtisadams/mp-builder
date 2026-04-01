@@ -545,11 +545,133 @@ MP.CG.rollAbilities = function() {
       r2 = MP.CG.rollOnTable(table);
     }
     return [r1, r2];
-  }
+  };
   return {
     offensive:  rollTwo(MP.CG.OFFENSIVE_ABILITIES),
     defensive:  rollTwo(MP.CG.DEFENSIVE_ABILITIES),
     misc:       rollTwo(MP.CG.MISC_ABILITIES),
     weaknesses: rollTwo(MP.CG.WEAKNESSES),
   };
+};
+
+// ── Age (2d10+10 for beginner hero) ──
+MP.CG.rollAge = function() {
+  return MP.CG.d(10) + MP.CG.d(10) + 10;
+};
+
+// ── Gender (d100 tables from 2.1.6) ──
+MP.CG.GENDER_IDENTITY = [
+  { min: 1,  max: 48, label: 'Woman' },
+  { min: 49, max: 96, label: 'Man' },
+  { min: 97, max: 100,label: 'Nonbinary' },
+];
+MP.CG.GENDER_EXPRESSION = [
+  { min: 1,  max: 87, label: 'Same' },
+  { min: 88, max: 93, label: 'Different' },
+  { min: 94, max: 97, label: 'Androgynous' },
+  { min: 98, max: 100,label: 'Gender Neutral' },
+];
+
+MP.CG.rollGender = function() {
+  const id = MP.CG.rollOnTable(MP.CG.GENDER_IDENTITY).entry.label;
+  const expr = MP.CG.rollOnTable(MP.CG.GENDER_EXPRESSION).entry.label;
+  if (expr === 'Same') return id;
+  return id + ' (' + expr + ')';
+};
+
+// ── Weight (5d6×10 male, 5d4×10 female per 2.1.9) ──
+MP.CG.rollWeight = function(isFemale) {
+  let total = 0;
+  const sides = isFemale ? 4 : 6;
+  for (let i = 0; i < 5; i++) total += MP.CG.d(sides);
+  return total * 10;
+};
+
+// ── Mass (weight/2 → BC table carry → HTH damage column) ──
+MP.CG.calcMass = function(weightLbs) {
+  const half = weightLbs / 2;
+  // Find closest carry capacity in BC table
+  let best = MP.CG.BC_TABLE[0];
+  let bestDiff = Math.abs(best[MP.CG.BC_COL.CARRY] - half);
+  for (const row of MP.CG.BC_TABLE) {
+    const diff = Math.abs(row[MP.CG.BC_COL.CARRY] - half);
+    if (diff < bestDiff) { best = row; bestDiff = diff; }
+  }
+  return best[MP.CG.BC_COL.HTH];
+};
+
+// ── Background (d100, roll 3 times per 2.1.10) ──
+MP.CG.BACKGROUNDS = [
+  { min: 1,   max: 5,   label: 'Medicine' },
+  { min: 6,   max: 9,   label: 'Law' },
+  { min: 10,  max: 14,  label: 'Engineering/Technology' },
+  { min: 15,  max: 19,  label: 'Security/Law Enforcement' },
+  { min: 20,  max: 20,  label: 'Fine Art' },
+  { min: 21,  max: 23,  label: 'Commercial Art' },
+  { min: 24,  max: 26,  label: 'Performing Art' },
+  { min: 27,  max: 31,  label: 'Social Work/Charity' },
+  { min: 32,  max: 36,  label: 'Media/Communications' },
+  { min: 37,  max: 40,  label: 'Sports' },
+  { min: 41,  max: 44,  label: 'Education/Academia' },
+  { min: 45,  max: 49,  label: 'Crime' },
+  { min: 50,  max: 53,  label: 'Military' },
+  { min: 54,  max: 58,  label: 'Government' },
+  { min: 59,  max: 63,  label: 'Agriculture' },
+  { min: 64,  max: 67,  label: 'Research/Science' },
+  { min: 68,  max: 71,  label: 'Religion/Mysticism' },
+  { min: 72,  max: 75,  label: 'Psychology' },
+  { min: 76,  max: 80,  label: 'Labor/Manufacturing' },
+  { min: 81,  max: 85,  label: 'Business/Sales' },
+  { min: 86,  max: 90,  label: 'Accounting/Finance' },
+  { min: 91,  max: 95,  label: 'Travel/Transportation' },
+  { min: 96,  max: 100, label: 'Hunting/Survival' },
+];
+
+MP.CG.rollBackground = function() {
+  const results = [];
+  for (let i = 0; i < 3; i++) {
+    results.push(MP.CG.rollOnTable(MP.CG.BACKGROUNDS).entry.label);
+  }
+  return results;
+};
+
+// ── Motivation (d100 twice, pick one — per 2.1.11) ──
+MP.CG.HERO_MOTIVATIONS = [
+  { min: 1,  max: 9,   label: 'Penance',       desc: 'Making up for past wrongs.' },
+  { min: 10, max: 18,  label: 'Vengeance',     desc: 'Payback for a horrible wrong.' },
+  { min: 19, max: 27,  label: 'Utopian',       desc: 'World-view drives you to confront evil.' },
+  { min: 28, max: 36,  label: 'Thrill Seeker',  desc: 'In it for the rush.' },
+  { min: 37, max: 45,  label: 'Duty Bound',    desc: 'Obligated to carry on a tradition.' },
+  { min: 46, max: 54,  label: 'Need To Know',  desc: 'Motivated by desire for knowledge.' },
+  { min: 55, max: 63,  label: 'For Hire',      desc: 'Talent and guts, but what\'s in it for you?' },
+  { min: 64, max: 72,  label: 'Self-Defense',  desc: 'The enemy is after you.' },
+  { min: 73, max: 81,  label: 'Glory Hound',   desc: 'Basking in adulation of the masses.' },
+  { min: 82, max: 90,  label: 'Carnage',       desc: 'You love to blow stuff up.' },
+  { min: 91, max: 100, label: 'Justice',       desc: 'Wrongdoers must face the law.' },
+];
+
+MP.CG.VILLAIN_MOTIVATIONS = [
+  { min: 1,  max: 7,   label: 'Insanity',           desc: 'Deeply irrational extreme drive.' },
+  { min: 8,  max: 13,  label: 'Vengeance',          desc: 'Payback for perceived injustice.' },
+  { min: 14, max: 20,  label: 'Dystopian',          desc: 'Supports evil authoritarian rule.' },
+  { min: 21, max: 27,  label: 'Thrill Seeker',       desc: 'Driven by thrill of daring crimes.' },
+  { min: 28, max: 33,  label: 'Anarchist',          desc: 'Tearing down institutions.' },
+  { min: 34, max: 40,  label: 'Prejudice',          desc: 'Hates a racial or ethnic group.' },
+  { min: 41, max: 47,  label: 'Mercenary/Servitor', desc: 'Performs criminal acts for money.' },
+  { min: 48, max: 53,  label: 'Greedy/Egotist',     desc: 'Believes in grand personal destiny.' },
+  { min: 54, max: 60,  label: 'Publicity Seeker',   desc: 'Loves media coverage of crimes.' },
+  { min: 61, max: 67,  label: 'Belligerent/Carnage',desc: 'Loves to fight and destroy.' },
+  { min: 68, max: 73,  label: 'Survival',           desc: 'Driven by uncontrollable needs.' },
+  { min: 74, max: 80,  label: 'Dupe',               desc: 'Forced or tricked into crime.' },
+  { min: 81, max: 87,  label: 'Conquest',           desc: 'Driven to control and dominate.' },
+  { min: 88, max: 93,  label: 'Twisted Honor',      desc: 'Warped sense of justice or duty.' },
+  { min: 94, max: 100, label: 'Opportunist',        desc: 'Willing to break laws when safe.' },
+];
+
+MP.CG.rollMotivation = function(isVillain) {
+  const table = isVillain ? MP.CG.VILLAIN_MOTIVATIONS : MP.CG.HERO_MOTIVATIONS;
+  const r1 = MP.CG.rollOnTable(table).entry;
+  let r2 = MP.CG.rollOnTable(table).entry;
+  while (r2.label === r1.label) r2 = MP.CG.rollOnTable(table).entry;
+  return [r1, r2];
 };

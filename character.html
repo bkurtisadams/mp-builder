@@ -144,9 +144,11 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
 .si-sel { border: none; border-bottom: 1.5px solid #000; background: transparent; font-family: var(--fb); font-size: 10px; color: #000; padding: 0 1px; height: var(--cell-h); outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; border-radius: 0 }
 .si-sel:focus { border-bottom-color: var(--accent) }
 
-/* Roll button — small dice icon inline */
-.btn-roll { background: none; border: 1px solid #aaa; border-radius: 2px; font-size: 9px; padding: 1px 4px; cursor: pointer; color: #666; font-family: var(--fb); font-weight: 700; line-height: 1; vertical-align: middle; margin-left: 2px }
-.btn-roll:hover { border-color: var(--accent); color: var(--accent) }
+/* Roll button — polished dice icon */
+.btn-roll { background: linear-gradient(to bottom, #f8f8f8, #e8e8e8); border: 1px solid #999; border-radius: 3px; font-size: 10px; padding: 1px 5px 2px; cursor: pointer; color: #555; font-family: var(--fb); font-weight: 700; line-height: 1; vertical-align: middle; margin-left: 2px; transition: all 0.15s; box-shadow: 0 1px 1px rgba(0,0,0,0.1) }
+.btn-roll:hover { border-color: var(--accent); color: var(--accent); background: linear-gradient(to bottom, #fff, #f0e8e0); box-shadow: 0 1px 2px rgba(0,0,0,0.15) }
+.btn-roll:active { background: #e0d8d0; box-shadow: inset 0 1px 2px rgba(0,0,0,0.15) }
+.btn-roll svg { display: inline-block; vertical-align: -2px; width: 12px; height: 12px; fill: currentColor }
 @media print { .btn-roll { display: none !important } }
 
 /* Chargen toolbar */
@@ -156,6 +158,14 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
 .cg-toolbar select:focus { outline: none; border-color: var(--accent) }
 .btn-cg { padding: 3px 8px; font-size: 9px; font-family: var(--fb); font-weight: 700; background: #c04010; color: #fff; border: none; border-radius: 2px; cursor: pointer }
 .btn-cg:hover { background: #d85020 }
+
+/* CPs summary strip */
+.cp-strip { display: flex; align-items: center; gap: 10px; padding: 3px 8px; background: #f8f4e8; border: 1px solid #d0c090; border-radius: 3px; margin-bottom: 4px; flex-wrap: wrap; font-size: 9px }
+.cp-strip .cp-item { display: flex; align-items: baseline; gap: 2px }
+.cp-strip .cp-val { font-weight: 700; color: var(--val); font-size: 10px }
+.cp-strip .cp-lbl { font-weight: 700; color: #666 }
+.cp-strip .cp-sep { color: #ccc; margin: 0 2px }
+@media print { .cp-strip { display: none !important } }
 @media print { .cg-toolbar { display: none !important } }
 
 /* Computed/readonly field style */
@@ -214,11 +224,24 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
       <option value="standard" selected>Standard</option>
       <option value="high">High</option>
     </select>
-    <button class="btn-cg" id="btn-roll-all" title="Random character skeleton">🎲 Roll All</button>
-    <button class="btn-cg" id="btn-roll-bcs" title="Random BCs only" style="background:#2a5a7a">🎲 BCs</button>
-    <button class="btn-cg" id="btn-roll-abilities" title="Random abilities" style="background:#2a5a7a">🎲 Abilities</button>
+    <button class="btn-cg" id="btn-roll-all" title="Random character skeleton"><svg viewBox="0 0 16 16" width="11" height="11" style="fill:#fff;vertical-align:-1px"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="4.5" r="1.2"/><circle cx="4.5" cy="11.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg> Roll All</button>
+    <button class="btn-cg" id="btn-roll-bcs" title="Random BCs only" style="background:#2a5a7a"><svg viewBox="0 0 16 16" width="11" height="11" style="fill:#fff;vertical-align:-1px"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="4.5" r="1.2"/><circle cx="4.5" cy="11.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg> BCs</button>
+    <button class="btn-cg" id="btn-roll-abilities" title="Random abilities" style="background:#2a5a7a"><svg viewBox="0 0 16 16" width="11" height="11" style="fill:#fff;vertical-align:-1px"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="4.5" r="1.2"/><circle cx="4.5" cy="11.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg> Abilities</button>
     <span style="flex:1"></span>
     <span class="lbl" id="cg-cp-summary" style="font-size:10px; color:#b03000"></span>
+  </div>
+
+  <!-- CPs Summary Strip -->
+  <div class="cp-strip" id="cp-strip">
+    <div class="cp-item"><span class="cp-lbl">Base CPs:</span> <span class="cp-val" id="cp-base">—</span></div>
+    <span class="cp-sep">|</span>
+    <div class="cp-item"><span class="cp-lbl">BC:</span> <span class="cp-val" id="cp-bc">0</span></div>
+    <span class="cp-sep">|</span>
+    <div class="cp-item"><span class="cp-lbl">Ability:</span> <span class="cp-val" id="cp-ab">0</span></div>
+    <span class="cp-sep">|</span>
+    <div class="cp-item"><span class="cp-lbl">Total Spent:</span> <span class="cp-val" id="cp-spent">0</span></div>
+    <span class="cp-sep">|</span>
+    <div class="cp-item"><span class="cp-lbl">Remaining:</span> <span class="cp-val" id="cp-remain">—</span></div>
   </div>
 
   <!-- Logo + Player -->
@@ -237,32 +260,32 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
     <div class="id-row"><span class="lbl">SIDE:</span>
       <select class="si-sel" data-field="side" style="flex:1"><option value="">—</option><option value="Good">Good</option><option value="Evil">Evil</option><option value="Neutral">Neutral</option></select>
     </div>
-    <div class="id-row"><span class="lbl">BIRTHPLACE:</span><input class="si" data-field="birthplace"><button class="btn-roll" id="btn-roll-birth" title="Roll birthplace">🎲</button></div>
+    <div class="id-row"><span class="lbl">BIRTHPLACE:</span><input class="si" data-field="birthplace"><button class="btn-roll" id="btn-roll-birth" title="Roll birthplace"><svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg></button></div>
     <div class="id-row"><span class="lbl">SPECIES:</span>
       <select class="si-sel" data-field="species" id="sel-species" style="flex:1"><option value="">—</option></select>
-      <button class="btn-roll" id="btn-roll-species" title="Roll species">🎲</button>
+      <button class="btn-roll" id="btn-roll-species" title="Roll species"><svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg></button>
     </div>
     <div class="id-row"><span class="lbl">CULTURE:</span>
       <select class="si-sel" data-field="culture" style="flex:1"><option value="">—</option></select>
     </div>
-    <div class="id-row"><span class="lbl">AGE:</span><input class="si" style="width:60px" data-field="age"></div>
-    <div class="id-row"><span class="lbl">GENDER:</span><input class="si" data-field="gender"></div>
-    <div class="id-row"><span class="lbl">WEIGHT:</span><input class="si" style="width:80px" data-field="weight"><span class="lbl" style="min-width:auto">lbs</span></div>
+    <div class="id-row"><span class="lbl">AGE:</span><input class="si" style="width:60px" data-field="age"><button class="btn-roll" id="btn-roll-age" title="Roll age (2d10+10)"><svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg></button></div>
+    <div class="id-row"><span class="lbl">GENDER:</span><input class="si" data-field="gender"><button class="btn-roll" id="btn-roll-gender" title="Roll gender"><svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg></button></div>
+    <div class="id-row"><span class="lbl">WEIGHT:</span><input class="si" style="width:80px" data-field="weight"><span class="lbl" style="min-width:auto">lbs</span><button class="btn-roll" id="btn-roll-weight" title="Roll weight (5d6×10 male / 5d4×10 female)"><svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg></button></div>
     <div class="id-row"><span class="lbl">MASS:</span><input class="si" style="width:50px" data-field="mass"></div>
-    <div class="id-row id-full"><span class="lbl">BACKGROUND:</span><input class="si" data-field="background"></div>
+    <div class="id-row id-full"><span class="lbl">BACKGROUND:</span><input class="si" data-field="background"><button class="btn-roll" id="btn-roll-background" title="Roll background (3d100, pick 2)"><svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg></button></div>
   </div>
   <span class="lbl" style="display:block; margin-bottom:1px">STORY:</span>
   <textarea class="story-box" rows="3" data-field="story"></textarea>
 
   <!-- Motivation / Origin / Legal -->
   <div class="mol-grid">
-    <div class="mol-row"><span class="lbl">MOTIVATION:</span><input class="si" data-field="motivation"></div>
+    <div class="mol-row"><span class="lbl">MOTIVATION:</span><input class="si" data-field="motivation"><button class="btn-roll" id="btn-roll-motivation" title="Roll motivation (2d100, pick 1)"><svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg></button></div>
     <div class="mol-row"><span class="lbl">WEALTH:</span>
       <select class="si-sel" data-field="wealth" id="sel-wealth" style="flex:1"><option value="">Average ($0)</option></select>
     </div>
     <div class="mol-row"><span class="lbl">ORIGIN TYPE:</span>
       <select class="si-sel" data-field="originType" id="sel-origin" style="flex:1"><option value="">—</option></select>
-      <button class="btn-roll" id="btn-roll-origin" title="Roll origin (2 choices)">🎲</button>
+      <button class="btn-roll" id="btn-roll-origin" title="Roll origin (2 choices)"><svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg></button>
     </div>
     <div class="mol-row"><span class="lbl">LUCK:</span><input class="si" style="width:50px" data-field="luck"></div>
     <div class="mol-row" style="grid-column:1/-1"><span class="lbl">LEGAL STATUS:</span><input class="si" data-field="legalStatus"></div>
@@ -372,6 +395,24 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
         <div class="prot-cell"><span class="prot-cell-label">Entropy</span><input class="si" style="width:48px; text-align:center" data-field="protEntropy"></div>
         <div class="prot-cell"><span class="prot-cell-label">Psychic</span><input class="si" style="width:48px; text-align:center" data-field="protPsychic"></div>
         <div class="prot-cell"><span class="prot-cell-label">Other</span><input class="si" style="width:48px; text-align:center" data-field="protOther"></div>
+      </div>
+      <div class="prot-row">
+        <span class="lbl" style="min-width:80px; text-align:right"></span>
+        <div class="prot-cell"><input class="si" style="width:48px; text-align:center" data-field="protKinetic2"></div>
+        <div class="prot-cell"><input class="si" style="width:48px; text-align:center" data-field="protEnergy2"></div>
+        <div class="prot-cell"><input class="si" style="width:48px; text-align:center" data-field="protBio2"></div>
+        <div class="prot-cell"><input class="si" style="width:48px; text-align:center" data-field="protEntropy2"></div>
+        <div class="prot-cell"><input class="si" style="width:48px; text-align:center" data-field="protPsychic2"></div>
+        <div class="prot-cell"><input class="si" style="width:48px; text-align:center" data-field="protOther2"></div>
+      </div>
+      <div class="prot-row">
+        <span class="lbl" style="min-width:80px; text-align:right"></span>
+        <div class="prot-cell"><input class="si" style="width:48px; text-align:center" data-field="protKinetic3"></div>
+        <div class="prot-cell"><input class="si" style="width:48px; text-align:center" data-field="protEnergy3"></div>
+        <div class="prot-cell"><input class="si" style="width:48px; text-align:center" data-field="protBio3"></div>
+        <div class="prot-cell"><input class="si" style="width:48px; text-align:center" data-field="protEntropy3"></div>
+        <div class="prot-cell"><input class="si" style="width:48px; text-align:center" data-field="protPsychic3"></div>
+        <div class="prot-cell"><input class="si" style="width:48px; text-align:center" data-field="protOther3"></div>
       </div>
     </div>
   </div>
@@ -498,7 +539,34 @@ function recalcDerived() {
   });
 
   const st = bcs.st || 0, en = bcs.en || 0, ag = bcs.ag || 0, inVal = bcs.in || 0, cl = bcs.cl || 0;
-  if (st + en + ag + inVal + cl === 0) return; // no BCs entered
+
+  // Always update CP strip
+  const bcTotal = st + en + ag + inVal + cl;
+  const pl = MP.CG.POWER_LEVELS.find(p => p.id === document.getElementById('cg-power-level').value);
+  let abCpTotal = 0;
+  for (let i = 0; i < AB_COUNT; i++) {
+    const cpEl = document.querySelector(`[data-ab="${i}"][data-abf="cp"]`);
+    if (cpEl) abCpTotal += parseFloat(cpEl.value) || 0;
+  }
+  const sumEl = document.getElementById('cg-cp-summary');
+  if (pl) {
+    const baseCPs = pl.bcPoints + pl.abilityCPs;
+    const totalSpent = bcTotal + abCpTotal;
+    const remain = baseCPs - totalSpent;
+    sumEl.textContent = `${totalSpent} / ${baseCPs} CPs`;
+    document.getElementById('cp-base').textContent = baseCPs;
+    document.getElementById('cp-bc').textContent = bcTotal + ' / ' + pl.bcPoints;
+    document.getElementById('cp-ab').textContent = abCpTotal + ' / ' + pl.abilityCPs;
+    document.getElementById('cp-spent').textContent = totalSpent;
+    document.getElementById('cp-remain').textContent = remain;
+    document.getElementById('cp-remain').style.color = remain < 0 ? '#c00' : '';
+  }
+
+  // Default luck
+  const luckEl = document.querySelector('[data-field="luck"]');
+  if (luckEl && !luckEl.value) luckEl.value = '10-';
+
+  if (st + en + ag + inVal + cl === 0) return; // no BCs entered — skip derived calcs
 
   const d = MP.CG.calcDerived(st, en, ag, inVal, cl);
 
@@ -515,19 +583,24 @@ function recalcDerived() {
   setField('defMental', d.mentalDef);
   setField('inventing', d.inventingPts);
 
-  // CP summary
-  const bcTotal = st + en + ag + inVal + cl;
-  const pl = MP.CG.POWER_LEVELS.find(p => p.id === document.getElementById('cg-power-level').value);
-  const sumEl = document.getElementById('cg-cp-summary');
-  if (pl) {
-    sumEl.textContent = `BC: ${bcTotal}/${pl.bcPoints} CPs`;
-  }
+  // Max power & hits go in the parenthesis fields
+  setField('powerSrc', d.power);
+  setField('hitPtsSrc', d.hitPoints);
 }
 
-// Recalc whenever a stat CP changes
+// Recalc whenever a stat CP or ability CP changes
 document.querySelectorAll('.stat-cp').forEach(inp => {
   inp.addEventListener('input', recalcDerived);
 });
+// Also recalc on ability CP changes
+document.getElementById('ab-area').addEventListener('input', (e) => {
+  if (e.target.dataset.abf === 'cp') recalcDerived();
+});
+// Also recalc when power level changes
+document.getElementById('cg-power-level').addEventListener('change', recalcDerived);
+
+// Initial CP strip population
+recalcDerived();
 
 // ── Roll Buttons ──
 document.getElementById('btn-roll-birth').addEventListener('click', () => {
@@ -585,6 +658,51 @@ document.getElementById('btn-roll-abilities').addEventListener('click', () => {
   saveToSlot();
 });
 
+// ── Age Roll ──
+document.getElementById('btn-roll-age').addEventListener('click', () => {
+  const age = MP.CG.rollAge();
+  document.querySelector('[data-field="age"]').value = age;
+  saveToSlot();
+});
+
+// ── Gender Roll ──
+document.getElementById('btn-roll-gender').addEventListener('click', () => {
+  const g = MP.CG.rollGender();
+  document.querySelector('[data-field="gender"]').value = g;
+  saveToSlot();
+});
+
+// ── Weight Roll ──
+document.getElementById('btn-roll-weight').addEventListener('click', () => {
+  const gender = document.querySelector('[data-field="gender"]').value || '';
+  const isFemale = /woman|female|girl/i.test(gender);
+  const w = MP.CG.rollWeight(isFemale);
+  document.querySelector('[data-field="weight"]').value = w;
+  // Auto-calc mass
+  const massRoll = MP.CG.calcMass(w);
+  document.querySelector('[data-field="mass"]').value = massRoll;
+  saveToSlot();
+});
+
+// ── Background Roll ──
+document.getElementById('btn-roll-background').addEventListener('click', () => {
+  const rolls = MP.CG.rollBackground();
+  const msg = `Rolled 3 backgrounds (pick 2):\n\n1) ${rolls[0]}\n2) ${rolls[1]}\n3) ${rolls[2]}\n\nCombine 2 for a specialized career (+3 Task bonus),\nor keep 2 separate careers.`;
+  alert(msg);
+  // Auto-fill with first two
+  document.querySelector('[data-field="background"]').value = rolls[0] + ', ' + rolls[1];
+  saveToSlot();
+});
+
+// ── Motivation Roll ──
+document.getElementById('btn-roll-motivation').addEventListener('click', () => {
+  const side = document.querySelector('[data-field="side"]').value || 'Good';
+  const r = MP.CG.rollMotivation(side === 'Evil');
+  const pick = confirm(`Rolled two motivations:\n\n1) ${r[0].label}\n   ${r[0].desc}\n\n2) ${r[1].label}\n   ${r[1].desc}\n\nClick OK for #1, Cancel for #2`);
+  document.querySelector('[data-field="motivation"]').value = pick ? r[0].label : r[1].label;
+  saveToSlot();
+});
+
 document.getElementById('btn-roll-all').addEventListener('click', () => {
   if (!confirm('Generate a random character skeleton? This will overwrite current fields.')) return;
   clearAll();
@@ -604,6 +722,24 @@ document.getElementById('btn-roll-all').addEventListener('click', () => {
 
   // Side
   document.querySelector('[data-field="side"]').value = 'Good';
+
+  // Age, Gender, Weight
+  const age = MP.CG.rollAge();
+  document.querySelector('[data-field="age"]').value = age;
+  const gender = MP.CG.rollGender();
+  document.querySelector('[data-field="gender"]').value = gender;
+  const isFemale = /woman|female|girl/i.test(gender);
+  const weight = MP.CG.rollWeight(isFemale);
+  document.querySelector('[data-field="weight"]').value = weight;
+  document.querySelector('[data-field="mass"]').value = MP.CG.calcMass(weight);
+
+  // Background (pick first two of three)
+  const bgs = MP.CG.rollBackground();
+  document.querySelector('[data-field="background"]').value = bgs[0] + ', ' + bgs[1];
+
+  // Motivation
+  const mot = MP.CG.rollMotivation(false);
+  document.querySelector('[data-field="motivation"]').value = mot[0].label;
 
   // BCs
   STATS.forEach(s => {
@@ -799,6 +935,12 @@ try {
   const raw = localStorage.getItem(STORE_KEY);
   if (raw) populateData(JSON.parse(raw));
 } catch(e) {}
+
+// Default luck if empty after load
+(function() {
+  const luckEl = document.querySelector('[data-field="luck"]');
+  if (luckEl && !luckEl.value) luckEl.value = '10-';
+})();
 </script>
 
 </body>
