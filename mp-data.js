@@ -534,6 +534,24 @@ MP.plasticityProt = function(cp) {
   return null;
 };
 
+// Physical Ability F) Super Leap: CPs → leap distance multiplier
+MP.SUPER_LEAP_TABLE = [
+  {cp:2.5,  mult:2},      {cp:5,    mult:4},      {cp:7.5,  mult:8},
+  {cp:10,   mult:16},     {cp:12.5, mult:32},     {cp:15,   mult:64},
+  {cp:17.5, mult:128},    {cp:20,   mult:256},    {cp:22.5, mult:512},
+  {cp:25,   mult:1024},   {cp:27.5, mult:2048},   {cp:30,   mult:4096},
+  {cp:32.5, mult:8192},   {cp:35,   mult:16384},  {cp:37.5, mult:32768},
+  {cp:40,   mult:65536},  {cp:42.5, mult:131072}, {cp:47.5, mult:262144},
+  {cp:50,   mult:524288},
+];
+
+MP.superLeapMult = function(cp) {
+  for (let i = MP.SUPER_LEAP_TABLE.length - 1; i >= 0; i--) {
+    if (cp >= MP.SUPER_LEAP_TABLE[i].cp) return MP.SUPER_LEAP_TABLE[i].mult;
+  }
+  return null;
+};
+
 // Tunneling: CPs → max SR (separate from speed)
 MP.TUNNEL_SR_TABLE = [
   {cp:2.5,  sr:1},  {cp:5,    sr:2},  {cp:7.5,  sr:3},
@@ -1004,7 +1022,22 @@ MP.ABILITY_MODIFIERS = {
     {id:"paraSpeak",     label:"Can Speak",            short:"Spk",    cp:-5},
   ],
   "physical-ability": [
-    {id:"phySwarm",      label:"J) Swarm (5 CPs, immune KO)", short:"Swm", cp:0},
+    {id:"phyAmbidex",    label:"A) Ambidexterity (2.5)",          short:"Ambi", cp:0},
+    {id:"phyAmbidexX2",  label:"A) Ambidex x2 Hands (+2.5)",     short:"Am2",  cp:2.5},
+    {id:"phyExtraLimbs", label:"B) Extra Limbs (5/app)",          short:"XLmb", type:"number", min:1, max:5, def:1, step:1, hint:"x2 held objects, +1 Mass vs KB per app", cpFn:v=>0},
+    {id:"phyInertia",    label:"C) Inertia (2.5/app)",            short:"Inrt", type:"number", min:1, max:10, def:1, step:1, hint:"+1 Mass vs KB per app", cpFn:v=>0},
+    {id:"phyPrehFeet",   label:"D) Prehensile Feet (5)",          short:"PFt",  cp:0},
+    {id:"phyProtBrain",  label:"E) Protected Brain (10)",         short:"PBrn", cp:0},
+    {id:"phySuperLeap",  label:"F) Super Leap",                   short:"SLp",  cp:0},
+    {id:"phySuperLungs", label:"G) Super Lungs (5)",              short:"SLng", cp:0},
+    {id:"phyLungsX2",    label:"G) Super Lungs x2 (+5/app)",      short:"Ln2",  type:"number", min:1, max:5, def:1, step:1, hint:"x2 capacity per app", cpFn:v=>v*5},
+    {id:"phySuperStom",  label:"H) Super Stomach (5)",            short:"SStm", cp:0},
+    {id:"phyStomSR",     label:"H) Stomach +1 SR (+5/app)",       short:"StS",  type:"number", min:1, max:10, def:1, step:1, hint:"+1 max SR per app", cpFn:v=>v*5},
+    {id:"phyStomX2",     label:"H) Stomach x2 Amt (+5/app)",      short:"St2",  type:"number", min:1, max:5, def:1, step:1, hint:"x2 amount per app", cpFn:v=>v*5},
+    {id:"phyWallCrawl",  label:"I) Wall-Crawling (5)",            short:"WCrl", cp:0},
+    {id:"phyWcStCling",  label:"I) WC: ST-Based Cling (+5)",      short:"StCl", cp:5},
+    {id:"phyWcIncrCling",label:"I) WC: Increased Cling (+2.5/app)",short:"x2Cl",type:"number", min:1, max:5, def:1, step:1, hint:"x2 cling per app", cpFn:v=>v*2.5},
+    {id:"phySwarm",      label:"J) Swarm (5, immune KO)",         short:"Swm",  cp:0},
   ],
   "possession": [
     {id:"posEmotional",  label:"Emotional Only",          short:"Emo",  cp:-5},
