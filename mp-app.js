@@ -2259,7 +2259,6 @@ const abilityDlg = {
     if (this.editMode) {
       sys.spaces = r.spaces;
       sys.desc = r.desc;
-      sys.extraCPs = r.modAdj;
       sys.bulky = r.bulkyTotal;
       sys.delicate = r.delicateTotal;
       sys.integral = r.isIntegral;
@@ -2273,7 +2272,6 @@ const abilityDlg = {
       if (r.isOpen) sys.open = true;
       if (sys.desc && sys.desc.trim()) sys.desc += ", " + r.desc;
       else sys.desc = r.desc;
-      if (r.modAdj !== 0) sys.extraCPs = (sys.extraCPs || 0) + r.modAdj;
       sys.abilityData = abilityData;
     }
 
