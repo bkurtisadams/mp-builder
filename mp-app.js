@@ -776,6 +776,12 @@ select:focus{outline:none;border-color:var(--accent)}
     popoutEditor = new FloorPlanEditor(canvas, wrap, veh);
     popoutEditor.panX = 40;
     popoutEditor.panY = 40;
+
+    // Ensure canvas resizes on window resize/fullscreen
+    popoutWin.addEventListener("resize", () => {
+      if (popoutEditor) { popoutEditor._resize(); popoutEditor.draw(); }
+    });
+
     popoutEditor.onUpdate = () => {
       buildPopoutSysDropdown(pdoc);
       updatePopoutIndicator(pdoc);
