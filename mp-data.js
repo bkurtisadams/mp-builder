@@ -1937,11 +1937,11 @@ MP.recomputeDesc = function(ad, st, en, ag, intel, cl, techMod) {
     parts.push(`${arcLabel}${cpA(arcOpt.cp)}`);
   }
 
-  // Facing (when not 360° arc)
-  const facIdx = ad.facing || 0;
-  if (arcIdx !== 3 && facIdx > 0) {
-    const facLabel = MP.FACING_OPTS[facIdx] || "";
-    if (facLabel) parts.push(full ? `Facing ${facLabel}` : facLabel);
+  // Facing (when flagged to show and not 360° arc)
+  if (arcIdx !== 3 && ad.facingShow) {
+    const facIdx = ad.facing || 0;
+    const facLabel = MP.FACING_OPTS[facIdx] || "Fwd";
+    parts.push(facLabel);
   }
 
   return parts.join(", ");

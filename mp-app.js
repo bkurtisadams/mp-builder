@@ -587,6 +587,9 @@ document.getElementById("btn-clear-walls").addEventListener("click", () => {
 document.getElementById("btn-zoom-in").addEventListener("click", () => editor.zoomIn());
 document.getElementById("btn-zoom-out").addEventListener("click", () => editor.zoomOut());
 document.getElementById("btn-zoom-reset").addEventListener("click", () => editor.resetView());
+document.getElementById("chk-zoom-enable").addEventListener("change", (e) => {
+  if (editor) editor.wheelZoom = e.target.checked;
+});
 
 // Delete selected cell button (for mobile/touch)
 document.getElementById("btn-del-cell").addEventListener("click", () => {
@@ -1837,6 +1840,7 @@ const abilityDlg = {
       wontexplode: document.getElementById("aid-wontexplode").checked,
       arc: parseInt(document.getElementById("aid-arc").value) || 0,
       facing: parseInt(document.getElementById("aid-facing").value) || 0,
+      facingShow: document.getElementById("aid-facing-show").checked,
     };
     // Ability-specific modifiers
     const abMods = MP.ABILITY_MODIFIERS[abId] || [];
@@ -1905,6 +1909,7 @@ const abilityDlg = {
     document.getElementById("aid-wontexplode").checked = state.wontexplode || false;
     document.getElementById("aid-arc").selectedIndex = state.arc || 0;
     document.getElementById("aid-facing").selectedIndex = state.facing || 0;
+    document.getElementById("aid-facing-show").checked = state.facingShow || false;
     // Hide facing when arc is 360°
     document.getElementById("aid-facing").closest(".aid-2c-full").style.display = (state.arc === 3) ? "none" : "";
 
@@ -1968,6 +1973,7 @@ const abilityDlg = {
     document.getElementById("aid-wontexplode").checked = false;
     document.getElementById("aid-arc").selectedIndex = 0;
     document.getElementById("aid-facing").selectedIndex = 0;
+    document.getElementById("aid-facing-show").checked = false;
     document.getElementById("aid-facing").closest(".aid-2c-full").style.display = "";
   },
 
@@ -2225,12 +2231,13 @@ const abilityDlg = {
       modAdj += arcCp;
     }
 
-    // Facing (when not 360° arc)
+    // Facing (when checkbox checked and not 360° arc)
     const arcIdx = parseInt(document.getElementById("aid-arc").value) || 0;
-    const facIdx = parseInt(document.getElementById("aid-facing").value) || 0;
-    if (arcIdx !== 3 && facIdx > 0) {
-      const facLabel = MP.FACING_OPTS[facIdx] || "";
-      if (facLabel) parts.push(full ? `Facing ${facLabel}` : facLabel);
+    const facShow = document.getElementById("aid-facing-show").checked;
+    if (arcIdx !== 3 && facShow) {
+      const facIdx = parseInt(document.getElementById("aid-facing").value) || 0;
+      const facLabel = MP.FACING_OPTS[facIdx] || "Fwd";
+      parts.push(facLabel);
     }
 
     return { desc: parts.join(", "), parts, modAdj, bulkyTotal, delicateTotal,

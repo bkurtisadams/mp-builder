@@ -24,6 +24,7 @@ class FloorPlanEditor {
     this._cellDrag = null;   // {fromGx, fromGy, toGx, toGy, sysId}
 
     this.locked = false; // When true, disable all editing (paint/drag/wall/sil/delete/label)
+    this.wheelZoom = true; // When false, mousewheel doesn't zoom
 
     this.onUpdate = null;
     this.onContextMenu = null; // callback(gx, gy, sys, cell, cssX, cssY)
@@ -324,6 +325,7 @@ class FloorPlanEditor {
   }
 
   _onWheel(ev) {
+    if (!this.wheelZoom) return;
     ev.preventDefault();
     const { cx, cy } = this._canvasPos(ev);
     const oldZoom = this.zoom;

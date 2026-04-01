@@ -176,6 +176,8 @@
         <button id="btn-zoom-in" class="ed-btn" title="Zoom in">+</button>
         <button id="btn-zoom-out" class="ed-btn" title="Zoom out">&minus;</button>
         <button id="btn-zoom-reset" class="ed-btn" title="Reset view">Reset</button>
+        <label class="ed-chk-label" title="Enable/disable scroll-wheel zoom"><input type="checkbox" id="chk-zoom-enable" checked>Zoom</label>
+        <label class="ed-chk-lbl" title="Enable mousewheel zoom on layout canvas"><input type="checkbox" id="chk-wheel-zoom" checked>Whl</label>
         <span class="ed-sep"></span>
         <button id="btn-lock" class="ed-btn" title="Lock layout to prevent editing (pan/zoom still work)">&#x1F513;</button>
         <span class="ed-sep"></span>
@@ -310,7 +312,7 @@
       <div class="aid-2c"><label class="aid-mlbl2">Indep. Power:</label><input type="checkbox" id="aid-indep" class="aid-mchk"><span class="aid-mh2">own 10 Pwr</span></div>
       <div class="aid-2c"><label class="aid-mlbl2">No Explode:</label><input type="checkbox" id="aid-wontexplode" class="aid-mchk"><span class="aid-mh2">+5 CPs</span></div>
       <div class="aid-2c-full"><label class="aid-mlbl2">Arc:</label><select id="aid-arc" class="aid-msel2"></select></div>
-      <div class="aid-2c-full"><label class="aid-mlbl2">Facing:</label><select id="aid-facing" class="aid-msel2"></select></div>
+      <div class="aid-2c-full"><label class="aid-mlbl2">Facing:</label><select id="aid-facing" class="aid-msel2"></select><input type="checkbox" id="aid-facing-show" class="aid-mchk" title="Include facing in description"><span class="aid-mh2">show</span></div>
     </div>
   </div>
   <div class="aid-footer">
