@@ -180,8 +180,9 @@ function renderSystemsTable() {
     const adjCL = s ? (s.adjCL || "") : "";
 
     const sysColor = s && s.desc ? MP.sysColor(s.desc) : "";
+    const descLong = desc.length > 60;
 
-    html += `<div class="vs-sys-row-wrap" data-idx="${i}" draggable="true">
+    html += `<div class="vs-sys-row-wrap${descLong ? " vs-sys-expanded" : ""}" data-idx="${i}" draggable="true">
       <span class="vs-sys-grip" title="Drag to reorder">&#9776;</span>
       <div class="vs-sys-row">
         <input type="number" value="${cost}" data-field="extraCPs" data-idx="${i}" step="2.5" min="0" title="Extra CPs added to this system (adds to vehicle cost)">
@@ -195,7 +196,8 @@ function renderSystemsTable() {
         <span class="vs-sys-ins" data-idx="${i}" title="Insert Ability (Ctrl+I)">+</span>
         <span class="vs-sys-edit" data-idx="${i}" title="Edit Ability (Ctrl+E)">✎</span>
         <span class="vs-sys-del" data-idx="${i}" title="Clear row">&times;</span>
-      </div>
+      </div>${descLong ? `
+      <div class="vs-sys-overflow">${escAttr(desc)}</div>` : ""}
       <div class="vs-sys-mods">
         <input type="checkbox" data-field="integral" data-idx="${i}" ${integral ? "checked" : ""} title="Integral — hidden, can't be targeted, no profile/hits, not shown on layout. Halves CPs.">
         <input type="number" class="${bulky ? "has-val" : ""}" value="${bulky}" data-field="bulky" data-idx="${i}" min="0" title="Bulky — +4.3 Hits per dose, -2.5 CPs per dose">
@@ -293,6 +295,16 @@ function renderSystemsTable() {
 
   // Wire drag-to-reorder
   let dragIdx = null;
+
+  // Wire overflow click to focus desc input
+  el.querySelectorAll(".vs-sys-overflow").forEach(ov => {
+    ov.addEventListener("click", () => {
+      const wrap = ov.closest(".vs-sys-row-wrap");
+      const inp = wrap.querySelector("input.vs-sys-desc");
+      if (inp) inp.focus();
+    });
+  });
+
   el.querySelectorAll(".vs-sys-row-wrap[draggable]").forEach(row => {
     row.addEventListener("dragstart", e => {
       dragIdx = parseInt(row.dataset.idx);
