@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mighty Protectors — Character Sheet</title>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bitter:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #d6eaf8;
+  --bg2: #c4dff0;
+  --inp: #ffffff;
+  --brd: #1a2a3a;
+  --brd-lt: #999;
+  --tx: #1a2a3a;
+  --tx2: #3a5a70;
+  --label: #000;
+  --val: #b03000;
+  --accent: #c05a00;
+  --accent-lt: #d06a10;
+  --hdr-bg: #1a2a3a;
+  --fd: 'Bangers', cursive;
+  --fb: 'Bitter', serif;
+  --cell-h: 22px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0 }
+input[type=number] { -moz-appearance: textfield }
+
+/* Screen chrome */
+html { min-height: 100%; background: var(--bg) }
+body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: var(--fb); font-size: 11px; display: flex; flex-direction: column }
+.mp-hdr { background: var(--hdr-bg); border-bottom: 3px solid var(--accent); padding: 0 12px; flex-shrink: 0 }
+.mp-hdr-in { max-width: 780px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 40px; gap: 8px }
+.mp-logo-wrap { display: flex; align-items: center; gap: 8px }
+.mp-logo-title { font-family: var(--fd); font-size: 20px; color: #fff; letter-spacing: 1px; text-shadow: 2px 2px 0 var(--accent) }
+.mp-logo-sub { font-family: var(--fb); font-size: 9px; color: #8be9fd; letter-spacing: 1px }
+.mp-hdr-btns { display: flex; gap: 3px; align-items: center }
+.hdr-btn { padding: 3px 7px; font-size: 9px; background: #2a3a4a; border: 1px solid #4a6a7a; color: #ccc; border-radius: 2px; cursor: pointer; font-family: var(--fb); font-weight: 700 }
+.hdr-btn:hover { border-color: var(--accent); background: #3a4a5a }
+.mp-ftr { font-size: 8px; color: var(--tx2); text-align: center; padding: 6px; background: var(--bg2); border-top: 1px solid #8ab4d0 }
+
+/* Sheet container */
+.sheet-wrap { flex: 1; overflow-y: auto; padding: 10px }
+.sheet { width: 750px; margin: 0 auto; background: #fff; border: 2px solid var(--brd); padding: 10px 14px 8px; font-family: var(--fb); font-size: 10px; color: #000 }
+
+/* Shared input styles */
+.si { border: none; border-bottom: 1.5px solid #000; background: transparent; font-family: var(--fb); font-size: 10px; color: #000; padding: 0 2px; height: var(--cell-h); outline: none }
+.si:focus { border-bottom-color: var(--accent) }
+.si-box { border: 1.5px solid #000; background: transparent; font-family: var(--fb); font-size: 11px; font-weight: 700; color: #000; padding: 0 2px; height: 24px; text-align: center; outline: none; width: 44px }
+.si-box:focus { border-color: var(--accent) }
+.lbl { font-weight: 700; font-size: 9px; white-space: nowrap }
+
+/* Logo row */
+.logo-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px }
+.logo-row .sheet-logo { font-family: var(--fd); font-size: 26px; letter-spacing: 2px }
+
+/* Identity grid */
+.id-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; margin-bottom: 4px }
+.id-row { display: flex; align-items: baseline; gap: 3px }
+.id-row .lbl { min-width: 70px; text-align: right }
+.id-row .si { flex: 1 }
+.id-full { grid-column: 1 / -1 }
+
+/* Story box */
+.story-box { border: 1.5px solid #000; min-height: 48px; padding: 3px 4px; font-family: var(--fb); font-size: 10px; margin: 4px 0; resize: vertical; width: 100%; outline: none; background: transparent }
+.story-box:focus { border-color: var(--accent) }
+
+/* Motivation / Origin / Legal */
+.mol-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; margin-top: 6px; margin-bottom: 2px }
+.mol-row { display: flex; align-items: baseline; gap: 3px }
+.mol-row .lbl { min-width: 85px; text-align: right }
+.mol-row .si { flex: 1 }
+
+/* CPs + ABILITIES header */
+.ab-header { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; border-top: 1.5px solid #000; padding-top: 3px }
+.ab-header .ab-title { font-weight: 700; font-size: 13px; letter-spacing: 1px; flex: none }
+
+/* Abilities area - 3 columns: CPs | description | IPs */
+.ab-area { display: grid; grid-template-columns: 42px 1fr 36px; gap: 0; margin-top: 2px }
+.ab-cell { border-bottom: 1px solid #ccc; display: flex; align-items: center; min-height: 22px }
+.ab-cell-cp { justify-content: center }
+.ab-cell-cp input { width: 34px; text-align: center }
+.ab-cell-desc { padding: 0 4px }
+.ab-cell-desc input { flex: 1; width: 100% }
+.ab-cell-ip { justify-content: center }
+.ab-cell-ip input { width: 28px; text-align: center }
+.ab-cell input { border: none; background: transparent; font-family: var(--fb); font-size: 10px; height: 20px; outline: none }
+.ab-cell input:focus { border-bottom: 1px solid var(--accent) }
+
+/* Bottom: Stats left, Combat right */
+.bottom { display: grid; grid-template-columns: 195px 1fr; gap: 0 12px; margin-top: 4px; align-items: start }
+
+/* Stats block */
+.stats-hdr { display: grid; grid-template-columns: 42px 30px 52px 40px; gap: 0; font-weight: 700; font-size: 8px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 1px }
+.stat-row { display: grid; grid-template-columns: 42px 30px 52px 40px; gap: 0; align-items: center; height: 26px; border-bottom: 1px solid #ddd }
+.stat-row .s-label { font-weight: 700; font-size: 13px; text-align: center }
+.stat-row input { width: 100%; text-align: center; border: none; border-bottom: 1px solid #bbb; background: transparent; font-family: var(--fb); font-size: 10px; height: 20px; outline: none }
+.stat-row input:focus { border-bottom-color: var(--accent) }
+
+/* Experience */
+.xp-block { margin-top: 6px }
+.xp-row { display: flex; align-items: center; gap: 4px; height: 20px }
+.v-box { width: 18px; height: 16px; border: 1.5px solid #000; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; flex-shrink: 0 }
+
+/* Combat block */
+.combat-block { display: flex; flex-direction: column; gap: 3px }
+.carry-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap }
+
+/* Attacks table */
+.atk-tbl { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 2px }
+.atk-tbl th { font-weight: 700; font-size: 8px; text-align: center; padding: 1px 3px; border-bottom: 1.5px solid #000 }
+.atk-tbl th:first-child { text-align: left }
+.atk-tbl td { padding: 1px 3px; border-bottom: 1px solid #ddd; height: 22px }
+.atk-tbl td:first-child { text-align: left }
+.atk-tbl td:not(:first-child) { text-align: center }
+.atk-tbl input { width: 100%; border: none; background: transparent; font-family: var(--fb); font-size: 10px; text-align: inherit; height: 18px; outline: none }
+.atk-tbl input:focus { border-bottom: 1px solid var(--accent) }
+
+/* Defenses */
+.def-label-row { display: flex; gap: 4px; justify-content: center }
+.def-label-row span { font-size: 8px; font-weight: 700; width: 50px; text-align: center }
+.def-box-row { display: flex; gap: 4px; justify-content: center; margin-top: 2px }
+
+/* Protection */
+.prot-row { display: flex; align-items: center; gap: 0; margin-top: 4px }
+.prot-row .lbl { margin-right: 4px }
+.prot-cell { display: flex; flex-direction: column; align-items: center; flex: 1 }
+.prot-cell-label { font-size: 8px; font-weight: 700 }
+.prot-cell input { width: 90%; text-align: center }
+
+/* Derived stats bottom */
+.derived-bottom { margin-top: 6px; border-top: 1.5px solid #000; padding-top: 4px }
+.derived-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 3px; flex-wrap: wrap }
+
+/* CAPS row */
+.caps-row { display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; margin-top: 2px; border-top: 1px solid #000; padding-top: 3px }
+
+/* Sheet footer */
+.sheet-ftr { font-size: 7px; text-align: center; margin-top: 6px; color: #666; border-top: 1px solid #ccc; padding-top: 3px }
+
+/* Print — fit entire sheet on one Letter page */
+@media print {
+  .mp-hdr, .mp-ftr { display: none !important }
+  a[href="index.html"] { display: none !important }
+  html, body { background: #fff !important; margin: 0; padding: 0; height: auto; min-height: 0 }
+  body { display: block }
+  .sheet-wrap { padding: 0; overflow: visible; flex: none }
+  .sheet { border: none; width: 100%; max-width: 7.5in; padding: 0.3in 0.4in; margin: 0 auto; box-shadow: none }
+  .si { border-bottom-color: #000 !important }
+  .si-box { border-color: #000 !important }
+  .story-box { border-color: #000 !important }
+  /* Prevent page breaks inside sections */
+  .bottom, .derived-bottom, .ab-area, .id-grid, .mol-grid { page-break-inside: avoid }
+  /* Size down slightly to guarantee single page */
+  @page { size: letter; margin: 0.25in }
+}
+</style>
+</head>
+<body>
+
+<!-- Screen header -->
+<div class="mp-hdr">
+  <div class="mp-hdr-in">
+    <div class="mp-logo-wrap">
+      <a href="index.html" title="Back to Dashboard" style="display:flex;align-items:center;text-decoration:none;color:#8be9fd;font-size:16px;margin-right:4px">◂</a>
+      <img src="MP_logo_v3.png" alt="Mighty Protectors" style="height:24px">
+      <span class="mp-logo-sub">CHARACTER BUILDER</span>
+    </div>
+    <div class="mp-hdr-btns">
+      <button class="hdr-btn" id="btn-new">New</button>
+      <button class="hdr-btn" id="btn-save">Save</button>
+      <button class="hdr-btn" id="btn-load">Load</button>
+      <button class="hdr-btn" id="btn-export">Export JSON</button>
+      <button class="hdr-btn" id="btn-import">Import JSON</button>
+      <button class="hdr-btn" id="btn-pdf">PDF</button>
+      <input type="file" id="inp-import" accept=".json" style="display:none">
+    </div>
+  </div>
+</div>
+
+<div class="sheet-wrap">
+<div class="sheet">
+
+  <!-- Logo + Player -->
+  <div class="logo-row">
+    <span class="sheet-logo">MIGHTY PROTECTORS&reg;</span>
+    <div style="display:flex; align-items:baseline; gap:4px">
+      <span class="lbl">PLAYER:</span>
+      <input class="si" style="width:150px" data-field="player">
+    </div>
+  </div>
+
+  <!-- Identity -->
+  <div class="id-grid">
+    <div class="id-row"><span class="lbl">NAME:</span><input class="si" data-field="name"></div>
+    <div class="id-row"><span class="lbl">TRUE I.D.:</span><input class="si" data-field="trueId"></div>
+    <div class="id-row"><span class="lbl">SIDE:</span><input class="si" data-field="side"></div>
+    <div class="id-row"><span class="lbl">BIRTHPLACE:</span><input class="si" data-field="birthplace"></div>
+    <div class="id-row"><span class="lbl">SPECIES:</span><input class="si" data-field="species"></div>
+    <div class="id-row"><span class="lbl">CULTURE:</span><input class="si" data-field="culture"></div>
+    <div class="id-row"><span class="lbl">AGE:</span><input class="si" style="width:60px" data-field="age"></div>
+    <div class="id-row"><span class="lbl">GENDER:</span><input class="si" data-field="gender"></div>
+    <div class="id-row"><span class="lbl">WEIGHT:</span><input class="si" style="width:80px" data-field="weight"><span class="lbl" style="min-width:auto">lbs</span></div>
+    <div class="id-row"><span class="lbl">MASS:</span><input class="si" style="width:50px" data-field="mass"></div>
+    <div class="id-row id-full"><span class="lbl">BACKGROUND:</span><input class="si" data-field="background"></div>
+  </div>
+  <span class="lbl" style="display:block; margin-bottom:1px">STORY:</span>
+  <textarea class="story-box" rows="3" data-field="story"></textarea>
+
+  <!-- Motivation / Origin / Legal -->
+  <div class="mol-grid">
+    <div class="mol-row"><span class="lbl">MOTIVATION:</span><input class="si" data-field="motivation"></div>
+    <div class="mol-row"><span class="lbl">WEALTH:</span><input class="si" data-field="wealth"></div>
+    <div class="mol-row"><span class="lbl">ORIGIN TYPE:</span><input class="si" data-field="originType"></div>
+    <div class="mol-row"><span class="lbl">LUCK:</span><input class="si" style="width:50px" data-field="luck"></div>
+    <div class="mol-row" style="grid-column:1/-1"><span class="lbl">LEGAL STATUS:</span><input class="si" data-field="legalStatus"></div>
+  </div>
+
+  <!-- CPs: + ABILITIES + INVENTING + IPs: -->
+  <div class="ab-header">
+    <span class="lbl" style="min-width:36px; text-align:center">CPs:</span>
+    <span class="ab-title">ABILITIES</span>
+    <span style="flex:1"></span>
+    <span class="lbl" style="font-style:italic">INVENTING:</span>
+    <input class="si" style="width:30px; text-align:center" data-field="inventing">
+    <span class="lbl" style="font-style:italic; margin-left:8px">Unspent</span>
+    <input class="si" style="width:160px" data-field="unspent">
+    <span style="flex:1"></span>
+    <span class="lbl">IPs:</span>
+  </div>
+
+  <!-- Ability rows: CPs | description | IPs -->
+  <div class="ab-area" id="ab-area">
+    <!-- 12 blank rows matching the official sheet -->
+  </div>
+
+  <!-- Bottom: Stats (left) | Combat (right) -->
+  <div class="bottom">
+
+    <!-- LEFT: Basic Characteristics + Experience -->
+    <div>
+      <div class="stats-hdr"><span>CPs</span><span></span><span>SCORE</span><span>SAVE</span></div>
+      <div class="stat-row" data-stat="st"><div><input></div><div class="s-label">ST</div><div><input></div><div><input></div></div>
+      <div class="stat-row" data-stat="en"><div><input></div><div class="s-label">EN</div><div><input></div><div><input></div></div>
+      <div class="stat-row" data-stat="ag"><div><input></div><div class="s-label">AG</div><div><input></div><div><input></div></div>
+      <div class="stat-row" data-stat="in"><div><input></div><div class="s-label">IN</div><div><input></div><div><input></div></div>
+      <div class="stat-row" data-stat="cl"><div><input></div><div class="s-label">CL</div><div><input></div><div><input></div></div>
+
+      <div class="xp-block">
+        <div class="xp-row">
+          <span class="v-box">V</span>
+          <span style="flex:1"></span>
+          <span class="lbl">EXPERIENCE:</span>
+        </div>
+        <div class="xp-row">
+          <span class="v-box">V</span>
+          <span class="lbl" style="min-width:38px; text-align:right">BASE</span>
+          <input class="si" style="width:44px; text-align:center" data-field="xpBase">
+          <span class="lbl">EARNED</span>
+          <input class="si" style="width:44px; text-align:center" data-field="xpEarned">
+        </div>
+        <div class="xp-row">
+          <span class="v-box">V</span>
+          <span class="lbl" style="min-width:38px; text-align:right">SPENT</span>
+          <input class="si" style="width:44px; text-align:center" data-field="xpSpent">
+          <span class="lbl" style="min-width:auto">&lt;</span>
+        </div>
+        <div class="xp-row">
+          <span style="width:18px; flex-shrink:0"></span>
+          <span class="lbl" style="min-width:38px; text-align:right">TOTAL</span>
+          <input class="si" style="width:44px; text-align:center" data-field="xpTotal">
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Carrying, Attacks, Defenses, Protection -->
+    <div class="combat-block">
+
+      <div class="carry-row">
+        <span class="lbl">CARRYING CAPACITY:</span>
+        <input class="si" style="width:70px" data-field="carry">
+        <span class="lbl" style="min-width:auto">lbs</span>
+        <span style="width:20px"></span>
+        <span class="lbl">BASE HTH DMG:</span>
+        <input class="si" style="width:60px" data-field="baseDmg">
+      </div>
+
+      <!-- Attacks + Defenses side by side -->
+      <div style="display:grid; grid-template-columns:1fr auto; gap:0 8px; align-items:start">
+        <table class="atk-tbl">
+          <thead>
+            <tr><th style="text-align:left">ATTACKS:</th><th>To Hit</th><th>Damage</th><th>Dmg Type</th><th style="width:36px">KB</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td></tr>
+            <tr><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td></tr>
+            <tr><td><input></td><td><input></td><td><input></td><td><input></td><td><input></td></tr>
+          </tbody>
+        </table>
+
+        <div style="padding-top:0">
+          <div class="lbl" style="text-align:center; font-size:9px; margin-bottom:2px">DEFENSES:</div>
+          <div class="def-label-row">
+            <span>Physical</span>
+            <span>Mental</span>
+          </div>
+          <div class="def-box-row">
+            <input class="si-box" data-field="defPhysical">
+            <input class="si-box" data-field="defMental">
+          </div>
+        </div>
+      </div>
+
+      <!-- Protection -->
+      <div class="prot-row">
+        <span class="lbl" style="min-width:80px; text-align:right">PROTECTION:</span>
+        <div class="prot-cell"><span class="prot-cell-label">Kinetic</span><input class="si" style="width:48px; text-align:center" data-field="protKinetic"></div>
+        <div class="prot-cell"><span class="prot-cell-label">Energy</span><input class="si" style="width:48px; text-align:center" data-field="protEnergy"></div>
+        <div class="prot-cell"><span class="prot-cell-label">Bio</span><input class="si" style="width:48px; text-align:center" data-field="protBio"></div>
+        <div class="prot-cell"><span class="prot-cell-label">Entropy</span><input class="si" style="width:48px; text-align:center" data-field="protEntropy"></div>
+        <div class="prot-cell"><span class="prot-cell-label">Psychic</span><input class="si" style="width:48px; text-align:center" data-field="protPsychic"></div>
+        <div class="prot-cell"><span class="prot-cell-label">Other</span><input class="si" style="width:48px; text-align:center" data-field="protOther"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Derived stats - bottom of sheet -->
+  <div class="derived-bottom">
+    <div class="derived-row">
+      <span class="lbl">INITIATIVE:</span>
+      <input class="si" style="width:50px" data-field="initiative">
+      <span style="flex:1"></span>
+      <span class="lbl">MOVE:</span>
+      <input class="si" style="width:120px" data-field="move">
+    </div>
+    <div class="derived-row">
+      <span class="lbl">POWER (</span><input class="si" style="width:36px; text-align:center" data-field="powerSrc"><span class="lbl" style="margin-left:-2px">):</span>
+      <input class="si" style="width:80px" data-field="power">
+    </div>
+    <div class="derived-row">
+      <span class="lbl">HIT PTS (</span><input class="si" style="width:36px; text-align:center" data-field="hitPtsSrc"><span class="lbl" style="margin-left:-2px">):</span>
+      <input class="si" style="width:80px" data-field="hitPts">
+      <span style="flex:1"></span>
+      <span class="lbl">HEALING:</span>
+      <input class="si" style="width:60px" data-field="healing">
+    </div>
+    <div class="caps-row">
+      <span class="lbl">CAPS:</span><input class="si" style="width:28px; text-align:center" data-field="caps">
+      <span class="lbl">BCs:</span><input class="si" style="width:28px; text-align:center" data-field="bcs">
+      <span class="lbl">Ability:</span><input class="si" style="width:36px; text-align:center" data-field="capAbility">
+      <span class="lbl">Dmg:</span><input class="si" style="width:36px; text-align:center" data-field="capDmg">
+      <span class="lbl">GEAR:</span>
+      <span class="lbl">Break:</span><input class="si" style="width:40px; text-align:center" data-field="gearBreak">
+      <span class="lbl">Take:</span><input class="si" style="width:40px; text-align:center" data-field="gearTake">
+      <span class="lbl">Disarm:</span><input class="si" style="width:40px; text-align:center" data-field="gearDisarm">
+      <span class="lbl">GBC:</span><input class="si" style="width:28px; text-align:center" data-field="gbc">
+    </div>
+  </div>
+
+  <div class="sheet-ftr">
+    &copy; 2017 Monkey House Games. Permission granted to copy for private use. Mighty Protectors is a registered trademark of Monkey House Games.
+  </div>
+
+</div>
+</div>
+
+<div class="mp-ftr">
+  Mighty Protectors&trade; &amp; Jeff Dee &amp; Jack Herman &mdash; Monkey House Games
+</div>
+
+<script>
+const STORE_KEY = 'mp-char-sheet';
+const AB_COUNT = 12;
+const ATK_COUNT = 3;
+const STATS = ['st','en','ag','in','cl'];
+
+// Build ability rows
+const abArea = document.getElementById('ab-area');
+for (let i = 0; i < AB_COUNT; i++) {
+  const cp = document.createElement('div');
+  cp.className = 'ab-cell ab-cell-cp';
+  cp.innerHTML = `<input data-ab="${i}" data-abf="cp">`;
+  const desc = document.createElement('div');
+  desc.className = 'ab-cell ab-cell-desc';
+  desc.innerHTML = `<input data-ab="${i}" data-abf="desc">`;
+  const ip = document.createElement('div');
+  ip.className = 'ab-cell ab-cell-ip';
+  ip.innerHTML = `<input data-ab="${i}" data-abf="ip">`;
+  abArea.appendChild(cp);
+  abArea.appendChild(desc);
+  abArea.appendChild(ip);
+}
+
+// Tag attack rows
+document.querySelectorAll('.atk-tbl tbody tr').forEach((tr, i) => {
+  const fields = ['name','toHit','damage','dmgType','kb'];
+  tr.querySelectorAll('input').forEach((inp, j) => {
+    inp.setAttribute('data-atk', i);
+    inp.setAttribute('data-atkf', fields[j]);
+  });
+});
+
+// Gather all form data into an object
+function gatherData() {
+  const d = {};
+  // data-field inputs
+  document.querySelectorAll('[data-field]').forEach(el => {
+    d[el.dataset.field] = el.tagName === 'TEXTAREA' ? el.value : el.value;
+  });
+  // stats
+  d.stats = {};
+  document.querySelectorAll('.stat-row[data-stat]').forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    d.stats[row.dataset.stat] = { cp: inputs[0].value, score: inputs[1].value, save: inputs[2].value };
+  });
+  // abilities
+  d.abilities = [];
+  for (let i = 0; i < AB_COUNT; i++) {
+    const cp = document.querySelector(`[data-ab="${i}"][data-abf="cp"]`);
+    const desc = document.querySelector(`[data-ab="${i}"][data-abf="desc"]`);
+    const ip = document.querySelector(`[data-ab="${i}"][data-abf="ip"]`);
+    d.abilities.push({ cp: cp.value, desc: desc.value, ip: ip.value });
+  }
+  // attacks
+  d.attacks = [];
+  for (let i = 0; i < ATK_COUNT; i++) {
+    const row = {};
+    document.querySelectorAll(`[data-atk="${i}"]`).forEach(inp => {
+      row[inp.dataset.atkf] = inp.value;
+    });
+    d.attacks.push(row);
+  }
+  return d;
+}
+
+// Populate form from data object
+function populateData(d) {
+  if (!d) return;
+  document.querySelectorAll('[data-field]').forEach(el => {
+    if (d[el.dataset.field] != null) el.value = d[el.dataset.field];
+  });
+  if (d.stats) {
+    document.querySelectorAll('.stat-row[data-stat]').forEach(row => {
+      const s = d.stats[row.dataset.stat];
+      if (!s) return;
+      const inputs = row.querySelectorAll('input');
+      inputs[0].value = s.cp || '';
+      inputs[1].value = s.score || '';
+      inputs[2].value = s.save || '';
+    });
+  }
+  if (d.abilities) {
+    d.abilities.forEach((ab, i) => {
+      const cp = document.querySelector(`[data-ab="${i}"][data-abf="cp"]`);
+      const desc = document.querySelector(`[data-ab="${i}"][data-abf="desc"]`);
+      const ip = document.querySelector(`[data-ab="${i}"][data-abf="ip"]`);
+      if (cp) cp.value = ab.cp || '';
+      if (desc) desc.value = ab.desc || '';
+      if (ip) ip.value = ab.ip || '';
+    });
+  }
+  if (d.attacks) {
+    d.attacks.forEach((atk, i) => {
+      Object.keys(atk).forEach(f => {
+        const inp = document.querySelector(`[data-atk="${i}"][data-atkf="${f}"]`);
+        if (inp) inp.value = atk[f] || '';
+      });
+    });
+  }
+}
+
+// Clear all inputs
+function clearAll() {
+  document.querySelectorAll('input, textarea').forEach(el => {
+    if (el.type === 'file') return;
+    el.value = '';
+  });
+}
+
+// Auto-save on any input change
+document.addEventListener('input', () => {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(gatherData())); } catch(e) {}
+});
+
+// Save button
+document.getElementById('btn-save').addEventListener('click', () => {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(gatherData()));
+    alert('Character saved to browser storage.');
+  } catch(e) { alert('Save failed: ' + e.message); }
+});
+
+// Load button
+document.getElementById('btn-load').addEventListener('click', () => {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) { alert('No saved character found.'); return; }
+    clearAll();
+    populateData(JSON.parse(raw));
+  } catch(e) { alert('Load failed: ' + e.message); }
+});
+
+// New button
+document.getElementById('btn-new').addEventListener('click', () => {
+  if (!confirm('Clear all fields and start a new character?')) return;
+  clearAll();
+  try { localStorage.removeItem(STORE_KEY); } catch(e) {}
+});
+
+// Export JSON
+document.getElementById('btn-export').addEventListener('click', () => {
+  const d = gatherData();
+  const name = (d.name || 'character').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+// Import JSON
+document.getElementById('btn-import').addEventListener('click', () => {
+  document.getElementById('inp-import').click();
+});
+document.getElementById('inp-import').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      clearAll();
+      populateData(JSON.parse(ev.target.result));
+      alert('Character imported: ' + (file.name));
+    } catch(err) { alert('Import failed: ' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// PDF (print)
+document.getElementById('btn-pdf').addEventListener('click', () => window.print());
+
+// Auto-load on page open
+try {
+  const raw = localStorage.getItem(STORE_KEY);
+  if (raw) populateData(JSON.parse(raw));
+} catch(e) {}
+</script>
+
+</body>
+</html>
