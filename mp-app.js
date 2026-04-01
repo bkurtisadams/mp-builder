@@ -195,9 +195,9 @@ function renderSystemsTable() {
         <input type="text" class="vs-sys-desc" value="${desc}" data-field="desc" data-idx="${i}" title="System name, abilities, arc, facing">
         <span class="vs-sys-ins" data-idx="${i}" title="Insert Ability (Ctrl+I)">+</span>
         <span class="vs-sys-edit" data-idx="${i}" title="Edit Ability (Ctrl+E)">✎</span>
-        <span class="vs-sys-del" data-idx="${i}" title="Clear row">&times;</span>
-      </div>${descLong ? `
-      <div class="vs-sys-overflow">${escAttr(desc)}</div>` : ""}
+        <span class="vs-sys-del" data-idx="${i}" title="Clear row">&times;</span>${descLong ? `
+        <div class="vs-sys-overflow">${(s.desc || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>` : ""}
+      </div>
       <div class="vs-sys-mods">
         <input type="checkbox" data-field="integral" data-idx="${i}" ${integral ? "checked" : ""} title="Integral — hidden, can't be targeted, no profile/hits, not shown on layout. Halves CPs.">
         <input type="number" class="${bulky ? "has-val" : ""}" value="${bulky}" data-field="bulky" data-idx="${i}" min="0" title="Bulky — +4.3 Hits per dose, -2.5 CPs per dose">
