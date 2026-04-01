@@ -28,6 +28,7 @@ class FloorPlanEditor {
 
     this.onUpdate = null;
     this.onContextMenu = null; // callback(gx, gy, sys, cell, cssX, cssY)
+    this.onViewChange = null; // callback() when zoom/pan changes
 
     // Highlight overlay — flash all cells for a system
     this.highlightSysId = null;
@@ -298,7 +299,7 @@ class FloorPlanEditor {
   }
 
   _onMouseUp(ev) {
-    if (ev.button === 2 || ev.button === 1) { this.panStart = null; return; }
+    if (ev.button === 2 || ev.button === 1) { this.panStart = null; if (this.onViewChange) this.onViewChange(); return; }
     if (this._silDrag) {
       this._silDrag = null;
       this.canvas.style.cursor = "default";
@@ -335,6 +336,7 @@ class FloorPlanEditor {
     this.panX = cx - (cx - this.panX) * ratio;
     this.panY = cy - (cy - this.panY) * ratio;
     this.draw();
+    if (this.onViewChange) this.onViewChange();
   }
 
   _onKey(ev) {
@@ -527,7 +529,7 @@ class FloorPlanEditor {
     if (ts.longFired) { ts.fingers = 0; return; }
 
     // If it was a multi-finger gesture or finger moved, skip tap
-    if (ts.fingers > 1 || ts.moved) { ts.fingers = 0; return; }
+    if (ts.fingers > 1 || ts.moved) { ts.fingers = 0; if (this.onViewChange) this.onViewChange(); return; }
 
     // Single finger tap (no drag)
     if (ev.touches.length === 0 && !ts.moved && !this.locked) {
@@ -641,7 +643,7 @@ class FloorPlanEditor {
 
   zoomIn() { this._zoomBy(1.25); }
   zoomOut() { this._zoomBy(0.8); }
-  resetView() { this.zoom = 1; this.panX = 40; this.panY = 40; this.draw(); }
+  resetView() { this.zoom = 1; this.panX = 40; this.panY = 40; this.draw(); if (this.onViewChange) this.onViewChange(); }
 
   _zoomBy(factor) {
     const cx = this.wrap.clientWidth / 2;
@@ -652,6 +654,7 @@ class FloorPlanEditor {
     this.panX = cx - (cx - this.panX) * ratio;
     this.panY = cy - (cy - this.panY) * ratio;
     this.draw();
+    if (this.onViewChange) this.onViewChange();
   }
 
   // ---- Silhouette ----

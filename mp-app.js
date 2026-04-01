@@ -589,7 +589,34 @@ document.getElementById("btn-zoom-out").addEventListener("click", () => editor.z
 document.getElementById("btn-zoom-reset").addEventListener("click", () => editor.resetView());
 document.getElementById("chk-zoom-enable").addEventListener("change", (e) => {
   if (editor) editor.wheelZoom = e.target.checked;
+  saveViewState();
 });
+
+function saveViewState() {
+  if (!editor) return;
+  try {
+    localStorage.setItem("mp-view-state", JSON.stringify({
+      zoom: editor.zoom, panX: editor.panX, panY: editor.panY,
+      wheelZoom: editor.wheelZoom
+    }));
+  } catch(e) {}
+}
+
+function restoreViewState() {
+  if (!editor) return;
+  try {
+    const raw = localStorage.getItem("mp-view-state");
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.zoom != null) editor.zoom = s.zoom;
+    if (s.panX != null) editor.panX = s.panX;
+    if (s.panY != null) editor.panY = s.panY;
+    if (s.wheelZoom != null) {
+      editor.wheelZoom = s.wheelZoom;
+      document.getElementById("chk-zoom-enable").checked = s.wheelZoom;
+    }
+  } catch(e) {}
+}
 
 // Delete selected cell button (for mobile/touch)
 document.getElementById("btn-del-cell").addEventListener("click", () => {
@@ -2483,6 +2510,7 @@ editor.onUpdate = () => {
 editor.onContextMenu = (gx, gy, sys, cell, cx, cy) => {
   cellMenu.show(gx, gy, sys, cell, cx, cy, editor);
 };
+editor.onViewChange = () => saveViewState();
 editor.panX = 20;
 editor.panY = 20;
 
@@ -2490,4 +2518,5 @@ editor.panY = 20;
 if (autoLoad()) {
   syncFormFromVeh();
 }
+restoreViewState();
 updateAll();
