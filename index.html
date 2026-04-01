@@ -61,7 +61,7 @@
   <div class="vs-row vs-mods">
     <label>Vehicle Mods:</label>
     <label class="vs-sub">Hi/Lo Tech</label>
-    <input type="number" id="vs-tech" class="vs-inp-xs" value="0" step="5" title="±5 CPs per step. Adds/subtracts CPs to every system.">
+    <input type="number" id="vs-tech" class="vs-inp-xs" value="0" step="2.5" title="±5 CPs per step. Adds/subtracts CPs to every system.">
     <label class="vs-sub">Maneuver</label>
     <input type="number" id="vs-maneuver" class="vs-inp-xs" value="0" step="5" title="±1 Turn Rate per ±5 CP cost adjustment">
     <label class="vs-sub">Won't Explode</label><input type="checkbox" id="vs-noexplode" title="+5 CP. Central Power System won't explode.">
@@ -310,11 +310,7 @@
       <div class="aid-2c"><label class="aid-mlbl2">Indep. Power:</label><input type="checkbox" id="aid-indep" class="aid-mchk"><span class="aid-mh2">own 10 Pwr</span></div>
       <div class="aid-2c"><label class="aid-mlbl2">No Explode:</label><input type="checkbox" id="aid-wontexplode" class="aid-mchk"><span class="aid-mh2">+5 CPs</span></div>
       <div class="aid-2c-full"><label class="aid-mlbl2">Arc:</label><select id="aid-arc" class="aid-msel2"></select></div>
-    </div>
-    <div class="aid-divider"></div>
-    <div class="aid-row">
-      <label class="aid-lbl">Notes:</label>
-      <input type="text" id="aid-notes" class="aid-inp-text" placeholder="Arc, damage type, etc.">
+      <div class="aid-2c-full"><label class="aid-mlbl2">Facing:</label><select id="aid-facing" class="aid-msel2"></select></div>
     </div>
   </div>
   <div class="aid-footer">

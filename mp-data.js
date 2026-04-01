@@ -1644,7 +1644,7 @@ MP.SYS_COLORS = {
 
 MP.sysColor = function(desc) {
   if (!desc) return MP.SYS_COLORS.misc.color;
-  if (desc === "Remaining") return "#c8c8c8";
+  if (desc === "Floor") return "#c8c8c8";
   const d = desc.toLowerCase();
   for (const cat of Object.values(MP.SYS_COLORS)) {
     for (const kw of cat.keywords) {
@@ -1697,7 +1697,7 @@ MP._buildLabelKeywords = function() {
 };
 
 MP.sysLabel = function(desc) {
-  if (!desc) return "???";
+  if (!desc || desc === "Floor") return "";
   // Check cache
   if (MP._sysLabelCache[desc] !== undefined) return MP._sysLabelCache[desc];
   MP._buildLabelKeywords();
@@ -1733,6 +1733,7 @@ MP.MISC_OPTS = {
   other: [{l:"None (0)",cp:0},{l:"Immunity (+2.5)",cp:2.5},{l:"Body Part (-5)",cp:-5},{l:"Focused (0)",cp:0},{l:"Reversible (+10)",cp:10},{l:"Selective AE (+12.5)",cp:12.5},{l:"Backlash (-7.5)",cp:-7.5},{l:"Overload (+5)",cp:5},{l:"Non-Corp Effect (+5)",cp:5},{l:"Ability Field (x2 base)",cp:0},{l:"Uncontrollable (-20)",cp:-20},{l:"Reduced at Range (-2.5)",cp:-2.5},{l:"Diff Range BC (+2.5)",cp:2.5},{l:"No Escape (+15)",cp:15}],
 };
 MP.ARC_OPTS = [{l:"Forward 120° (0)",cp:0},{l:"No Arc — line only (-10)",cp:-10},{l:"Wide 240° (+5)",cp:5},{l:"Wide 360° (+10)",cp:10}];
+MP.FACING_OPTS = ["Forward","Fwd/Right","Fwd/Left","Back/Right","Back/Left","Back"];
 
 // Recompute ability description from saved abilityData + live vehicle stats
 MP.recomputeDesc = function(ad, st, en, ag, intel, cl, techMod) {
@@ -1936,7 +1937,12 @@ MP.recomputeDesc = function(ad, st, en, ag, intel, cl, techMod) {
     parts.push(`${arcLabel}${cpA(arcOpt.cp)}`);
   }
 
-  if (ad.notes) parts.push(ad.notes);
+  // Facing (when not 360° arc)
+  const facIdx = ad.facing || 0;
+  if (arcIdx !== 3 && facIdx > 0) {
+    const facLabel = MP.FACING_OPTS[facIdx] || "";
+    if (facLabel) parts.push(full ? `Facing ${facLabel}` : facLabel);
+  }
 
   return parts.join(", ");
 };

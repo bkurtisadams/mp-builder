@@ -23,7 +23,7 @@ class Vehicle {
     this.currentHits = null;  // null = track max
     this.currentPower = null; // null = track max
     this.walls = []; // [{gx, gy, edge:"t"|"l", type:"wall"|"door"|"hatch"}]
-    this._remainingSys = { id: "remaining", desc: "Remaining", spaces: 0, cells: [] };
+    this._remainingSys = { id: "remaining", desc: "Floor", spaces: 0, cells: [] };
     this._nextId = 1;
     this._nextKeyId = 1;
   }
@@ -328,7 +328,7 @@ class Vehicle {
     });
     this.keyEntries = data.keyEntries || [];
     this.walls = (data.walls || []).map(w => ({ gx: w.gx, gy: w.gy, edge: w.edge, type: w.type || "wall" }));
-    this._remainingSys = { id: "remaining", desc: "Remaining", spaces: 0, cells: data.remainingCells || [] };
+    this._remainingSys = { id: "remaining", desc: "Floor", spaces: 0, cells: data.remainingCells || [] };
     // Trim excess remaining cells if they exceed available space (e.g. from older saves)
     const maxRemCells = Math.max(0, this.totalSpaces - this.allocatedSpaces);
     if (this._remainingSys.cells.length > maxRemCells) {

@@ -98,8 +98,8 @@ function updateAll() {
   // Tint tech/maneuver fields: red = increasing cost, green = decreasing
   const techInp = document.getElementById("vs-tech");
   const manInp = document.getElementById("vs-maneuver");
-  techInp.style.background = veh.techMod > 0 ? "rgba(200,60,60,0.25)" : veh.techMod < 0 ? "rgba(60,160,60,0.25)" : "";
-  manInp.style.background = veh.maneuverMod > 0 ? "rgba(200,60,60,0.25)" : veh.maneuverMod < 0 ? "rgba(60,160,60,0.25)" : "";
+  techInp.style.background = veh.techMod > 0 ? "rgba(60,160,60,0.25)" : veh.techMod < 0 ? "rgba(200,60,60,0.25)" : "";
+  manInp.style.background = veh.maneuverMod > 0 ? "rgba(60,160,60,0.25)" : veh.maneuverMod < 0 ? "rgba(200,60,60,0.25)" : "";
   document.getElementById("vs-hits").textContent = veh.hits;
   document.getElementById("vs-power").textContent = veh.power;
   // Sync current to max if current exceeds max, is unset, or max changed
@@ -191,7 +191,7 @@ function renderSystemsTable() {
         <input type="text" value="${dmg}" data-field="dmg" data-idx="${i}" title="Damage taken by this system">
         <span class="vs-sys-val vs-sys-pts">${pts}</span>
         <span class="vs-sys-swatch" style="background:${sysColor || 'transparent'}"></span>
-        <input type="text" class="vs-sys-desc" value="${desc}" data-field="desc" data-idx="${i}" title="System name, abilities, arc, notes">
+        <input type="text" class="vs-sys-desc" value="${desc}" data-field="desc" data-idx="${i}" title="System name, abilities, arc, facing">
         <span class="vs-sys-ins" data-idx="${i}" title="Insert Ability (Ctrl+I)">+</span>
         <span class="vs-sys-edit" data-idx="${i}" title="Edit Ability (Ctrl+E)">✎</span>
         <span class="vs-sys-del" data-idx="${i}" title="Clear row">&times;</span>
@@ -222,7 +222,7 @@ function renderSystemsTable() {
       <span class="vs-sys-val">${remTotal}</span>
       <span></span><span></span><span></span><span></span>
       <span></span>
-      <span class="vs-remain-note"><em>Remaining spaces (${remPlaced} placed, ${remAvail} unplaced)</em></span>
+      <span class="vs-remain-note"><em>Floor (${remPlaced} placed, ${remAvail} unplaced)</em></span>
       <span></span><span></span><span></span>
     </div>
     <div class="vs-sys-mods"></div>
@@ -377,7 +377,7 @@ function buildSysDropdownHtml(ed) {
   const remTotal = veh.remainingSpaces + remPlaced;
   if (remTotal > 0) {
     const remSelected = (ed && ed.activeSysId === "remaining") ? " selected" : "";
-    html += `<option value="remaining"${remSelected}>Remaining (${remPlaced}/${remTotal})</option>`;
+    html += `<option value="remaining"${remSelected}>Floor (${remPlaced}/${remTotal})</option>`;
   }
   return html;
 }
@@ -402,7 +402,7 @@ function getActiveIndicatorHtml(ed) {
   if (ed.activeSysId === "remaining") {
     sys = veh.getRemainingSys();
     color = "#c8c8c8";
-    name = "Remaining";
+    name = "Floor";
     placed = sys.cells.length;
     total = veh.remainingSpaces + placed;
   } else {
@@ -1370,6 +1370,18 @@ const abilityDlg = {
     });
     wheelSelect(arcSel);
 
+    // System Modifiers — Facing dropdown
+    const facSel = document.getElementById("aid-facing");
+    MP.FACING_OPTS.forEach((f,i) => {
+      const opt = document.createElement("option"); opt.value = i; opt.textContent = f; facSel.appendChild(opt);
+    });
+    wheelSelect(facSel);
+    // Hide facing when arc is 360°
+    arcSel.addEventListener("change", () => {
+      const is360 = parseInt(arcSel.value) === 3;
+      facSel.closest(".aid-2c-full").style.display = is360 ? "none" : "";
+    });
+
     // Mousewheel on number inputs
     wheelNumber(document.getElementById("aid-bulky"));
     wheelNumber(document.getElementById("aid-delicate"));
@@ -1401,9 +1413,6 @@ const abilityDlg = {
         this._updatePreview();
       });
     });
-
-    // Wire notes input to update preview
-    document.getElementById("aid-notes").addEventListener("input", () => this._updatePreview());
 
     // Restore saved description mode
     this._restoreDescMode();
@@ -1827,7 +1836,7 @@ const abilityDlg = {
       indep: document.getElementById("aid-indep").checked,
       wontexplode: document.getElementById("aid-wontexplode").checked,
       arc: parseInt(document.getElementById("aid-arc").value) || 0,
-      notes: document.getElementById("aid-notes").value.trim(),
+      facing: parseInt(document.getElementById("aid-facing").value) || 0,
     };
     // Ability-specific modifiers
     const abMods = MP.ABILITY_MODIFIERS[abId] || [];
@@ -1895,7 +1904,9 @@ const abilityDlg = {
     document.getElementById("aid-indep").checked = state.indep || false;
     document.getElementById("aid-wontexplode").checked = state.wontexplode || false;
     document.getElementById("aid-arc").selectedIndex = state.arc || 0;
-    document.getElementById("aid-notes").value = state.notes || "";
+    document.getElementById("aid-facing").selectedIndex = state.facing || 0;
+    // Hide facing when arc is 360°
+    document.getElementById("aid-facing").closest(".aid-2c-full").style.display = (state.arc === 3) ? "none" : "";
 
     // Restore ability-specific modifiers (after _onAbilityChange rebuilds them)
     if (state.abilityMods) {
@@ -1956,7 +1967,8 @@ const abilityDlg = {
     document.getElementById("aid-indep").checked = false;
     document.getElementById("aid-wontexplode").checked = false;
     document.getElementById("aid-arc").selectedIndex = 0;
-    document.getElementById("aid-notes").value = "";
+    document.getElementById("aid-facing").selectedIndex = 0;
+    document.getElementById("aid-facing").closest(".aid-2c-full").style.display = "";
   },
 
   open(rowIdx, editMode) {
@@ -2213,8 +2225,13 @@ const abilityDlg = {
       modAdj += arcCp;
     }
 
-    const notes = document.getElementById("aid-notes").value.trim();
-    if (notes) parts.push(notes);
+    // Facing (when not 360° arc)
+    const arcIdx = parseInt(document.getElementById("aid-arc").value) || 0;
+    const facIdx = parseInt(document.getElementById("aid-facing").value) || 0;
+    if (arcIdx !== 3 && facIdx > 0) {
+      const facLabel = MP.FACING_OPTS[facIdx] || "";
+      if (facLabel) parts.push(full ? `Facing ${facLabel}` : facLabel);
+    }
 
     return { desc: parts.join(", "), parts, modAdj, bulkyTotal, delicateTotal,
              isIntegral, isOpen, abilityCp, spaces: sysRow ? sysRow.sp : 0 };
