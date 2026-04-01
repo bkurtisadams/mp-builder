@@ -128,8 +128,8 @@ body {
 /* ── Card grid ── */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
 }
 
 /* ── Slot card ── */
@@ -146,13 +146,13 @@ body {
 
 /* ── Card content ── */
 .card-content {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 10px 12px 8px 10px; cursor: pointer;
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 10px 6px 8px; cursor: pointer;
 }
 
 /* ── Thumbnail with colored border ── */
 .card-thumb {
-  width: 62px; height: 62px; flex-shrink: 0;
+  width: 56px; height: 56px; flex-shrink: 0;
   border-radius: 4px; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   position: relative;
@@ -687,10 +687,19 @@ function renderThumb(item, type, idx, placeholder) {
 }
 
 function getCampaignName(item) {
-  if (!item._campaign) return '';
   const camps = loadCampaigns();
-  const c = camps.find(x => x.id === item._campaign);
-  return c ? c.name : '';
+  // Try item's assigned campaign first
+  if (item._campaign) {
+    const c = camps.find(x => x.id === item._campaign);
+    if (c) return c.name;
+  }
+  // Fall back to active campaign
+  const active = getActiveCampaign();
+  if (active) {
+    const c = camps.find(x => x.id === active);
+    if (c) return c.name;
+  }
+  return '';
 }
 
 function getSideClass(side) {
