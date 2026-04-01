@@ -976,6 +976,11 @@ function gatherData() {
     });
     d.attacks.push(row);
   }
+  // Preserve image and campaign from existing saved data
+  if (window._charMeta) {
+    if (window._charMeta._image) d._image = window._charMeta._image;
+    if (window._charMeta._campaign) d._campaign = window._charMeta._campaign;
+  }
   return d;
 }
 
@@ -1110,10 +1115,22 @@ document.getElementById('inp-import').addEventListener('change', (e) => {
 // PDF (print)
 document.getElementById('btn-pdf').addEventListener('click', () => window.print());
 
+// Meta storage for image/campaign (not in form fields)
+window._charMeta = {};
+
 // Auto-load on page open
 try {
   const raw = localStorage.getItem(STORE_KEY);
-  if (raw) populateData(JSON.parse(raw));
+  if (raw) {
+    const d = JSON.parse(raw);
+    if (d._image) window._charMeta._image = d._image;
+    if (d._campaign) window._charMeta._campaign = d._campaign;
+    populateData(d);
+  } else {
+    // New character — pick up campaign from dashboard
+    const camp = localStorage.getItem('mp-char-campaign');
+    if (camp) { window._charMeta._campaign = camp; localStorage.removeItem('mp-char-campaign'); }
+  }
 } catch(e) {}
 
 // Default luck if empty after load

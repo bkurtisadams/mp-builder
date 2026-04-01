@@ -125,95 +125,79 @@ body {
 /* ── Card grid ── */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 10px;
 }
 
 /* ── Slot card ── */
 .card {
   border: 1.5px solid var(--card-brd);
   border-radius: 5px;
-  min-height: 280px;
+  padding: 10px;
   display: flex; flex-direction: column;
   transition: border-color 0.15s, box-shadow 0.15s;
   position: relative;
   background: var(--card-bg);
-  overflow: hidden;
 }
 .card:hover { border-color: var(--gold); box-shadow: 0 2px 8px rgba(26,20,48,0.1) }
 
-/* ── Card image area ── */
-.card-img-area {
-  position: relative;
-  height: 140px;
-  background: #eef2f8;
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden;
-  cursor: pointer;
-}
-.card-img-area img {
-  width: 100%; height: 100%;
-  object-fit: cover;
-}
-.card-img-placeholder {
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 4px; color: var(--tx3); font-size: 10px;
-}
-.card-img-placeholder svg { opacity: 0.3 }
-.card-img-btns {
-  position: absolute; bottom: 4px; right: 4px;
-  display: flex; gap: 3px; opacity: 0;
-  transition: opacity 0.15s;
-}
-.card-img-area:hover .card-img-btns { opacity: 1 }
-.card-img-btn {
-  width: 24px; height: 24px;
-  border-radius: 3px; border: none; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; line-height: 1;
-  background: rgba(255,255,255,0.85); color: #666;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-  transition: all 0.12s;
-}
-.card-img-btn:hover { background: #fff; color: var(--red) }
-.card-img-btn svg { width: 14px; height: 14px; fill: currentColor }
+/* ── Card top row: thumbnail + info ── */
+.card-top { display: flex; gap: 10px; align-items: flex-start }
 
-/* ── Card body ── */
-.card-body { padding: 10px 12px; flex: 1; display: flex; flex-direction: column }
+/* ── Thumbnail ── */
+.card-thumb {
+  width: 56px; height: 56px; flex-shrink: 0;
+  border-radius: 4px; overflow: hidden;
+  background: #eef2f8; position: relative;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block }
+.card-thumb-placeholder { color: var(--tx3); opacity: 0.35 }
+.card-thumb-del {
+  position: absolute; top: 1px; right: 1px;
+  width: 16px; height: 16px; border-radius: 2px;
+  border: none; cursor: pointer; padding: 0;
+  background: rgba(255,255,255,0.8); color: #999;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.12s;
+  font-size: 10px; line-height: 1;
+}
+.card-thumb:hover .card-thumb-del { opacity: 1 }
+.card-thumb-del:hover { background: #fff; color: var(--danger) }
+.card-thumb-del svg { width: 10px; height: 10px; fill: currentColor }
+
+/* ── Card info ── */
+.card-info { flex: 1; min-width: 0 }
 .card-name {
-  font-family: var(--fd); font-size: 16px; letter-spacing: 0.5px;
-  color: var(--hdr-bg); margin-bottom: 2px;
+  font-family: var(--fd); font-size: 15px; letter-spacing: 0.5px;
+  color: var(--hdr-bg); line-height: 1.2;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.card-sub { font-size: 10px; color: var(--tx2); margin-bottom: 6px }
-.card-stats { display: flex; flex-direction: column; gap: 3px; flex: 1 }
-.card-stat {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 10px; color: var(--tx2);
-}
-.card-stat-val { font-weight: 700; color: var(--tx) }
+.card-sub { font-size: 10px; color: var(--tx2); margin-top: 1px }
 .card-bcs {
   font-family: monospace; font-size: 9px; color: var(--tx2);
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px; margin-top: 3px;
 }
 .card-derived {
   font-size: 9px; color: var(--tx3); margin-top: 2px;
 }
-.card-badge {
-  display: inline-block; padding: 1px 6px; border-radius: 2px;
-  font-size: 9px; font-weight: 700; letter-spacing: 0.3px;
+.card-campaign {
+  font-size: 9px; color: #8a7a60; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.badge-cp { background: #e8f5e0; color: var(--green) }
-.badge-origin { background: #fdf3e0; color: #9a6a10 }
-.badge-species { background: #eee8f5; color: #6a4a9a }
+.card-campaign b { font-weight: 700; color: #6a5a40 }
 
+.card-click { cursor: pointer }
+.card-click:hover .card-name { color: var(--red) }
+
+/* ── Card actions ── */
 .card-actions {
-  display: flex; gap: 4px; margin-top: 8px; padding-top: 8px;
+  display: flex; gap: 4px; margin-top: 8px; padding-top: 6px;
   border-top: 1px solid #e8e8f0;
 }
 .card-btn {
-  flex: 1; padding: 5px 0; font-size: 9px; font-family: var(--fb); font-weight: 700;
+  flex: 1; padding: 4px 0; font-size: 9px; font-family: var(--fb); font-weight: 700;
   border: 1.5px solid var(--card-brd); background: var(--card-bg);
   border-radius: 2px; cursor: pointer; color: var(--tx2);
   text-align: center; transition: all 0.12s;
@@ -221,8 +205,6 @@ body {
 .card-btn:hover { border-color: var(--red); color: var(--red) }
 .card-btn-edit { border-color: var(--red); color: var(--red) }
 .card-btn-edit:hover { background: var(--red); color: #fff }
-.card-click { cursor: pointer }
-.card-click:hover .card-name { color: var(--red) }
 .card-btn-del:hover { border-color: var(--danger); color: var(--danger) }
 
 /* ── Empty slot ── */
@@ -235,10 +217,10 @@ body {
   text-align: center;
   color: var(--tx3);
   cursor: default;
-  min-height: 280px;
+  min-height: 100px;
 }
 .card-empty:hover { border-color: var(--card-brd); box-shadow: none }
-.card-empty-icon { font-size: 28px; opacity: 0.3; margin-bottom: 6px }
+.card-empty-icon { font-size: 24px; opacity: 0.3; margin-bottom: 4px }
 .card-empty-label { font-size: 11px; font-weight: 700 }
 .card-empty-num { font-size: 9px; color: var(--tx3); margin-top: 2px }
 
@@ -330,8 +312,7 @@ body {
   .tabs { gap: 2px }
   .tab { padding: 8px 14px; font-size: 14px }
   .panel { padding: 14px }
-  .card-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px }
-  .card-img-area { height: 110px }
+  .card-grid { grid-template-columns: 1fr; gap: 8px }
   .campaign-bar { flex-wrap: wrap }
   .campaign-bar select { min-width: 140px }
 }
@@ -553,7 +534,7 @@ function resizeImage(file, maxW) {
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
       };
       img.src = e.target.result;
     };
@@ -567,7 +548,7 @@ function triggerImageUpload(type, idx) {
   inp.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const dataUrl = await resizeImage(file, 400);
+    const dataUrl = await resizeImage(file, 150);
     const listKey = type === 'char' ? CHARS_KEY : VEHS_KEY;
     const list = loadList(listKey);
     if (list[idx]) {
@@ -604,70 +585,73 @@ tabs.forEach(tab => {
 // ── Rendering ──
 function escH(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
-const camIcon = `<svg viewBox="0 0 16 16" width="14" height="14"><rect x="1" y="4" width="14" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="5" y="2" width="6" height="3" rx="0.8" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="8" cy="9.5" r="2.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>`;
-const delImgIcon = `<svg viewBox="0 0 16 16" width="12" height="12"><line x1="4" y1="4" x2="12" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="12" y1="4" x2="4" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+const delXIcon = `<svg viewBox="0 0 10 10" width="10" height="10"><line x1="2" y1="2" x2="8" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="2" x2="2" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+const thumbPlaceholder = `<svg class="card-thumb-placeholder" viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="9" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 22c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`;
+const thumbPlaceholderVeh = `<svg class="card-thumb-placeholder" viewBox="0 0 24 24" width="24" height="24"><rect x="2" y="8" width="20" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="17" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>`;
 
-function renderImageArea(item, type, idx) {
+function renderThumb(item, type, idx, placeholder) {
   if (item._image) {
-    return `<div class="card-img-area">
+    return `<div class="card-thumb" data-action="img-upload" data-type="${type}" data-idx="${idx}" title="Click to change image">
       <img src="${item._image}" alt="">
-      <div class="card-img-btns">
-        <button class="card-img-btn" data-action="img-upload" data-type="${type}" data-idx="${idx}" title="Replace image">${camIcon}</button>
-        <button class="card-img-btn" data-action="img-del" data-type="${type}" data-idx="${idx}" title="Remove image">${delImgIcon}</button>
-      </div>
+      <button class="card-thumb-del" data-action="img-del" data-type="${type}" data-idx="${idx}" title="Remove image">${delXIcon}</button>
     </div>`;
   }
-  return `<div class="card-img-area" data-action="img-upload" data-type="${type}" data-idx="${idx}">
-    <div class="card-img-placeholder">
-      <svg viewBox="0 0 40 40" width="40" height="40"><rect x="4" y="10" width="32" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="5" width="14" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="20" cy="22" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-      <span>Click to add image</span>
-    </div>
+  return `<div class="card-thumb" data-action="img-upload" data-type="${type}" data-idx="${idx}" title="Click to add image">
+    ${placeholder}
   </div>`;
+}
+
+function getCampaignName(item) {
+  if (!item._campaign) return '';
+  const camps = loadCampaigns();
+  const c = camps.find(x => x.id === item._campaign);
+  return c ? c.name : '';
 }
 
 function renderCharCard(c, idx) {
   const name = c.name || 'Unnamed';
-  const trueId = c.trueId || '';
   const species = c.species || '';
   // Sum total CPs
   let totalCPs = 0;
   if (c.stats) { for (const s of Object.values(c.stats)) totalCPs += parseFloat(s.cp) || 0; }
   if (c.abilities) { for (const ab of c.abilities) totalCPs += parseFloat(ab.cp) || 0; }
   const cpsStr = totalCPs ? totalCPs + ' CPs' : '';
-  // BC line
+  // BC line — all on one row
   let bcLine = '';
   if (c.stats) {
     const bcs = ['st','en','ag','in','cl'];
     const parts = bcs.map(k => {
       const v = c.stats[k] ? (c.stats[k].cp || '0') : '0';
-      return k.toUpperCase() + ' ' + v;
+      return k.toUpperCase() + '\u2009' + v;
     });
     bcLine = parts.join('  ');
   }
-  // Derived
+  // Derived: Pow, HP, Init
   let derivedLine = '';
-  if (c.hitPts || c.power) {
-    const bits = [];
-    if (c.hitPts) bits.push('HP ' + c.hitPts);
-    if (c.power) bits.push('Pow ' + c.power);
-    derivedLine = bits.join('  ');
-  }
+  const bits = [];
+  if (c.power) bits.push('Pow ' + c.power);
+  if (c.hitPts) bits.push('HP ' + c.hitPts);
+  if (c.initiative) bits.push('Init ' + c.initiative);
+  derivedLine = bits.join('  ');
+  // Campaign
+  const campName = getCampaignName(c);
   const subParts = [cpsStr, species].filter(Boolean);
   return `<div class="card card-click" data-type="char" data-idx="${idx}">
-    ${renderImageArea(c, 'char', idx)}
-    <div class="card-body">
-      <div class="card-name">${escH(name)}</div>
-      <div class="card-sub">${escH(subParts.join(' · '))}</div>
-      <div class="card-stats">
+    <div class="card-top">
+      ${renderThumb(c, 'char', idx, thumbPlaceholder)}
+      <div class="card-info">
+        <div class="card-name">${escH(name)}</div>
+        <div class="card-sub">${escH(subParts.join(' · '))}</div>
         ${bcLine ? `<div class="card-bcs">${escH(bcLine)}</div>` : ''}
         ${derivedLine ? `<div class="card-derived">${escH(derivedLine)}</div>` : ''}
+        ${campName ? `<div class="card-campaign"><b>Campaign:</b> ${escH(campName)}</div>` : ''}
       </div>
-      <div class="card-actions">
-        <button class="card-btn card-btn-edit" data-action="edit">Edit</button>
-        <button class="card-btn" data-action="copy">Copy</button>
-        <button class="card-btn" data-action="export">Export</button>
-        <button class="card-btn card-btn-del" data-action="del">Del</button>
-      </div>
+    </div>
+    <div class="card-actions">
+      <button class="card-btn card-btn-edit" data-action="edit">Edit</button>
+      <button class="card-btn" data-action="copy">Copy</button>
+      <button class="card-btn" data-action="export">Export</button>
+      <button class="card-btn card-btn-del" data-action="del">Del</button>
     </div>
   </div>`;
 }
@@ -682,27 +666,28 @@ function renderVehCard(v, idx) {
   const cpsStr = totalCost ? totalCost + ' CPs' : '';
   const spaces = v.spaces ? v.spaces + ' spc' : '';
   // Derived
-  let derivedLine = '';
   const bits = [];
   if (v.totalHits) bits.push('Hits ' + v.totalHits);
   if (v.totalPower) bits.push('Power ' + v.totalPower);
-  derivedLine = bits.join('  ');
+  const derivedLine = bits.join('  ');
   const subParts = [cpsStr, spaces].filter(Boolean);
+  const campName = getCampaignName(v);
   return `<div class="card card-click" data-type="veh" data-idx="${idx}">
-    ${renderImageArea(v, 'veh', idx)}
-    <div class="card-body">
-      <div class="card-name">${escH(name)}</div>
-      <div class="card-sub">${escH(subParts.join(' · '))}</div>
-      <div class="card-stats">
+    <div class="card-top">
+      ${renderThumb(v, 'veh', idx, thumbPlaceholderVeh)}
+      <div class="card-info">
+        <div class="card-name">${escH(name)}</div>
+        <div class="card-sub">${escH(subParts.join(' · '))}</div>
         ${model ? `<div class="card-derived">${escH(model)}</div>` : ''}
         ${derivedLine ? `<div class="card-derived">${escH(derivedLine)}</div>` : ''}
+        ${campName ? `<div class="card-campaign"><b>Campaign:</b> ${escH(campName)}</div>` : ''}
       </div>
-      <div class="card-actions">
-        <button class="card-btn card-btn-edit" data-action="edit">Edit</button>
-        <button class="card-btn" data-action="copy">Copy</button>
-        <button class="card-btn" data-action="export">Export</button>
-        <button class="card-btn card-btn-del" data-action="del">Del</button>
-      </div>
+    </div>
+    <div class="card-actions">
+      <button class="card-btn card-btn-edit" data-action="edit">Edit</button>
+      <button class="card-btn" data-action="copy">Copy</button>
+      <button class="card-btn" data-action="export">Export</button>
+      <button class="card-btn card-btn-del" data-action="del">Del</button>
     </div>
   </div>`;
 }
@@ -837,6 +822,7 @@ document.getElementById('btn-new-char').addEventListener('click', () => {
   if (chars.length >= CHAR_SLOTS) { alert(`All ${CHAR_SLOTS} character slots are full. Delete one to make room.`); return; }
   localStorage.removeItem('mp-char-sheet');
   localStorage.setItem('mp-char-edit-idx', '-1');
+  localStorage.setItem('mp-char-campaign', getActiveCampaign());
   window.location.href = 'character.html';
 });
 document.getElementById('btn-new-veh').addEventListener('click', () => {
@@ -844,6 +830,7 @@ document.getElementById('btn-new-veh').addEventListener('click', () => {
   if (vehs.length >= VEH_SLOTS) { alert(`All ${VEH_SLOTS} vehicle slots are full. Delete one to make room.`); return; }
   localStorage.removeItem('mp-vehicle-autosave');
   localStorage.setItem('mp-veh-edit-idx', '-1');
+  localStorage.setItem('mp-veh-campaign', getActiveCampaign());
   window.location.href = 'vehicle.html';
 });
 
