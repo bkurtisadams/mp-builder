@@ -1387,3 +1387,230 @@ MP.sysLabel = function(desc) {
   MP._sysLabelCache[desc] = fallback;
   return fallback;
 };
+
+// ---- Misc modifier option arrays (shared by dialog builder and recompute) ----
+MP.MISC_OPTS = {
+  conc: [{l:"None (0)",cp:0},{l:"Activation (-2.5)",cp:-2.5},{l:"Per Use (-5)",cp:-5},{l:"Maintain (-7.5)",cp:-7.5},{l:"Total Conc (-5)",cp:-5},{l:"Total Per Use (-10)",cp:-10},{l:"Total Maintain (-15)",cp:-15}],
+  kb: [{l:"Normal (0)",cp:0},{l:"Knockback (+5)",cp:5},{l:"No Knockback (-5)",cp:-5},{l:"KB Only (-10)",cp:-10},{l:"KB Only No Dmg (-20)",cp:-20},{l:"Won't Negate KB (-2.5)",cp:-2.5}],
+  partial: [{l:"Full (0)",cp:0},{l:"Heavy (-5)",cp:-5},{l:"Light (-10)",cp:-10},{l:"Spot Coverage (0)",cp:0}],
+  poorpen: [{l:"Normal (0)",cp:0},{l:"Double prot (-5)",cp:-5},{l:"Any prot blocks (-10)",cp:-10}],
+  obvious: [{l:"Normal (0)",cp:0},{l:"Unobvious (+5)",cp:5},{l:"Fewer Senses (+2.5)",cp:2.5},{l:"Obvious (-5)",cp:-5},{l:"Extra Senses (-2.5)",cp:-2.5}],
+  carrier: [{l:"None (0)",cp:0},{l:"Carrier Main (+7.5)",cp:7.5},{l:"Carried Atk (+7.5)",cp:7.5},{l:"Carried Indep (+10)",cp:10},{l:"Contact Atk (+15)",cp:15},{l:"Contact Indep (+17.5)",cp:17.5},{l:"Conductive (+7.5)",cp:7.5}],
+  dmgtype: [{l:"Normal (0)",cp:0},{l:"→Psychic (+5)",cp:5},{l:"→Other (+10)",cp:10},{l:"Psychic→Std (-5)",cp:-5},{l:"Other→Std (-10)",cp:-10},{l:"Psychic→Other (+5)",cp:5},{l:"Other→Psychic (-5)",cp:-5}],
+  indirect: [{l:"None (0)",cp:0},{l:"Fixed pos, away (+2.5)",cp:2.5},{l:"Any pos, away (+5)",cp:5},{l:"Fixed pos, any dir (+5)",cp:5},{l:"Any pos, any dir (+12.5)",cp:12.5}],
+  activation: [{l:"Normal (0)",cp:0},{l:"Persistent→Voluntary (-5)",cp:-5},{l:"Continual→Persistent (-5)",cp:-5},{l:"Continual→Voluntary (-10)",cp:-10},{l:"Stays Active: Vol→Pers (+5)",cp:5},{l:"Stays Active: Pers→Cont (+5)",cp:5},{l:"Stays Active: Vol→Cont (+10)",cp:10}],
+  loss: [{l:"None (0)",cp:0},{l:"Req Speech (-2.5)",cp:-2.5},{l:"Req Free Move (-2.5)",cp:-2.5},{l:"Req Nighttime (-5)",cp:-5},{l:"Req Daylight (-5)",cp:-5}],
+  canthold: [{l:"Normal (0)",cp:0},{l:"Voluntary (-2.5)",cp:-2.5},{l:"Persistent (-5)",cp:-5},{l:"Continual (-7.5)",cp:-7.5}],
+  multi: [{l:"None (0)",cp:0},{l:"1 of set (-10)",cp:-10},{l:"2 of set (-5)",cp:-5},{l:"3 of set (-2.5)",cp:-2.5}],
+  usable: [{l:"None (0)",cp:0},{l:"By Others (+5)",cp:5},{l:"By Others Only (0)",cp:0},{l:"On Others (+10)",cp:10},{l:"On Others Only (0)",cp:0},{l:"Not On Self (-5)",cp:-5},{l:"Not On Self, self-only (-10)",cp:-10},{l:"Not On Self, minor (-2.5)",cp:-2.5}],
+  reqsave: [{l:"None (0)",cp:0},{l:"Save to Use (-5)",cp:-5},{l:"Save to Activate (-2.5)",cp:-2.5},{l:"Easier Save (+2.5)",cp:2.5},{l:"Harder Save (-2.5)",cp:-2.5}],
+  other: [{l:"None (0)",cp:0},{l:"Immunity (+2.5)",cp:2.5},{l:"Body Part (-5)",cp:-5},{l:"Focused (0)",cp:0},{l:"Reversible (+10)",cp:10},{l:"Selective AE (+12.5)",cp:12.5},{l:"Backlash (-7.5)",cp:-7.5},{l:"Overload (+5)",cp:5},{l:"Non-Corp Effect (+5)",cp:5},{l:"Ability Field (x2 base)",cp:0},{l:"Uncontrollable (-20)",cp:-20},{l:"Reduced at Range (-2.5)",cp:-2.5},{l:"Diff Range BC (+2.5)",cp:2.5},{l:"No Escape (+15)",cp:15}],
+};
+MP.ARC_OPTS = [{l:"Forward 120° (0)",cp:0},{l:"No Arc — line only (-10)",cp:-10},{l:"Wide 240° (+5)",cp:5},{l:"Wide 360° (+10)",cp:10}];
+
+// Recompute ability description from saved abilityData + live vehicle stats
+MP.recomputeDesc = function(ad, st, en, ag, intel, cl, techMod) {
+  if (!ad || !ad.abId) return null;
+  const ab = MP.abilityById(ad.abId);
+  const detail = MP.ABILITY_DETAILS[ad.abId];
+  if (!ab) return null;
+  const name = ab.name;
+  const abilityCp = ad.abilityCp || 0;
+  const mode = ad.descMode || "compact";
+  const full = mode === "full";
+  const min = mode === "min";
+  function cpA(cp) { if (min) return ""; return ` (${cp >= 0 ? "+" + cp : cp})`; }
+  function baseCpA() { if (min) return ""; return " (" + abilityCp + ")"; }
+
+  // Recompute ability info with live stats
+  const info = MP.computeAbilityInfo(ad.abId, abilityCp, st, en, ag, intel, cl);
+
+  const parts = [];
+  let basePart = name;
+
+  // For range-bearing abilities, recompute the range with the range modifier applied
+  if (info && info.desc) {
+    let descStr = info.desc;
+    // If range modifier changes the range, recalculate
+    if (detail && detail.calc && detail.calc.rng && detail.calc.baseRange) {
+      const baseRangeIdx = MP.rangeScaleIndex(detail.calc.baseRange);
+      const currentRangeIdx = ad.range || 0;
+      const rangeEntry = MP.RANGE_SCALE[currentRangeIdx];
+      if (rangeEntry && currentRangeIdx !== baseRangeIdx) {
+        // Recompute range using the modified range formula
+        // RANGE_SCALE goes from longest (0) to shortest (10)
+        // The formula in calc.rng gives the base inches for BCx1"
+        const baseInches = MP.calcRange(detail.calc.rng, st, en, ag, intel, cl);
+        if (baseInches !== null && baseInches > 0) {
+          // Multipliers: BCx16=16, BCx8=8, BCx4=4, BCx2=2, BCx1=1, BC/2=0.5, BC/4=0.25
+          const multipliers = [null, null, 16, 8, 4, 2, 1, 0.5, 0.25, null, null];
+          const baseMul = multipliers[baseRangeIdx];
+          const newMul = multipliers[currentRangeIdx];
+          if (baseMul != null && newMul != null) {
+            const newRange = Math.floor(baseInches * newMul / baseMul);
+            // Replace the range portion in desc
+            const origRange = MP.calcRange(detail.calc.rng, st, en, ag, intel, cl);
+            descStr = descStr.replace('Rng ' + origRange + '"', 'Rng ' + newRange + '"');
+          }
+        }
+      }
+    }
+    basePart += ": " + descStr;
+  }
+  basePart += baseCpA();
+  parts.push(basePart);
+
+  // Ability-specific modifiers (from abilityMods saved state)
+  const abMods = MP.ABILITY_MODIFIERS[ad.abId] || [];
+  const savedAbMods = ad.abilityMods || {};
+  for (const am of abMods) {
+    const lbl = full ? am.label : am.short;
+    const val = savedAbMods[am.id];
+    if (am.type === "select") {
+      const selIdx = val || 0;
+      const opt = am.options[selIdx];
+      const defIdx = am.def || 0;
+      if (opt && (opt.cp !== 0 || selIdx !== defIdx)) {
+        const optLbl = opt.l.replace(/ \([^)]*\)$/, "");
+        parts.push(opt.cp !== 0 ? `${lbl}: ${optLbl}${cpA(opt.cp)}` : `${lbl}: ${optLbl}`);
+      }
+    } else if (am.type === "number") {
+      const v = val || 0;
+      if (v > 0) {
+        const c = am.cpFn(v);
+        parts.push(`${lbl} x${v}${cpA(c)}`);
+      }
+    } else {
+      // checkbox
+      if (val) {
+        parts.push(am.cp !== 0 ? `${lbl}${cpA(am.cp)}` : lbl);
+      }
+    }
+  }
+
+  // Generic step modifiers
+  function addStep(key, steps, fullLbl, shortLbl, descFn) {
+    const val = ad[key] || 0;
+    if (val > 0 && steps[val]) {
+      const s = steps[val];
+      const label = full ? fullLbl : shortLbl;
+      parts.push(descFn(label, s, s.cp));
+    }
+  }
+  addStep("area", MP.AREA_EFFECT_STEPS, "Area Effect", "AE", (l,s,c) => `${l} ${s.label}${cpA(c)}`);
+  addStep("ap", MP.ARMOR_PIERCING_STEPS, "Armor Piercing", "AP", (l,s,c) => `${l} ${s.val}${cpA(c)}`);
+  addStep("autofire", MP.AUTOFIRE_STEPS, "Autofire", "AF", (l,s,c) => `${l} x${s.rof}${cpA(c)}`);
+  addStep("duration", MP.DURATION_STEPS, "Duration", "Dur", (l,s,c) => `${l} ${s.label}${cpA(c)}`);
+  addStep("hardened", MP.HARDENED_STEPS, "Hardened", "Hrd", (l,s,c) => `${l} ${s.val}${cpA(c)}`);
+
+  if (ad.gear) { parts.push(`Gear${cpA(-5)}`); }
+
+  if ((ad.bulky || 0) > 0) parts.push(`${full ? "Bulky" : "Blk"} x${ad.bulky}${cpA(ad.bulky * 2.5)}`);
+  if ((ad.delicate || 0) > 0) parts.push(`${full ? "Delicate" : "Del"} x${ad.delicate}${cpA(-ad.delicate * 2.5)}`);
+
+  // PR — resolved final value
+  const prIdx = ad.pr || 0;
+  const basePrIdx = detail ? MP.prScaleIndex(detail.pr) : 0;
+  const prRow = MP.PR_CHARGES_SCALE[prIdx];
+  if (prRow) {
+    const prCpDelta = (basePrIdx - prIdx) * 2.5;
+    if (prCpDelta !== 0) {
+      parts.push(`PR ${prRow.pr}${cpA(prCpDelta)}`);
+    } else if (detail && detail.pr > 0) {
+      parts.push(`PR ${prRow.pr}`);
+    }
+  }
+
+  // Charges — only show when modified from base
+  const chIdx = ad.charges || 0;
+  const chRow = MP.PR_CHARGES_SCALE[chIdx];
+  if (chRow && chIdx !== basePrIdx) {
+    const chCpDelta = (basePrIdx - chIdx) * 2.5;
+    parts.push(`${full ? "Charges" : "Ch"}: ${chRow.charges} ch${cpA(chCpDelta)}`);
+  }
+
+  // Range — show label only when modified from base
+  if (detail && detail.calc && detail.calc.baseRange) {
+    const baseRngIdx = MP.rangeScaleIndex(detail.calc.baseRange);
+    const curRngIdx = ad.range || 0;
+    const rngEntry = MP.RANGE_SCALE[curRngIdx];
+    if (rngEntry && curRngIdx !== baseRngIdx) {
+      const rngCp = (baseRngIdx - curRngIdx) * 2.5;
+      parts.push(`${full ? "Range" : "Rng"} ${rngEntry.label}${cpA(rngCp)}`);
+    }
+  }
+
+  // Misc selects
+  const miscMap = [
+    ["conc","conc"],["kb","kb"],["partial","partial"],["poorpen","poorpen"],
+    ["obvious","obvious"],["carrier","carrier"],["dmgtype","dmgtype"],
+    ["indirect","indirect"],["timereq","timereq"],["activation","activation"],
+    ["loss","loss"],["canthold","canthold"],["multi","multi"],
+    ["usable","usable"],["reqsave","reqsave"],["other","other"]
+  ];
+  for (const [dataKey, optKey] of miscMap) {
+    const idx = dataKey === "timereq" ? (ad[dataKey] ?? 2) : (ad[dataKey] || 0);
+    if (dataKey === "timereq") {
+      // Time Requirement: index 2 = 1 Phase = 0 CP
+      if (idx !== 2) {
+        const trStep = MP.TIME_REQ_STEPS[idx];
+        if (trStep) {
+          const trCp = (2 - idx) * 2.5;
+          const txt = trStep.label;
+          parts.push(trCp !== 0 ? `${txt}${cpA(trCp)}` : txt);
+        }
+      }
+    } else {
+      const opts = MP.MISC_OPTS[optKey];
+      if (opts && idx > 0 && opts[idx]) {
+        const o = opts[idx];
+        const txt = o.l.replace(/ \([^)]*\)$/, "");
+        parts.push(o.cp !== 0 ? `${txt}${cpA(o.cp)}` : txt);
+      }
+    }
+  }
+
+  // Linked
+  if (ad.linked) parts.push(`${full ? "Linked" : "Lnk"}${cpA(-2.5)}`);
+
+  // Breakdown
+  if ((ad.breakdown || 0) > 0) {
+    parts.push(`${full ? "Breakdown" : "Bkdn"} x${ad.breakdown}${cpA(-ad.breakdown * 2.5)}`);
+  }
+
+  // System modifiers
+  if (ad.integral) {
+    const sysRow = MP.lookupSys(ad.spaces || 0);
+    const baseCp = sysRow ? sysRow.cp : 0;
+    if (min) parts.push("Integral");
+    else { const halfCp = Math.ceil((baseCp + techMod) / 2); parts.push(`Integral (½ → ${halfCp})`); }
+  }
+  if (ad.open) {
+    const sysRow = MP.lookupSys(ad.spaces || 0);
+    let openBase = sysRow ? sysRow.cp : 0;
+    openBase += techMod;
+    if (ad.integral) openBase = Math.ceil(openBase / 2);
+    if (min) parts.push("Open");
+    else parts.push(`Open (¼ → ${Math.ceil(openBase / 4)})`);
+  }
+  if (ad.indep) parts.push(full ? "Indep. Power" : "Indep");
+  if (ad.wontexplode) parts.push(min ? "No Explode" : `Won't Explode${cpA(5)}`);
+
+  // Arc
+  const arcIdx = ad.arc || 0;
+  const arcOpt = MP.ARC_OPTS[arcIdx];
+  if (arcOpt && arcOpt.cp !== 0) {
+    let arcLabel = arcOpt.l.replace(/ \([^)]*\)$/, "");
+    if (!full) {
+      arcLabel = arcLabel.replace("No Arc — line only", "Line Only")
+                         .replace("Forward 120°", "Fwd")
+                         .replace("Wide 240°", "240°")
+                         .replace("Wide 360°", "360°");
+    }
+    parts.push(`${arcLabel}${cpA(arcOpt.cp)}`);
+  }
+
+  if (ad.notes) parts.push(ad.notes);
+
+  return parts.join(", ");
+};

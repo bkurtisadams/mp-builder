@@ -79,6 +79,14 @@ function syncFormFromVeh() {
 
 // ---- Update all ----
 function updateAll() {
+  // Recompute descriptions for systems with abilityData (live stats)
+  for (const sys of veh.systems) {
+    if (sys.abilityData) {
+      const newDesc = MP.recomputeDesc(sys.abilityData, veh.st, veh.en, veh.ag, veh.intel, veh.cl, veh.techMod);
+      if (newDesc !== null) sys.desc = newDesc;
+    }
+  }
+
   const ch = veh.chassis;
   const a = veh.armor;
 
@@ -1190,35 +1198,14 @@ const abilityDlg = {
       wheelSelect(sel);
     }
 
-    buildSimpleSel("aid-conc", [
-      {l:"None (0)",cp:0},{l:"Activation (-2.5)",cp:-2.5},{l:"Per Use (-5)",cp:-5},{l:"Maintain (-7.5)",cp:-7.5},
-      {l:"Total Conc (-5)",cp:-5},{l:"Total Per Use (-10)",cp:-10},{l:"Total Maintain (-15)",cp:-15}
-    ]);
-    buildSimpleSel("aid-kb", [
-      {l:"Normal (0)",cp:0},{l:"Knockback (+5)",cp:5},{l:"No Knockback (-5)",cp:-5},
-      {l:"KB Only (-10)",cp:-10},{l:"KB Only No Dmg (-20)",cp:-20},{l:"Won't Negate KB (-2.5)",cp:-2.5}
-    ]);
-    buildSimpleSel("aid-partial", [
-      {l:"Full (0)",cp:0},{l:"Heavy (-5)",cp:-5},{l:"Light (-10)",cp:-10},{l:"Spot Coverage (0)",cp:0}
-    ]);
-    buildSimpleSel("aid-poorpen", [{l:"Normal (0)",cp:0},{l:"Double prot (-5)",cp:-5},{l:"Any prot blocks (-10)",cp:-10}]);
-    buildSimpleSel("aid-obvious", [
-      {l:"Normal (0)",cp:0},{l:"Unobvious (+5)",cp:5},{l:"Fewer Senses (+2.5)",cp:2.5},
-      {l:"Obvious (-5)",cp:-5},{l:"Extra Senses (-2.5)",cp:-2.5}
-    ]);
-    buildSimpleSel("aid-carrier", [
-      {l:"None (0)",cp:0},{l:"Carrier Main (+7.5)",cp:7.5},{l:"Carried Atk (+7.5)",cp:7.5},
-      {l:"Carried Indep (+10)",cp:10},{l:"Contact Atk (+15)",cp:15},{l:"Contact Indep (+17.5)",cp:17.5},
-      {l:"Conductive (+7.5)",cp:7.5}
-    ]);
-    buildSimpleSel("aid-dmgtype", [
-      {l:"Normal (0)",cp:0},{l:"→Psychic (+5)",cp:5},{l:"→Other (+10)",cp:10},
-      {l:"Psychic→Std (-5)",cp:-5},{l:"Other→Std (-10)",cp:-10},{l:"Psychic→Other (+5)",cp:5},{l:"Other→Psychic (-5)",cp:-5}
-    ]);
-    buildSimpleSel("aid-indirect", [
-      {l:"None (0)",cp:0},{l:"Fixed pos, away (+2.5)",cp:2.5},{l:"Any pos, away (+5)",cp:5},
-      {l:"Fixed pos, any dir (+5)",cp:5},{l:"Any pos, any dir (+12.5)",cp:12.5}
-    ]);
+    buildSimpleSel("aid-conc", MP.MISC_OPTS.conc);
+    buildSimpleSel("aid-kb", MP.MISC_OPTS.kb);
+    buildSimpleSel("aid-partial", MP.MISC_OPTS.partial);
+    buildSimpleSel("aid-poorpen", MP.MISC_OPTS.poorpen);
+    buildSimpleSel("aid-obvious", MP.MISC_OPTS.obvious);
+    buildSimpleSel("aid-carrier", MP.MISC_OPTS.carrier);
+    buildSimpleSel("aid-dmgtype", MP.MISC_OPTS.dmgtype);
+    buildSimpleSel("aid-indirect", MP.MISC_OPTS.indirect);
     // Time Requirement: default is index 2 (1 Phase), ±2.5/step
     const trSel = document.getElementById("aid-timereq");
     MP.TIME_REQ_STEPS.forEach((s, i) => {
@@ -1231,41 +1218,17 @@ const abilityDlg = {
     });
     wheelSelect(trSel);
 
-    buildSimpleSel("aid-activation", [
-      {l:"Normal (0)",cp:0},{l:"Persistent→Voluntary (-5)",cp:-5},{l:"Continual→Persistent (-5)",cp:-5},
-      {l:"Continual→Voluntary (-10)",cp:-10},{l:"Stays Active: Vol→Pers (+5)",cp:5},
-      {l:"Stays Active: Pers→Cont (+5)",cp:5},{l:"Stays Active: Vol→Cont (+10)",cp:10}
-    ]);
-    buildSimpleSel("aid-loss", [
-      {l:"None (0)",cp:0},{l:"Req Speech (-2.5)",cp:-2.5},{l:"Req Free Move (-2.5)",cp:-2.5},
-      {l:"Req Nighttime (-5)",cp:-5},{l:"Req Daylight (-5)",cp:-5}
-    ]);
-    buildSimpleSel("aid-canthold", [
-      {l:"Normal (0)",cp:0},{l:"Voluntary (-2.5)",cp:-2.5},{l:"Persistent (-5)",cp:-5},{l:"Continual (-7.5)",cp:-7.5}
-    ]);
-    buildSimpleSel("aid-multi", [
-      {l:"None (0)",cp:0},{l:"1 of set (-10)",cp:-10},{l:"2 of set (-5)",cp:-5},{l:"3 of set (-2.5)",cp:-2.5}
-    ]);
-    buildSimpleSel("aid-usable", [
-      {l:"None (0)",cp:0},{l:"By Others (+5)",cp:5},{l:"By Others Only (0)",cp:0},
-      {l:"On Others (+10)",cp:10},{l:"On Others Only (0)",cp:0},{l:"Not On Self (-5)",cp:-5},
-      {l:"Not On Self, self-only (-10)",cp:-10},{l:"Not On Self, minor (-2.5)",cp:-2.5}
-    ]);
-    buildSimpleSel("aid-reqsave", [
-      {l:"None (0)",cp:0},{l:"Save to Use (-5)",cp:-5},{l:"Save to Activate (-2.5)",cp:-2.5},
-      {l:"Easier Save (+2.5)",cp:2.5},{l:"Harder Save (-2.5)",cp:-2.5}
-    ]);
-    buildSimpleSel("aid-other", [
-      {l:"None (0)",cp:0},{l:"Immunity (+2.5)",cp:2.5},{l:"Body Part (-5)",cp:-5},{l:"Focused (0)",cp:0},
-      {l:"Reversible (+10)",cp:10},{l:"Selective AE (+12.5)",cp:12.5},{l:"Backlash (-7.5)",cp:-7.5},
-      {l:"Overload (+5)",cp:5},{l:"Non-Corp Effect (+5)",cp:5},{l:"Ability Field (x2 base)",cp:0},
-      {l:"Uncontrollable (-20)",cp:-20},{l:"Reduced at Range (-2.5)",cp:-2.5},
-      {l:"Diff Range BC (+2.5)",cp:2.5},{l:"No Escape (+15)",cp:15}
-    ]);
+    buildSimpleSel("aid-activation", MP.MISC_OPTS.activation);
+    buildSimpleSel("aid-loss", MP.MISC_OPTS.loss);
+    buildSimpleSel("aid-canthold", MP.MISC_OPTS.canthold);
+    buildSimpleSel("aid-multi", MP.MISC_OPTS.multi);
+    buildSimpleSel("aid-usable", MP.MISC_OPTS.usable);
+    buildSimpleSel("aid-reqsave", MP.MISC_OPTS.reqsave);
+    buildSimpleSel("aid-other", MP.MISC_OPTS.other);
 
     // System Modifiers — Arc dropdown
     const arcSel = document.getElementById("aid-arc");
-    [{l:"Forward 120° (0)",cp:0},{l:"No Arc — line only (-10)",cp:-10},{l:"Wide 240° (+5)",cp:5},{l:"Wide 360° (+10)",cp:10}].forEach((o,i) => {
+    MP.ARC_OPTS.forEach((o,i) => {
       const opt = document.createElement("option"); opt.value = i; opt.textContent = o.l; opt.dataset.cp = o.cp; arcSel.appendChild(opt);
     });
     wheelSelect(arcSel);
