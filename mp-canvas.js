@@ -811,10 +811,35 @@ class FloorPlanEditor {
         const oc = document.createElement("canvas");
         oc.width = iw; oc.height = ih;
         const octx = oc.getContext("2d");
+        // Draw original image
         octx.drawImage(this._silImg, 0, 0, iw, ih);
-        octx.globalCompositeOperation = "source-in";
-        octx.fillStyle = tintColor;
-        octx.fillRect(0, 0, iw, ih);
+        // Detect if image has transparency by sampling corners
+        const id = octx.getImageData(0, 0, iw, ih);
+        let hasAlpha = false;
+        for (let p = 3; p < id.data.length; p += 4) {
+          if (id.data[p] < 250) { hasAlpha = true; break; }
+        }
+        if (hasAlpha) {
+          // Transparent PNG: source-in preserves shape alpha
+          octx.globalCompositeOperation = "source-in";
+          octx.fillStyle = tintColor;
+          octx.fillRect(0, 0, iw, ih);
+        } else {
+          // Opaque image: convert dark pixels to tint color
+          // Use luminance as alpha, fill with tint
+          const r = parseInt(tintColor.slice(1,3), 16);
+          const g = parseInt(tintColor.slice(3,5), 16);
+          const b = parseInt(tintColor.slice(5,7), 16);
+          for (let p = 0; p < id.data.length; p += 4) {
+            const lum = (id.data[p] * 0.299 + id.data[p+1] * 0.587 + id.data[p+2] * 0.114);
+            const alpha = 255 - lum; // dark=opaque, white=transparent
+            id.data[p] = r;
+            id.data[p+1] = g;
+            id.data[p+2] = b;
+            id.data[p+3] = alpha;
+          }
+          octx.putImageData(id, 0, 0);
+        }
         this._silTinted = oc;
         this._silTintColor = tintColor;
       }

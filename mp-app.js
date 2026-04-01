@@ -688,13 +688,15 @@ document.getElementById("btn-sil-clear").addEventListener("click", () => {
     autoSave();
   });
 });
-document.getElementById("sil-color").addEventListener("input", () => {
+document.getElementById("sil-color").addEventListener("input", onSilColorChange);
+document.getElementById("sil-color").addEventListener("change", onSilColorChange);
+function onSilColorChange() {
   const sil = veh.silhouette;
   if (!sil) return;
   sil.color = document.getElementById("sil-color").value;
   if (editor) { editor._silTinted = null; editor.draw(); }
   autoSave();
-});
+}
 
 // ---- Popout Layout Window ----
 let popoutWin = null;
@@ -1026,7 +1028,7 @@ select:focus{outline:none;border-color:var(--accent)}
         autoSave();
       });
     });
-    pdoc.getElementById("pop-sil-color").addEventListener("input", () => {
+    const onPopSilColor = () => {
       const sil = veh.silhouette;
       if (!sil) return;
       sil.color = pdoc.getElementById("pop-sil-color").value;
@@ -1034,7 +1036,9 @@ select:focus{outline:none;border-color:var(--accent)}
       if (editor) { editor._silTinted = null; editor.draw(); }
       syncSilInputs(document, "vs-sil-bar", "sil", editor);
       autoSave();
-    });
+    };
+    pdoc.getElementById("pop-sil-color").addEventListener("input", onPopSilColor);
+    pdoc.getElementById("pop-sil-color").addEventListener("change", onPopSilColor);
 
     popoutEditor.draw();
   });
