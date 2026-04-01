@@ -166,6 +166,8 @@ function renderSystemsTable() {
     const adjIN = s ? (s.adjIN || "") : "";
     const adjCL = s ? (s.adjCL || "") : "";
 
+    const sysColor = s && s.desc ? MP.sysColor(s.desc) : "";
+
     html += `<div class="vs-sys-row-wrap" data-idx="${i}" draggable="true">
       <span class="vs-sys-grip" title="Drag to reorder">&#9776;</span>
       <div class="vs-sys-row">
@@ -175,6 +177,7 @@ function renderSystemsTable() {
         <span class="vs-sys-val">${hitsDisplay}</span>
         <input type="text" value="${dmg}" data-field="dmg" data-idx="${i}" title="Damage taken by this system">
         <span class="vs-sys-val vs-sys-pts">${pts}</span>
+        <span class="vs-sys-swatch" style="background:${sysColor || 'transparent'}"></span>
         <input type="text" class="vs-sys-desc" value="${desc}" data-field="desc" data-idx="${i}" title="System name, abilities, arc, notes">
         <span class="vs-sys-ins" data-idx="${i}" title="Insert Ability (Ctrl+I)">+</span>
         <span class="vs-sys-edit" data-idx="${i}" title="Edit Ability (Ctrl+E)">✎</span>
@@ -205,6 +208,7 @@ function renderSystemsTable() {
       <span class="vs-sys-val"></span>
       <span class="vs-sys-val">${remTotal}</span>
       <span></span><span></span><span></span><span></span>
+      <span></span>
       <span class="vs-remain-note"><em>Remaining spaces (${remPlaced} placed, ${remAvail} unplaced)</em></span>
       <span></span><span></span><span></span>
     </div>

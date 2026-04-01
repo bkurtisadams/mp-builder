@@ -103,12 +103,13 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
 .vs-sys-grip:hover { color: var(--accent) }
 .vs-sys-row-wrap.vs-sys-dragging { opacity: 0.4 }
 .vs-sys-row-wrap.vs-sys-dragover { border-top: 2px solid var(--accent); margin-top: -1px }
-.vs-sys-row { display: grid; grid-template-columns: 30px 40px 40px 38px 28px 36px 1fr 14px 14px 14px; gap: 1px; padding: 1px 2px; flex: 1; align-items: center }
+.vs-sys-row { display: grid; grid-template-columns: 30px 40px 40px 38px 28px 36px 10px 1fr 14px 14px 14px; gap: 1px; padding: 1px 2px; flex: 1; align-items: center }
 .vs-sys-row input { background: var(--inp); border: 1px solid var(--brd2); border-radius: 2px; padding: 1px 1px; font-family: var(--fb); font-size: 9px; color: var(--tx); text-align: center; width: 100% }
 .vs-sys-row input.vs-sys-desc { text-align: left; padding-left: 3px }
 .vs-sys-row input:focus { outline: none; border-color: var(--accent) }
 .vs-sys-row .vs-sys-val { font-size: 8px; font-weight: 700; color: var(--val); text-align: center }
 .vs-sys-row .vs-sys-pts { color: var(--label); font-weight: 700 }
+.vs-sys-swatch { width: 10px; height: 10px; border-radius: 2px; border: 1px solid #00000022; flex-shrink: 0 }
 .vs-sys-row .vs-sys-ins { color: var(--accent); cursor: pointer; font-weight: 700; font-size: 10px; text-align: center }
 .vs-sys-row .vs-sys-ins:hover { color: var(--accent-lt) }
 .vs-sys-row .vs-sys-edit { color: var(--tx3); cursor: pointer; font-size: 10px; text-align: center }
