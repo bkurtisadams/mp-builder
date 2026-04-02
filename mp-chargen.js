@@ -5,11 +5,20 @@ MP.CG = {};
 
 // ── Power Levels ──
 MP.CG.POWER_LEVELS = [
-  { id: 'normal',   label: 'Normal',   bcPoints: 50, bcMin: 3, bcMax: 15, bcScores: [14,12,10,8,6],  abilityCPs: 0  },
-  { id: 'low',      label: 'Low',      bcPoints: 60, bcMin: 3, bcMax: 18, bcScores: [16,14,12,10,8], abilityCPs: 30 },
-  { id: 'standard', label: 'Standard', bcPoints: 70, bcMin: 3, bcMax: 21, bcScores: [18,16,14,12,10],abilityCPs: 50 },
-  { id: 'high',     label: 'High',     bcPoints: 80, bcMin: 3, bcMax: 24, bcScores: [20,18,16,14,12],abilityCPs: 70 },
+  { id: 'normal',   label: 'Normal',   bcPoints: 50, bcMin: 3, bcMax: 15, bcScores: [14,12,10,8,6],  coreAbilityCPs: 0,  totalCPs: 50  },
+  { id: 'low',      label: 'Low',      bcPoints: 60, bcMin: 3, bcMax: 18, bcScores: [16,14,12,10,8], coreAbilityCPs: 10, totalCPs: 100 },
+  { id: 'standard', label: 'Standard', bcPoints: 70, bcMin: 3, bcMax: 21, bcScores: [18,16,14,12,10],coreAbilityCPs: 20, totalCPs: 150 },
+  { id: 'high',     label: 'High',     bcPoints: 80, bcMin: 3, bcMax: 24, bcScores: [20,18,16,14,12],coreAbilityCPs: 30, totalCPs: 200 },
 ];
+
+// ── Caps Calculation (from Total CPs) ──
+MP.CG.calcCaps = function(totalCPs) {
+  return {
+    bcCap: Math.floor(totalCPs / 5) + 10,
+    abilityCap: Math.floor(totalCPs / 5),
+    damageCap: Math.floor(totalCPs / 12.5) + 3,
+  };
+};
 
 // ── Side ──
 MP.CG.SIDES = ['Good', 'Evil', 'Neutral'];

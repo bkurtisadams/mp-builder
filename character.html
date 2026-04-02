@@ -601,10 +601,10 @@ const MPDialog = (function() {
       <input class="si-calc" style="width:60px" data-field="healing" readonly>
     </div>
     <div class="caps-row">
-      <span class="lbl">CAPS:</span><input class="si" style="width:28px; text-align:center" data-field="caps">
-      <span class="lbl">BCs:</span><input class="si" style="width:28px; text-align:center" data-field="bcs">
-      <span class="lbl">Ability:</span><input class="si" style="width:36px; text-align:center" data-field="capAbility">
-      <span class="lbl">Dmg:</span><input class="si" style="width:36px; text-align:center" data-field="capDmg">
+      <span class="lbl">CAPS:</span><input class="si-calc" style="width:28px; text-align:center" data-field="caps" readonly>
+      <span class="lbl">BCs:</span><input class="si-calc" style="width:28px; text-align:center" data-field="capBc" readonly>
+      <span class="lbl">Ability:</span><input class="si-calc" style="width:36px; text-align:center" data-field="capAbility" readonly>
+      <span class="lbl">Dmg:</span><input class="si-calc" style="width:36px; text-align:center" data-field="capDmg" readonly>
       <span class="lbl">GEAR:</span>
       <span class="lbl">Break:</span><input class="si" style="width:40px; text-align:center" data-field="gearBreak">
       <span class="lbl">Take:</span><input class="si" style="width:40px; text-align:center" data-field="gearTake">
@@ -618,10 +618,6 @@ const MPDialog = (function() {
   </div>
 
 </div>
-</div>
-
-<div class="mp-ftr">
-  Mighty Protectors is a registered trademark of Monkey House Games.
 </div>
 
 <script src="mp-chargen.js"></script>
@@ -686,6 +682,7 @@ document.querySelectorAll('.atk-tbl tbody tr').forEach((tr, i) => {
 
 // ── Auto-Compute Derived Stats ──
 function recalcDerived() {
+  const setField = (f, v) => { const el = document.querySelector(`[data-field="${f}"]`); if (el) el.value = v; };
   const bcs = {};
   document.querySelectorAll('.stat-row[data-stat]').forEach(row => {
     const cpInput = row.querySelector('.stat-cp');
@@ -713,16 +710,32 @@ function recalcDerived() {
   }
   const sumEl = document.getElementById('cg-cp-summary');
   if (pl) {
-    const baseCPs = pl.bcPoints + pl.abilityCPs;
+    const baseCPs = pl.totalCPs;
     const totalSpent = bcTotal + abCpTotal;
     const remain = baseCPs - totalSpent;
     sumEl.textContent = `${totalSpent} / ${baseCPs} CPs`;
     document.getElementById('cp-base').textContent = baseCPs;
     document.getElementById('cp-bc').textContent = bcTotal + ' / ' + pl.bcPoints;
-    document.getElementById('cp-ab').textContent = abCpTotal + ' / ' + pl.abilityCPs;
+    document.getElementById('cp-ab').textContent = abCpTotal;
     document.getElementById('cp-spent').textContent = totalSpent;
     document.getElementById('cp-remain').textContent = remain;
     document.getElementById('cp-remain').style.color = remain < 0 ? '#c00' : '';
+
+    // Experience: Base CPs = totalCPs from power level
+    const setField = (f, v) => { const el = document.querySelector(`[data-field="${f}"]`); if (el) el.value = v; };
+    setField('xpBase', baseCPs);
+    // Total CPs = Base + Earned - Spent (for experience)
+    const xpEarned = parseFloat(document.querySelector('[data-field="xpEarned"]')?.value) || 0;
+    const xpSpent = parseFloat(document.querySelector('[data-field="xpSpent"]')?.value) || 0;
+    const xpTotal = baseCPs + xpEarned - xpSpent;
+    setField('xpTotal', xpTotal);
+
+    // Caps (based on current total CPs including earned XP)
+    const caps = MP.CG.calcCaps(xpTotal);
+    setField('caps', xpTotal);
+    setField('capBc', caps.bcCap);
+    setField('capAbility', caps.abilityCap);
+    setField('capDmg', caps.damageCap);
   }
 
   // Default luck
@@ -734,7 +747,6 @@ function recalcDerived() {
   const d = MP.CG.calcDerived(st, en, ag, inVal, cl);
 
   // Fill derived fields
-  const setField = (f, v) => { const el = document.querySelector(`[data-field="${f}"]`); if (el) el.value = v; };
   setField('carry', d.carryCapacity.toLocaleString());
   setField('baseDmg', d.baseHTH);
   setField('initiative', d.initiative);
@@ -761,6 +773,10 @@ document.getElementById('ab-area').addEventListener('input', (e) => {
 });
 // Also recalc when power level changes
 document.getElementById('cg-power-level').addEventListener('change', recalcDerived);
+
+// Recalc when XP earned/spent changes (affects caps)
+document.querySelector('[data-field="xpEarned"]').addEventListener('input', recalcDerived);
+document.querySelector('[data-field="xpSpent"]').addEventListener('input', recalcDerived);
 
 // Initial CP strip population
 recalcDerived();
