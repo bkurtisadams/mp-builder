@@ -724,10 +724,9 @@ function recalcDerived() {
     // Experience: Base CPs = totalCPs from power level
     const setField = (f, v) => { const el = document.querySelector(`[data-field="${f}"]`); if (el) el.value = v; };
     setField('xpBase', baseCPs);
-    // Total CPs = Base + Earned - Spent (for experience)
+    // Total CPs = Base + Earned
     const xpEarned = parseFloat(document.querySelector('[data-field="xpEarned"]')?.value) || 0;
-    const xpSpent = parseFloat(document.querySelector('[data-field="xpSpent"]')?.value) || 0;
-    const xpTotal = baseCPs + xpEarned - xpSpent;
+    const xpTotal = baseCPs + xpEarned;
     setField('xpTotal', xpTotal);
 
     // Caps (based on current total CPs including earned XP)
