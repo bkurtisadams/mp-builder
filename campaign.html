@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mighty Protectors — Campaign</title>
+<title>Mighty Protectors — Campaigns</title>
 <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bitter:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -25,562 +25,222 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
 html { min-height: 100%; background: var(--page-bg) }
 body { min-height: 100vh; background: var(--page-bg); color: var(--tx); font-family: var(--fb); font-size: 13px; display: flex; flex-direction: column }
-
-/* ── Header ── */
 .hdr { background: var(--hdr-bg); border-bottom: 3px solid var(--hdr-border); padding: 0 16px; flex-shrink: 0 }
-.hdr-in { max-width: 920px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 52px; gap: 12px }
+.hdr-in { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 52px; gap: 12px }
 .hdr-logo { display: flex; align-items: center; gap: 10px }
 .hdr-logo img { height: 26px; display: block }
 .hdr-logo-sub { font-family: var(--fb); font-size: 10px; color: var(--gold); letter-spacing: 1.5px; font-weight: 700; opacity: 0.85 }
 .hdr-nav { display: flex; gap: 4px; align-items: center }
-.hdr-nav a {
-  padding: 5px 12px; font-size: 10px; font-family: var(--fb); font-weight: 700;
-  color: #ccc; text-decoration: none; border-radius: 3px; transition: all 0.12s;
-}
+.hdr-nav a { padding: 5px 12px; font-size: 10px; font-family: var(--fb); font-weight: 700; color: #ccc; text-decoration: none; border-radius: 3px; transition: all 0.12s }
 .hdr-nav a:hover { color: #fff; background: rgba(255,255,255,0.08) }
 .hdr-nav a.active { color: var(--gold); background: rgba(232,168,32,0.12) }
-
-/* ── Main ── */
 .main { flex: 1; padding: 16px 16px 40px }
-.main-in { max-width: 920px; margin: 0 auto }
+.main-in { max-width: 960px; margin: 0 auto }
+.page-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px }
+.page-title { font-family: var(--fd); font-size: 24px; letter-spacing: 1px; color: var(--hdr-bg) }
+.btn-new-camp { font-size: 11px; font-family: var(--fb); font-weight: 700; color: #fff; background: var(--red); border: none; border-radius: 3px; padding: 6px 14px; cursor: pointer }
+.btn-new-camp:hover { background: var(--red-lt) }
 
-/* ── Campaign header ── */
-.camp-header { margin-bottom: 20px }
-.camp-title-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px }
-.camp-title { font-family: var(--fd); font-size: 28px; letter-spacing: 1px; color: var(--hdr-bg) }
-.camp-edit-btn {
-  font-size: 10px; font-family: var(--fb); font-weight: 700; color: var(--tx3);
-  border: 1px solid #ccc; background: #fff; border-radius: 3px; padding: 3px 8px;
-  cursor: pointer; transition: all 0.12s;
-}
-.camp-edit-btn:hover { border-color: var(--red); color: var(--red) }
-.camp-desc {
-  font-size: 12px; color: var(--tx2); line-height: 1.6; max-width: 700px;
-  border: 1px solid transparent; padding: 4px; border-radius: 3px; min-height: 40px;
-}
-.camp-desc:focus { border-color: var(--red); outline: none; background: #fff }
-.camp-gm { font-size: 11px; color: var(--tx3); margin-top: 6px; font-weight: 700 }
+/* ── Campaign slot ── */
+.camp-slot { background: #fff; border: 2px solid #222; border-radius: 6px; margin-bottom: 14px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1) }
+.camp-slot-hdr { display: flex; align-items: center; gap: 8px; padding: 10px 14px; cursor: pointer; background: #fafaf6; border-bottom: 2px solid #222; user-select: none; transition: background 0.12s }
+.camp-slot-hdr:hover { background: #f0f0ea }
+.camp-arrow { font-size: 12px; color: var(--tx3); transition: transform 0.2s; flex-shrink: 0; width: 16px }
+.camp-slot.open .camp-arrow { transform: rotate(90deg) }
+.camp-slot-name { font-family: var(--fd); font-size: 20px; letter-spacing: 0.5px; color: var(--hdr-bg); flex: 1 }
+.camp-slot-count { font-size: 10px; color: var(--tx3); font-weight: 700 }
+.camp-slot-btns { display: flex; gap: 4px }
+.camp-slot-btn { font-size: 9px; font-family: var(--fb); font-weight: 700; color: var(--tx3); border: 1px solid #ccc; background: #fff; border-radius: 3px; padding: 3px 8px; cursor: pointer; transition: all 0.12s }
+.camp-slot-btn:hover { border-color: var(--red); color: var(--red) }
+.camp-slot-body { display: none; padding: 0 16px 14px }
+.camp-slot.open .camp-slot-body { display: block }
 
-/* ── Section ── */
-.section { margin-bottom: 24px }
-.section-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border-bottom: 2px solid var(--hdr-bg); padding-bottom: 4px }
-.section-title { font-family: var(--fd); font-size: 18px; letter-spacing: 0.5px; color: var(--hdr-bg) }
-.section-title-hero { color: #D06020 }
-.section-title-neutral { color: #2070C0 }
-.section-title-villain { color: #40901a }
-.section-title-vehicle { color: #2070C0 }
-.btn-add {
-  font-size: 10px; font-family: var(--fb); font-weight: 700; color: var(--red);
-  border: 1.5px solid var(--red); background: #fff; border-radius: 3px;
-  padding: 3px 10px; cursor: pointer; transition: all 0.12s;
-}
-.btn-add:hover { background: var(--red); color: #fff }
-.section-empty { font-size: 11px; color: var(--tx3); font-style: italic; padding: 8px 0 }
+/* ── Banner ── */
+.camp-banner { width: 100%; height: 120px; background: #eef2f8; border-radius: 4px; overflow: hidden; position: relative; margin: 12px 0 10px; cursor: pointer; display: flex; align-items: center; justify-content: center }
+.camp-banner img { width: 100%; height: 100%; object-fit: cover; display: block }
+.camp-banner-placeholder { color: var(--tx3); font-size: 11px; opacity: 0.5; display: flex; flex-direction: column; align-items: center; gap: 4px }
+.camp-banner-placeholder svg { opacity: 0.3 }
+.camp-banner-del { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 3px; border: none; cursor: pointer; background: rgba(0,0,0,0.5); color: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.12s; padding: 0 }
+.camp-banner:hover .camp-banner-del { opacity: 1 }
+.camp-banner-del:hover { background: rgba(0,0,0,0.8); color: #ff4040 }
+.camp-banner-del svg { width: 12px; height: 12px; fill: currentColor }
 
-/* ── Card grid (reused from dashboard) ── */
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px }
-.card {
-  border-radius: 5px; overflow: hidden; background: #fff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.13); border: 2px solid #222;
-  transition: box-shadow 0.15s, transform 0.1s;
-}
-.card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.2); transform: translateY(-2px) }
-.card-content { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px 6px 8px; cursor: pointer }
-.card-thumb {
-  width: 56px; height: 56px; flex-shrink: 0; border-radius: 4px; overflow: hidden;
-  display: flex; align-items: center; justify-content: center;
-  background: #f0f0ec; border: 3px solid #999;
-}
+/* ── Campaign info ── */
+.camp-desc { font-size: 12px; color: var(--tx2); line-height: 1.6; border: 1px solid transparent; padding: 4px; border-radius: 3px; min-height: 30px }
+.camp-desc:empty::before { content: attr(data-placeholder); color: var(--tx3); font-style: italic }
+.camp-desc:focus { border-color: var(--red); outline: none; background: #fafafa }
+.camp-gm { font-size: 11px; color: var(--tx3); margin-top: 4px; font-weight: 700 }
+
+/* ── Inner sections ── */
+.inner-sec { margin-top: 14px }
+.inner-sec-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; border-bottom: 1.5px solid #ddd; padding-bottom: 3px }
+.inner-sec-title { font-family: var(--fd); font-size: 15px; letter-spacing: 0.5px }
+.inner-sec-title-hero { color: #D06020 }
+.inner-sec-title-neutral { color: #2070C0 }
+.inner-sec-title-villain { color: #40901a }
+.inner-sec-title-vehicle { color: #2070C0 }
+.btn-sm { font-size: 9px; font-family: var(--fb); font-weight: 700; color: var(--red); border: 1.5px solid var(--red); background: #fff; border-radius: 3px; padding: 2px 8px; cursor: pointer; transition: all 0.12s }
+.btn-sm:hover { background: var(--red); color: #fff }
+.sec-empty { font-size: 11px; color: var(--tx3); font-style: italic; padding: 4px 0 }
+
+/* ── Cards ── */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px }
+.card { border-radius: 5px; overflow: hidden; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.1); border: 1.5px solid #222; transition: box-shadow 0.12s, transform 0.1s }
+.card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.18); transform: translateY(-1px) }
+.card-content { display: flex; align-items: flex-start; gap: 7px; padding: 7px 8px 5px 7px; cursor: pointer }
+.card-thumb { width: 48px; height: 48px; flex-shrink: 0; border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f0f0ec; border: 2.5px solid #999 }
+.card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block }
 .card-thumb svg { opacity: 0.18; color: #555 }
 .card-info { flex: 1; min-width: 0 }
-.card-name-row { display: flex; align-items: baseline; gap: 6px }
-.card-name {
-  font-family: var(--fd); font-size: 18px; letter-spacing: 1px; line-height: 1.15;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  -webkit-text-stroke: 0.7px rgba(0,0,0,0.2);
-}
-.card-side-badge {
-  font-family: var(--fb); font-size: 8px; font-weight: 700;
-  padding: 1px 5px; border-radius: 2px; letter-spacing: 0.5px;
-  text-transform: uppercase; flex-shrink: 0; color: #fff;
-}
-.card-sub { font-size: 10px; color: #444; margin-top: 2px; font-weight: 700 }
-.card-bcs { font-family: monospace; font-size: 9px; color: #555; margin-top: 3px; font-weight: 700 }
-.card-derived { font-size: 10px; font-weight: 700; color: #222; margin-top: 2px }
-.card-derived span { margin-right: 8px }
-.card-actions { display: flex; border-top: 2px solid #222; background: #fafaf6 }
-.card-btn {
-  flex: 1; padding: 4px 0; font-size: 9px; font-family: var(--fb); font-weight: 700;
-  border: none; background: transparent; cursor: pointer; color: #444;
-  text-align: center; transition: all 0.12s; border-right: 1px solid #ddd;
-}
+.card-name-row { display: flex; align-items: baseline; gap: 5px }
+.card-name { font-family: var(--fd); font-size: 16px; letter-spacing: 0.5px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-text-stroke: 0.6px rgba(0,0,0,0.2) }
+.card-side-badge { font-family: var(--fb); font-size: 7px; font-weight: 700; padding: 1px 4px; border-radius: 2px; letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0; color: #fff }
+.card-sub { font-size: 9px; color: #444; margin-top: 1px; font-weight: 700 }
+.card-bcs { font-family: monospace; font-size: 8px; color: #555; margin-top: 2px; font-weight: 700 }
+.card-derived { font-size: 9px; font-weight: 700; color: #222; margin-top: 2px }
+.card-derived span { margin-right: 6px }
+.card-actions { display: flex; border-top: 1.5px solid #222; background: #fafaf6 }
+.card-btn { flex: 1; padding: 3px 0; font-size: 9px; font-family: var(--fb); font-weight: 700; border: none; background: transparent; cursor: pointer; color: #444; text-align: center; transition: all 0.12s; border-right: 1px solid #ddd }
 .card-btn:last-child { border-right: none }
 .card-btn:hover { background: #eee }
-.card-btn-del { color: #cc2020 }
-.card-btn-del:hover { background: #ffe8e8 }
-
-/* Side colors */
-.side-good .card-name { color: #D06020; -webkit-text-stroke: 0.8px #803010; text-shadow: 1px 1px 0 rgba(128,48,16,0.2) }
+.side-good .card-name { color: #D06020; -webkit-text-stroke: 0.7px #803010; text-shadow: 1px 1px 0 rgba(128,48,16,0.15) }
 .side-good .card-thumb { border-color: #F07830 }
 .side-good .card-side-badge { background: #F07830 }
-.side-neutral .card-name { color: #2070C0; -webkit-text-stroke: 0.8px #0a3060; text-shadow: 1px 1px 0 rgba(10,48,96,0.2) }
+.side-neutral .card-name { color: #2070C0; -webkit-text-stroke: 0.7px #0a3060 }
 .side-neutral .card-thumb { border-color: #3080D0 }
 .side-neutral .card-side-badge { background: #3080D0 }
-.side-evil .card-name { color: #40901a; -webkit-text-stroke: 0.8px #1a4a00; text-shadow: 1px 1px 0 rgba(26,74,0,0.2) }
+.side-evil .card-name { color: #40901a; -webkit-text-stroke: 0.7px #1a4a00 }
 .side-evil .card-thumb { border-color: #50B820 }
 .side-evil .card-side-badge { background: #50B820 }
 .side-none .card-name { color: #333 }
 .side-none .card-thumb { border-color: #999 }
-.side-vehicle .card-name { color: #2070C0; -webkit-text-stroke: 0.8px #0a3060 }
+.side-vehicle .card-name { color: #2070C0; -webkit-text-stroke: 0.7px #0a3060 }
 .side-vehicle .card-thumb { border-color: #3080D0 }
 
-/* ── Session Log ── */
-.log-entry {
-  background: #fff; border: 1.5px solid #ddd; border-radius: 4px;
-  padding: 10px 12px; margin-bottom: 8px;
-  transition: border-color 0.12s;
-}
+/* ── Sub-toggles ── */
+.sub-toggle { cursor: pointer; user-select: none }
+.sub-toggle .sub-arrow { font-size: 10px; color: var(--tx3); margin-right: 4px; display: inline-block; transition: transform 0.15s }
+.sub-toggle.open .sub-arrow { transform: rotate(90deg) }
+.sub-body { display: none; margin-top: 4px }
+.sub-toggle.open + .sub-body { display: block }
+
+/* ── Session log ── */
+.log-entry { background: #fafafa; border: 1px solid #ddd; border-radius: 4px; padding: 8px 10px; margin-bottom: 6px }
 .log-entry:hover { border-color: #aaa }
-.log-hdr { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px }
-.log-title { font-family: var(--fd); font-size: 14px; color: var(--hdr-bg); letter-spacing: 0.5px }
-.log-date { font-size: 10px; color: var(--tx3) }
-.log-actions { display: flex; gap: 6px }
-.log-actions button {
-  font-size: 9px; font-family: var(--fb); font-weight: 700; color: var(--tx3);
-  border: 1px solid #ddd; background: #fff; border-radius: 2px; padding: 2px 6px;
-  cursor: pointer; transition: all 0.12s;
-}
+.log-hdr { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 3px }
+.log-title { font-family: var(--fd); font-size: 13px; color: var(--hdr-bg) }
+.log-actions button { font-size: 8px; font-family: var(--fb); font-weight: 700; color: var(--tx3); border: 1px solid #ddd; background: #fff; border-radius: 2px; padding: 1px 5px; cursor: pointer }
 .log-actions button:hover { border-color: var(--red); color: var(--red) }
 .log-body { font-size: 11px; color: var(--tx2); line-height: 1.5 }
-.log-body textarea {
-  width: 100%; min-height: 50px; border: 1px solid #ccc; border-radius: 3px;
-  font-family: var(--fb); font-size: 11px; padding: 6px; outline: none; resize: vertical;
-}
-.log-body textarea:focus { border-color: var(--red) }
 
-/* ── GM Notes ── */
-.notes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
-.note-box { background: #fff; border: 1.5px solid #ddd; border-radius: 4px; padding: 10px 12px }
-.note-label { font-family: var(--fd); font-size: 14px; margin-bottom: 6px; letter-spacing: 0.5px }
+/* ── Notes ── */
+.notes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px }
+.note-box { background: #fafafa; border: 1px solid #ddd; border-radius: 4px; padding: 8px 10px }
+.note-label { font-family: var(--fd); font-size: 13px; margin-bottom: 4px }
 .note-label-public { color: var(--green) }
 .note-label-private { color: var(--danger) }
-.note-textarea {
-  width: 100%; min-height: 100px; border: 1px solid #ddd; border-radius: 3px;
-  font-family: var(--fb); font-size: 11px; padding: 8px; outline: none;
-  resize: vertical; line-height: 1.5;
-}
+.note-textarea { width: 100%; min-height: 80px; border: 1px solid #ddd; border-radius: 3px; font-family: var(--fb); font-size: 11px; padding: 6px; outline: none; resize: vertical; line-height: 1.5 }
 .note-textarea:focus { border-color: var(--red) }
-
-/* ── Divider ── */
-.divider { border: none; border-top: 2px solid var(--page-bg2); margin: 20px 0 }
-
-/* ── Footer ── */
 .ftr { font-size: 9px; color: var(--tx3); text-align: center; padding: 10px; background: var(--page-bg2); border-top: 1px solid #8ab4d0 }
-
-/* ── Responsive ── */
-@media (max-width: 600px) {
-  .hdr-in { height: 44px }
-  .card-grid { grid-template-columns: 1fr }
-  .notes-grid { grid-template-columns: 1fr }
-  .camp-title { font-size: 22px }
-}
-
-/* ── Animations ── */
-@keyframes fadeSlideUp { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: translateY(0) } }
-.card { animation: fadeSlideUp 0.3s ease both }
-.card:nth-child(1) { animation-delay: 0s }
-.card:nth-child(2) { animation-delay: 0.05s }
-.card:nth-child(3) { animation-delay: 0.1s }
+@media (max-width: 600px) { .hdr-in { height: 44px } .card-grid { grid-template-columns: 1fr } .notes-grid { grid-template-columns: 1fr } .camp-banner { height: 80px } }
 </style>
 </head>
 <body>
-
-<!-- Header -->
-<div class="hdr">
-  <div class="hdr-in">
-    <div class="hdr-logo">
-      <img src="MP_logo_v3.png" alt="Mighty Protectors">
-      <span class="hdr-logo-sub">BUILDER</span>
-    </div>
-    <div class="hdr-nav">
-      <a href="index.html">Dashboard</a>
-      <a href="campaign.html" class="active">Campaign</a>
-    </div>
-  </div>
-</div>
-
-<!-- Main -->
-<div class="main">
-<div class="main-in">
-
-  <!-- Campaign Header -->
-  <div class="camp-header">
-    <div class="camp-title-row">
-      <span class="camp-title" id="camp-title"></span>
-      <button class="camp-edit-btn" id="btn-edit-camp">✎ Edit</button>
-    </div>
-    <div class="camp-desc" id="camp-desc" contenteditable="true" data-placeholder="Add a campaign description..."></div>
-    <div class="camp-gm">GM: <span id="camp-gm">—</span></div>
-  </div>
-
-  <hr class="divider">
-
-  <!-- Heroes -->
-  <div class="section" id="sec-heroes">
-    <div class="section-hdr">
-      <span class="section-title section-title-hero">HEROES</span>
-      <button class="btn-add" data-new-side="Good">+ New Hero</button>
-    </div>
-    <div class="card-grid" id="grid-heroes"></div>
-  </div>
-
-  <!-- Neutrals -->
-  <div class="section" id="sec-neutrals">
-    <div class="section-hdr">
-      <span class="section-title section-title-neutral">NEUTRALS</span>
-      <button class="btn-add" data-new-side="Neutral">+ New Neutral</button>
-    </div>
-    <div class="card-grid" id="grid-neutrals"></div>
-  </div>
-
-  <!-- Villains -->
-  <div class="section" id="sec-villains">
-    <div class="section-hdr">
-      <span class="section-title section-title-villain">VILLAINS</span>
-      <button class="btn-add" data-new-side="Evil">+ New Villain</button>
-    </div>
-    <div class="card-grid" id="grid-villains"></div>
-  </div>
-
-  <!-- Vehicles -->
-  <div class="section" id="sec-vehicles">
-    <div class="section-hdr">
-      <span class="section-title section-title-vehicle">VEHICLES</span>
-      <button class="btn-add" data-new-type="vehicle">+ New Vehicle</button>
-    </div>
-    <div class="card-grid" id="grid-vehicles"></div>
-  </div>
-
-  <hr class="divider">
-
-  <!-- Session Log -->
-  <div class="section">
-    <div class="section-hdr">
-      <span class="section-title">SESSION LOG</span>
-      <button class="btn-add" id="btn-new-session">+ New Entry</button>
-    </div>
-    <div id="session-log"></div>
-  </div>
-
-  <hr class="divider">
-
-  <!-- GM Notes -->
-  <div class="section">
-    <div class="section-hdr">
-      <span class="section-title">GM NOTES</span>
-    </div>
-    <div class="notes-grid">
-      <div class="note-box">
-        <div class="note-label note-label-public">📢 Public Notes</div>
-        <textarea class="note-textarea" id="notes-public" placeholder="Notes visible to players..."></textarea>
-      </div>
-      <div class="note-box">
-        <div class="note-label note-label-private">🔒 Private Notes</div>
-        <textarea class="note-textarea" id="notes-private" placeholder="GM-only secrets, plot hooks, upcoming twists..."></textarea>
-      </div>
-    </div>
-  </div>
-
-</div>
-</div>
-
+<div class="hdr"><div class="hdr-in"><div class="hdr-logo"><img src="MP_logo_v3.png" alt="Mighty Protectors"><span class="hdr-logo-sub">BUILDER</span></div><div class="hdr-nav"><a href="index.html">Dashboard</a><a href="campaign.html" class="active">Campaigns</a></div></div></div>
+<div class="main"><div class="main-in">
+  <div class="page-hdr"><span class="page-title">MY CAMPAIGNS</span><button class="btn-new-camp" id="btn-new-camp">+ New Campaign</button></div>
+  <div id="campaigns-container"></div>
+</div></div>
 <div class="ftr">Mighty Protectors is a registered trademark of Monkey House Games.</div>
 
 <script>
-// ── Storage (shared keys with index.html) ──
-const CHARS_KEY = 'mp-char-list';
-const VEHS_KEY = 'mp-veh-list';
-const CAMP_KEY = 'mp-campaigns';
-const CAMP_SEL_KEY = 'mp-campaign-sel';
-const CAMP_DATA_KEY = 'mp-campaign-data';
+const CHARS_KEY='mp-char-list',VEHS_KEY='mp-veh-list',CAMP_KEY='mp-campaigns',CAMP_SEL_KEY='mp-campaign-sel',CAMP_DATA_KEY='mp-campaign-data';
+function loadList(k){try{return JSON.parse(localStorage.getItem(k))||[]}catch(e){return[]}}
+function saveList(k,l){try{localStorage.setItem(k,JSON.stringify(l))}catch(e){}}
+function loadCampaigns(){try{return JSON.parse(localStorage.getItem(CAMP_KEY))||[]}catch(e){return[]}}
+function saveCampaigns(l){try{localStorage.setItem(CAMP_KEY,JSON.stringify(l))}catch(e){}}
+function getActiveCampaign(){return localStorage.getItem(CAMP_SEL_KEY)||''}
+function setActiveCampaign(id){localStorage.setItem(CAMP_SEL_KEY,id)}
+function escH(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
+function loadCampData(id){try{const a=JSON.parse(localStorage.getItem(CAMP_DATA_KEY))||{};return a[id]||{}}catch(e){return{}}}
+function saveCampData(id,d){try{const a=JSON.parse(localStorage.getItem(CAMP_DATA_KEY))||{};a[id]=d;localStorage.setItem(CAMP_DATA_KEY,JSON.stringify(a))}catch(e){}}
+function resizeImage(file,mw,mh){return new Promise(r=>{const rd=new FileReader();rd.onload=e=>{const img=new Image();img.onload=()=>{const rt=Math.min(mw/img.width,mh/img.height,1);const w=Math.round(img.width*rt),h=Math.round(img.height*rt);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);r(c.toDataURL('image/jpeg',0.8))};img.src=e.target.result};rd.readAsDataURL(file)})}
 
-function loadList(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch(e) { return []; } }
-function saveList(key, list) { try { localStorage.setItem(key, JSON.stringify(list)); } catch(e) {} }
-function loadCampaigns() { try { return JSON.parse(localStorage.getItem(CAMP_KEY)) || []; } catch(e) { return []; } }
-function saveCampaigns(list) { try { localStorage.setItem(CAMP_KEY, JSON.stringify(list)); } catch(e) {} }
-function getActiveCampaign() { return localStorage.getItem(CAMP_SEL_KEY) || ''; }
-function escH(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+const tSvg=`<svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="9" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 22c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`;
+const vSvg=`<svg viewBox="0 0 24 24" width="22" height="22"><rect x="2" y="8" width="20" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="17" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>`;
+const xSvg=`<svg viewBox="0 0 12 12" width="12" height="12"><line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
 
-// ── Campaign data (description, notes, session log) ──
-function loadCampData(campId) {
-  try {
-    const all = JSON.parse(localStorage.getItem(CAMP_DATA_KEY)) || {};
-    return all[campId] || { desc: '', gm: '', publicNotes: '', privateNotes: '', sessions: [] };
-  } catch(e) { return { desc: '', gm: '', publicNotes: '', privateNotes: '', sessions: [] }; }
+function sc(s){if(!s)return'side-none';const l=s.toLowerCase();return l==='good'?'side-good':l==='evil'?'side-evil':l==='neutral'?'side-neutral':'side-none'}
+
+function charCard(c,i){
+  const n=c.name||'Unnamed',sp=c.species||'',si=c.side||'';
+  let cp=0;if(c.stats){for(const s of Object.values(c.stats))cp+=parseFloat(s.cp)||0}
+  if(c.abilities){for(const a of c.abilities)cp+=parseFloat(a.cp)||0}
+  let bc='';if(c.stats){bc=['st','en','ag','in','cl'].map(k=>{const v=c.stats[k]?(c.stats[k].cp||'0'):'0';return k.toUpperCase()+'\u2009'+v}).join('  ')}
+  const b=[];if(c.power)b.push('<span>Power '+escH(c.power)+'</span>');if(c.hitPts)b.push('<span>HP '+escH(c.hitPts)+'</span>');if(c.initiative)b.push('<span>Init '+escH(c.initiative)+'</span>');
+  const badge=si?`<span class="card-side-badge">${escH(si.toUpperCase())}</span>`:'';
+  const th=c._image?`<img src="${c._image}" alt="">`:tSvg;
+  return`<div class="card ${sc(si)}" data-type="char" data-idx="${i}"><div class="card-content" data-action="edit"><div class="card-thumb">${th}</div><div class="card-info"><div class="card-name-row"><div class="card-name">${escH(n)}</div>${badge}</div><div class="card-sub">${escH([cp?cp+' CPs':'',sp].filter(Boolean).join(' · '))}</div>${bc?`<div class="card-bcs">${escH(bc)}</div>`:''}${b.length?`<div class="card-derived">${b.join('')}</div>`:''}</div></div><div class="card-actions"><button class="card-btn" data-action="edit">EDIT</button><button class="card-btn" data-action="view">VIEW</button></div></div>`;
 }
-function saveCampData(campId, data) {
-  try {
-    const all = JSON.parse(localStorage.getItem(CAMP_DATA_KEY)) || {};
-    all[campId] = data;
-    localStorage.setItem(CAMP_DATA_KEY, JSON.stringify(all));
-  } catch(e) {}
-}
-
-const campId = getActiveCampaign();
-const camps = loadCampaigns();
-const camp = camps.find(c => c.id === campId);
-const campData = loadCampData(campId);
-
-// ── Populate campaign header ──
-document.getElementById('camp-title').textContent = camp ? camp.name : 'No Campaign';
-document.getElementById('camp-desc').textContent = campData.desc || '';
-document.getElementById('camp-gm').textContent = campData.gm || '—';
-
-// Save description on blur
-document.getElementById('camp-desc').addEventListener('blur', () => {
-  campData.desc = document.getElementById('camp-desc').textContent.trim();
-  saveCampData(campId, campData);
-});
-
-// Edit button — rename campaign
-document.getElementById('btn-edit-camp').addEventListener('click', () => {
-  const name = prompt('Campaign name:', camp ? camp.name : '');
-  if (!name || !name.trim()) return;
-  if (camp) { camp.name = name.trim(); saveCampaigns(camps); }
-  document.getElementById('camp-title').textContent = name.trim();
-  const gm = prompt('GM name:', campData.gm || '');
-  if (gm !== null) { campData.gm = gm.trim(); saveCampData(campId, campData); document.getElementById('camp-gm').textContent = gm.trim() || '—'; }
-});
-
-// ── Render character cards ──
-const thumbSvg = `<svg viewBox="0 0 24 24" width="26" height="26"><circle cx="12" cy="9" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 22c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`;
-const vehSvg = `<svg viewBox="0 0 24 24" width="26" height="26"><rect x="2" y="8" width="20" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="7" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="17" cy="18" r="2" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>`;
-
-function sideClass(side) {
-  if (!side) return 'side-none';
-  const s = side.toLowerCase();
-  if (s === 'good') return 'side-good';
-  if (s === 'evil') return 'side-evil';
-  if (s === 'neutral') return 'side-neutral';
-  return 'side-none';
+function vehCard(v,i){
+  const n=v.name||'Unnamed';let tc=(v.basicCost||0)+(v.techMod||0)+(v.maneuverMod||0);if(v.wontExplode)tc+=5;if(v.isBase)tc-=15;if(v.systems)for(const s of v.systems)tc+=(s.extraCPs||0);
+  const sp=v.spaces?v.spaces+' spc':'';const b=[];if(v.totalHits)b.push('<span>Hits '+escH(String(v.totalHits))+'</span>');if(v.totalPower)b.push('<span>Power '+escH(String(v.totalPower))+'</span>');
+  const th=v._image?`<img src="${v._image}" alt="">`:vSvg;
+  return`<div class="card side-vehicle" data-type="veh" data-idx="${i}"><div class="card-content" data-action="edit-veh"><div class="card-thumb">${th}</div><div class="card-info"><div class="card-name-row"><div class="card-name">${escH(n)}</div></div><div class="card-sub">${escH([tc?tc+' CPs':'',sp].filter(Boolean).join(' · '))}</div>${b.length?`<div class="card-derived">${b.join('')}</div>`:''}</div></div><div class="card-actions"><button class="card-btn" data-action="edit-veh">EDIT</button><button class="card-btn" data-action="view-veh">VIEW</button></div></div>`;
 }
 
-function renderCharCard(c, idx) {
-  const name = c.name || 'Unnamed';
-  const species = c.species || '';
-  const side = c.side || '';
-  let totalCPs = 0;
-  if (c.stats) { for (const s of Object.values(c.stats)) totalCPs += parseFloat(s.cp) || 0; }
-  if (c.abilities) { for (const ab of c.abilities) totalCPs += parseFloat(ab.cp) || 0; }
-  const cpsStr = totalCPs ? totalCPs + ' CPs' : '';
-  let bcLine = '';
-  if (c.stats) {
-    bcLine = ['st','en','ag','in','cl'].map(k => {
-      const v = c.stats[k] ? (c.stats[k].cp || '0') : '0';
-      return k.toUpperCase() + '\u2009' + v;
-    }).join('  ');
-  }
-  const subParts = [cpsStr, species].filter(Boolean);
-  const bits = [];
-  if (c.power) bits.push('<span>Power ' + escH(c.power) + '</span>');
-  if (c.hitPts) bits.push('<span>HP ' + escH(c.hitPts) + '</span>');
-  if (c.initiative) bits.push('<span>Init ' + escH(c.initiative) + '</span>');
-  const derivedHtml = bits.length ? bits.join('') : '';
-  const sideBadge = side ? `<span class="card-side-badge">${escH(side.toUpperCase())}</span>` : '';
-  const thumb = c._image ? `<img src="${c._image}" alt="">` : thumbSvg;
-  return `<div class="card ${sideClass(side)}" data-type="char" data-idx="${idx}">
-    <div class="card-content" data-action="edit">
-      <div class="card-thumb">${thumb}</div>
-      <div class="card-info">
-        <div class="card-name-row"><div class="card-name">${escH(name)}</div>${sideBadge}</div>
-        <div class="card-sub">${escH(subParts.join(' · '))}</div>
-        ${bcLine ? `<div class="card-bcs">${escH(bcLine)}</div>` : ''}
-        ${derivedHtml ? `<div class="card-derived">${derivedHtml}</div>` : ''}
-      </div>
-    </div>
-    <div class="card-actions">
-      <button class="card-btn" data-action="edit">EDIT</button>
-      <button class="card-btn" data-action="view">VIEW</button>
-    </div>
-  </div>`;
-}
-
-function renderVehCard(v, idx) {
-  const name = v.name || 'Unnamed';
-  const model = v.model || '';
-  let totalCost = (v.basicCost || 0) + (v.techMod || 0) + (v.maneuverMod || 0);
-  if (v.wontExplode) totalCost += 5;
-  if (v.isBase) totalCost -= 15;
-  if (v.systems) { for (const s of v.systems) totalCost += (s.extraCPs || 0); }
-  const cpsStr = totalCost ? totalCost + ' CPs' : '';
-  const spaces = v.spaces ? v.spaces + ' spc' : '';
-  const subParts = [cpsStr, spaces].filter(Boolean);
-  const bits = [];
-  if (v.totalHits) bits.push('<span>Hits ' + escH(String(v.totalHits)) + '</span>');
-  if (v.totalPower) bits.push('<span>Power ' + escH(String(v.totalPower)) + '</span>');
-  const derivedHtml = bits.length ? bits.join('') : '';
-  const thumb = v._image ? `<img src="${v._image}" alt="">` : vehSvg;
-  return `<div class="card side-vehicle" data-type="veh" data-idx="${idx}">
-    <div class="card-content" data-action="edit-veh">
-      <div class="card-thumb">${thumb}</div>
-      <div class="card-info">
-        <div class="card-name-row"><div class="card-name">${escH(name)}</div></div>
-        <div class="card-sub">${escH(subParts.join(' · '))}</div>
-        ${model ? `<div class="card-bcs">${escH(model)}</div>` : ''}
-        ${derivedHtml ? `<div class="card-derived">${derivedHtml}</div>` : ''}
-      </div>
-    </div>
-    <div class="card-actions">
-      <button class="card-btn" data-action="edit-veh">EDIT</button>
-      <button class="card-btn" data-action="view-veh">VIEW</button>
-    </div>
-  </div>`;
-}
-
-// ── Render all sections ──
-function renderAll() {
-  const chars = loadList(CHARS_KEY);
-  const vehs = loadList(VEHS_KEY);
-
-  const heroes = [], neutrals = [], villains = [], noSide = [];
-  chars.forEach((c, i) => {
-    const s = (c.side || '').toLowerCase();
-    if (s === 'good') heroes.push({ c, i });
-    else if (s === 'evil') villains.push({ c, i });
-    else if (s === 'neutral') neutrals.push({ c, i });
-    else noSide.push({ c, i });
-  });
-  // Unassigned go into neutrals
-  noSide.forEach(x => neutrals.push(x));
-
-  const heroGrid = document.getElementById('grid-heroes');
-  heroGrid.innerHTML = heroes.length ? heroes.map(x => renderCharCard(x.c, x.i)).join('') : '<div class="section-empty">No heroes yet.</div>';
-
-  const neutGrid = document.getElementById('grid-neutrals');
-  neutGrid.innerHTML = neutrals.length ? neutrals.map(x => renderCharCard(x.c, x.i)).join('') : '<div class="section-empty">No neutrals.</div>';
-
-  const villGrid = document.getElementById('grid-villains');
-  villGrid.innerHTML = villains.length ? villains.map(x => renderCharCard(x.c, x.i)).join('') : '<div class="section-empty">No villains yet.</div>';
-
-  const vehGrid = document.getElementById('grid-vehicles');
-  vehGrid.innerHTML = vehs.length ? vehs.map((v, i) => renderVehCard(v, i)).join('') : '<div class="section-empty">No vehicles.</div>';
-}
+function renderAll(){
+  const camps=loadCampaigns(),chars=loadList(CHARS_KEY),vehs=loadList(VEHS_KEY),act=getActiveCampaign(),con=document.getElementById('campaigns-container');
+  if(!camps.length){con.innerHTML='<div style="text-align:center;color:var(--tx3);padding:40px 0;font-style:italic">No campaigns yet.</div>';return}
+  con.innerHTML=camps.map(camp=>{
+    const cd=loadCampData(camp.id),isAct=camp.id===act;
+    const cc=chars.map((c,i)=>({c,i})).filter(x=>x.c._campaign===camp.id||(!x.c._campaign&&isAct));
+    const cv=vehs.map((v,i)=>({v,i})).filter(x=>x.v._campaign===camp.id||(!x.v._campaign&&isAct));
+    const h=cc.filter(x=>(x.c.side||'').toLowerCase()==='good');
+    const n=cc.filter(x=>{const s=(x.c.side||'').toLowerCase();return s==='neutral'||s===''});
+    const e=cc.filter(x=>(x.c.side||'').toLowerCase()==='evil');
+    const cnt=cc.length+' char'+(cc.length!==1?'s':'')+(cv.length?', '+cv.length+' veh':'');
+    const ses=cd.sessions||[];
+    let banner;
+    if(cd._image){banner=`<div class="camp-banner" data-camp-id="${camp.id}" data-banner="upload"><img src="${cd._image}" alt=""><button class="camp-banner-del" data-camp-id="${camp.id}" data-banner="del">${xSvg}</button></div>`}
+    else{banner=`<div class="camp-banner" data-camp-id="${camp.id}" data-banner="upload"><div class="camp-banner-placeholder"><svg viewBox="0 0 32 32" width="32" height="32"><rect x="2" y="8" width="28" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="17" r="3" fill="none" stroke="currentColor" stroke-width="1.2"/><polyline points="20,22 24,15 28,20" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>Click to add banner</div></div>`}
+    const sesHtml=ses.length?ses.map((s,si)=>`<div class="log-entry"><div class="log-hdr"><span class="log-title">#${ses.length-si} — ${escH(s.date||'')}</span><div class="log-actions"><button data-ses-edit="${camp.id}" data-ses-idx="${si}">Edit</button> <button data-ses-del="${camp.id}" data-ses-idx="${si}" style="color:var(--danger)">Del</button></div></div><div class="log-body">${escH(s.text||'')}</div></div>`).join(''):'<div class="sec-empty">No session entries yet.</div>';
+    return`<div class="camp-slot ${isAct?'open':''}" data-camp-id="${camp.id}">
+      <div class="camp-slot-hdr" data-toggle="${camp.id}"><span class="camp-arrow">▶</span><span class="camp-slot-name">${escH(camp.name)}</span><span class="camp-slot-count">${cnt}</span><div class="camp-slot-btns"><button class="camp-slot-btn" data-rename="${camp.id}">✎</button><button class="camp-slot-btn" data-add-session="${camp.id}">+ Session</button><button class="camp-slot-btn" data-del-camp="${camp.id}" style="color:var(--danger)">✕</button></div></div>
+      <div class="camp-slot-body">${banner}
+        <div class="camp-desc" contenteditable="true" data-placeholder="Add a campaign description..." data-desc="${camp.id}">${escH(cd.desc||'')}</div>
+        <div class="camp-gm">GM: ${escH(cd.gm||'—')}</div>
+        <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-hero">HEROES</span><button class="btn-sm" data-new-char="${camp.id}" data-new-side="Good">+ New</button></div><div class="card-grid">${h.length?h.map(x=>charCard(x.c,x.i)).join(''):'<div class="sec-empty">No heroes yet.</div>'}</div></div>
+        <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-neutral">NEUTRALS</span><button class="btn-sm" data-new-char="${camp.id}" data-new-side="Neutral">+ New</button></div><div class="card-grid">${n.length?n.map(x=>charCard(x.c,x.i)).join(''):'<div class="sec-empty">No neutrals.</div>'}</div></div>
+        <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-villain">VILLAINS</span><button class="btn-sm" data-new-char="${camp.id}" data-new-side="Evil">+ New</button></div><div class="card-grid">${e.length?e.map(x=>charCard(x.c,x.i)).join(''):'<div class="sec-empty">No villains yet.</div>'}</div></div>
+        <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-vehicle">VEHICLES</span><button class="btn-sm" data-new-veh="${camp.id}">+ New</button></div><div class="card-grid">${cv.length?cv.map(x=>vehCard(x.v,x.i)).join(''):'<div class="sec-empty">No vehicles.</div>'}</div></div>
+        <div class="inner-sec"><div class="inner-sec-hdr sub-toggle open" data-sub="ses-${camp.id}"><span class="sub-arrow">▶</span><span class="inner-sec-title">SESSION LOG</span></div><div class="sub-body" id="ses-${camp.id}" style="display:block">${sesHtml}</div></div>
+        <div class="inner-sec"><div class="inner-sec-hdr sub-toggle open" data-sub="notes-${camp.id}"><span class="sub-arrow">▶</span><span class="inner-sec-title">GM NOTES</span></div><div class="sub-body" id="notes-${camp.id}" style="display:block"><div class="notes-grid"><div class="note-box"><div class="note-label note-label-public">📢 Public</div><textarea class="note-textarea" data-note-pub="${camp.id}" placeholder="Notes visible to players...">${escH(cd.publicNotes||'')}</textarea></div><div class="note-box"><div class="note-label note-label-private">🔒 Private</div><textarea class="note-textarea" data-note-priv="${camp.id}" placeholder="GM-only secrets...">${escH(cd.privateNotes||'')}</textarea></div></div></div></div>
+      </div></div>`}).join('')}
 renderAll();
 
-// ── Click handling ──
-document.addEventListener('click', (e) => {
-  const action = e.target.closest('[data-action]');
-  if (!action) return;
-  const card = action.closest('.card');
-  if (!card) return;
-  const type = card.dataset.type;
-  const idx = parseInt(card.dataset.idx);
-  const act = action.dataset.action;
-
-  if ((act === 'edit' || act === 'view') && type === 'char') {
-    const list = loadList(CHARS_KEY);
-    localStorage.setItem('mp-char-sheet', JSON.stringify(list[idx]));
-    localStorage.setItem('mp-char-edit-idx', idx);
-    window.location.href = 'character.html';
-  }
-  if ((act === 'edit-veh' || act === 'view-veh') && type === 'veh') {
-    const list = loadList(VEHS_KEY);
-    localStorage.setItem('mp-vehicle-autosave', JSON.stringify(list[idx]));
-    localStorage.setItem('mp-veh-edit-idx', idx);
-    window.location.href = 'vehicle.html';
-  }
+document.addEventListener('click',e=>{
+  const tog=e.target.closest('[data-toggle]');if(tog&&!e.target.closest('.camp-slot-btns')){tog.closest('.camp-slot').classList.toggle('open');return}
+  const st=e.target.closest('.sub-toggle');if(st){st.classList.toggle('open');const b=document.getElementById(st.dataset.sub);if(b)b.style.display=st.classList.contains('open')?'block':'none';return}
+  const ren=e.target.closest('[data-rename]');if(ren){e.stopPropagation();const id=ren.dataset.rename,cs=loadCampaigns(),c=cs.find(x=>x.id===id);if(!c)return;const nm=prompt('Campaign name:',c.name);if(!nm||!nm.trim())return;c.name=nm.trim();saveCampaigns(cs);const cd=loadCampData(id);const gm=prompt('GM name:',cd.gm||'');if(gm!==null){cd.gm=gm.trim();saveCampData(id,cd)}renderAll();return}
+  const dc=e.target.closest('[data-del-camp]');if(dc){e.stopPropagation();const id=dc.dataset.delCamp,cs=loadCampaigns();if(cs.length<=1){alert('Cannot delete the last campaign.');return}const c=cs.find(x=>x.id===id);if(!confirm('Delete "'+c.name+'"?'))return;cs.splice(cs.indexOf(c),1);saveCampaigns(cs);if(getActiveCampaign()===id)setActiveCampaign(cs[0].id);renderAll();return}
+  const as=e.target.closest('[data-add-session]');if(as){e.stopPropagation();const id=as.dataset.addSession,d=prompt('Session date:',new Date().toISOString().split('T')[0]);if(d===null)return;const t=prompt('Session summary:');if(t===null)return;const cd=loadCampData(id);if(!cd.sessions)cd.sessions=[];cd.sessions.unshift({date:d,text:t});saveCampData(id,cd);renderAll();return}
+  const es=e.target.closest('[data-ses-edit]');if(es){const id=es.dataset.sesEdit,i=parseInt(es.dataset.sesIdx),cd=loadCampData(id),s=cd.sessions[i];const d=prompt('Date:',s.date||'');if(d===null)return;const t=prompt('Summary:',s.text||'');if(t===null)return;s.date=d;s.text=t;saveCampData(id,cd);renderAll();return}
+  const ds=e.target.closest('[data-ses-del]');if(ds){const id=ds.dataset.sesDel,i=parseInt(ds.dataset.sesIdx);if(!confirm('Delete this entry?'))return;const cd=loadCampData(id);cd.sessions.splice(i,1);saveCampData(id,cd);renderAll();return}
+  const bu=e.target.closest('[data-banner="upload"]');if(bu&&!e.target.closest('[data-banner="del"]')){const id=bu.dataset.campId;const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.addEventListener('change',async ev=>{const f=ev.target.files[0];if(!f)return;const url=await resizeImage(f,800,300);const cd=loadCampData(id);cd._image=url;saveCampData(id,cd);renderAll()});inp.click();return}
+  const bd=e.target.closest('[data-banner="del"]');if(bd){const id=bd.dataset.campId;const cd=loadCampData(id);delete cd._image;saveCampData(id,cd);renderAll();return}
+  const nc=e.target.closest('[data-new-char]');if(nc){const id=nc.dataset.newChar,si=nc.dataset.newSide||'';setActiveCampaign(id);localStorage.removeItem('mp-char-sheet');localStorage.setItem('mp-char-edit-idx','-1');localStorage.setItem('mp-char-campaign',id);if(si)localStorage.setItem('mp-char-default-side',si);window.location.href='character.html';return}
+  const nv=e.target.closest('[data-new-veh]');if(nv){const id=nv.dataset.newVeh;setActiveCampaign(id);localStorage.removeItem('mp-vehicle-autosave');localStorage.setItem('mp-veh-edit-idx','-1');localStorage.setItem('mp-veh-campaign',id);window.location.href='vehicle.html';return}
+  const ac=e.target.closest('[data-action]');if(ac){const card=ac.closest('.card');if(!card)return;const t=card.dataset.type,i=parseInt(card.dataset.idx),a=ac.dataset.action;
+    if((a==='edit'||a==='view')&&t==='char'){const l=loadList(CHARS_KEY);localStorage.setItem('mp-char-sheet',JSON.stringify(l[i]));localStorage.setItem('mp-char-edit-idx',i);window.location.href='character.html'}
+    if((a==='edit-veh'||a==='view-veh')&&t==='veh'){const l=loadList(VEHS_KEY);localStorage.setItem('mp-vehicle-autosave',JSON.stringify(l[i]));localStorage.setItem('mp-veh-edit-idx',i);window.location.href='vehicle.html'}}
 });
-
-// ── New character/vehicle buttons ──
-document.querySelectorAll('[data-new-side]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const side = btn.dataset.newSide;
-    localStorage.removeItem('mp-char-sheet');
-    localStorage.setItem('mp-char-edit-idx', '-1');
-    localStorage.setItem('mp-char-campaign', campId);
-    localStorage.setItem('mp-char-default-side', side);
-    window.location.href = 'character.html';
-  });
+document.addEventListener('input',e=>{
+  const p=e.target.closest('[data-note-pub]');if(p){const cd=loadCampData(p.dataset.notePub);cd.publicNotes=p.value;saveCampData(p.dataset.notePub,cd)}
+  const v=e.target.closest('[data-note-priv]');if(v){const cd=loadCampData(v.dataset.notePriv);cd.privateNotes=v.value;saveCampData(v.dataset.notePriv,cd)}
 });
-document.querySelector('[data-new-type="vehicle"]').addEventListener('click', () => {
-  localStorage.removeItem('mp-vehicle-autosave');
-  localStorage.setItem('mp-veh-edit-idx', '-1');
-  localStorage.setItem('mp-veh-campaign', campId);
-  window.location.href = 'vehicle.html';
-});
-
-// ── Session Log ──
-function renderSessions() {
-  const container = document.getElementById('session-log');
-  const sessions = campData.sessions || [];
-  if (!sessions.length) {
-    container.innerHTML = '<div class="section-empty">No session entries yet.</div>';
-    return;
-  }
-  container.innerHTML = sessions.map((s, i) => `
-    <div class="log-entry" data-session="${i}">
-      <div class="log-hdr">
-        <span class="log-title">#${sessions.length - i} — ${escH(s.date || 'No date')}</span>
-        <div class="log-actions">
-          <button data-ses-action="edit" data-ses-idx="${i}">Edit</button>
-          <button data-ses-action="del" data-ses-idx="${i}" style="color:var(--danger)">Del</button>
-        </div>
-      </div>
-      <div class="log-body">${escH(s.text || '')}</div>
-    </div>
-  `).join('');
-}
-renderSessions();
-
-document.getElementById('btn-new-session').addEventListener('click', () => {
-  const today = new Date().toISOString().split('T')[0];
-  const date = prompt('Session date:', today);
-  if (date === null) return;
-  const text = prompt('Session summary:');
-  if (text === null) return;
-  if (!campData.sessions) campData.sessions = [];
-  campData.sessions.unshift({ date: date, text: text });
-  saveCampData(campId, campData);
-  renderSessions();
-});
-
-document.getElementById('session-log').addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-ses-action]');
-  if (!btn) return;
-  const idx = parseInt(btn.dataset.sesIdx);
-  const action = btn.dataset.sesAction;
-  if (action === 'edit') {
-    const s = campData.sessions[idx];
-    const date = prompt('Session date:', s.date || '');
-    if (date === null) return;
-    const text = prompt('Session summary:', s.text || '');
-    if (text === null) return;
-    s.date = date;
-    s.text = text;
-    saveCampData(campId, campData);
-    renderSessions();
-  }
-  if (action === 'del') {
-    if (!confirm('Delete this session entry?')) return;
-    campData.sessions.splice(idx, 1);
-    saveCampData(campId, campData);
-    renderSessions();
-  }
-});
-
-// ── GM Notes (auto-save on input) ──
-document.getElementById('notes-public').value = campData.publicNotes || '';
-document.getElementById('notes-private').value = campData.privateNotes || '';
-
-document.getElementById('notes-public').addEventListener('input', () => {
-  campData.publicNotes = document.getElementById('notes-public').value;
-  saveCampData(campId, campData);
-});
-document.getElementById('notes-private').addEventListener('input', () => {
-  campData.privateNotes = document.getElementById('notes-private').value;
-  saveCampData(campId, campData);
-});
+document.addEventListener('blur',e=>{const d=e.target.closest('[data-desc]');if(d){const cd=loadCampData(d.dataset.desc);cd.desc=d.textContent.trim();saveCampData(d.dataset.desc,cd)}},true);
+document.getElementById('btn-new-camp').addEventListener('click',()=>{const nm=prompt('Campaign name:');if(!nm||!nm.trim())return;const cs=loadCampaigns(),id='camp-'+Date.now();cs.push({id,name:nm.trim()});saveCampaigns(cs);setActiveCampaign(id);renderAll();const s=document.querySelector(`[data-camp-id="${id}"]`);if(s)s.classList.add('open')});
 </script>
-
 </body>
 </html>
