@@ -606,10 +606,10 @@ const MPDialog = (function() {
       <span class="lbl">Ability:</span><input class="si-calc" style="width:36px; text-align:center" data-field="capAbility" readonly>
       <span class="lbl">Dmg:</span><input class="si-calc" style="width:36px; text-align:center" data-field="capDmg" readonly>
       <span class="lbl">GEAR:</span>
-      <span class="lbl">Break:</span><input class="si" style="width:40px; text-align:center" data-field="gearBreak">
-      <span class="lbl">Take:</span><input class="si" style="width:40px; text-align:center" data-field="gearTake">
-      <span class="lbl">Disarm:</span><input class="si" style="width:40px; text-align:center" data-field="gearDisarm">
-      <span class="lbl">GBC:</span><input class="si" style="width:28px; text-align:center" data-field="gbc">
+      <span class="lbl">Break:</span><input class="si-calc" style="width:40px; text-align:center" data-field="gearBreak" readonly>
+      <span class="lbl">Take:</span><input class="si-calc" style="width:40px; text-align:center" data-field="gearTake" readonly>
+      <span class="lbl">Disarm:</span><input class="si-calc" style="width:40px; text-align:center" data-field="gearDisarm" readonly>
+      <span class="lbl">GBC:</span><input class="si-calc" style="width:28px; text-align:center" data-field="gbc" readonly>
     </div>
   </div>
 
@@ -735,6 +735,10 @@ function recalcDerived() {
     setField('capBc', caps.bcCap);
     setField('capAbility', caps.abilityCap);
     setField('capDmg', caps.damageCap);
+    setField('gearBreak', caps.gearBreak);
+    setField('gearTake', caps.gearTake);
+    setField('gearDisarm', caps.gearDisarm);
+    setField('gbc', caps.gbc);
   }
 
   // Default luck

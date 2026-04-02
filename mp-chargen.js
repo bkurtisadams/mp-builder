@@ -11,12 +11,20 @@ MP.CG.POWER_LEVELS = [
   { id: 'high',     label: 'High',     bcPoints: 80, bcMin: 3, bcMax: 24, bcScores: [20,18,16,14,12],coreAbilityCPs: 30, totalCPs: 200 },
 ];
 
-// ── Caps Calculation (from Total CPs) ──
+// ── Caps & Gear Calculation (from Total CPs) ──
 MP.CG.calcCaps = function(totalCPs) {
+  // Caps: BC Cap = floor(totalCPs/5)+10, Ability Cap = floor(totalCPs/5), Damage Cap = floor(totalCPs/12.5)+3
+  // Gear Break/Take/Disarm from table (4.14.2.7)
+  // Break = floor(totalCPs/25)+5, Take = floor(totalCPs/25)+6, Disarm = floor(totalCPs/25)+3
+  // GBC = floor(totalCPs/15)+6
   return {
     bcCap: Math.floor(totalCPs / 5) + 10,
     abilityCap: Math.floor(totalCPs / 5),
     damageCap: Math.floor(totalCPs / 12.5) + 3,
+    gearBreak: Math.floor(totalCPs / 25) + 5,
+    gearTake: Math.floor(totalCPs / 25) + 6,
+    gearDisarm: Math.floor(totalCPs / 25) + 3,
+    gbc: Math.floor(totalCPs / 15) + 6,
   };
 };
 
