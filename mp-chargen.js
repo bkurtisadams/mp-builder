@@ -13,14 +13,12 @@ MP.CG.POWER_LEVELS = [
 
 // ── Caps & Gear Calculation (from Total CPs) ──
 MP.CG.calcCaps = function(totalCPs) {
-  // Caps: BC Cap = floor(totalCPs/5)+10, Ability Cap = floor(totalCPs/5), Damage Cap = floor(totalCPs/12.5)+3
-  // Gear Break/Take/Disarm from table (4.14.2.7)
-  // Break = floor(totalCPs/25)+5, Take = floor(totalCPs/25)+6, Disarm = floor(totalCPs/25)+3
-  // GBC = floor(totalCPs/15)+6
+  const damageCap = Math.floor(totalCPs / 12.5) + 3;
   return {
     bcCap: Math.floor(totalCPs / 5) + 10,
     abilityCap: Math.floor(totalCPs / 5),
-    damageCap: Math.floor(totalCPs / 12.5) + 3,
+    damageCap: damageCap,
+    dotCap: (damageCap * 2) + 3,
     gearBreak: Math.floor(totalCPs / 25) + 5,
     gearTake: Math.floor(totalCPs / 25) + 6,
     gearDisarm: Math.floor(totalCPs / 25) + 3,
