@@ -238,6 +238,50 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .ftr { padding: 10px 16px; font-size: 10px; color: var(--tx3); border-top: 1px solid var(--brd); background: var(--bg-section); position: relative; z-index: 1 }
 .ftr-inner { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px }
 
+/* ── Edit Campaign Modal ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 500; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto }
+.modal-overlay.open { display: flex }
+.modal { background: var(--bg-card); border: 1px solid var(--brd-lt); border-radius: 6px; box-shadow: var(--dd-shadow); width: 100%; max-width: 560px; position: relative }
+.modal-hdr { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 12px; border-bottom: 1px solid var(--brd) }
+.modal-title { font-family: var(--fd); font-size: 14px; font-weight: 700; color: var(--tx); letter-spacing: 1.5px }
+.modal-close { background: none; border: none; color: var(--tx3); font-size: 18px; cursor: pointer; padding: 2px 6px; line-height: 1 }
+.modal-close:hover { color: var(--tx) }
+.modal-body { padding: 16px 18px; max-height: 70vh; overflow-y: auto; scrollbar-width: thin }
+.modal-body::-webkit-scrollbar { width: 4px }
+.modal-body::-webkit-scrollbar-thumb { background: var(--brd-lt); border-radius: 2px }
+
+.mf-fieldset { border: 1px solid var(--brd); border-radius: 4px; padding: 12px 14px 10px; margin-bottom: 14px }
+.mf-legend { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 1.5px; padding: 0 6px }
+.mf-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start }
+.mf-row:last-child { margin-bottom: 0 }
+.mf-field { flex: 1; min-width: 0 }
+.mf-field-sm { flex: 0 0 120px }
+.mf-field-xs { flex: 0 0 90px }
+.mf-label { display: block; font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 0.5px; margin-bottom: 3px }
+.mf-input, .mf-select, .mf-textarea { width: 100%; font-family: var(--fb); font-size: 13px; color: var(--tx); background: var(--bg2); border: 1px solid var(--brd); border-radius: 3px; padding: 5px 8px; outline: none; transition: border-color 0.12s }
+.mf-input:focus, .mf-select:focus, .mf-textarea:focus { border-color: var(--accent-dim) }
+.mf-select { cursor: pointer; appearance: auto }
+.mf-textarea { resize: vertical; min-height: 48px; line-height: 1.35 }
+.mf-checkbox-row { display: flex; align-items: center; gap: 6px; padding: 4px 0 }
+.mf-checkbox-row input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer }
+.mf-checkbox-row label { font-size: 12px; color: var(--tx2); cursor: pointer }
+
+/* Image upload area */
+.mf-img-area { display: flex; align-items: center; gap: 12px; padding: 4px 0 }
+.mf-img-preview { width: 64px; height: 64px; border-radius: 4px; border: 1px solid var(--brd); background: var(--bg2); object-fit: cover }
+.mf-img-placeholder { width: 64px; height: 64px; border-radius: 4px; border: 1px dashed var(--brd-lt); display: flex; align-items: center; justify-content: center; color: var(--tx3); font-size: 22px; background: var(--bg2) }
+.mf-img-btns { display: flex; flex-direction: column; gap: 4px }
+.mf-img-btn { font-size: 10px; font-family: var(--fb); font-weight: 700; color: var(--tx2); background: transparent; border: 1px solid var(--brd); border-radius: 2px; padding: 3px 10px; cursor: pointer; transition: all 0.12s }
+.mf-img-btn:hover { border-color: var(--tx3); color: var(--tx) }
+.mf-img-btn-rm { color: var(--red); border-color: rgba(192,48,48,0.2) }
+.mf-img-btn-rm:hover { border-color: var(--red) }
+
+.modal-footer { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--brd) }
+.mf-btn-save { padding: 6px 20px; font-size: 12px; font-family: var(--fb); font-weight: 700; background: var(--accent); color: var(--bg); border: none; border-radius: 3px; cursor: pointer; transition: all 0.12s }
+.mf-btn-save:hover { opacity: 0.9 }
+.mf-btn-cancel { padding: 6px 16px; font-size: 12px; font-family: var(--fb); font-weight: 700; background: transparent; color: var(--tx2); border: 1px solid var(--brd); border-radius: 3px; cursor: pointer; transition: all 0.12s }
+.mf-btn-cancel:hover { border-color: var(--tx3); color: var(--tx) }
+
 /* ── Responsive ── */
 @media (max-width: 700px) {
   .hdr-title { font-size: 14px; letter-spacing: 1px }
@@ -249,6 +293,10 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   .cc-details { grid-template-columns: 1fr }
   .jb-card { width: 180px }
   .tools-dropdown { width: 260px; right: -8px }
+  .modal { max-width: 100% }
+  .mf-row { flex-direction: column; gap: 6px }
+  .mf-field-sm, .mf-field-xs { flex: 1 }
+  .modal-overlay { padding: 20px 8px }
 }
 </style>
 </head>
@@ -318,9 +366,119 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 </div>
 </div>
 
+<!-- Edit Campaign Modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">EDIT CAMPAIGN</div>
+      <button class="modal-close" id="edit-modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ef-id">
+
+      <fieldset class="mf-fieldset">
+        <legend class="mf-legend">IDENTITY</legend>
+        <div class="mf-row">
+          <div class="mf-field"><label class="mf-label">CAMPAIGN NAME</label><input class="mf-input" id="ef-name"></div>
+        </div>
+        <div class="mf-row">
+          <div class="mf-field"><label class="mf-label">GAME SYSTEM</label><select class="mf-select" id="ef-system"></select></div>
+          <div class="mf-field-sm"><label class="mf-label">STATUS</label><select class="mf-select" id="ef-status">
+            <option value="active">Active</option><option value="hiatus">On Hiatus</option><option value="completed">Completed</option><option value="archived">Archived</option>
+          </select></div>
+        </div>
+        <div class="mf-checkbox-row"><input type="checkbox" id="ef-pinned"><label for="ef-pinned">★ Pin to top</label></div>
+      </fieldset>
+
+      <fieldset class="mf-fieldset">
+        <legend class="mf-legend">SETTING & TONE</legend>
+        <div class="mf-row">
+          <div class="mf-field"><label class="mf-label">CAMPAIGN WORLD</label><input class="mf-input" id="ef-world" placeholder="e.g. Greyhawk, Earth-676"></div>
+          <div class="mf-field"><label class="mf-label">GENRE / TONE</label><input class="mf-input" id="ef-genre" placeholder="e.g. Dungeon Crawl, Bronze Age Superhero"></div>
+        </div>
+        <div class="mf-row">
+          <div class="mf-field"><label class="mf-label">PITCH</label><input class="mf-input" id="ef-pitch" placeholder="One-line description"></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="mf-fieldset">
+        <legend class="mf-legend">PEOPLE</legend>
+        <div class="mf-row">
+          <div class="mf-field"><label class="mf-label">GM / DM / JUDGE NAME</label><input class="mf-input" id="ef-gm"></div>
+          <div class="mf-field-xs"><label class="mf-label">TITLE</label><select class="mf-select" id="ef-gmTitle">
+            <option value="GM">GM</option><option value="DM">DM</option><option value="Judge">Judge</option><option value="Referee">Referee</option><option value="Keeper">Keeper</option><option value="MC">MC</option>
+          </select></div>
+          <div class="mf-field-xs"><label class="mf-label">PLAYERS</label><input class="mf-input" id="ef-players" type="number" min="0" max="20"></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="mf-fieldset">
+        <legend class="mf-legend">SCHEDULE & PLATFORM</legend>
+        <div class="mf-row">
+          <div class="mf-field"><label class="mf-label">DATE STARTED</label><input class="mf-input" id="ef-startDate" type="date"></div>
+          <div class="mf-field"><label class="mf-label">NEXT SESSION</label><input class="mf-input" id="ef-nextSession" type="datetime-local"></div>
+        </div>
+        <div class="mf-row">
+          <div class="mf-field"><label class="mf-label">RECURRING SCHEDULE</label><input class="mf-input" id="ef-schedule" placeholder="e.g. Bi-weekly Fri 7–10:30pm CT"></div>
+        </div>
+        <div class="mf-row">
+          <div class="mf-field-sm"><label class="mf-label">PLAY MODE</label><select class="mf-select" id="ef-playMode">
+            <option value="online">Online</option><option value="in-person">In-Person</option><option value="hybrid">Hybrid</option>
+          </select></div>
+          <div class="mf-field-sm"><label class="mf-label">VTT PLATFORM</label><select class="mf-select" id="ef-vttPlatform">
+            <option value="">None</option><option value="foundry">Foundry</option><option value="roll20">Roll20</option><option value="fg">Fantasy Grounds</option><option value="other">Other</option>
+          </select></div>
+        </div>
+        <div class="mf-row">
+          <div class="mf-field"><label class="mf-label">VTT DISPLAY NAME</label><input class="mf-input" id="ef-vttLabel" placeholder="e.g. Foundry, Roll20"></div>
+          <div class="mf-field"><label class="mf-label">VTT URL</label><input class="mf-input" id="ef-vttUrl" placeholder="https://..."></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="mf-fieldset">
+        <legend class="mf-legend">RULES</legend>
+        <div class="mf-row">
+          <div class="mf-field"><label class="mf-label">XP / ADVANCEMENT METHOD</label><input class="mf-input" id="ef-xpMethod" placeholder="e.g. Karma, Gold=XP, Milestone"></div>
+        </div>
+        <div class="mf-row">
+          <div class="mf-field"><label class="mf-label">RULEBOOKS / SOURCES</label><input class="mf-input" id="ef-rulebooks" placeholder="e.g. PHB, DMG, UA, Dragon #68–120"></div>
+        </div>
+        <div class="mf-row">
+          <div class="mf-field"><label class="mf-label">HOUSE RULES</label><textarea class="mf-textarea" id="ef-houseRules" rows="2" placeholder="Freeform notes on house rules"></textarea></div>
+        </div>
+      </fieldset>
+
+      <fieldset class="mf-fieldset">
+        <legend class="mf-legend">IMAGE</legend>
+        <div class="mf-img-area">
+          <div id="ef-img-wrap"></div>
+          <div class="mf-img-btns">
+            <button class="mf-img-btn" id="ef-img-upload">Upload</button>
+            <button class="mf-img-btn" id="ef-img-url">Paste URL</button>
+            <button class="mf-img-btn mf-img-btn-rm" id="ef-img-remove" style="display:none">Remove</button>
+          </div>
+          <input type="file" id="ef-img-file" accept="image/*" style="display:none">
+        </div>
+      </fieldset>
+
+      <fieldset class="mf-fieldset">
+        <legend class="mf-legend">NOTES</legend>
+        <div class="mf-row">
+          <div class="mf-field"><textarea class="mf-textarea" id="ef-notes" rows="3" placeholder="Campaign notes, links, reminders..."></textarea></div>
+        </div>
+      </fieldset>
+
+    </div>
+    <div class="modal-footer">
+      <button class="mf-btn-cancel" id="ef-cancel">Cancel</button>
+      <button class="mf-btn-save" id="ef-save">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="ftr">
   <div class="ftr-inner">
-    <span>Graycloak's Campaign Corner v1.3</span>
+    <span>Graycloak's Campaign Corner v1.4</span>
     <span>Data stored locally in your browser</span>
   </div>
 </div>
@@ -533,6 +691,136 @@ document.getElementById('filter-tabs').addEventListener('click', (e) => {
   renderCampaigns();
 });
 
+// ── Edit Campaign Modal ──
+const editModal = document.getElementById('edit-modal');
+let editImageData = '';
+
+function populateSystemSelect() {
+  const sel = document.getElementById('ef-system');
+  sel.innerHTML = GCC.SYSTEM_DEFS.map(s => `<option value="${s.id}">${ESC(s.name)}</option>`).join('');
+}
+populateSystemSelect();
+
+function openEditModal(campId) {
+  const camp = GCC.loadCampaigns().find(c => c.id === campId);
+  if (!camp) return;
+
+  document.getElementById('ef-id').value = camp.id;
+  document.getElementById('ef-name').value = camp.name || '';
+  document.getElementById('ef-system').value = camp.system || 'mp';
+  document.getElementById('ef-status').value = camp.status || 'active';
+  document.getElementById('ef-pinned').checked = !!camp.pinned;
+  document.getElementById('ef-world').value = camp.world || '';
+  document.getElementById('ef-genre').value = camp.genre || '';
+  document.getElementById('ef-pitch').value = camp.pitch || '';
+  document.getElementById('ef-gm').value = camp.gm || '';
+  document.getElementById('ef-gmTitle').value = camp.gmTitle || 'GM';
+  document.getElementById('ef-players').value = camp.players || 0;
+  document.getElementById('ef-startDate').value = (camp.startDate || camp.created || '').slice(0, 10);
+  document.getElementById('ef-nextSession').value = camp.nextSession || '';
+  document.getElementById('ef-schedule').value = camp.schedule || '';
+  document.getElementById('ef-playMode').value = camp.playMode || 'online';
+  document.getElementById('ef-vttPlatform').value = camp.vttPlatform || '';
+  document.getElementById('ef-vttLabel').value = camp.vttLabel || '';
+  document.getElementById('ef-vttUrl').value = camp.vttUrl || '';
+  document.getElementById('ef-xpMethod').value = camp.xpMethod || '';
+  document.getElementById('ef-rulebooks').value = camp.rulebooks || '';
+  document.getElementById('ef-houseRules').value = camp.houseRules || '';
+  document.getElementById('ef-notes').value = camp.notes || '';
+
+  editImageData = camp.campaignImage || '';
+  renderImagePreview();
+
+  editModal.classList.add('open');
+}
+
+function closeEditModal() {
+  editModal.classList.remove('open');
+}
+
+function renderImagePreview() {
+  const wrap = document.getElementById('ef-img-wrap');
+  const rmBtn = document.getElementById('ef-img-remove');
+  if (editImageData) {
+    wrap.innerHTML = `<img class="mf-img-preview" src="${ESC(editImageData)}" alt="">`;
+    rmBtn.style.display = '';
+  } else {
+    wrap.innerHTML = '<div class="mf-img-placeholder">🖼</div>';
+    rmBtn.style.display = 'none';
+  }
+}
+
+function resizeImageToThumb(file, cb) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const sz = 128;
+      const canvas = document.createElement('canvas');
+      canvas.width = sz; canvas.height = sz;
+      const ctx = canvas.getContext('2d');
+      const scale = Math.max(sz / img.width, sz / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.drawImage(img, (sz - w) / 2, (sz - h) / 2, w, h);
+      cb(canvas.toDataURL('image/jpeg', 0.8));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// Image upload
+document.getElementById('ef-img-upload').addEventListener('click', () => { document.getElementById('ef-img-file').click(); });
+document.getElementById('ef-img-file').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  resizeImageToThumb(file, (dataUrl) => { editImageData = dataUrl; renderImagePreview(); });
+  e.target.value = '';
+});
+document.getElementById('ef-img-url').addEventListener('click', () => {
+  const url = prompt('Image URL:');
+  if (url && url.trim()) { editImageData = url.trim(); renderImagePreview(); }
+});
+document.getElementById('ef-img-remove').addEventListener('click', () => { editImageData = ''; renderImagePreview(); });
+
+// Save
+document.getElementById('ef-save').addEventListener('click', () => {
+  const id = document.getElementById('ef-id').value;
+  const updates = {
+    name: document.getElementById('ef-name').value.trim() || 'Untitled',
+    system: document.getElementById('ef-system').value,
+    status: document.getElementById('ef-status').value,
+    pinned: document.getElementById('ef-pinned').checked,
+    world: document.getElementById('ef-world').value.trim(),
+    genre: document.getElementById('ef-genre').value.trim(),
+    pitch: document.getElementById('ef-pitch').value.trim(),
+    gm: document.getElementById('ef-gm').value.trim(),
+    gmTitle: document.getElementById('ef-gmTitle').value,
+    players: parseInt(document.getElementById('ef-players').value) || 0,
+    startDate: document.getElementById('ef-startDate').value || null,
+    nextSession: document.getElementById('ef-nextSession').value || null,
+    schedule: document.getElementById('ef-schedule').value.trim(),
+    playMode: document.getElementById('ef-playMode').value,
+    vttPlatform: document.getElementById('ef-vttPlatform').value,
+    vttLabel: document.getElementById('ef-vttLabel').value.trim(),
+    vttUrl: document.getElementById('ef-vttUrl').value.trim(),
+    xpMethod: document.getElementById('ef-xpMethod').value.trim(),
+    rulebooks: document.getElementById('ef-rulebooks').value.trim(),
+    houseRules: document.getElementById('ef-houseRules').value.trim(),
+    notes: document.getElementById('ef-notes').value.trim(),
+    campaignImage: editImageData,
+  };
+  GCC.updateCampaign(id, updates);
+  closeEditModal();
+  renderCampaigns();
+});
+
+// Cancel / close
+document.getElementById('ef-cancel').addEventListener('click', closeEditModal);
+document.getElementById('edit-modal-close').addEventListener('click', closeEditModal);
+editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEditModal(); });
+
+// ── Wire edit button in campaign grid ──
 document.getElementById('campaign-grid').addEventListener('click', (e) => {
   const summary = e.target.closest('.cc-summary');
   if (summary) {
@@ -541,6 +829,8 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
     card.classList.toggle('open');
     return;
   }
+  const editBtn = e.target.closest('[data-action="edit-camp"]');
+  if (editBtn) { openEditModal(editBtn.dataset.campId); return; }
   const delBtn = e.target.closest('[data-action="del-camp"]');
   if (delBtn) {
     const id = delBtn.dataset.campId;

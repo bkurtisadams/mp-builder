@@ -132,6 +132,8 @@ const GCC = (function() {
       rulebooks: data.rulebooks || '',
       houseRules: data.houseRules || '',
       pinned: data.pinned || false,
+      campaignImage: data.campaignImage || '',
+      startDate: data.startDate || null,
       notes: data.notes || '',
       characters: data.characters || [],
       sessions: data.sessions || [],
