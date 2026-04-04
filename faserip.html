@@ -160,6 +160,8 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .item-row.equip-row{grid-template-columns:auto 60px 40px 1fr auto auto}
 .item-row.stunt-row{grid-template-columns:auto 60px 40px 1fr auto 36px auto auto}
 .stunt-used{width:36px!important;text-align:center;font-size:10px!important}
+.item-row.hq-row{grid-template-columns:1fr 80px auto}
+.item-row.veh-row{grid-template-columns:1fr 80px 40px auto}
 .item-cat{font-size:8px;color:var(--soft);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .difficulty-badge{font-size:8px;font-weight:700;padding:1px 4px;border-radius:2px;font-family:var(--fd)}
 .diff-red{background:#fde0e0;color:#8b0000}
@@ -478,6 +480,28 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
       <ul class="item-list" id="stunts-list"></ul>
     </div>
 
+    <!-- Headquarters (collapsible) -->
+    <div class="collapsible-hdr" id="hq-toggle">
+      <span class="collapsible-caret">▶</span>
+      <span class="collapsible-title">HEADQUARTERS</span>
+      <span class="collapsible-count" id="hq-count"></span>
+      <button class="list-add" id="add-hq" style="margin-left:auto" onclick="event.stopPropagation()">+ Add</button>
+    </div>
+    <div class="collapsible-body" id="hq-body">
+      <ul class="item-list" id="hq-list"></ul>
+    </div>
+
+    <!-- Vehicles (collapsible) -->
+    <div class="collapsible-hdr" id="vehicles-toggle">
+      <span class="collapsible-caret">▶</span>
+      <span class="collapsible-title">VEHICLES</span>
+      <span class="collapsible-count" id="vehicles-count"></span>
+      <button class="list-add" id="add-vehicle" style="margin-left:auto" onclick="event.stopPropagation()">+ Add</button>
+    </div>
+    <div class="collapsible-body" id="vehicles-body">
+      <ul class="item-list" id="vehicles-list"></ul>
+    </div>
+
     <!-- Bottom: Talents / Karma Tracking / Contacts -->
     <div class="bottom-grid">
       <!-- Talents -->
@@ -675,6 +699,8 @@ function newChar(){
     popularityHero:10, popularitySecret:0,
     moveRun:0, moveLeap:0, moveSwim:0, moveFly:0, moveTeleport:0,
     powers:[], talents:[], contacts:[], equipment:[], stunts:[],
+    headquarters:[],
+    vehicles:[],
     limitation:"",
     advancementKarma:0, karmaPool:0, poolName:""
   };
@@ -968,6 +994,49 @@ function renderStunts(){
 }
 
 
+function renderHQ(){
+  const arr=CHAR.headquarters||[];
+  document.getElementById("hq-count").textContent=arr.length?"("+arr.length+")":"";
+  const ul=document.getElementById("hq-list");
+  ul.innerHTML="";
+  arr.forEach((hq,i)=>{
+    const li=document.createElement("li");
+    li.className="item-row hq-row";
+    li.innerHTML='<input class="si" value="'+(hq.name||"")+'" data-idx="'+i+'" data-lf="name" placeholder="HQ Name">'+
+      '<span class="si item-rank" style="font-size:9px;border:none;text-align:center">'+(hq.materialStrength||"")+'</span>'+
+      '<button class="item-del" data-idx="'+i+'">\u00d7</button>';
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll(".item-del").forEach(el=>{
+    el.addEventListener("click",e=>{arr.splice(+e.target.dataset.idx,1);renderHQ();autosave();});
+  });
+  ul.querySelectorAll("input").forEach(el=>{
+    el.addEventListener("change",e=>{arr[+e.target.dataset.idx][e.target.dataset.lf]=e.target.value;autosave();});
+  });
+}
+
+function renderVehicles(){
+  const arr=CHAR.vehicles||[];
+  document.getElementById("vehicles-count").textContent=arr.length?"("+arr.length+")":"";
+  const ul=document.getElementById("vehicles-list");
+  ul.innerHTML="";
+  arr.forEach((v,i)=>{
+    const li=document.createElement("li");
+    li.className="item-row veh-row";
+    li.innerHTML='<input class="si" value="'+(v.name||"")+'" data-idx="'+i+'" data-lf="name" placeholder="Vehicle Name">'+
+      '<span class="si item-rank" style="font-size:9px;border:none;text-align:center">'+(v.type||"")+'</span>'+
+      '<span class="si item-value" style="border:none;text-align:center">'+(v.speed||"")+'</span>'+
+      '<button class="item-del" data-idx="'+i+'">\u00d7</button>';
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll(".item-del").forEach(el=>{
+    el.addEventListener("click",e=>{arr.splice(+e.target.dataset.idx,1);renderVehicles();autosave();});
+  });
+  ul.querySelectorAll("input").forEach(el=>{
+    el.addEventListener("change",e=>{arr[+e.target.dataset.idx][e.target.dataset.lf]=e.target.value;autosave();});
+  });
+}
+
 function renderAll(){
   // Bio fields (inputs and selects)
   document.querySelectorAll("[data-field]").forEach(el=>{
@@ -997,6 +1066,8 @@ function renderAll(){
   renderList("contacts-list",CHAR.contacts,"contact");
   renderEquipment();
   renderStunts();
+  renderHQ();
+  renderVehicles();
   recalcSecondary();
 
   // Auto-calc movement if not set
@@ -1054,25 +1125,55 @@ function bindAddButtons(){
   document.getElementById("add-equipment").addEventListener("click",()=>{
     if(!CHAR.equipment) CHAR.equipment=[];
     CHAR.equipment.push({name:"New Item",category:"gear",rank:"Typical",value:6,materialStrength:"Typical"});
-    document.getElementById("equipment-toggle").classList.add("open");
+    setCollapseState("equipment-toggle",true);
     renderEquipment();
     autosave();
   });
   document.getElementById("add-stunt").addEventListener("click",()=>{
     if(!CHAR.stunts) CHAR.stunts=[];
     CHAR.stunts.push({name:"New Stunt",parentPower:"",rank:"Typical",value:6,difficulty:"Red",timesUsed:0,description:""});
-    document.getElementById("stunts-toggle").classList.add("open");
+    setCollapseState("stunts-toggle",true);
     renderStunts();
     autosave();
   });
+  document.getElementById("add-hq").addEventListener("click",()=>{
+    if(!CHAR.headquarters) CHAR.headquarters=[];
+    CHAR.headquarters.push({name:"New HQ",materialStrength:"Good",rooms:"",features:"",rent:"",notes:""});
+    setCollapseState("hq-toggle",true);
+    renderHQ();
+    autosave();
+  });
+  document.getElementById("add-vehicle").addEventListener("click",()=>{
+    if(!CHAR.vehicles) CHAR.vehicles=[];
+    CHAR.vehicles.push({name:"New Vehicle",type:"Car",speed:"Typical",body:"Typical",protection:"Typical",control:"Typical",notes:""});
+    setCollapseState("vehicles-toggle",true);
+    renderVehicles();
+    autosave();
+  });
 
-  // Collapsible section toggles
-  document.getElementById("equipment-toggle").addEventListener("click",()=>{
-    document.getElementById("equipment-toggle").classList.toggle("open");
+  // Collapsible section toggles — persistent via localStorage
+  ["equipment-toggle","stunts-toggle","hq-toggle","vehicles-toggle"].forEach(id=>{
+    const el=document.getElementById(id);
+    // Restore saved state
+    if(getCollapseState(id)) el.classList.add("open");
+    el.addEventListener("click",()=>{
+      el.classList.toggle("open");
+      setCollapseState(id, el.classList.contains("open"));
+    });
   });
-  document.getElementById("stunts-toggle").addEventListener("click",()=>{
-    document.getElementById("stunts-toggle").classList.toggle("open");
-  });
+}
+
+const COLLAPSE_KEY="gcc-faserip-collapse";
+function getCollapseStates(){
+  try{return JSON.parse(localStorage.getItem(COLLAPSE_KEY))||{};}catch(e){return{};}
+}
+function getCollapseState(id){return getCollapseStates()[id]||false;}
+function setCollapseState(id,open){
+  const states=getCollapseStates();
+  states[id]=open;
+  try{localStorage.setItem(COLLAPSE_KEY,JSON.stringify(states));}catch(e){}
+  const el=document.getElementById(id);
+  if(el) el.classList.toggle("open",open);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1448,6 +1549,27 @@ function importFoundryActor(data){
           notes:is.notes||""
         });
         break;
+      case "headquarters":
+        char.headquarters.push({
+          name:item.name||"",
+          materialStrength:is.materialStrength||"",
+          rooms:is.rooms||"",
+          features:is.features||"",
+          rent:is.rent||"",
+          notes:is.notes||is.description||""
+        });
+        break;
+      case "vehicle":
+        char.vehicles.push({
+          name:item.name||"",
+          type:is.type||is.vehicleType||"",
+          speed:is.speed||is.rank||"",
+          body:is.body||"",
+          protection:is.protection||"",
+          control:is.control||"",
+          notes:is.notes||is.description||""
+        });
+        break;
     }
   }
 
@@ -1478,7 +1600,10 @@ function importChar(file){
         const portraitNote = CHAR.portraitData ? '\nPortrait imported.' :
           (CHAR.foundryImg ? '\nPortrait path found (not embedded) — click portrait to set manually.' : '');
         alert(`Imported Foundry actor: ${data.name}\n${CHAR.powers.length} powers, ${CHAR.talents.length} talents, ${CHAR.contacts.length} contacts` +
-          (CHAR.equipment&&CHAR.equipment.length?`, ${CHAR.equipment.length} equipment`:"") + portraitNote);
+          (CHAR.equipment&&CHAR.equipment.length?`, ${CHAR.equipment.length} equipment`:"") +
+          (CHAR.stunts&&CHAR.stunts.length?`, ${CHAR.stunts.length} stunts`:"") +
+          (CHAR.headquarters&&CHAR.headquarters.length?`, ${CHAR.headquarters.length} HQ`:"") +
+          (CHAR.vehicles&&CHAR.vehicles.length?`, ${CHAR.vehicles.length} vehicles`:"") + portraitNote);
       } else {
         CHAR={...newChar(),...data};
         renderAll();
