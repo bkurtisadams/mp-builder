@@ -187,6 +187,16 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .limitation-row{margin:6px 0;display:flex;align-items:baseline;gap:4px}
 .limitation-row .si{flex:1}
 
+/* ── Collapsible Sections ── */
+.collapsible-hdr{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:4px 0;margin:4px 0 0}
+.collapsible-hdr:hover .collapsible-title{color:var(--accent)}
+.collapsible-caret{font-size:9px;color:#888;transition:transform 0.15s;display:inline-block;width:10px;text-align:center}
+.collapsible-hdr.open .collapsible-caret{transform:rotate(90deg)}
+.collapsible-title{font-family:var(--fd);font-size:11px;font-weight:700;letter-spacing:1px;color:#444}
+.collapsible-count{font-family:var(--fm);font-size:9px;color:#888;font-weight:400}
+.collapsible-body{display:none;padding-top:2px}
+.collapsible-hdr.open+.collapsible-body{display:block}
+
 /* ── Chargen Panel ── */
 .chargen-panel{display:none;background:#fff;border:2px solid var(--accent);border-radius:4px;padding:12px;margin:0 auto 10px;max-width:720px;width:100%}
 .chargen-panel.open{display:block}
@@ -443,6 +453,28 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
       <input class="si" data-field="limitation" placeholder="">
     </div>
 
+    <!-- Equipment (collapsible) -->
+    <div class="collapsible-hdr" id="equipment-toggle">
+      <span class="collapsible-caret">▶</span>
+      <span class="collapsible-title">EQUIPMENT</span>
+      <span class="collapsible-count" id="equipment-count"></span>
+      <button class="list-add" id="add-equipment" style="margin-left:auto" onclick="event.stopPropagation()">+ Add</button>
+    </div>
+    <div class="collapsible-body" id="equipment-body">
+      <ul class="item-list" id="equipment-list"></ul>
+    </div>
+
+    <!-- Power Stunts (collapsible) -->
+    <div class="collapsible-hdr" id="stunts-toggle">
+      <span class="collapsible-caret">▶</span>
+      <span class="collapsible-title">POWER STUNTS</span>
+      <span class="collapsible-count" id="stunts-count"></span>
+      <button class="list-add" id="add-stunt" style="margin-left:auto" onclick="event.stopPropagation()">+ Add</button>
+    </div>
+    <div class="collapsible-body" id="stunts-body">
+      <ul class="item-list" id="stunts-list"></ul>
+    </div>
+
     <!-- Bottom: Talents / Karma Tracking / Contacts -->
     <div class="bottom-grid">
       <!-- Talents -->
@@ -475,24 +507,6 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
         </div>
         <ul class="item-list" id="contacts-list"></ul>
       </div>
-    </div>
-
-    <!-- Equipment -->
-    <div class="list-section" id="equipment-section" style="display:none">
-      <div class="list-header">
-        <span class="list-title">Equipment:</span>
-        <button class="list-add" id="add-equipment">+ Add Equipment</button>
-      </div>
-      <ul class="item-list" id="equipment-list"></ul>
-    </div>
-
-    <!-- Stunts -->
-    <div class="list-section" id="stunts-section" style="display:none">
-      <div class="list-header">
-        <span class="list-title">Power Stunts:</span>
-        <button class="list-add" id="add-stunt">+ Add Stunt</button>
-      </div>
-      <ul class="item-list" id="stunts-list"></ul>
     </div>
 
   </div>
@@ -877,9 +891,8 @@ function renderList(listId, items, type){
 }
 
 function renderEquipment(){
-  const sec=document.getElementById("equipment-section");
   const arr=CHAR.equipment||[];
-  sec.style.display=arr.length?"block":"none";
+  document.getElementById("equipment-count").textContent=arr.length?"("+arr.length+")":"";
   const ul=document.getElementById("equipment-list");
   ul.innerHTML="";
   arr.forEach((eq,i)=>{
@@ -908,9 +921,8 @@ function renderEquipment(){
 }
 
 function renderStunts(){
-  const sec=document.getElementById("stunts-section");
   const arr=CHAR.stunts||[];
-  sec.style.display=arr.length?"block":"none";
+  document.getElementById("stunts-count").textContent=arr.length?"("+arr.length+")":"";
   const ul=document.getElementById("stunts-list");
   ul.innerHTML="";
   arr.forEach((st,i)=>{
@@ -1029,14 +1041,24 @@ function bindAddButtons(){
   document.getElementById("add-equipment").addEventListener("click",()=>{
     if(!CHAR.equipment) CHAR.equipment=[];
     CHAR.equipment.push({name:"New Item",category:"gear",rank:"Typical",value:6,materialStrength:"Typical"});
+    document.getElementById("equipment-toggle").classList.add("open");
     renderEquipment();
     autosave();
   });
   document.getElementById("add-stunt").addEventListener("click",()=>{
     if(!CHAR.stunts) CHAR.stunts=[];
     CHAR.stunts.push({name:"New Stunt",parentPower:"",rank:"Typical",value:6,timesUsed:0,description:""});
+    document.getElementById("stunts-toggle").classList.add("open");
     renderStunts();
     autosave();
+  });
+
+  // Collapsible section toggles
+  document.getElementById("equipment-toggle").addEventListener("click",()=>{
+    document.getElementById("equipment-toggle").classList.toggle("open");
+  });
+  document.getElementById("stunts-toggle").addEventListener("click",()=>{
+    document.getElementById("stunts-toggle").classList.toggle("open");
   });
 }
 
