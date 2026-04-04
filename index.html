@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Graycloak's Campaign Corner</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="gcc-header.css">
 <style>
 /* ── Theme: Slate & Ice (dark) ── */
-[data-theme="dark"] {
+[data-gcc-theme="dark"] {
   --bg: #101418;
   --bg2: #161a20;
   --bg-card: #1a1e26;
@@ -37,7 +38,7 @@
 }
 
 /* ── Theme: Linen (light) ── */
-[data-theme="light"] {
+[data-gcc-theme="light"] {
   --bg: #eef0f4;
   --bg2: #e4e8ee;
   --bg-card: #ffffff;
@@ -79,33 +80,33 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
 body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"); opacity: var(--noise-opacity) }
 
 /* ── Header ── */
-.hdr { background: #0e1218; border-bottom: 1px solid #252a34; padding: 0 20px; flex-shrink: 0; position: relative; z-index: 100 }
+.hdr { background: var(--gcc-bar-bg); border-bottom: 1px solid var(--gcc-bar-brd); padding: 0 20px; flex-shrink: 0; position: relative; z-index: 100 }
 .hdr-in { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; min-height: 52px; gap: 12px; flex-wrap: wrap; padding: 6px 0 }
 .hdr-brand { display: flex; align-items: center; gap: 12px }
 .hdr-title-wrap { display: flex; flex-direction: column }
-.hdr-title { font-family: var(--fd); font-size: 17px; font-weight: 700; color: #c8ccd4; letter-spacing: 2px; line-height: 1.2 }
-.hdr-sub { font-family: var(--fsc); font-size: 9px; color: #4a5464; letter-spacing: 3px; margin-top: 1px }
+.hdr-title { font-family: var(--fd); font-size: 17px; font-weight: 700; color: var(--gcc-bar-tx); letter-spacing: 2px; line-height: 1.2 }
+.hdr-sub { font-family: var(--fsc); font-size: 9px; color: var(--gcc-bar-tx2); letter-spacing: 3px; margin-top: 1px }
 .hdr-nav { display: flex; gap: 4px; align-items: center; flex-wrap: wrap }
-.hdr-btn { padding: 5px 12px; font-size: 11px; font-family: var(--fb); font-weight: 700; background: transparent; border: 1px solid #303848; color: #7a8494; border-radius: 3px; cursor: pointer; transition: all 0.15s; position: relative }
-.hdr-btn:hover { border-color: #4a5464; color: #c8ccd4; background: rgba(255,255,255,0.03) }
+.hdr-btn { padding: 5px 12px; font-size: 11px; font-family: var(--fb); font-weight: 700; background: transparent; border: 1px solid var(--gcc-bar-btn-brd); color: var(--gcc-bar-btn-tx); border-radius: 3px; cursor: pointer; transition: all 0.15s; position: relative }
+.hdr-btn:hover { border-color: var(--gcc-bar-tx3); color: var(--gcc-bar-tx); background: var(--gcc-bar-hover) }
 
 /* ── Tools Dropdown ── */
-.tools-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; width: 280px; background: #1a1e26; border: 1px solid #303848; border-radius: 5px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); z-index: 200; max-height: 70vh; overflow-y: auto; scrollbar-width: thin }
+.tools-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; width: 280px; background: var(--gcc-dd-bg); border: 1px solid var(--gcc-dd-brd); border-radius: 5px; box-shadow: var(--gcc-dd-shadow); z-index: 200; max-height: 70vh; overflow-y: auto; scrollbar-width: thin }
 .tools-dropdown.open { display: block }
 .tools-dropdown::-webkit-scrollbar { width: 4px }
-.tools-dropdown::-webkit-scrollbar-thumb { background: #303848; border-radius: 2px }
-.td-section { padding: 8px 0; border-bottom: 1px solid #252a34 }
+.tools-dropdown::-webkit-scrollbar-thumb { background: var(--gcc-dd-brd); border-radius: 2px }
+.td-section { padding: 8px 0; border-bottom: 1px solid var(--gcc-dd-sep) }
 .td-section:last-child { border-bottom: none }
-.td-section-title { font-family: var(--fsc); font-size: 8px; color: #4a5464; letter-spacing: 1.5px; padding: 4px 14px 2px }
-.td-sys-hdr { display: flex; align-items: center; gap: 6px; padding: 5px 14px 2px; font-family: var(--fd); font-size: 11px; font-weight: 700; color: #c8ccd4; letter-spacing: 1px }
+.td-section-title { font-family: var(--fsc); font-size: 8px; color: var(--gcc-dd-tx2); letter-spacing: 1.5px; padding: 4px 14px 2px }
+.td-sys-hdr { display: flex; align-items: center; gap: 6px; padding: 5px 14px 2px; font-family: var(--fd); font-size: 11px; font-weight: 700; color: var(--gcc-dd-tx); letter-spacing: 1px }
 .td-sys-icon { font-size: 13px; width: 18px; text-align: center }
-.td-link { display: flex; align-items: center; gap: 8px; padding: 4px 14px 4px 38px; font-size: 12px; color: #7a8494; text-decoration: none; cursor: pointer; transition: all 0.1s }
-.td-link:hover { background: rgba(255,255,255,0.03); color: #c8ccd4 }
-.td-link.disabled { color: #4a5464; cursor: default }
-.td-link.disabled:hover { background: transparent; color: #4a5464 }
-.td-link .bullet { color: #3a6a90; font-size: 6px; flex-shrink: 0 }
-.td-shared-link { display: flex; align-items: center; gap: 8px; padding: 5px 14px; font-size: 12px; color: #7a8494; text-decoration: none; cursor: pointer; transition: all 0.1s }
-.td-shared-link:hover { background: rgba(255,255,255,0.03); color: #c8ccd4 }
+.td-link { display: flex; align-items: center; gap: 8px; padding: 4px 14px 4px 38px; font-size: 12px; color: var(--gcc-dd-tx2); text-decoration: none; cursor: pointer; transition: all 0.1s }
+.td-link:hover { background: var(--gcc-dd-hover); color: var(--gcc-dd-tx) }
+.td-link.disabled { opacity: 0.35; cursor: default }
+.td-link.disabled:hover { background: transparent }
+.td-link .bullet { color: var(--gcc-bar-active); font-size: 6px; flex-shrink: 0 }
+.td-shared-link { display: flex; align-items: center; gap: 8px; padding: 5px 14px; font-size: 12px; color: var(--gcc-dd-tx2); text-decoration: none; cursor: pointer; transition: all 0.1s }
+.td-shared-link:hover { background: var(--gcc-dd-hover); color: var(--gcc-dd-tx) }
 .td-shared-icon { font-size: 14px; width: 20px; text-align: center; flex-shrink: 0 }
 .tools-overlay { display: none; position: fixed; inset: 0; z-index: 99 }
 .tools-overlay.open { display: block }
@@ -382,7 +383,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
         <button class="hdr-btn" id="btn-tools">🎲 Tools ▾</button>
         <div class="tools-dropdown" id="tools-dropdown"></div>
       </div>
-      <button class="hdr-btn" id="btn-theme" title="Toggle light/dark"><span id="theme-icon">◑</span></button>
+      <button class="hdr-btn" id="gcc-btn-theme" title="Toggle light/dark"><span id="gcc-theme-icon">◑</span></button>
       <button class="hdr-btn" id="btn-settings">⚙</button>
       <button class="hdr-btn" id="btn-about">?</button>
     </div>
@@ -594,26 +595,9 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   </div>
 </div>
 
+<script src="gcc-header.js"></script>
 <script src="gcc-data.js"></script>
 <script>
-// ── Theme ──
-function getSystemTheme() { return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
-function getStoredTheme() { try { return localStorage.getItem('gcc-theme'); } catch(e) { return null; } }
-function applyTheme(t) {
-  document.body.setAttribute('data-theme', t);
-  document.getElementById('theme-icon').textContent = t === 'dark' ? '☀' : '☽';
-}
-function initTheme() { applyTheme(getStoredTheme() || getSystemTheme()); }
-document.getElementById('btn-theme').addEventListener('click', () => {
-  const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-  applyTheme(next);
-  try { localStorage.setItem('gcc-theme', next); } catch(e) {}
-});
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-  if (!getStoredTheme()) applyTheme(e.matches ? 'dark' : 'light');
-});
-initTheme();
-
 // ── Init ──
 GCC.init();
 

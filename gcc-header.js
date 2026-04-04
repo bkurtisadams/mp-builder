@@ -1,10 +1,10 @@
-// gcc-header.js v1.0.0 — 2026-04-04
-// Shared site-wide header logic for all GCC pages
+// gcc-header.js v2.0.0 — 2026-04-04
+// Shared site-wide header logic + theme system for all GCC pages
 
 (function() {
   const ESC = s => { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
 
-  // ── System Registry (mirrors gcc-data.js SYSTEM_DEFS) ──
+  // ── System Registry ──
   const SYSTEM_DEFS = [
     { id: 'mp', name: 'Mighty Protectors', icon: '🛡', tools: [
       { id: 'mp-char', name: 'Character Builder', href: 'character.html' },
@@ -42,10 +42,31 @@
     { icon: '💾', name: 'Export / Import' },
   ];
 
-  // ── Detect current page for active highlighting ──
+  // ── Theme ──
+  function getSystemTheme() {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function getStoredTheme() {
+    try { return localStorage.getItem('gcc-theme'); } catch(e) { return null; }
+  }
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-gcc-theme', t);
+    const icon = document.getElementById('gcc-theme-icon');
+    if (icon) icon.textContent = t === 'dark' ? '☀' : '☽';
+    // Notify page-level code that theme changed
+    window.dispatchEvent(new CustomEvent('gcc-theme-change', { detail: { theme: t } }));
+  }
+  function initTheme() {
+    applyTheme(getStoredTheme() || getSystemTheme());
+  }
+
+  // Apply theme immediately (before DOM ready) to prevent flash
+  initTheme();
+
+  // ── Detect current page ──
   const currentPage = window.location.pathname.split('/').pop() || 'index.html';
 
-  // ── Render the GCC site bar ──
+  // ── Render ──
   function renderGCCBar() {
     const bar = document.getElementById('gcc-bar');
     if (!bar) return;
@@ -68,7 +89,7 @@
 
     document.getElementById('gcc-tools-dd').innerHTML = dd;
 
-    // Wire up dropdown toggle
+    // Wire tools dropdown
     const btnTools = document.getElementById('gcc-btn-tools');
     const toolsDD = document.getElementById('gcc-tools-dd');
     const toolsOL = document.getElementById('gcc-tools-overlay');
@@ -84,10 +105,34 @@
     });
   }
 
-  // ── Init on DOM ready ──
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', renderGCCBar);
-  } else {
-    renderGCCBar();
+  // ── Wire theme on any page (even without gcc-bar) ──
+  function wireTheme() {
+    const btnTheme = document.getElementById('gcc-btn-theme');
+    if (btnTheme && !btnTheme._gccWired) {
+      btnTheme._gccWired = true;
+      btnTheme.addEventListener('click', () => {
+        const cur = document.documentElement.getAttribute('data-gcc-theme');
+        const next = cur === 'dark' ? 'light' : 'dark';
+        applyTheme(next);
+        try { localStorage.setItem('gcc-theme', next); } catch(e) {}
+      });
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (!getStoredTheme()) applyTheme(e.matches ? 'dark' : 'light');
+    });
   }
+
+  // ── Init ──
+  function init() {
+    renderGCCBar();
+    wireTheme();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  // Expose theme API for page-level code
+  window.GCCTheme = { apply: applyTheme, get: () => document.documentElement.getAttribute('data-gcc-theme') };
 })();

@@ -23,29 +23,30 @@
         <button class="gcc-nav-btn" id="gcc-btn-tools">🎲 Tools ▾</button>
         <div class="gcc-tools-dd" id="gcc-tools-dd"></div>
       </div>
+      <button class="gcc-nav-btn" id="gcc-btn-theme" title="Toggle light/dark"><span id="gcc-theme-icon">◑</span></button>
     </div>
   </div>
 </div>
 <div class="gcc-tools-overlay" id="gcc-tools-overlay"></div>
 
-<header class="mp-hdr">
-  <div class="mp-hdr-in">
-    <div class="mp-logo-wrap">
-      <img src="MP_logo_v3.png" alt="Mighty Protectors" class="mp-logo-img">
-      <span class="mp-logo-sub">Vehicle Builder</span>
+<header class="gcc-mp-bar">
+  <div class="gcc-mp-bar-in">
+    <div class="gcc-mp-logo-wrap">
+      <img src="MP_logo_v3.png" alt="Mighty Protectors" class="gcc-mp-logo-img">
+      <span class="gcc-mp-logo-sub">Vehicle Builder</span>
     </div>
-    <div class="mp-hdr-template">
-      <label class="mp-tpl-label">Template:</label>
-      <select id="sel-template" class="mp-tpl-sel">
+    <div class="gcc-mp-template">
+      <label class="gcc-mp-tpl-label">Template:</label>
+      <select id="sel-template" class="gcc-mp-tpl-sel">
         <option value="">— blank —</option>
       </select>
     </div>
-    <div class="mp-hdr-export">
-      <button class="ed-btn-sm" id="btn-save" title="Save (Ctrl+S)">Save</button>
-      <button class="ed-btn-sm" id="btn-save-as" title="Save As — choose folder and filename">Save As</button>
-      <button class="ed-btn-sm" id="btn-load" title="Open (Ctrl+O)">Open</button>
-      <button class="ed-btn-sm" id="btn-csv">CSV</button>
-      <button class="ed-btn-sm" id="btn-pdf">PDF</button>
+    <div class="gcc-mp-btns">
+      <button class="gcc-mp-btn" id="btn-save" title="Save (Ctrl+S)">Save</button>
+      <button class="gcc-mp-btn" id="btn-save-as" title="Save As — choose folder and filename">Save As</button>
+      <button class="gcc-mp-btn" id="btn-load" title="Open (Ctrl+O)">Open</button>
+      <button class="gcc-mp-btn" id="btn-csv">CSV</button>
+      <button class="gcc-mp-btn" id="btn-pdf">PDF</button>
       <input type="file" id="inp-json" accept=".json" style="display:none">
     </div>
   </div>
