@@ -620,17 +620,17 @@ function renderList(listId, items, type){
     li.className="item-row";
     if(type==="power"){
       const star=item.name.endsWith("*")?"<span class=\"item-star\">★</span>":"";
-      li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll FEAT">FEAT</button>
-        ${star}<input class="si" value="${item.name.replace(/\*$/,"")}" data-list="${type}" data-idx="${i}" data-lf="name">
+      li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll FEAT">d100</button>
         <select class="si item-rank" data-list="${type}" data-idx="${i}" data-lf="rank">${buildRankOptions(item.rank||"Typical")}</select>
         <input class="si item-value" type="number" value="${item.value||6}" data-list="${type}" data-idx="${i}" data-lf="value" style="width:30px">
+        ${star}<input class="si" value="${item.name.replace(/\*$/,"")}" data-list="${type}" data-idx="${i}" data-lf="name">
         <button class="item-del" data-list="${type}" data-idx="${i}">&times;</button>`;
     } else if(type==="talent"){
-      li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll FEAT">FEAT</button>
+      li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll FEAT">d100</button>
         <input class="si" value="${item.name.replace(/\*$/,"")}" data-list="${type}" data-idx="${i}" data-lf="name">
         <button class="item-del" data-list="${type}" data-idx="${i}">&times;</button>`;
     } else {
-      li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll Popularity FEAT">FEAT</button>
+      li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll Popularity FEAT">d100</button>
         <input class="si" value="${item.name}" data-list="${type}" data-idx="${i}" data-lf="name">
         <button class="item-del" data-list="${type}" data-idx="${i}">&times;</button>`;
     }
