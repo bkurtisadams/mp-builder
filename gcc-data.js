@@ -48,7 +48,7 @@ const GCC = (function() {
       color: '#4a7a9a',
       tools: [
         { id: 'fas-char', name: 'Character Sheet', href: 'faserip.html', charList: 'gcc-faserip-chars' },
-        { id: 'fas-table', name: 'Universal Table', href: null },
+        { id: 'fas-table', name: 'Universal Table', href: 'faserip-table.html' },
         { id: 'fas-combat', name: 'Combat Tracker', href: null },
         { id: 'fas-karma', name: 'Karma Log', href: null },
       ]
