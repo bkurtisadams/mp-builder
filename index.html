@@ -144,10 +144,15 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 /* ── Campaign Cards ── */
 .campaign-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px }
 .campaign-card { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; overflow: hidden; transition: all 0.15s; position: relative; box-shadow: var(--card-shadow) }
-.campaign-card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; bottom: 0; background: var(--brd-lt) }
+.campaign-card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; bottom: 0; background: var(--brd-lt); z-index: 1 }
 .campaign-card.status-active::before { background: var(--accent-dim) }
 
-.cc-summary { padding: 12px 14px 10px 18px; cursor: pointer; transition: background 0.12s }
+.cc-card-body { display: flex }
+.cc-side-img { width: 110px; flex-shrink: 0; background: var(--bg2); position: relative; overflow: hidden; cursor: pointer }
+.cc-side-img img { width: 100%; height: 100%; object-fit: cover; display: block }
+.cc-side-img-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 28px; opacity: 0.2; color: var(--tx3) }
+.cc-summary { padding: 12px 14px 10px 18px; cursor: pointer; transition: background 0.12s; flex: 1; min-width: 0 }
+.campaign-card.has-img .cc-summary { padding-left: 12px }
 .cc-summary:hover { background: var(--bg-card-hover) }
 .cc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px }
 .cc-name { font-family: var(--fd); font-size: 15px; font-weight: 700; color: var(--tx); letter-spacing: 1px; display: flex; align-items: center; gap: 6px; min-width: 0 }
@@ -744,6 +749,12 @@ function renderCampaigns() {
       ? `<div class="cc-thumb"><img src="${ESC(c.campaignImage)}" style="width:100%;height:100%;object-fit:cover;border-radius:2px" alt=""></div>`
       : (sys.icon ? `<div class="cc-thumb">${sys.icon}</div>` : '');
 
+    const hasImg = !!c.campaignImage;
+    const sideImgHtml = hasImg
+      ? `<div class="cc-side-img"><img src="${ESC(c.campaignImage)}" alt=""></div>`
+      : '';
+    const fallbackThumb = (!hasImg && sys.icon) ? `<div class="cc-thumb">${sys.icon}</div>` : '';
+
     const charsHtml = (c.characters||[]).map((ch,i) => {
       const col = PIP_COLORS[i % PIP_COLORS.length];
       // Resolve live data from saved character
@@ -783,7 +794,9 @@ function renderCampaigns() {
 
     const dr = (l,v) => v ? `<div class="cc-detail-row"><span class="cc-detail-label">${l}</span><span class="cc-detail-value">${ESC(v)}</span></div>` : '';
 
-    return `<div class="campaign-card status-${status}" data-camp-id="${ESC(c.id)}">
+    return `<div class="campaign-card status-${status}${hasImg?' has-img':''}" data-camp-id="${ESC(c.id)}">
+      <div class="cc-card-body">
+      ${sideImgHtml}
       <div class="cc-summary">
         <div class="cc-top">
           <div class="cc-name">${c.pinned?'<span class="cc-star">★</span>':''}<span class="cc-name-text">${ESC(c.name)}</span></div>
@@ -792,7 +805,7 @@ function renderCampaigns() {
         </div>
         <div class="cc-info">
           <span class="cc-system-badge" style="${sysColorCSS(c.system)}">${ESC(sys.name||c.system)}</span>
-          ${thumbHtml}
+          ${fallbackThumb}
           <div>
             <div class="cc-meta">
               ${c.gm?'<span>'+ESC(gml)+': '+ESC(c.gm)+'</span>':''}
@@ -808,6 +821,7 @@ function renderCampaigns() {
             </div>
           </div>
         </div>
+      </div>
       </div>
       <div class="cc-expand">
         <div class="cc-details">
@@ -959,14 +973,14 @@ function resizeImageToThumb(file, cb) {
   reader.onload = (e) => {
     const img = new Image();
     img.onload = () => {
-      const sz = 128;
+      const tw = 160, th = 140;
       const canvas = document.createElement('canvas');
-      canvas.width = sz; canvas.height = sz;
+      canvas.width = tw; canvas.height = th;
       const ctx = canvas.getContext('2d');
-      const scale = Math.max(sz / img.width, sz / img.height);
+      const scale = Math.max(tw / img.width, th / img.height);
       const w = img.width * scale, h = img.height * scale;
-      ctx.drawImage(img, (sz - w) / 2, (sz - h) / 2, w, h);
-      cb(canvas.toDataURL('image/jpeg', 0.8));
+      ctx.drawImage(img, (tw - w) / 2, (th - h) / 2, w, h);
+      cb(canvas.toDataURL('image/jpeg', 0.7));
     };
     img.src = e.target.result;
   };
@@ -1026,7 +1040,7 @@ editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEd
 
 // ── Wire edit button in campaign grid ──
 document.getElementById('campaign-grid').addEventListener('click', (e) => {
-  const summary = e.target.closest('.cc-summary');
+  const summary = e.target.closest('.cc-summary') || e.target.closest('.cc-side-img');
   if (summary) {
     const card = summary.closest('.campaign-card');
     document.querySelectorAll('.campaign-card.open').forEach(c => { if (c !== card) c.classList.remove('open'); });
