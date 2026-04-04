@@ -4,45 +4,82 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Graycloak's Campaign Corner</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* ── Forged Iron — Scheme E ── */
+/* ── Theme: Slate & Ice (dark) ── */
+[data-theme="dark"] {
+  --bg: #101418;
+  --bg2: #161a20;
+  --bg-card: #1a1e26;
+  --bg-card-hover: #20252e;
+  --bg-section: #141820;
+  --bg-expand: #161a22;
+  --brd: #252a34;
+  --brd-lt: #303848;
+  --tx: #c8ccd4;
+  --tx2: #7a8494;
+  --tx3: #4a5464;
+  --accent: #60a0d0;
+  --accent-lt: #78b8e8;
+  --accent-dim: #3a6a90;
+  --red: #d04848;
+  --red-lt: #e05858;
+  --green: #48a858;
+  --blue: #60a0d0;
+  --blue-lt: #78b8e8;
+  --amber: #d0a040;
+  --hdr-bg: linear-gradient(180deg, #161a22 0%, #0e1118 100%);
+  --hdr-brd: #303848;
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  --dd-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  --hover-bg: rgba(255,255,255,0.03);
+  --noise-opacity: 0.3;
+}
+
+/* ── Theme: Linen (light) ── */
+[data-theme="light"] {
+  --bg: #eef0f4;
+  --bg2: #e4e8ee;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f6f8fa;
+  --bg-section: #e8eaee;
+  --bg-expand: #f2f4f8;
+  --brd: #d0d4dc;
+  --brd-lt: #bcc2cc;
+  --tx: #181c24;
+  --tx2: #505868;
+  --tx3: #8890a0;
+  --accent: #30508a;
+  --accent-lt: #2a4878;
+  --accent-dim: #8890a0;
+  --red: #c03030;
+  --red-lt: #d03838;
+  --green: #287830;
+  --blue: #30508a;
+  --blue-lt: #2a4878;
+  --amber: #a07818;
+  --hdr-bg: linear-gradient(180deg, #e4e8ee 0%, #dce0e8 100%);
+  --hdr-brd: #c8ccd6;
+  --card-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  --dd-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  --hover-bg: rgba(0,0,0,0.02);
+  --noise-opacity: 0.15;
+}
+
 :root {
-  --bg: #141414;
-  --bg-warm: #1a1a1a;
-  --bg-card: #1e1e1e;
-  --bg-card-hover: #262626;
-  --bg-section: #181818;
-  --bg-expand: #1c1c1c;
-  --brd: #2e2e2e;
-  --brd-lt: #3a3a3a;
-  --brd-accent: #888070;
-  --tx: #d8d4cc;
-  --tx2: #999088;
-  --tx3: #605850;
-  --accent: #d0b868;
-  --accent-lt: #e0c878;
-  --accent-dim: #887848;
-  --red: #c04030;
-  --red-lt: #d45040;
-  --green: #5a9a40;
-  --green-lt: #6ab050;
-  --blue: #5090b0;
-  --blue-lt: #60a0c0;
-  --cyan: #508a7a;
-  --purple: #7a5a8a;
-  --amber: #c89030;
   --fd: 'Cinzel', serif;
   --fb: 'Alegreya', serif;
   --fsc: 'Alegreya SC', serif;
+  --fm: 'IBM Plex Mono', monospace;
 }
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
 html { min-height: 100%; background: var(--bg) }
 body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: var(--fb); font-size: 14px; display: flex; flex-direction: column }
-body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"); opacity: 0.4 }
+body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"); opacity: var(--noise-opacity) }
 
 /* ── Header ── */
-.hdr { background: linear-gradient(180deg, #1a1a1a 0%, #111 100%); border-bottom: 1px solid var(--brd-lt); padding: 0 20px; flex-shrink: 0; position: relative; z-index: 100 }
+.hdr { background: var(--hdr-bg); border-bottom: 1px solid var(--hdr-brd); padding: 0 20px; flex-shrink: 0; position: relative; z-index: 100 }
 .hdr-in { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; min-height: 52px; gap: 12px; flex-wrap: wrap; padding: 6px 0 }
 .hdr-brand { display: flex; align-items: center; gap: 12px }
 .hdr-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: var(--accent); font-size: 20px; flex-shrink: 0 }
@@ -51,25 +88,25 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .hdr-sub { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 3px; margin-top: 1px }
 .hdr-nav { display: flex; gap: 4px; align-items: center; flex-wrap: wrap }
 .hdr-btn { padding: 5px 12px; font-size: 11px; font-family: var(--fb); font-weight: 700; background: transparent; border: 1px solid var(--brd-lt); color: var(--tx2); border-radius: 3px; cursor: pointer; transition: all 0.15s; position: relative }
-.hdr-btn:hover { border-color: var(--tx3); color: var(--tx); background: rgba(255,255,255,0.03) }
+.hdr-btn:hover { border-color: var(--tx3); color: var(--tx); background: var(--hover-bg) }
 
 /* ── Tools Dropdown ── */
-.tools-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; width: 280px; background: var(--bg-card); border: 1px solid var(--brd-lt); border-radius: 5px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); z-index: 200; max-height: 70vh; overflow-y: auto; scrollbar-width: thin }
+.tools-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; width: 280px; background: var(--bg-card); border: 1px solid var(--brd-lt); border-radius: 5px; box-shadow: var(--dd-shadow); z-index: 200; max-height: 70vh; overflow-y: auto; scrollbar-width: thin }
 .tools-dropdown.open { display: block }
 .tools-dropdown::-webkit-scrollbar { width: 4px }
 .tools-dropdown::-webkit-scrollbar-thumb { background: var(--brd-lt); border-radius: 2px }
 .td-section { padding: 8px 0; border-bottom: 1px solid var(--brd) }
 .td-section:last-child { border-bottom: none }
-.td-section-title { font-family: var(--fsc); font-size: 8px; color: var(--tx3); letter-spacing: 1.5px; padding: 4px 14px 2px; text-transform: uppercase }
+.td-section-title { font-family: var(--fsc); font-size: 8px; color: var(--tx3); letter-spacing: 1.5px; padding: 4px 14px 2px }
 .td-sys-hdr { display: flex; align-items: center; gap: 6px; padding: 5px 14px 2px; font-family: var(--fd); font-size: 11px; font-weight: 700; color: var(--tx); letter-spacing: 1px }
 .td-sys-icon { font-size: 13px; width: 18px; text-align: center }
 .td-link { display: flex; align-items: center; gap: 8px; padding: 4px 14px 4px 38px; font-size: 12px; color: var(--tx2); text-decoration: none; cursor: pointer; transition: all 0.1s }
-.td-link:hover { background: rgba(255,255,255,0.04); color: var(--tx) }
+.td-link:hover { background: var(--hover-bg); color: var(--tx) }
 .td-link.disabled { color: var(--tx3); cursor: default }
 .td-link.disabled:hover { background: transparent; color: var(--tx3) }
 .td-link .bullet { color: var(--accent-dim); font-size: 6px; flex-shrink: 0 }
 .td-shared-link { display: flex; align-items: center; gap: 8px; padding: 5px 14px; font-size: 12px; color: var(--tx2); text-decoration: none; cursor: pointer; transition: all 0.1s }
-.td-shared-link:hover { background: rgba(255,255,255,0.04); color: var(--tx) }
+.td-shared-link:hover { background: var(--hover-bg); color: var(--tx) }
 .td-shared-icon { font-size: 14px; width: 20px; text-align: center; flex-shrink: 0 }
 .tools-overlay { display: none; position: fixed; inset: 0; z-index: 99 }
 .tools-overlay.open { display: block }
@@ -83,8 +120,8 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .section-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; flex-wrap: wrap }
 .section-title { font-family: var(--fd); font-size: 12px; font-weight: 700; color: var(--tx2); letter-spacing: 2px }
 .btn-new { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; font-size: 11px; font-family: var(--fb); font-weight: 700; background: transparent; color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 3px; cursor: pointer; transition: all 0.15s }
-.btn-new:hover { background: rgba(208,184,104,0.08); border-color: var(--accent); color: var(--accent-lt) }
-.divider { display: flex; align-items: center; gap: 12px; margin: 20px 0 18px; color: var(--tx3) }
+.btn-new:hover { border-color: var(--accent); color: var(--accent-lt); background: var(--hover-bg) }
+.divider { display: flex; align-items: center; gap: 12px; margin: 20px 0 18px }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--brd) }
 .divider-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--brd-lt) }
 
@@ -92,8 +129,8 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .jumpback { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: thin }
 .jumpback::-webkit-scrollbar { height: 4px }
 .jumpback::-webkit-scrollbar-thumb { background: var(--brd); border-radius: 2px }
-.jb-card { flex: 0 0 auto; width: 200px; background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; padding: 9px 12px; cursor: pointer; transition: all 0.15s; text-decoration: none; color: var(--tx); display: block; position: relative; overflow: hidden }
-.jb-card:hover { border-color: var(--brd-lt); background: var(--bg-card-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.3) }
+.jb-card { flex: 0 0 auto; width: 200px; background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; padding: 9px 12px; cursor: pointer; transition: all 0.15s; text-decoration: none; color: var(--tx); display: block; position: relative; overflow: hidden; box-shadow: var(--card-shadow) }
+.jb-card:hover { border-color: var(--brd-lt); background: var(--bg-card-hover); transform: translateY(-1px) }
 .jb-label { font-family: var(--fsc); font-size: 8px; color: var(--tx3); letter-spacing: 1px; margin-bottom: 2px }
 .jb-name { font-family: var(--fd); font-size: 13px; font-weight: 700; color: var(--tx); letter-spacing: 0.5px; line-height: 1.2; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .jb-detail { font-size: 11px; color: var(--tx2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
@@ -102,22 +139,21 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .filter-tabs { display: flex; gap: 2px; align-items: center }
 .filter-tab { padding: 3px 10px; font-size: 10px; font-family: var(--fb); font-weight: 700; background: transparent; border: 1px solid transparent; color: var(--tx3); border-radius: 3px; cursor: pointer; transition: all 0.12s }
 .filter-tab:hover { color: var(--tx2) }
-.filter-tab.active { color: var(--tx); border-color: var(--brd-lt); background: rgba(255,255,255,0.03) }
+.filter-tab.active { color: var(--tx); border-color: var(--brd-lt); background: var(--hover-bg) }
 
 /* ── Campaign Cards ── */
 .campaign-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px }
-.campaign-card { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; overflow: hidden; transition: all 0.15s; position: relative }
+.campaign-card { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; overflow: hidden; transition: all 0.15s; position: relative; box-shadow: var(--card-shadow) }
 .campaign-card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; bottom: 0; background: var(--brd-lt) }
-.campaign-card.active::before { background: var(--accent-dim) }
+.campaign-card.status-active::before { background: var(--accent-dim) }
 
-/* Collapsed summary */
-.cc-summary { padding: 12px 14px 10px 16px; cursor: pointer; transition: background 0.12s }
+.cc-summary { padding: 12px 14px 10px 18px; cursor: pointer; transition: background 0.12s }
 .cc-summary:hover { background: var(--bg-card-hover) }
 .cc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px }
 .cc-name { font-family: var(--fd); font-size: 15px; font-weight: 700; color: var(--tx); letter-spacing: 1px; display: flex; align-items: center; gap: 6px; min-width: 0 }
 .cc-name-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .cc-star { color: var(--accent); font-size: 12px; flex-shrink: 0 }
-.cc-status { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-family: var(--fb); flex-shrink: 0; margin-left: auto }
+.cc-status { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; flex-shrink: 0; margin-left: auto }
 .cc-status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0 }
 .cc-status-dot.active { background: var(--green) }
 .cc-status-dot.hiatus { background: var(--amber) }
@@ -127,26 +163,28 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-chevron { color: var(--tx3); font-size: 10px; transition: transform 0.2s; flex-shrink: 0; margin-left: 8px }
 .campaign-card.open .cc-chevron { transform: rotate(180deg) }
 
-/* Info row */
-.cc-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px }
-.cc-system-badge { display: inline-block; font-family: var(--fsc); font-size: 9px; font-weight: 700; padding: 1px 7px; border-radius: 2px; letter-spacing: 1px; white-space: nowrap }
-.cc-meta { font-size: 11px; color: var(--tx2); display: flex; gap: 10px; flex-wrap: wrap }
+.cc-info { display: flex; align-items: center; gap: 10px; margin-bottom: 4px }
+.cc-system-badge { display: inline-block; font-family: var(--fsc); font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 2px; letter-spacing: 1px; white-space: nowrap; flex-shrink: 0 }
+.cc-thumb { width: 36px; height: 36px; border-radius: 3px; border: 1px solid var(--brd); object-fit: cover; flex-shrink: 0; background: var(--bg2); display: flex; align-items: center; justify-content: center; font-size: 16px }
+.cc-meta { font-size: 11px; color: var(--tx2); display: flex; gap: 8px; flex-wrap: wrap }
 .cc-meta span { white-space: nowrap }
-.cc-meta-sep { color: var(--brd-lt) }
-
-/* Second meta row */
-.cc-meta2 { font-size: 10px; color: var(--tx3); display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px }
+.cc-meta2 { font-size: 10px; color: var(--tx3); display: flex; gap: 8px; flex-wrap: wrap; margin-top: 3px }
 .cc-meta2 span { white-space: nowrap }
 .cc-next { color: var(--accent); font-weight: 700 }
 
-/* Expanded panel */
-.cc-expand { display: none; border-top: 1px solid var(--brd); background: var(--bg-expand); padding: 14px 16px 14px }
+.cc-expand { display: none; border-top: 1px solid var(--brd); background: var(--bg-expand); padding: 14px 18px 14px }
 .campaign-card.open .cc-expand { display: block }
 .campaign-card.open { grid-column: 1 / -1 }
-.cc-grid { display: grid; grid-template-columns: 180px 1fr 1fr; gap: 14px; align-items: start }
+
+.cc-details { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 24px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--brd) }
+.cc-detail-row { display: flex; gap: 6px; padding: 2px 0; font-size: 11px; align-items: baseline }
+.cc-detail-label { color: var(--tx3); min-width: 72px; flex-shrink: 0; font-family: var(--fsc); font-size: 9px; letter-spacing: 0.5px }
+.cc-detail-value { color: var(--tx2) }
+.cc-pitch { grid-column: 1 / -1; font-size: 12px; color: var(--tx2); font-style: italic; padding: 4px 0 4px; line-height: 1.35 }
+
+.cc-grid { display: grid; grid-template-columns: 170px 1fr 1fr; gap: 14px; align-items: start }
 .cc-col-title { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 1.5px; margin-bottom: 6px }
 
-/* Tools list */
 .cc-tool-list { list-style: none }
 .cc-tool-list li { padding: 3px 0 }
 .cc-tool-link { font-size: 12px; color: var(--tx2); text-decoration: none; cursor: pointer; transition: color 0.1s; display: flex; align-items: center; gap: 6px }
@@ -155,61 +193,49 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-tool-link.disabled:hover { color: var(--tx3) }
 .cc-tool-link .bullet { color: var(--accent-dim); font-size: 6px }
 .cc-vtt { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--brd) }
-.cc-vtt-link { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-family: var(--fb); font-weight: 700; color: var(--blue-lt); text-decoration: none; padding: 3px 10px; border: 1px solid rgba(80,144,176,0.25); border-radius: 3px; transition: all 0.12s; cursor: pointer }
-.cc-vtt-link:hover { background: rgba(80,144,176,0.1); border-color: var(--blue) }
-.cc-schedule { font-size: 10px; color: var(--tx3); margin-top: 8px; font-style: italic }
+.cc-vtt-link { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-family: var(--fb); font-weight: 700; color: var(--blue); text-decoration: none; padding: 3px 10px; border: 1px solid rgba(48,80,138,0.2); border-radius: 3px; transition: all 0.12s; cursor: pointer }
+.cc-vtt-link:hover { background: rgba(48,80,138,0.06); border-color: rgba(48,80,138,0.35) }
 
-/* Party list */
 .cc-char-list { list-style: none }
-.cc-char-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-bottom: 1px solid rgba(46,46,46,0.6); cursor: pointer; transition: color 0.1s }
+.cc-char-item { display: flex; align-items: center; gap: 7px; padding: 3px 0; border-bottom: 1px solid var(--brd); font-size: 12px }
 .cc-char-item:last-child { border-bottom: none }
 .cc-char-item:hover { color: var(--accent) }
 .cc-char-pip { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0 }
-.cc-char-name { font-size: 12px; font-weight: 700 }
+.cc-char-name { font-weight: 700 }
 .cc-char-player { font-size: 10px; color: var(--tx3); margin-left: 2px }
-.cc-char-sub { font-size: 10px; color: var(--tx3); margin-left: auto; white-space: nowrap }
+.cc-char-sub { font-size: 10px; color: var(--tx3); margin-left: auto; white-space: nowrap; font-family: var(--fm) }
 
-/* Session log */
 .cc-log-title { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 1.5px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between }
 .cc-log-new { font-family: var(--fb); font-size: 10px; color: var(--accent-dim); cursor: pointer; letter-spacing: 0; font-weight: 700 }
 .cc-log-new:hover { color: var(--accent) }
 .cc-log-list { list-style: none }
-.cc-log-item { padding: 3px 0; border-bottom: 1px solid rgba(46,46,46,0.6); cursor: pointer; transition: color 0.1s }
+.cc-log-item { padding: 3px 0; border-bottom: 1px solid var(--brd) }
 .cc-log-item:last-child { border-bottom: none }
 .cc-log-item:hover { color: var(--accent) }
 .cc-log-date { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 0.5px }
 .cc-log-text { font-size: 11px; color: var(--tx2); margin-top: 1px; line-height: 1.3 }
 
-/* Bottom actions */
-.cc-bottom { display: flex; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--brd); align-items: center }
-.cc-btn { padding: 3px 10px; font-size: 10px; font-family: var(--fb); font-weight: 700; border-radius: 2px; cursor: pointer; transition: all 0.12s; border: 1px solid; background: transparent; color: var(--tx2); border-color: var(--brd) }
+.cc-bottom { display: flex; gap: 6px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--brd); align-items: center }
+.cc-btn { padding: 4px 12px; font-size: 10px; font-family: var(--fb); font-weight: 700; border-radius: 2px; cursor: pointer; transition: all 0.12s; border: 1px solid var(--brd); background: transparent; color: var(--tx2) }
 .cc-btn:hover { border-color: var(--tx3); color: var(--tx) }
-.cc-btn-danger { color: var(--red); border-color: rgba(192,64,48,0.25) }
+.cc-btn-danger { color: var(--red); border-color: rgba(192,48,48,0.2) }
 .cc-btn-danger:hover { color: var(--red-lt); border-color: var(--red) }
 
-/* Campaign details panel (expanded) */
-.cc-details { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 20px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--brd) }
-.cc-detail-row { display: flex; gap: 6px; padding: 2px 0; font-size: 11px; align-items: baseline }
-.cc-detail-label { color: var(--tx3); min-width: 70px; flex-shrink: 0; font-family: var(--fsc); font-size: 9px; letter-spacing: 0.5px }
-.cc-detail-value { color: var(--tx2) }
-.cc-pitch { grid-column: 1 / -1; font-size: 12px; color: var(--tx2); font-style: italic; padding: 4px 0 2px; line-height: 1.3 }
-
-/* ── Activity (collapsible) ── */
-.activity-section { }
+/* ── Activity ── */
 .activity-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none }
 .activity-toggle:hover .section-title { color: var(--tx) }
 .activity-arrow { color: var(--tx3); font-size: 8px; transition: transform 0.2s }
 .activity-section.open .activity-arrow { transform: rotate(90deg) }
-.activity-wrap { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; overflow: hidden; display: none; margin-top: 8px }
+.activity-wrap { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; overflow: hidden; display: none; margin-top: 8px; box-shadow: var(--card-shadow) }
 .activity-section.open .activity-wrap { display: block }
 .activity-list { list-style: none }
-.activity-item { display: flex; gap: 10px; padding: 6px 12px; border-bottom: 1px solid rgba(46,46,46,0.5); transition: background 0.1s }
+.activity-item { display: flex; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--brd) }
 .activity-item:last-child { border-bottom: none }
 .activity-date { font-family: var(--fsc); font-size: 10px; color: var(--tx3); letter-spacing: 0.5px; white-space: nowrap; min-width: 50px; flex-shrink: 0; padding-top: 1px }
 .activity-text { font-size: 12px; color: var(--tx2); line-height: 1.3 }
 
 /* ── Footer ── */
-.ftr { padding: 10px 16px; text-align: center; font-size: 10px; color: var(--tx3); border-top: 1px solid var(--brd); background: var(--bg-section); position: relative; z-index: 1 }
+.ftr { padding: 10px 16px; font-size: 10px; color: var(--tx3); border-top: 1px solid var(--brd); background: var(--bg-section); position: relative; z-index: 1 }
 .ftr-inner { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px }
 
 /* ── Responsive ── */
@@ -242,6 +268,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
         <button class="hdr-btn" id="btn-tools">🎲 Tools ▾</button>
         <div class="tools-dropdown" id="tools-dropdown"></div>
       </div>
+      <button class="hdr-btn" id="btn-theme" title="Toggle light/dark"><span id="theme-icon">◑</span></button>
       <button class="hdr-btn" id="btn-settings">⚙</button>
       <button class="hdr-btn" id="btn-about">?</button>
     </div>
@@ -253,7 +280,6 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 <div class="main">
 <div class="main-in">
 
-  <!-- Jump Back In -->
   <div class="section" id="sec-jumpback">
     <div class="section-hdr"><div class="section-title">JUMP BACK IN</div></div>
     <div class="jumpback" id="jumpback-row"></div>
@@ -261,7 +287,6 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 
   <div class="divider"><span class="divider-dot"></span></div>
 
-  <!-- Campaigns -->
   <div class="section" id="sec-campaigns">
     <div class="section-hdr">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -280,7 +305,6 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 
   <div class="divider"><span class="divider-dot"></span></div>
 
-  <!-- Activity -->
   <div class="section activity-section" id="sec-activity">
     <div class="activity-toggle" id="activity-toggle">
       <span class="activity-arrow">▶</span>
@@ -296,211 +320,174 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 
 <div class="ftr">
   <div class="ftr-inner">
-    <span>Graycloak's Campaign Corner v1.2</span>
+    <span>Graycloak's Campaign Corner v1.3</span>
     <span>Data stored locally in your browser</span>
   </div>
 </div>
 
 <script src="gcc-data.js"></script>
 <script>
+// ── Theme ──
+function getSystemTheme() { return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+function getStoredTheme() { try { return localStorage.getItem('gcc-theme'); } catch(e) { return null; } }
+function applyTheme(t) {
+  document.body.setAttribute('data-theme', t);
+  document.getElementById('theme-icon').textContent = t === 'dark' ? '☀' : '☽';
+}
+function initTheme() { applyTheme(getStoredTheme() || getSystemTheme()); }
+document.getElementById('btn-theme').addEventListener('click', () => {
+  const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  try { localStorage.setItem('gcc-theme', next); } catch(e) {}
+});
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  if (!getStoredTheme()) applyTheme(e.matches ? 'dark' : 'light');
+});
+initTheme();
+
 // ── Init ──
 GCC.init();
 
 const ESC = s => { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
-
 const SYSTEM_COLORS = {};
-const PIP_COLORS = ['#5090b0','#7a5a8a','#5a9a40','#d0b868','#c04030','#508a7a','#9a6a30','#6a6a9a'];
+const PIP_COLORS = ['#5090b0','#7a5a8a','#5a9a40','#d0a040','#c04040','#508a7a','#9a6a30','#6a6a9a'];
 GCC.SYSTEM_DEFS.forEach(s => { SYSTEM_COLORS[s.id] = s.color; });
-
 let currentFilter = 'all';
 
 function formatDate(iso) {
   if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
-
+function formatDateYear(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
 function formatDateTime(iso) {
   if (!iso) return null;
   const d = new Date(iso);
-  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  return date + ' @ ' + time;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' @ ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
-
 function sysColorCSS(sysId) {
-  const c = SYSTEM_COLORS[sysId] || '#888070';
-  return `background: ${c}18; color: ${c}; border: 1px solid ${c}30`;
+  const c = SYSTEM_COLORS[sysId] || '#888';
+  return `background:${c}18;color:${c};border:1px solid ${c}30`;
 }
-
 function statusLabel(s) {
   return { active: 'Active', hiatus: 'On Hiatus', completed: 'Completed', archived: 'Archived' }[s] || s;
 }
 
-// ── Render Tools Dropdown ──
+// ── Tools Dropdown ──
 function renderToolsDropdown() {
   const dd = document.getElementById('tools-dropdown');
-  let html = '';
-
-  // System tools
-  html += '<div class="td-section">';
-  html += '<div class="td-section-title">SYSTEM TOOLS</div>';
+  let h = '<div class="td-section"><div class="td-section-title">SYSTEM TOOLS</div>';
   GCC.SYSTEM_DEFS.forEach(sys => {
-    html += `<div class="td-sys-hdr"><span class="td-sys-icon">${sys.icon}</span> ${ESC(sys.name)}</div>`;
+    h += `<div class="td-sys-hdr"><span class="td-sys-icon">${sys.icon}</span> ${ESC(sys.name)}</div>`;
     sys.tools.forEach(t => {
       const cls = t.href ? 'td-link' : 'td-link disabled';
-      const href = t.href ? ` href="${ESC(t.href)}"` : '';
-      html += `<a class="${cls}"${href}><span class="bullet">◆</span> ${ESC(t.name)}</a>`;
+      h += `<a class="${cls}"${t.href ? ' href="'+ESC(t.href)+'"' : ''}><span class="bullet">◆</span> ${ESC(t.name)}</a>`;
     });
   });
-  html += '</div>';
-
-  // Shared tools
-  html += '<div class="td-section">';
-  html += '<div class="td-section-title">SHARED TOOLS</div>';
-  const shared = [
-    { icon: '📅', name: 'Calendar & Time', desc: 'In-game dates, timed effects' },
-    { icon: '🌦', name: 'Greyhawk Weather', desc: 'Weather by season & terrain' },
-    { icon: '🎲', name: 'Dice Roller', desc: 'Quick rolls & expressions' },
-    { icon: '🖥', name: 'VTT Connections', desc: 'Foundry, Roll20 links' },
-    { icon: '💾', name: 'Export / Import', desc: 'Backup & restore data' },
-  ];
-  shared.forEach(t => {
-    html += `<a class="td-shared-link" href="#"><span class="td-shared-icon">${t.icon}</span> ${ESC(t.name)}</a>`;
+  h += '</div><div class="td-section"><div class="td-section-title">SHARED TOOLS</div>';
+  [{i:'📅',n:'Calendar & Time'},{i:'🌦',n:'Greyhawk Weather'},{i:'🎲',n:'Dice Roller'},{i:'🖥',n:'VTT Connections'},{i:'💾',n:'Export / Import'}].forEach(t => {
+    h += `<a class="td-shared-link" href="#"><span class="td-shared-icon">${t.i}</span> ${ESC(t.n)}</a>`;
   });
-  html += '</div>';
-
-  dd.innerHTML = html;
+  h += '</div>';
+  dd.innerHTML = h;
 }
 
-// ── Tools dropdown toggle ──
 const btnTools = document.getElementById('btn-tools');
 const toolsDD = document.getElementById('tools-dropdown');
 const toolsOL = document.getElementById('tools-overlay');
+btnTools.addEventListener('click', (e) => { e.stopPropagation(); const o = toolsDD.classList.toggle('open'); toolsOL.classList.toggle('open', o); });
+toolsOL.addEventListener('click', () => { toolsDD.classList.remove('open'); toolsOL.classList.remove('open'); });
 
-btnTools.addEventListener('click', (e) => {
-  e.stopPropagation();
-  const open = toolsDD.classList.toggle('open');
-  toolsOL.classList.toggle('open', open);
-});
-toolsOL.addEventListener('click', () => {
-  toolsDD.classList.remove('open');
-  toolsOL.classList.remove('open');
-});
-
-// ── Render Jump Back In ──
+// ── Jump Back In ──
 function renderJumpback() {
   const items = GCC.loadJumpback();
   const row = document.getElementById('jumpback-row');
-  if (!items.length) {
-    row.innerHTML = '<div style="color:var(--tx3); font-size:12px; font-style:italic; padding:8px">No recent items yet.</div>';
-    return;
-  }
+  if (!items.length) { row.innerHTML = '<div style="color:var(--tx3);font-size:12px;font-style:italic;padding:8px">No recent items yet.</div>'; return; }
   row.innerHTML = items.map(j => {
-    const sysColor = SYSTEM_COLORS[j.system] || '#888070';
-    return `<a class="jb-card" href="${ESC(j.href)}">
-      <div style="position:absolute;top:0;left:0;bottom:0;width:3px;background:${sysColor}"></div>
-      <div class="jb-label">${ESC(j.label)}</div>
-      <div class="jb-name">${ESC(j.name)}</div>
-      <div class="jb-detail">${ESC(j.detail)}</div>
-    </a>`;
+    const sc = SYSTEM_COLORS[j.system] || '#888';
+    return `<a class="jb-card" href="${ESC(j.href)}"><div style="position:absolute;top:0;left:0;bottom:0;width:3px;background:${sc}"></div><div class="jb-label">${ESC(j.label)}</div><div class="jb-name">${ESC(j.name)}</div><div class="jb-detail">${ESC(j.detail)}</div></a>`;
   }).join('');
 }
 
-// ── Render Campaigns ──
+// ── Campaigns ──
 function renderCampaigns() {
-  const allCamps = GCC.loadCampaigns();
-  allCamps.sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1;
-    if (!a.pinned && b.pinned) return 1;
-    return (b.lastPlayed || '').localeCompare(a.lastPlayed || '');
-  });
-
-  const camps = currentFilter === 'all' ? allCamps : allCamps.filter(c => (c.status || 'active') === currentFilter);
+  const all = GCC.loadCampaigns();
+  all.sort((a, b) => { if (a.pinned && !b.pinned) return -1; if (!a.pinned && b.pinned) return 1; return (b.lastPlayed||'').localeCompare(a.lastPlayed||''); });
+  const camps = currentFilter === 'all' ? all : all.filter(c => (c.status||'active') === currentFilter);
   const grid = document.getElementById('campaign-grid');
+  if (!camps.length) { grid.innerHTML = '<div style="color:var(--tx3);font-size:12px;font-style:italic;padding:12px 0">No campaigns match this filter.</div>'; return; }
 
-  if (!camps.length) {
-    grid.innerHTML = '<div style="color:var(--tx3);font-size:12px;font-style:italic;padding:12px 0">No campaigns match this filter.</div>';
-    return;
-  }
-
-  grid.innerHTML = camps.map((c) => {
+  grid.innerHTML = camps.map(c => {
     const sys = GCC.SYSTEM_DEFS.find(s => s.id === c.system) || {};
     const tools = sys.tools || [];
     const status = c.status || 'active';
     const nextStr = formatDateTime(c.nextSession);
-    const gmLabel = c.gmTitle || 'GM';
-    const playModeLabel = { online: 'Online', 'in-person': 'In-Person', hybrid: 'Hybrid' }[c.playMode] || '';
+    const gml = c.gmTitle || 'GM';
+    const pm = {online:'Online','in-person':'In-Person',hybrid:'Hybrid'}[c.playMode] || '';
 
-    // Characters with colored pips
-    const charsHtml = (c.characters || []).map((ch, i) => {
-      const color = PIP_COLORS[i % PIP_COLORS.length];
-      const playerHtml = ch.player ? `<span class="cc-char-player">(${ESC(ch.player)})</span>` : '';
-      return `<li class="cc-char-item"><span class="cc-char-pip" style="background:${color}"></span><span class="cc-char-name">${ESC(ch.name)}</span>${playerHtml}<span class="cc-char-sub">${ESC(ch.sub || '')}</span></li>`;
+    const thumbHtml = c.campaignImage
+      ? `<div class="cc-thumb"><img src="${ESC(c.campaignImage)}" style="width:100%;height:100%;object-fit:cover;border-radius:2px" alt=""></div>`
+      : (sys.icon ? `<div class="cc-thumb">${sys.icon}</div>` : '');
+
+    const charsHtml = (c.characters||[]).map((ch,i) => {
+      const col = PIP_COLORS[i % PIP_COLORS.length];
+      return `<li class="cc-char-item"><span class="cc-char-pip" style="background:${col}"></span><span class="cc-char-name">${ESC(ch.name)}</span>${ch.player ? '<span class="cc-char-player">('+ESC(ch.player)+')</span>' : ''}<span class="cc-char-sub">${ESC(ch.sub||'')}</span></li>`;
     }).join('');
 
-    // Session log
-    const sessHtml = (c.sessions || []).slice(0, 4).map(s =>
+    const sessHtml = (c.sessions||[]).slice(0,4).map(s =>
       `<li class="cc-log-item"><div class="cc-log-date">${formatDate(s.date)}</div><div class="cc-log-text">${ESC(s.text)}</div></li>`
     ).join('');
 
-    // Tools links
     const toolsHtml = tools.map(t => {
       const cls = t.href ? 'cc-tool-link' : 'cc-tool-link disabled';
-      const href = t.href ? ` href="${ESC(t.href)}"` : '';
-      return `<li><a class="${cls}"${href}><span class="bullet">◆</span> ${ESC(t.name)}</a></li>`;
+      return `<li><a class="${cls}"${t.href?' href="'+ESC(t.href)+'"':''}><span class="bullet">◆</span> ${ESC(t.name)}</a></li>`;
     }).join('');
 
-    // VTT
-    const vttHtml = c.vttLabel ? `<div class="cc-vtt"><a class="cc-vtt-link" href="${ESC(c.vttUrl || '#')}" target="_blank"><span style="font-size:11px">▶</span> ${ESC(c.vttLabel)}${c.name ? ' — ' + ESC(c.name) : ''}</a></div>` : '';
+    const vttHtml = c.vttLabel ? `<div class="cc-vtt"><a class="cc-vtt-link" href="${ESC(c.vttUrl||'#')}" target="_blank"><span style="font-size:11px">▶</span> ${ESC(c.vttLabel)} — ${ESC(c.name)}</a></div>` : '';
 
-    // Build detail rows for expanded view
-    const detailRow = (label, value) => value ? `<div class="cc-detail-row"><span class="cc-detail-label">${label}</span><span class="cc-detail-value">${ESC(value)}</span></div>` : '';
+    const dr = (l,v) => v ? `<div class="cc-detail-row"><span class="cc-detail-label">${l}</span><span class="cc-detail-value">${ESC(v)}</span></div>` : '';
 
-    const detailsHtml = `<div class="cc-details">
-      ${c.pitch ? '<div class="cc-pitch">"' + ESC(c.pitch) + '"</div>' : ''}
-      ${detailRow('WORLD', c.world)}
-      ${detailRow('GENRE', c.genre)}
-      ${detailRow(gmLabel.toUpperCase(), c.gm)}
-      ${detailRow('SCHEDULE', c.schedule)}
-      ${detailRow('PLAY MODE', playModeLabel + (c.vttLabel ? ' (' + c.vttLabel + ')' : ''))}
-      ${detailRow('XP METHOD', c.xpMethod)}
-      ${detailRow('RULEBOOKS', c.rulebooks)}
-      ${detailRow('HOUSE RULES', c.houseRules)}
-      ${detailRow('STARTED', formatDate(c.created))}
-    </div>`;
-
-    return `<div class="campaign-card${status === 'active' ? ' active' : ''}" data-camp-id="${ESC(c.id)}">
+    return `<div class="campaign-card status-${status}" data-camp-id="${ESC(c.id)}">
       <div class="cc-summary">
         <div class="cc-top">
-          <div class="cc-name">
-            ${c.pinned ? '<span class="cc-star">★</span>' : ''}
-            <span class="cc-name-text">${ESC(c.name)}</span>
-          </div>
-          <div class="cc-status">
-            <span class="cc-status-dot ${status}"></span>
-            <span class="cc-status-label">${statusLabel(status)}</span>
-          </div>
+          <div class="cc-name">${c.pinned?'<span class="cc-star">★</span>':''}<span class="cc-name-text">${ESC(c.name)}</span></div>
+          <div class="cc-status"><span class="cc-status-dot ${status}"></span><span class="cc-status-label">${statusLabel(status)}</span></div>
           <span class="cc-chevron">▼</span>
         </div>
         <div class="cc-info">
-          <span class="cc-system-badge" style="${sysColorCSS(c.system)}">${ESC(sys.name || c.system)}</span>
-          <div class="cc-meta">
-            ${c.gm ? '<span>' + ESC(gmLabel) + ': ' + ESC(c.gm) + '</span>' : ''}
-            ${c.world ? '<span>' + ESC(c.world) + '</span>' : ''}
-            ${c.players ? '<span>' + c.players + ' players</span>' : ''}
-            ${c.session ? '<span>Session ' + c.session + '</span>' : ''}
+          <span class="cc-system-badge" style="${sysColorCSS(c.system)}">${ESC(sys.name||c.system)}</span>
+          ${thumbHtml}
+          <div>
+            <div class="cc-meta">
+              ${c.gm?'<span>'+ESC(gml)+': '+ESC(c.gm)+'</span>':''}
+              ${c.world?'<span>'+ESC(c.world)+'</span>':''}
+              ${c.players?'<span>'+c.players+' players</span>':''}
+              ${c.session?'<span>Session '+c.session+'</span>':''}
+            </div>
+            <div class="cc-meta2">
+              ${c.vttLabel?'<span>'+ESC(c.vttLabel)+'</span>':''}
+              ${c.schedule?'<span>'+ESC(c.schedule)+'</span>':''}
+              ${c.lastPlayed?'<span>Last: '+formatDate(c.lastPlayed)+'</span>':''}
+              ${nextStr?'<span class="cc-next">Next: '+ESC(nextStr)+'</span>':''}
+            </div>
           </div>
-        </div>
-        <div class="cc-meta2">
-          ${c.vttLabel ? '<span>' + ESC(c.vttLabel) + '</span>' : ''}
-          ${c.schedule ? '<span>' + ESC(c.schedule) + '</span>' : ''}
-          ${c.lastPlayed ? '<span>Last: ' + formatDate(c.lastPlayed) + '</span>' : ''}
-          ${nextStr ? '<span class="cc-next">Next: ' + ESC(nextStr) + '</span>' : ''}
         </div>
       </div>
       <div class="cc-expand">
-        ${detailsHtml}
+        <div class="cc-details">
+          ${c.pitch?'<div class="cc-pitch">"'+ESC(c.pitch)+'"</div>':''}
+          ${dr('WORLD',c.world)}
+          ${dr('GENRE',c.genre)}
+          ${dr(gml.toUpperCase(),c.gm)}
+          ${dr('SCHEDULE',c.schedule)}
+          ${dr('PLAY MODE',pm+(c.vttLabel?' ('+c.vttLabel+')':''))}
+          ${dr('XP METHOD',c.xpMethod)}
+          ${dr('RULEBOOKS',c.rulebooks)}
+          ${dr('HOUSE RULES',c.houseRules)}
+          ${dr('STARTED',formatDateYear(c.startDate||c.created))}
+        </div>
         <div class="cc-grid">
           <div>
             <div class="cc-col-title">TOOLS</div>
@@ -509,11 +496,11 @@ function renderCampaigns() {
           </div>
           <div>
             <div class="cc-col-title">PARTY</div>
-            <ul class="cc-char-list">${charsHtml || '<li style="font-size:11px;color:var(--tx3);font-style:italic">No characters yet</li>'}</ul>
+            <ul class="cc-char-list">${charsHtml||'<li style="font-size:11px;color:var(--tx3);font-style:italic">No characters yet</li>'}</ul>
           </div>
           <div>
             <div class="cc-log-title">SESSIONS <span class="cc-log-new" data-camp-id="${ESC(c.id)}">+ New</span></div>
-            <ul class="cc-log-list">${sessHtml || '<li style="font-size:11px;color:var(--tx3);font-style:italic">No sessions logged</li>'}</ul>
+            <ul class="cc-log-list">${sessHtml||'<li style="font-size:11px;color:var(--tx3);font-style:italic">No sessions logged</li>'}</ul>
           </div>
         </div>
         <div class="cc-bottom">
@@ -527,21 +514,16 @@ function renderCampaigns() {
   }).join('');
 }
 
-// ── Render Activity ──
+// ── Activity ──
 function renderActivity() {
-  const items = GCC.loadActivity();
-  const list = document.getElementById('activity-list');
-  list.innerHTML = items.slice(0, 8).map(a =>
+  document.getElementById('activity-list').innerHTML = GCC.loadActivity().slice(0,8).map(a =>
     `<li class="activity-item"><span class="activity-date">${formatDate(a.date)}</span><span class="activity-text">${ESC(a.text)}</span></li>`
   ).join('');
 }
 
-// ── Activity toggle ──
-document.getElementById('activity-toggle').addEventListener('click', () => {
-  document.getElementById('sec-activity').classList.toggle('open');
-});
+// ── Event handlers ──
+document.getElementById('activity-toggle').addEventListener('click', () => { document.getElementById('sec-activity').classList.toggle('open'); });
 
-// ── Filter tabs ──
 document.getElementById('filter-tabs').addEventListener('click', (e) => {
   const tab = e.target.closest('.filter-tab');
   if (!tab) return;
@@ -551,33 +533,23 @@ document.getElementById('filter-tabs').addEventListener('click', (e) => {
   renderCampaigns();
 });
 
-// ── Campaign expand/collapse ──
 document.getElementById('campaign-grid').addEventListener('click', (e) => {
-  // Toggle expand
   const summary = e.target.closest('.cc-summary');
   if (summary) {
     const card = summary.closest('.campaign-card');
-    document.querySelectorAll('.campaign-card.open').forEach(c => {
-      if (c !== card) c.classList.remove('open');
-    });
+    document.querySelectorAll('.campaign-card.open').forEach(c => { if (c !== card) c.classList.remove('open'); });
     card.classList.toggle('open');
     return;
   }
-
-  // Delete campaign
   const delBtn = e.target.closest('[data-action="del-camp"]');
   if (delBtn) {
     const id = delBtn.dataset.campId;
-    const camps = GCC.loadCampaigns();
-    const camp = camps.find(c => c.id === id);
-    if (!camp) return;
-    if (!confirm('Delete campaign "' + camp.name + '"? This cannot be undone.')) return;
+    const camp = GCC.loadCampaigns().find(c => c.id === id);
+    if (!camp || !confirm('Delete campaign "'+camp.name+'"? This cannot be undone.')) return;
     GCC.deleteCampaign(id);
     renderCampaigns();
     return;
   }
-
-  // New session log entry
   const newSess = e.target.closest('.cc-log-new');
   if (newSess) {
     const id = newSess.dataset.campId;
@@ -587,56 +559,37 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
     const camp = camps.find(c => c.id === id);
     if (!camp) return;
     if (!camp.sessions) camp.sessions = [];
-    camp.session = (camp.session || 0) + 1;
-    camp.lastPlayed = new Date().toISOString().slice(0, 10);
-    camp.sessions.unshift({ date: camp.lastPlayed, text: 'Session ' + camp.session + ' — ' + text });
+    camp.session = (camp.session||0) + 1;
+    camp.lastPlayed = new Date().toISOString().slice(0,10);
+    camp.sessions.unshift({ date: camp.lastPlayed, text: 'Session '+camp.session+' — '+text });
     GCC.saveCampaigns(camps);
-    GCC.logActivity({ campaign: id, system: camp.system, text: camp.name + ' — Session ' + camp.session + ': ' + text });
-    renderCampaigns();
-    renderActivity();
+    GCC.logActivity({ campaign: id, system: camp.system, text: camp.name+' — Session '+camp.session+': '+text });
+    renderCampaigns(); renderActivity();
     const card = document.querySelector(`[data-camp-id="${id}"]`);
     if (card) card.classList.add('open');
     return;
   }
 });
 
-// ── New Campaign ──
 document.getElementById('btn-new-campaign').addEventListener('click', () => {
   const name = prompt('Campaign name:');
   if (!name || !name.trim()) return;
-
-  const systemIds = GCC.SYSTEM_DEFS.map(s => s.id);
-  const systemNames = GCC.SYSTEM_DEFS.map(s => s.name);
-  const sysIdx = prompt('Game system?\n' + systemNames.map((n, i) => (i+1) + '. ' + n).join('\n') + '\n\nEnter number:');
+  const sysIds = GCC.SYSTEM_DEFS.map(s => s.id);
+  const sysNames = GCC.SYSTEM_DEFS.map(s => s.name);
+  const sysIdx = prompt('Game system?\n'+sysNames.map((n,i)=>(i+1)+'. '+n).join('\n')+'\n\nEnter number:');
   if (!sysIdx) return;
-  const idx = parseInt(sysIdx) - 1;
-  if (idx < 0 || idx >= systemIds.length) { alert('Invalid selection.'); return; }
-
-  const gm = prompt('GM/DM/Judge name (optional):') || '';
-  const world = prompt('Campaign world/setting (optional):') || '';
-  const genre = prompt('Genre/tone (optional, e.g. "Dungeon Crawl", "Bronze Age Superhero"):') || '';
-
-  const camp = GCC.addCampaign({
-    name: name.trim(),
-    system: systemIds[idx],
-    gm: gm.trim(),
-    world: world.trim(),
-    genre: genre.trim(),
-  });
-  GCC.logActivity({ campaign: camp.id, system: camp.system, text: 'Created campaign: ' + camp.name });
-  renderCampaigns();
-  renderActivity();
+  const idx = parseInt(sysIdx)-1;
+  if (idx < 0 || idx >= sysIds.length) { alert('Invalid selection.'); return; }
+  const gm = prompt('GM/DM/Judge name (optional):')||'';
+  const world = prompt('Campaign world/setting (optional):')||'';
+  const genre = prompt('Genre/tone (optional):')||'';
+  const camp = GCC.addCampaign({ name:name.trim(), system:sysIds[idx], gm:gm.trim(), world:world.trim(), genre:genre.trim() });
+  GCC.logActivity({ campaign:camp.id, system:camp.system, text:'Created campaign: '+camp.name });
+  renderCampaigns(); renderActivity();
 });
 
-// ── Render all ──
-function renderAll() {
-  renderToolsDropdown();
-  renderJumpback();
-  renderCampaigns();
-  renderActivity();
-}
-renderAll();
+// ── Render ──
+renderToolsDropdown(); renderJumpback(); renderCampaigns(); renderActivity();
 </script>
-
 </body>
 </html>
