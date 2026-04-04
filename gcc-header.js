@@ -13,7 +13,7 @@
       { id: 'mp-canvas', name: 'Canvas (Layout Editor)', href: null },
     ]},
     { id: 'faserip', name: 'FASERIP', icon: '⚡', tools: [
-      { id: 'fas-char', name: 'Character Sheet', href: null },
+      { id: 'fas-char', name: 'Character Sheet', href: 'faserip.html' },
       { id: 'fas-table', name: 'Universal Table', href: null },
       { id: 'fas-combat', name: 'Combat Tracker', href: null },
       { id: 'fas-karma', name: 'Karma Log', href: null },

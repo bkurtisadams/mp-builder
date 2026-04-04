@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FASERIP — Character Sheet</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700;900&family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Cinzel:wght@500;700&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="gcc-header.css">
+<style>
+/* ── FASERIP Theme Vars ── */
+:root {
+  --sky: #5ac8e8; --sky-dk: #3ea8cc; --sky-pale: #c8eef8;
+  --white: #ffffff; --paper: #f5f5f0;
+  --green: #22bb22; --green-dk: #158015;
+  --yellow: #f0d800; --yellow-dk: #c4b000;
+  --red: #cc1111; --red-dk: #8b0000;
+  --dark: #111; --mid: #444; --soft: #666; --mute: #999;
+  --rule: rgba(0,0,0,.18);
+  --fd: 'Oswald','Impact',sans-serif;
+  --fb: 'Barlow Condensed','Arial Narrow',sans-serif;
+  --bg: #d6eaf8; --bg2: #c4dff0;
+  --hdr-bg: #1a2a3a; --accent: #c05a00;
+  --cell-h: 24px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+html{min-height:100%;background:var(--bg)}
+body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--fb);font-size:12px;display:flex;flex-direction:column}
+
+/* ── FASERIP Toolbar (Row 2) ── */
+.fas-hdr{background:var(--hdr-bg);border-bottom:3px solid var(--accent);padding:0 12px;flex-shrink:0}
+.fas-hdr-in{max-width:780px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;min-height:40px;gap:8px;flex-wrap:wrap;padding:4px 0}
+.fas-logo-wrap{display:flex;align-items:center;gap:8px}
+.fas-logo-title{font-family:var(--fd);font-size:22px;color:#fff;letter-spacing:2px;text-shadow:2px 2px 0 var(--accent)}
+.fas-logo-sub{font-family:var(--fb);font-size:9px;color:#8be9fd;letter-spacing:1px}
+.fas-hdr-btns{display:flex;gap:3px;align-items:center;flex-wrap:wrap}
+.hdr-btn{padding:3px 7px;font-size:9px;background:#2a3a4a;border:1px solid #4a6a7a;color:#ccc;border-radius:2px;cursor:pointer;font-family:var(--fb);font-weight:700}
+.hdr-btn:hover{border-color:var(--accent);background:#3a4a5a}
+.hdr-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* ── Footer ── */
+.fas-ftr{font-size:8px;color:#3a5a70;text-align:center;padding:6px;background:var(--bg2);border-top:1px solid #8ab4d0}
+
+/* ── Sheet Area ── */
+.sheet-wrap{flex:1;overflow-y:auto;overflow-x:auto;padding:10px;-webkit-overflow-scrolling:touch}
+.sheet{width:100%;max-width:720px;min-width:360px;margin:0 auto;background:var(--paper);border:2px solid #000;padding:14px 16px 10px;font-family:var(--fb);font-size:11px;color:#000}
+
+/* ── Shared Inputs ── */
+.si{border:none;border-bottom:1.5px solid #000;background:transparent;font-family:var(--fb);font-size:11px;color:#000;padding:0 2px;height:var(--cell-h);outline:none}
+.si:focus{border-bottom-color:var(--accent)}
+.si-box{border:1.5px solid #000;background:transparent;font-family:var(--fb);font-size:12px;font-weight:700;color:#000;padding:0 2px;height:26px;text-align:center;outline:none;width:50px}
+.si-box:focus{border-color:var(--accent)}
+.lbl{font-weight:700;font-size:10px;white-space:nowrap}
+
+/* ── Header Area ── */
+.sheet-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px}
+.sheet-logo{font-family:var(--fd);line-height:1}
+.sheet-logo-main{font-size:28px;font-weight:900;letter-spacing:1px}
+.sheet-logo-sub{font-size:11px;font-weight:600;letter-spacing:3px}
+.sheet-title{font-family:var(--fd);font-size:22px;font-weight:700;letter-spacing:1px;margin-top:4px}
+.sheet-top-right{flex:1;text-align:right}
+
+/* ── Bio Grid ── */
+.bio-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 12px;margin-bottom:6px}
+.bio-row{display:flex;align-items:baseline;gap:3px}
+.bio-row .lbl{min-width:50px;text-align:right}
+.bio-row .si{flex:1}
+.bio-full{grid-column:1/-1}
+.bio-half{grid-column:span 1}
+.bio-2col{grid-column:span 2}
+.id-checks{display:flex;gap:8px;align-items:center;font-size:10px;font-weight:700}
+.id-checks label{display:flex;align-items:center;gap:2px;cursor:pointer}
+.id-checks input[type=radio]{margin:0}
+
+/* ── Abilities Tables ── */
+.abilities-wrap{display:flex;gap:12px;margin-bottom:8px;flex-wrap:wrap}
+.primary-block,.secondary-block{border:1.5px solid #000}
+.primary-block{flex:0 0 auto}
+.secondary-block{flex:1;min-width:200px}
+.section-label{font-family:var(--fd);font-size:13px;font-weight:700;text-align:center;padding:2px 0;letter-spacing:1px}
+.ab-table{border-collapse:collapse;width:100%}
+.ab-table th,.ab-table td{border:1px solid #000;padding:2px 4px;text-align:center;height:var(--cell-h)}
+.ab-table th{font-family:var(--fd);font-size:9px;font-weight:700;background:#e8e8e0;letter-spacing:.5px}
+.ab-table .ab-key{font-family:var(--fd);font-size:18px;font-weight:900;width:28px;background:#e8e8e0;cursor:default}
+.ab-table input{width:100%;border:none;background:transparent;text-align:center;font-family:var(--fb);font-size:11px;font-weight:700;outline:none;padding:0}
+.ab-table input:focus{background:#fffde0}
+.ab-table select{width:100%;border:none;background:transparent;font-family:var(--fb);font-size:10px;font-weight:700;outline:none;cursor:pointer;text-align:center;-webkit-appearance:none;appearance:none;padding:0 2px}
+.ab-table select:focus{background:#fffde0}
+
+/* Secondary abilities */
+.sec-table{border-collapse:collapse;width:100%}
+.sec-table th,.sec-table td{border:1px solid #000;padding:2px 4px;text-align:center;height:var(--cell-h)}
+.sec-table th{font-family:var(--fd);font-size:9px;font-weight:700;background:#e8e8e0;letter-spacing:.5px}
+.sec-table input,.sec-table select{width:100%;border:none;background:transparent;text-align:center;font-family:var(--fb);font-size:12px;font-weight:700;outline:none;padding:0}
+.sec-table input:focus,.sec-table select:focus{background:#fffde0}
+.sec-formula{font-size:8px;color:var(--soft);font-weight:400}
+
+/* ── Special Abilities ── */
+.special-section{margin-top:8px}
+.special-label{font-family:var(--fd);font-size:13px;font-weight:700;letter-spacing:1px;margin-bottom:4px;border-bottom:1.5px solid #000;padding-bottom:2px}
+.list-section{margin-bottom:8px}
+.list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+.list-title{font-family:var(--fd);font-size:11px;font-weight:700;letter-spacing:1px}
+.list-add{font-size:9px;cursor:pointer;color:var(--accent);font-weight:700;border:none;background:none;font-family:var(--fb)}
+.list-add:hover{text-decoration:underline}
+.item-list{list-style:none}
+.item-row{display:flex;align-items:center;gap:4px;padding:1px 0;border-bottom:1px dotted #ccc}
+.item-row .si{flex:1;font-size:11px;height:20px}
+.item-rank{width:80px}
+.item-value{width:40px;text-align:center}
+.item-del{cursor:pointer;color:#c00;font-size:11px;border:none;background:none;padding:0 2px;font-weight:700;opacity:.4}
+.item-del:hover{opacity:1}
+.item-star{color:#c8960c;font-size:9px;margin-right:2px}
+
+/* ── Bottom Section: Talents / Karma / Contacts ── */
+.bottom-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;margin-top:8px}
+.karma-box{border:1.5px solid #000;padding:6px 8px;min-width:140px}
+.karma-label{font-family:var(--fd);font-size:11px;font-weight:700;text-align:center;letter-spacing:1px;margin-bottom:4px}
+.karma-input{width:100%;border:none;border-bottom:1px solid #999;background:transparent;font-family:var(--fb);font-size:12px;text-align:center;outline:none;padding:4px 0}
+.karma-input:focus{border-bottom-color:var(--accent)}
+
+/* ── Limitation ── */
+.limitation-row{margin:6px 0;display:flex;align-items:baseline;gap:4px}
+.limitation-row .si{flex:1}
+
+/* ── Chargen Panel ── */
+.chargen-panel{display:none;background:#fff;border:2px solid var(--accent);border-radius:4px;padding:12px;margin:0 auto 10px;max-width:720px;width:100%}
+.chargen-panel.open{display:block}
+.chargen-title{font-family:var(--fd);font-size:16px;font-weight:700;color:var(--accent);margin-bottom:8px;letter-spacing:1px}
+.chargen-btn{padding:5px 12px;font-family:var(--fd);font-size:11px;font-weight:700;border:2px solid var(--accent);background:#fff;color:var(--accent);cursor:pointer;letter-spacing:1px;border-radius:2px}
+.chargen-btn:hover{background:var(--accent);color:#fff}
+.chargen-btn.primary{background:var(--accent);color:#fff}
+.chargen-btn.primary:hover{background:#d06a10}
+.chargen-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.chargen-log{font-family:'Courier New',monospace;font-size:10px;background:#1a1a2e;color:#0f0;padding:8px;max-height:200px;overflow-y:auto;border-radius:2px;white-space:pre-wrap;margin-top:6px}
+.chargen-origin-btns{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0}
+.chargen-origin-btns button{padding:4px 10px;font-family:var(--fd);font-size:10px;font-weight:700;border:1px solid #999;background:#f5f5f0;cursor:pointer;border-radius:2px}
+.chargen-origin-btns button:hover{border-color:var(--accent);background:#fff4e6}
+.chargen-origin-btns button.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ── Save/Load Modal ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border:2px solid #000;border-radius:4px;padding:16px;max-width:400px;width:90%;max-height:80vh;overflow-y:auto}
+.modal-title{font-family:var(--fd);font-size:14px;font-weight:700;margin-bottom:8px}
+.modal-close{float:right;cursor:pointer;font-size:16px;border:none;background:none;color:#666}
+.modal-close:hover{color:#000}
+.save-list{list-style:none}
+.save-item{display:flex;align-items:center;justify-content:space-between;padding:4px;border-bottom:1px solid #eee;cursor:pointer}
+.save-item:hover{background:#f0f8ff}
+.save-item-name{font-weight:700;font-size:11px}
+.save-item-date{font-size:9px;color:#999}
+.save-item-del{color:#c00;cursor:pointer;font-size:10px;border:none;background:none}
+
+/* ── Print ── */
+@media print{
+  .gcc-bar,.fas-hdr,.fas-ftr,.chargen-panel,.hdr-btn,
+  .list-add,.item-del,.modal-overlay{display:none!important}
+  .sheet-wrap{padding:0}
+  .sheet{border:none;max-width:100%;box-shadow:none}
+  .si{border-bottom-color:#999!important}
+}
+
+/* ── Responsive ── */
+@media(max-width:600px){
+  .abilities-wrap{flex-direction:column}
+  .bottom-grid{grid-template-columns:1fr;gap:6px}
+  .bio-grid{grid-template-columns:1fr 1fr}
+  .sheet{padding:8px 10px 6px}
+}
+</style>
+</head>
+<body>
+
+<!-- GCC Site Bar -->
+<div class="gcc-bar"><div class="gcc-bar-in" id="gcc-bar-in"></div></div>
+<div class="gcc-tools-overlay" id="gcc-tools-overlay"></div>
+
+<!-- FASERIP Toolbar -->
+<div class="fas-hdr">
+  <div class="fas-hdr-in">
+    <div class="fas-logo-wrap">
+      <div>
+        <div class="fas-logo-title">FASERIP</div>
+        <div class="fas-logo-sub">CHARACTER SHEET</div>
+      </div>
+    </div>
+    <div class="fas-hdr-btns">
+      <button class="hdr-btn" id="btn-new" title="New Character">New</button>
+      <button class="hdr-btn" id="btn-chargen" title="Random Character Generator">Generate</button>
+      <button class="hdr-btn" id="btn-save" title="Save Character">Save</button>
+      <button class="hdr-btn" id="btn-load" title="Load Character">Load</button>
+      <button class="hdr-btn" id="btn-export" title="Export to JSON">Export</button>
+      <button class="hdr-btn" id="btn-import" title="Import from JSON">Import</button>
+      <button class="hdr-btn" id="btn-print" title="Print Sheet">Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- Chargen Panel -->
+<div class="chargen-panel" id="chargen-panel">
+  <div class="chargen-title">Random Character Generator</div>
+  <p style="font-size:11px;color:#666;margin-bottom:8px">Marvel Super Heroes Advanced Set Rules</p>
+  <div class="chargen-btns">
+    <button class="chargen-btn primary" id="cg-quick">Quick Random</button>
+    <button class="chargen-btn" id="cg-step">Step-by-Step</button>
+    <button class="chargen-btn" id="cg-close" style="margin-left:auto">Close</button>
+  </div>
+  <div id="cg-step-area"></div>
+  <div class="chargen-log" id="cg-log" style="display:none"></div>
+</div>
+
+<!-- Sheet -->
+<div class="sheet-wrap">
+<div class="sheet" id="sheet">
+
+  <!-- Top: Logo + Title + Player -->
+  <div class="sheet-top">
+    <div class="sheet-logo">
+      <div class="sheet-logo-main">MARVEL</div>
+      <div class="sheet-logo-sub">SUPER HEROES</div>
+    </div>
+    <div style="flex:1">
+      <div class="sheet-title">Character Information Sheet</div>
+    </div>
+    <div class="sheet-top-right">
+      <div class="bio-row"><span class="lbl">Player Name</span></div>
+      <input class="si" style="width:160px" data-field="playerName">
+    </div>
+  </div>
+
+  <!-- Bio Fields -->
+  <div class="bio-grid">
+    <div class="bio-2col bio-row"><span class="lbl">Hero&rsquo;s Name</span><input class="si" data-field="heroName"></div>
+    <div class="bio-row"><span class="lbl">Group</span><input class="si" data-field="group"></div>
+
+    <div class="bio-2col bio-row">
+      <span class="lbl">Identity</span><input class="si" data-field="identity">
+      <span class="id-checks">
+        <label><input type="radio" name="idType" value="secret" checked> Secret</label>
+        <label><input type="radio" name="idType" value="public"> Public</label>
+      </span>
+    </div>
+    <div class="bio-row"><span class="lbl">Base</span><input class="si" data-field="base"></div>
+
+    <div class="bio-row"><span class="lbl">Origin</span>
+      <select class="si" data-field="origin" style="border-bottom:1.5px solid #000;height:var(--cell-h)">
+        <option value=""></option>
+        <option>Altered Human</option><option>Mutant</option><option>Hi-Tech</option>
+        <option>Robot</option><option>Alien</option><option>Normal Human</option>
+      </select>
+    </div>
+    <div class="bio-row"><span class="lbl">Age</span><input class="si" data-field="age" style="width:50px"></div>
+    <div class="bio-row"></div>
+  </div>
+
+  <!-- Primary + Secondary Abilities -->
+  <div class="abilities-wrap">
+    <!-- Primary -->
+    <div class="primary-block">
+      <div class="section-label">Primary Abilities</div>
+      <table class="ab-table">
+        <thead><tr>
+          <th></th>
+          <th style="width:50px">Initial<br>Roll</th>
+          <th style="width:60px">Initial<br>Rank</th>
+          <th style="width:90px">Current<br>Rank</th>
+          <th style="width:55px">Rank<br>Number</th>
+        </tr></thead>
+        <tbody id="ab-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Secondary -->
+    <div class="secondary-block">
+      <div class="section-label">Secondary Abilities</div>
+      <table class="sec-table">
+        <thead><tr>
+          <th>Health<br><span class="sec-formula">F+A+S+E</span></th>
+          <th>Karma<br><span class="sec-formula">R+I+P</span></th>
+          <th>Resources</th>
+          <th>Popularity</th>
+        </tr></thead>
+        <tbody><tr>
+          <td><input class="si-box" data-field="health" type="number" style="width:60px"></td>
+          <td><input class="si-box" data-field="karma" type="number" style="width:60px"></td>
+          <td>
+            <select data-field="resourcesRank" style="width:70px;border:none;font-family:var(--fb);font-size:10px;font-weight:700;text-align:center;outline:none;background:transparent" id="res-rank"></select>
+            <input class="si-box" data-field="resourcesValue" type="number" style="width:40px;margin-top:2px">
+          </td>
+          <td>
+            <input class="si-box" data-field="popularityHero" type="number" style="width:40px" title="Hero Identity">
+            <span style="font-size:9px;color:#999">/</span>
+            <input class="si-box" data-field="popularitySecret" type="number" style="width:40px" title="Secret Identity">
+          </td>
+        </tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Special Abilities -->
+  <div class="special-section">
+    <div class="special-label">Special Abilities</div>
+
+    <!-- Powers -->
+    <div class="list-section">
+      <div class="list-header">
+        <span class="list-title">Powers:</span>
+        <button class="list-add" id="add-power">+ Add Power</button>
+      </div>
+      <ul class="item-list" id="powers-list"></ul>
+    </div>
+
+    <!-- Limitation -->
+    <div class="limitation-row">
+      <span class="lbl">Limitation:</span>
+      <input class="si" data-field="limitation" placeholder="">
+    </div>
+
+    <!-- Bottom: Talents / Karma Tracking / Contacts -->
+    <div class="bottom-grid">
+      <!-- Talents -->
+      <div>
+        <div class="list-header">
+          <span class="list-title">Talents:</span>
+          <button class="list-add" id="add-talent">+ Add Talent</button>
+        </div>
+        <ul class="item-list" id="talents-list"></ul>
+      </div>
+
+      <!-- Karma Boxes -->
+      <div>
+        <div class="karma-box">
+          <div class="karma-label">Advancement Fund<br>Karma</div>
+          <input class="karma-input" data-field="advancementKarma" type="number" value="0">
+        </div>
+        <div class="karma-box" style="margin-top:6px">
+          <div class="karma-label">Karma Pool</div>
+          <input class="karma-input" data-field="karmaPool" type="number" value="0">
+          <input class="si" data-field="poolName" placeholder="Pool name" style="width:100%;margin-top:4px;font-size:10px;text-align:center">
+        </div>
+      </div>
+
+      <!-- Contacts -->
+      <div>
+        <div class="list-header">
+          <span class="list-title">Contacts:</span>
+          <button class="list-add" id="add-contact">+ Add Contact</button>
+        </div>
+        <ul class="item-list" id="contacts-list"></ul>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /sheet -->
+</div><!-- /sheet-wrap -->
+
+<div class="fas-ftr">FASERIP Character Sheet v1.0 &mdash; Graycloak&rsquo;s Campaign Corner &mdash; Data stored locally in your browser</div>
+
+<!-- Load/Save Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <button class="modal-close" id="modal-close">&times;</button>
+    <div class="modal-title" id="modal-title">Load Character</div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<input type="file" id="file-import" accept=".json" style="display:none">
+
+<script src="gcc-header.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// FASERIP CHARACTER SHEET — fas-app.js (inline)
+// ══════════════════════════════════════════════════════════════
+
+const RANKS = [
+  { name:"Shift-0", min:0, standard:0 },
+  { name:"Feeble", min:1, standard:2 },
+  { name:"Poor", min:3, standard:4 },
+  { name:"Typical", min:5, standard:6 },
+  { name:"Good", min:8, standard:10 },
+  { name:"Excellent", min:16, standard:20 },
+  { name:"Remarkable", min:26, standard:30 },
+  { name:"Incredible", min:36, standard:40 },
+  { name:"Amazing", min:46, standard:50 },
+  { name:"Monstrous", min:63, standard:75 },
+  { name:"Unearthly", min:88, standard:100 },
+  { name:"Shift-X", min:126, standard:150 },
+  { name:"Shift-Y", min:176, standard:200 },
+  { name:"Shift-Z", min:351, standard:500 },
+  { name:"Class 1000", min:1000, standard:1000 },
+  { name:"Class 3000", min:3000, standard:3000 },
+  { name:"Class 5000", min:5000, standard:5000 },
+  { name:"Beyond", min:9999, standard:9999 }
+];
+
+const ABILITIES = ["fighting","agility","strength","endurance","reason","intuition","psyche"];
+const AB_LABELS = {fighting:"F",agility:"A",strength:"S",endurance:"E",reason:"R",intuition:"I",psyche:"P"};
+
+function getRankForValue(val) {
+  for (let i = RANKS.length - 1; i >= 0; i--) {
+    if (val >= RANKS[i].min) return RANKS[i].name;
+  }
+  return "Shift-0";
+}
+function getRankValue(name) {
+  const r = RANKS.find(x => x.name === name);
+  return r ? r.min : 0;
+}
+function getRankStandard(name) {
+  const r = RANKS.find(x => x.name === name);
+  return r ? r.standard : 0;
+}
+
+// ── Chargen Tables ──
+const ORIGIN_TABLE = [
+  {roll:[1,30],origin:"Altered Human"},{roll:[31,60],origin:"Mutant"},
+  {roll:[61,90],origin:"Hi-Tech"},{roll:[91,95],origin:"Robot"},{roll:[96,100],origin:"Alien"}
+];
+const COL1=[{roll:[1,5],rank:"Feeble"},{roll:[6,10],rank:"Poor"},{roll:[11,20],rank:"Typical"},{roll:[21,40],rank:"Good"},{roll:[41,60],rank:"Excellent"},{roll:[61,80],rank:"Remarkable"},{roll:[81,96],rank:"Incredible"},{roll:[97,100],rank:"Amazing"}];
+const COL3=[{roll:[1,5],rank:"Feeble"},{roll:[6,10],rank:"Poor"},{roll:[11,40],rank:"Typical"},{roll:[41,80],rank:"Good"},{roll:[81,95],rank:"Excellent"},{roll:[96,100],rank:"Remarkable"}];
+const COL4=[{roll:[1,5],rank:"Feeble"},{roll:[6,10],rank:"Poor"},{roll:[11,15],rank:"Typical"},{roll:[16,40],rank:"Good"},{roll:[41,50],rank:"Excellent"},{roll:[51,70],rank:"Remarkable"},{roll:[71,90],rank:"Incredible"},{roll:[91,98],rank:"Amazing"},{roll:[99,100],rank:"Monstrous"}];
+const COL5=[{roll:[1,10],rank:"Feeble"},{roll:[11,20],rank:"Poor"},{roll:[21,30],rank:"Typical"},{roll:[31,40],rank:"Good"},{roll:[41,60],rank:"Excellent"},{roll:[61,70],rank:"Remarkable"},{roll:[71,80],rank:"Incredible"},{roll:[81,95],rank:"Amazing"},{roll:[96,100],rank:"Monstrous"}];
+const ABILITY_MOD=[{roll:[1,15],mod:-1},{roll:[16,50],mod:0},{roll:[51,70],mod:1},{roll:[71,85],mod:2},{roll:[86,95],mod:3},{roll:[96,100],mod:4}];
+const POWERS_TBL=[{roll:[1,20],initial:2,max:4},{roll:[21,60],initial:3,max:4},{roll:[61,90],initial:4,max:4},{roll:[91,100],initial:5,max:5}];
+const TALENTS_TBL=[{roll:[1,20],initial:1,max:6},{roll:[21,60],initial:2,max:5},{roll:[61,90],initial:3,max:4},{roll:[91,100],initial:4,max:4}];
+const CONTACTS_TBL=[{roll:[1,20],initial:0,max:4},{roll:[21,60],initial:1,max:4},{roll:[61,90],initial:2,max:4},{roll:[91,100],initial:3,max:4}];
+const POWER_CATS=[{roll:[1,5],cat:"Resistances"},{roll:[6,10],cat:"Senses"},{roll:[11,15],cat:"Movement"},{roll:[16,25],cat:"Matter Control"},{roll:[26,40],cat:"Energy Control"},{roll:[41,55],cat:"Body Control"},{roll:[56,70],cat:"Distance Attacks"},{roll:[71,75],cat:"Mental Powers"},{roll:[76,90],cat:"Body Alterations/Offensive"},{roll:[91,100],cat:"Body Alterations/Defensive"}];
+const TALENT_CATS=[{roll:[1,20],cat:"Weapon Skills"},{roll:[21,45],cat:"Fighting Skills"},{roll:[46,65],cat:"Professional Skills"},{roll:[66,85],cat:"Scientific Skills"},{roll:[86,90],cat:"Mystic and Mental Skills"},{roll:[91,100],cat:"Other Skills"}];
+
+const POWER_LISTS={
+  "Resistances":["Resistance to Fire and Heat","Resistance to Cold","Resistance to Electricity","Resistance to Radiation","Resistance to Toxins","Resistance to Corrosives","Resistance to Emotion Attacks","Resistance to Mental Attacks","Resistance to Magical Attacks","Resistance to Disease","Invulnerability*"],
+  "Senses":["Protected Senses","Enhanced Senses","Infravision","Cosmic Awareness*","Combat Sense*","Computer Links","Emotion Detection","Energy Detection","Magic Detection","Magnetic Detection","Mutant Detection","Psionic Detection","Astral Detection","Tracking Ability"],
+  "Movement":["Flight","Gliding","Leaping","Wall-Crawling","Lightning Speed","Teleportation*","Levitation","Swimming","Climbing","Digging","Dimensional Travel*"],
+  "Matter Control":["Earth Control","Air Control","Fire Control","Water Control","Weather Control","Density Manipulation - Others","Body Transformation - Others","Animal Transformation - Others"],
+  "Energy Control":["Magnetic Manipulation","Electrical Manipulation","Light Manipulation","Sound Manipulation","Darkforce Manipulation","Gravity Manipulation","Probability Manipulation*","Nullifying Power*","Energy Reflection","Time Control*"],
+  "Body Control":["Growth","Shrinking","Density Manipulation - Self","Phasing","Invisibility","Plasticity","Elongation","Shape-Shifting","Imitation","Body Transformation - Self*","Animal Transformation - Self","Raise Lowest Ability","Blending","Power Absorption","Alter Ego"],
+  "Distance Attacks":["Projectile Missile","Ensnaring Missile","Ice Generation","Fire Generation","Energy Generation","Sound Generation","Stunning Missile","Corrosive Missile","Slashing Missile","Nullifier Missile","Darkforce Generation"],
+  "Mental Powers":["Telepathy","Image Generation*","Telekinesis","Mind Control*","Emotion Control*","Force Field Generation","Animal Communication and Control","Mechanical Intuition","Animal Empathy","Empathy","Psi-Screen","Mental Probe","Animate Drawings","Possession*","Transferral*","Astral Projection","Psionic Attack","Precognition*","Postcognition","Plant Control","Ultimate Skill"],
+  "Body Alterations/Offensive":["Extra Body Parts","Extra Attacks","Energy Touch","Paralyzing Touch","Claws","Rotting Touch","Corrosive Touch","Health-Drain Touch*","Blinding Touch"],
+  "Body Alterations/Defensive":["Body Armor","Water Breathing","Absorption","Regeneration","Solar Regeneration","Recovery","Life Support","Pheromones","Damage Transfer","Healing","Immortality*"]
+};
+
+const TALENT_LISTS={
+  "Weapon Skills":["Guns","Thrown Weapons","Bows","Blunt Weapons","Sharp Weapons","Oriental Weapons","Marksman*","Weapons Master*","Weapons Specialist*"],
+  "Fighting Skills":["Martial Arts A","Martial Arts B","Martial Arts C","Martial Arts D","Martial Arts E","Wrestling","Thrown Objects","Tumbling","Acrobatics"],
+  "Professional Skills":["Medicine*","Law","Law-Enforcement","Pilot","Military","Business/Finance","Journalism","Engineering","Crime","Psychiatry","Detective/Espionage"],
+  "Scientific Skills":["Chemistry","Biology","Geology","Genetics","Archeology","Physics","Computers","Electronics"],
+  "Mystic and Mental Skills":["Trance","Mesmerism and Hypnosis","Sleight of Hand","Resist Domination","Mystic Origin*","Occult Lore"],
+  "Other Skills":["Artist","Languages","First Aid","Repair/Tinkering","Trivia","Performer","Animal Training*","Heir to Fortune*","Student*","Leadership*"]
+};
+
+const CONTACT_TYPES=["Medicine","Law","Law-Enforcement","Military","Business World","Journalism","Crime","Engineering","Psychiatry","Detective/Espionage","Hero Group","Artist/Performer","Chemistry","Biology","Geology","Genetics","Archeology","Physics","Computers","Electronics","Local Political","State Political","National Political","International Political","Religion","Occult Lore","Mythology"];
+
+// ── Dice & Table Lookup ──
+function roll100(){ return Math.floor(Math.random()*100)+1; }
+function rollOn(table,r){
+  const rv=r||roll100();
+  for(const e of table) if(rv>=e.roll[0]&&rv<=e.roll[1]) return{roll:rv,result:e};
+  return{roll:rv,result:table[table.length-1]};
+}
+function getCol(origin){
+  switch(origin){
+    case "Altered Human":case "Mutant":return COL1;
+    case "Hi-Tech":return COL3;
+    case "Robot":return COL4;
+    case "Alien":return COL5;
+    default:return COL1;
+  }
+}
+function shiftRank(name,shifts){
+  const i=RANKS.findIndex(r=>r.name===name);
+  if(i===-1)return name;
+  return RANKS[Math.max(0,Math.min(RANKS.length-1,i+shifts))].name;
+}
+
+// ══════════════════════════════════════════════════════════════
+// CHARACTER STATE
+// ══════════════════════════════════════════════════════════════
+let CHAR = newChar();
+
+function newChar(){
+  return {
+    playerName:"", heroName:"", identity:"", idType:"secret",
+    group:"", base:"", origin:"", age:"",
+    abilities:{
+      fighting:{initialRoll:"",initialRank:"",rank:"Typical",value:6},
+      agility:{initialRoll:"",initialRank:"",rank:"Typical",value:6},
+      strength:{initialRoll:"",initialRank:"",rank:"Typical",value:6},
+      endurance:{initialRoll:"",initialRank:"",rank:"Typical",value:6},
+      reason:{initialRoll:"",initialRank:"",rank:"Typical",value:6},
+      intuition:{initialRoll:"",initialRank:"",rank:"Typical",value:6},
+      psyche:{initialRoll:"",initialRank:"",rank:"Typical",value:6}
+    },
+    health:24, karma:18, resourcesRank:"Typical", resourcesValue:6,
+    popularityHero:10, popularitySecret:0,
+    powers:[], talents:[], contacts:[],
+    limitation:"",
+    advancementKarma:0, karmaPool:0, poolName:""
+  };
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════════
+
+function buildRankOptions(selected){
+  return RANKS.map(r=>`<option value="${r.name}"${r.name===selected?" selected":""}>${r.name}</option>`).join("");
+}
+
+function renderAbilities(){
+  const tbody=document.getElementById("ab-body");
+  tbody.innerHTML="";
+  for(const key of ABILITIES){
+    const a=CHAR.abilities[key];
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td class="ab-key" title="${key}">${AB_LABELS[key]}</td>
+      <td><input type="number" value="${a.initialRoll}" data-ab="${key}" data-abf="initialRoll"></td>
+      <td><input type="text" value="${a.initialRank}" data-ab="${key}" data-abf="initialRank" style="font-size:9px"></td>
+      <td><select data-ab="${key}" data-abf="rank">${buildRankOptions(a.rank)}</select></td>
+      <td><input type="number" value="${a.value}" data-ab="${key}" data-abf="value"></td>`;
+    tbody.appendChild(tr);
+  }
+  // Attach listeners
+  tbody.querySelectorAll("input,select").forEach(el=>{
+    el.addEventListener("change",e=>{
+      const key=e.target.dataset.ab, field=e.target.dataset.abf;
+      if(field==="rank"){
+        CHAR.abilities[key].rank=e.target.value;
+        CHAR.abilities[key].value=getRankValue(e.target.value);
+        renderAbilities();
+      } else if(field==="value"){
+        CHAR.abilities[key].value=parseInt(e.target.value)||0;
+        CHAR.abilities[key].rank=getRankForValue(CHAR.abilities[key].value);
+        renderAbilities();
+      } else {
+        CHAR.abilities[key][field]=e.target.value;
+      }
+      recalcSecondary();
+    });
+  });
+}
+
+function recalcSecondary(){
+  const a=CHAR.abilities;
+  const h=a.fighting.value+a.agility.value+a.strength.value+a.endurance.value;
+  const k=a.reason.value+a.intuition.value+a.psyche.value;
+  document.querySelector('[data-field="health"]').value=h;
+  document.querySelector('[data-field="karma"]').value=k;
+  CHAR.health=h; CHAR.karma=k;
+}
+
+function renderList(listId, items, type){
+  const ul=document.getElementById(listId);
+  ul.innerHTML="";
+  items.forEach((item,i)=>{
+    const li=document.createElement("li");
+    li.className="item-row";
+    if(type==="power"){
+      const star=item.name.endsWith("*")?"<span class=\"item-star\">★</span>":"";
+      li.innerHTML=`${star}<input class="si" value="${item.name.replace(/\*$/,"")}" data-list="${type}" data-idx="${i}" data-lf="name">
+        <select class="si item-rank" data-list="${type}" data-idx="${i}" data-lf="rank">${buildRankOptions(item.rank||"Typical")}</select>
+        <input class="si item-value" type="number" value="${item.value||6}" data-list="${type}" data-idx="${i}" data-lf="value" style="width:40px">
+        <button class="item-del" data-list="${type}" data-idx="${i}">&times;</button>`;
+    } else if(type==="talent"){
+      li.innerHTML=`<input class="si" value="${item.name.replace(/\*$/,"")}" data-list="${type}" data-idx="${i}" data-lf="name">
+        <button class="item-del" data-list="${type}" data-idx="${i}">&times;</button>`;
+    } else {
+      li.innerHTML=`<input class="si" value="${item.name}" data-list="${type}" data-idx="${i}" data-lf="name">
+        <button class="item-del" data-list="${type}" data-idx="${i}">&times;</button>`;
+    }
+    ul.appendChild(li);
+  });
+  // Listeners
+  ul.querySelectorAll("input,select").forEach(el=>{
+    el.addEventListener("change",e=>{
+      const t=e.target.dataset.list, idx=+e.target.dataset.idx, f=e.target.dataset.lf;
+      const arr=t==="power"?CHAR.powers:t==="talent"?CHAR.talents:CHAR.contacts;
+      if(f==="rank"&&t==="power"){
+        arr[idx].rank=e.target.value;
+        arr[idx].value=getRankValue(e.target.value);
+        renderList(listId,arr,type);
+      } else if(f==="value"&&t==="power"){
+        arr[idx].value=parseInt(e.target.value)||0;
+      } else {
+        arr[idx][f]=e.target.value;
+      }
+    });
+  });
+  ul.querySelectorAll(".item-del").forEach(el=>{
+    el.addEventListener("click",e=>{
+      const t=e.target.dataset.list, idx=+e.target.dataset.idx;
+      const arr=t==="power"?CHAR.powers:t==="talent"?CHAR.talents:CHAR.contacts;
+      arr.splice(idx,1);
+      renderList(listId,arr,type);
+    });
+  });
+}
+
+function renderAll(){
+  // Bio fields
+  document.querySelectorAll("[data-field]").forEach(el=>{
+    const f=el.dataset.field;
+    if(f in CHAR) el.value=CHAR[f]||"";
+  });
+  // Identity type
+  document.querySelectorAll('[name="idType"]').forEach(r=>{r.checked=r.value===CHAR.idType});
+  // Origin
+  const originSel=document.querySelector('[data-field="origin"]');
+  if(originSel) originSel.value=CHAR.origin||"";
+  // Resources rank
+  const resSel=document.getElementById("res-rank");
+  resSel.innerHTML=RANKS.slice(0,11).map(r=>`<option value="${r.name}"${r.name===CHAR.resourcesRank?" selected":""}>${r.name}</option>`).join("");
+
+  renderAbilities();
+  renderList("powers-list",CHAR.powers,"power");
+  renderList("talents-list",CHAR.talents,"talent");
+  renderList("contacts-list",CHAR.contacts,"contact");
+  recalcSecondary();
+}
+
+// ── Field Change Listeners ──
+function bindFields(){
+  document.querySelectorAll("[data-field]").forEach(el=>{
+    el.addEventListener("change",e=>{
+      const f=e.target.dataset.field;
+      if(f in CHAR){
+        CHAR[f]=e.target.type==="number"?parseInt(e.target.value)||0:e.target.value;
+      }
+    });
+  });
+  document.querySelectorAll('[name="idType"]').forEach(r=>{
+    r.addEventListener("change",e=>{CHAR.idType=e.target.value});
+  });
+  document.getElementById("res-rank").addEventListener("change",e=>{
+    CHAR.resourcesRank=e.target.value;
+    CHAR.resourcesValue=getRankValue(e.target.value);
+    document.querySelector('[data-field="resourcesValue"]').value=CHAR.resourcesValue;
+  });
+}
+
+// ── Add Item Buttons ──
+function bindAddButtons(){
+  document.getElementById("add-power").addEventListener("click",()=>{
+    CHAR.powers.push({name:"New Power",rank:"Typical",value:6});
+    renderList("powers-list",CHAR.powers,"power");
+  });
+  document.getElementById("add-talent").addEventListener("click",()=>{
+    CHAR.talents.push({name:"New Talent"});
+    renderList("talents-list",CHAR.talents,"talent");
+  });
+  document.getElementById("add-contact").addEventListener("click",()=>{
+    CHAR.contacts.push({name:"New Contact"});
+    renderList("contacts-list",CHAR.contacts,"contact");
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// CHARGEN
+// ══════════════════════════════════════════════════════════════
+function quickRandom(){
+  const log=[];
+  const L=m=>{log.push(m)};
+
+  // Origin
+  const{roll:oRoll,result:oRes}=rollOn(ORIGIN_TABLE);
+  const origin=oRes.origin;
+  L(`Origin: Roll ${oRoll} → ${origin}`);
+
+  // Primary abilities
+  const col=getCol(origin);
+  const abs={};
+  for(const key of ABILITIES){
+    const{roll,result}=rollOn(col);
+    abs[key]={initialRoll:roll,initialRank:result.rank,rank:result.rank,value:getRankValue(result.rank)};
+    L(`${AB_LABELS[key]}: Roll ${roll} → ${result.rank} (${getRankValue(result.rank)})`);
+  }
+
+  // Origin mods
+  if(origin==="Altered Human"){
+    // raise lowest
+    let lowest=null,lowestVal=999;
+    for(const k of ABILITIES){if(abs[k].value<lowestVal){lowestVal=abs[k].value;lowest=k;}}
+    abs[lowest].rank=shiftRank(abs[lowest].rank,1);
+    abs[lowest].value=getRankValue(abs[lowest].rank);
+    L(`Altered Human: Raised ${lowest} to ${abs[lowest].rank}`);
+  }
+  if(origin==="Mutant"){
+    abs.endurance.rank=shiftRank(abs.endurance.rank,1);
+    abs.endurance.value=getRankValue(abs.endurance.rank);
+    L(`Mutant: Endurance raised to ${abs.endurance.rank}`);
+  }
+  if(origin==="Hi-Tech"){
+    abs.reason.rank=shiftRank(abs.reason.rank,2);
+    abs.reason.value=getRankValue(abs.reason.rank);
+    L(`Hi-Tech: Reason raised to ${abs.reason.rank}`);
+  }
+
+  // Secondary
+  const health=abs.fighting.value+abs.agility.value+abs.strength.value+abs.endurance.value;
+  const karma=abs.reason.value+abs.intuition.value+abs.psyche.value;
+  L(`Health: ${health}  Karma: ${karma}`);
+
+  let resRank=origin==="Alien"?"Poor":origin==="Hi-Tech"?"Good":"Typical";
+  const{roll:mRoll,result:mRes}=rollOn(ABILITY_MOD);
+  resRank=shiftRank(resRank,mRes.mod);
+  if(origin==="Mutant") resRank=shiftRank(resRank,-1);
+  L(`Resources: ${resRank} (mod roll ${mRoll})`);
+
+  let pop=10;
+  if(origin==="Mutant"||origin==="Robot") pop=0;
+  L(`Popularity: ${pop}`);
+
+  // Powers
+  const{result:pRes}=rollOn(POWERS_TBL);
+  let pInit=pRes.initial;
+  if(origin==="Mutant") pInit=Math.min(pInit+1,pRes.max);
+  if(origin==="Alien") pInit=Math.max(2,pInit-1);
+  const powers=[];
+  for(let i=0;i<pInit;i++){
+    const{result:catRes}=rollOn(POWER_CATS);
+    const catName=catRes.cat;
+    const pList=POWER_LISTS[catName];
+    const nonStar=pList.filter(p=>!p.endsWith("*"));
+    const pick=nonStar[Math.floor(Math.random()*nonStar.length)];
+    const{result:rRes}=rollOn(COL4);
+    powers.push({name:pick,rank:rRes.rank,value:getRankValue(rRes.rank),category:catName});
+    L(`Power: ${pick} — ${rRes.rank} (${catName})`);
+  }
+
+  // Talents
+  const{result:tRes}=rollOn(TALENTS_TBL);
+  const talents=[];
+  for(let i=0;i<tRes.initial;i++){
+    const{result:tcRes}=rollOn(TALENT_CATS);
+    const tList=TALENT_LISTS[tcRes.cat];
+    const nonStar=tList.filter(t=>!t.endsWith("*"));
+    const pick=nonStar[Math.floor(Math.random()*nonStar.length)];
+    talents.push({name:pick});
+    L(`Talent: ${pick} (${tcRes.cat})`);
+  }
+
+  // Contacts
+  const{result:cRes}=rollOn(CONTACTS_TBL);
+  let cInit=cRes.initial;
+  if(origin==="Hi-Tech"&&cInit<1) cInit=1;
+  if(origin==="Alien"){cInit=Math.min(cInit,1);}
+  const contacts=[];
+  for(let i=0;i<cInit;i++){
+    const pick=CONTACT_TYPES[Math.floor(Math.random()*CONTACT_TYPES.length)];
+    contacts.push({name:pick});
+    L(`Contact: ${pick}`);
+  }
+
+  // Apply to CHAR
+  CHAR=newChar();
+  CHAR.origin=origin;
+  CHAR.abilities=abs;
+  CHAR.health=health;
+  CHAR.karma=karma;
+  CHAR.resourcesRank=resRank;
+  CHAR.resourcesValue=getRankValue(resRank);
+  CHAR.popularityHero=pop;
+  CHAR.popularitySecret=0;
+  CHAR.powers=powers;
+  CHAR.talents=talents;
+  CHAR.contacts=contacts;
+  renderAll();
+
+  // Show log
+  const logEl=document.getElementById("cg-log");
+  logEl.style.display="block";
+  logEl.textContent=log.join("\n");
+}
+
+// ══════════════════════════════════════════════════════════════
+// SAVE / LOAD / EXPORT / IMPORT
+// ══════════════════════════════════════════════════════════════
+const STORAGE_KEY="gcc-faserip-chars";
+
+function getSavedChars(){
+  try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[];}catch(e){return[];}
+}
+function saveChar(){
+  const chars=getSavedChars();
+  const name=CHAR.heroName||"Unnamed Hero";
+  const existing=chars.findIndex(c=>c.heroName===name);
+  const entry={...CHAR, _saved:new Date().toISOString()};
+  if(existing>=0) chars[existing]=entry; else chars.push(entry);
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));
+  alert(`Saved: ${name}`);
+}
+
+function showLoadModal(){
+  const chars=getSavedChars();
+  const overlay=document.getElementById("modal-overlay");
+  const body=document.getElementById("modal-body");
+  document.getElementById("modal-title").textContent="Load Character";
+  if(!chars.length){
+    body.innerHTML="<p style=\"color:#999;font-size:11px\">No saved characters.</p>";
+  } else {
+    body.innerHTML="<ul class=\"save-list\">" + chars.map((c,i)=>{
+      const d=c._saved?new Date(c._saved).toLocaleDateString():"";
+      return `<li class="save-item" data-idx="${i}"><div><span class="save-item-name">${c.heroName||"Unnamed"}</span><br><span class="save-item-date">${c.origin||""} &mdash; ${d}</span></div><button class="save-item-del" data-idx="${i}" title="Delete">&times;</button></li>`;
+    }).join("")+"</ul>";
+    body.querySelectorAll(".save-item").forEach(el=>{
+      el.addEventListener("click",e=>{
+        if(e.target.classList.contains("save-item-del")){
+          const idx=+e.target.dataset.idx;
+          chars.splice(idx,1);
+          localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));
+          showLoadModal();
+          return;
+        }
+        const idx=+el.dataset.idx;
+        CHAR={...newChar(),...chars[idx]};
+        renderAll();
+        overlay.classList.remove("open");
+      });
+    });
+  }
+  overlay.classList.add("open");
+}
+
+function exportChar(){
+  const blob=new Blob([JSON.stringify(CHAR,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=(CHAR.heroName||"faserip-character")+".json"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importChar(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      CHAR={...newChar(),...data};
+      renderAll();
+    }catch(err){alert("Invalid JSON file");}
+  };
+  reader.readAsText(file);
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded",()=>{
+  renderAll();
+  bindFields();
+  bindAddButtons();
+
+  // Header buttons
+  document.getElementById("btn-new").addEventListener("click",()=>{
+    if(confirm("Start a new character? Unsaved changes will be lost.")){
+      CHAR=newChar(); renderAll();
+    }
+  });
+  document.getElementById("btn-save").addEventListener("click",saveChar);
+  document.getElementById("btn-load").addEventListener("click",showLoadModal);
+  document.getElementById("btn-export").addEventListener("click",exportChar);
+  document.getElementById("btn-import").addEventListener("click",()=>document.getElementById("file-import").click());
+  document.getElementById("file-import").addEventListener("change",e=>{
+    if(e.target.files[0]) importChar(e.target.files[0]);
+    e.target.value="";
+  });
+  document.getElementById("btn-print").addEventListener("click",()=>window.print());
+
+  // Modal close
+  document.getElementById("modal-close").addEventListener("click",()=>document.getElementById("modal-overlay").classList.remove("open"));
+  document.getElementById("modal-overlay").addEventListener("click",e=>{
+    if(e.target===e.currentTarget) e.currentTarget.classList.remove("open");
+  });
+
+  // Chargen
+  const cgPanel=document.getElementById("chargen-panel");
+  document.getElementById("btn-chargen").addEventListener("click",()=>cgPanel.classList.toggle("open"));
+  document.getElementById("cg-close").addEventListener("click",()=>cgPanel.classList.remove("open"));
+  document.getElementById("cg-quick").addEventListener("click",quickRandom);
+  document.getElementById("cg-step").addEventListener("click",()=>{
+    quickRandom(); // For now, step-by-step uses quick random
+  });
+
+  // Set current page in GCC header
+  if(window.GCC_HEADER && window.GCC_HEADER.setCurrentPage){
+    window.GCC_HEADER.setCurrentPage("fas-char");
+  }
+});
+</script>
+</body>
+</html>
