@@ -106,10 +106,13 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .list-add{font-size:9px;cursor:pointer;color:var(--accent);font-weight:700;border:none;background:none;font-family:var(--fb)}
 .list-add:hover{text-decoration:underline}
 .item-list{list-style:none}
-.item-row{display:flex;align-items:center;gap:3px;padding:1px 0;border-bottom:1px dotted #ccc}
-.item-row .si{flex:1;font-size:11px;height:20px}
-.item-rank{width:80px;font-size:9px!important}
-.item-value{width:40px;text-align:center;font-size:10px!important}
+.item-row{display:grid;align-items:center;gap:3px;padding:1px 0;border-bottom:1px dotted #ccc}
+.item-row.power-row{grid-template-columns:auto 80px 40px 1fr auto}
+.item-row.talent-row{grid-template-columns:auto 1fr auto}
+.item-row.contact-row{grid-template-columns:auto 1fr auto}
+.item-row .si{font-size:11px;height:20px}
+.item-rank{font-size:9px!important}
+.item-value{text-align:center;font-size:10px!important}
 .item-del{cursor:pointer;color:#c00;font-size:11px;border:none;background:none;padding:0 2px;font-weight:700;opacity:.4}
 .item-del:hover{opacity:1}
 .item-star{color:#c8960c;font-size:9px;margin-right:2px}
@@ -617,7 +620,7 @@ function renderList(listId, items, type){
   ul.innerHTML="";
   items.forEach((item,i)=>{
     const li=document.createElement("li");
-    li.className="item-row";
+    li.className="item-row " + (type==="power"?"power-row":type==="talent"?"talent-row":"contact-row");
     if(type==="power"){
       const star=item.name.endsWith("*")?"<span class=\"item-star\">★</span>":"";
       li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll FEAT">d100</button>
