@@ -1444,7 +1444,17 @@ function importChar(file){
 // INIT
 // ══════════════════════════════════════════════════════════════
 document.addEventListener("DOMContentLoaded",()=>{
-  loadAutosave();
+  // Check for ?char= param to load a specific saved character
+  const urlParams = new URLSearchParams(window.location.search);
+  const charParam = urlParams.get('char');
+  if(charParam){
+    const chars = getSavedChars();
+    const found = chars.find(c => c.heroName === charParam);
+    if(found){ CHAR = {...newChar(), ...found}; }
+    else { loadAutosave(); }
+  } else {
+    loadAutosave();
+  }
   renderAll();
   bindFields();
   bindAddButtons();

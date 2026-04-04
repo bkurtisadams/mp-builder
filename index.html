@@ -300,6 +300,8 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 
 /* ── Portrait pip on campaign card char list ── */
 .cc-char-portrait { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--brd) }
+.cc-char-link { text-decoration: none; color: var(--tx); cursor: pointer }
+.cc-char-link:hover { color: var(--accent); text-decoration: underline }
 
 /* ── Saved Character Picker ── */
 .saved-picker { margin-top: 8px; border: 1px solid var(--brd); border-radius: 4px; background: var(--bg2); max-height: 200px; overflow-y: auto; scrollbar-width: thin }
@@ -723,7 +725,17 @@ function renderCampaigns() {
       const portraitHtml = ch.portrait
         ? `<img class="cc-char-portrait" src="${ch.portrait}" alt="">`
         : `<span class="cc-char-pip" style="background:${col}"></span>`;
-      return `<li class="cc-char-item">${portraitHtml}<span class="cc-char-name">${ESC(ch.name)}</span>${ch.player ? '<span class="cc-char-player">('+ESC(ch.player)+')</span>' : ''}<span class="cc-char-sub">${ESC(ch.sub||'')}</span></li>`;
+      // Build link to character page if system has a char tool
+      let nameHtml;
+      const charSys = GCC.SYSTEM_DEFS.find(s => s.id === c.system);
+      const charTool = charSys?.tools.find(t => t.charList && t.href);
+      if(charTool && ch.name){
+        const href = charTool.href + '?char=' + encodeURIComponent(ch.name);
+        nameHtml = `<a class="cc-char-name cc-char-link" href="${ESC(href)}">${ESC(ch.name)}</a>`;
+      } else {
+        nameHtml = `<span class="cc-char-name">${ESC(ch.name)}</span>`;
+      }
+      return `<li class="cc-char-item">${portraitHtml}${nameHtml}${ch.player ? '<span class="cc-char-player">('+ESC(ch.player)+')</span>' : ''}<span class="cc-char-sub">${ESC(ch.sub||'')}</span></li>`;
     }).join('');
 
     const sessHtml = (c.sessions||[]).slice(0,4).map(s =>
