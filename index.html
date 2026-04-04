@@ -244,14 +244,59 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .jb-card:hover .jb-rm { opacity: 1 }
 .jb-rm:hover { color: var(--red) }
 
-/* ── Inline Notes ── */
-.cc-notes-panel { display: none; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--brd) }
-.cc-notes-panel.open { display: block }
-.cc-notes-title { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 1.5px; margin-bottom: 6px }
-.cc-notes-area { width: 100%; font-family: var(--fb); font-size: 13px; color: var(--tx); background: var(--bg2); border: 1px solid var(--brd); border-radius: 3px; padding: 8px 10px; outline: none; resize: vertical; min-height: 60px; line-height: 1.4; transition: border-color 0.12s }
-.cc-notes-area:focus { border-color: var(--accent-dim) }
-.cc-notes-save { margin-top: 6px; padding: 3px 12px; font-size: 10px; font-family: var(--fb); font-weight: 700; background: var(--accent); color: var(--bg); border: none; border-radius: 2px; cursor: pointer; transition: opacity 0.12s }
-.cc-notes-save:hover { opacity: 0.9 }
+/* ── Dice Roller FAB ── */
+.dice-fab { position: fixed; bottom: 20px; right: 20px; width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: var(--bg); border: none; font-size: 22px; cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,0.3); z-index: 300; display: flex; align-items: center; justify-content: center; transition: transform 0.15s, box-shadow 0.15s }
+.dice-fab:hover { transform: scale(1.08); box-shadow: 0 4px 16px rgba(0,0,0,0.4) }
+
+.dice-tray { display: none; position: fixed; bottom: 80px; right: 20px; width: 260px; background: var(--bg-card); border: 1px solid var(--brd-lt); border-radius: 6px; box-shadow: var(--dd-shadow); z-index: 300; padding: 12px; overflow: hidden }
+.dice-tray.open { display: block }
+.dice-tray-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px }
+.dice-tray-title { font-family: var(--fd); font-size: 11px; font-weight: 700; color: var(--tx); letter-spacing: 1.5px }
+.dice-tray-clear { font-size: 10px; color: var(--tx3); cursor: pointer; font-family: var(--fb); font-weight: 700 }
+.dice-tray-clear:hover { color: var(--red) }
+
+.dice-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px }
+.dice-btn { flex: 0 0 calc(25% - 5px); padding: 8px 0; text-align: center; font-family: var(--fd); font-size: 12px; font-weight: 700; color: var(--tx2); background: var(--bg2); border: 1px solid var(--brd); border-radius: 4px; cursor: pointer; transition: all 0.12s; user-select: none }
+.dice-btn:hover { border-color: var(--accent-dim); color: var(--accent) }
+.dice-btn:active { transform: scale(0.95) }
+
+.dice-pool { min-height: 28px; padding: 6px 8px; background: var(--bg2); border: 1px solid var(--brd); border-radius: 3px; margin-bottom: 8px; font-family: var(--fm); font-size: 12px; color: var(--tx); display: flex; flex-wrap: wrap; gap: 4px; align-items: center }
+.dice-pool-empty { color: var(--tx3); font-style: italic; font-family: var(--fb); font-size: 11px }
+.dice-pool-chip { display: inline-flex; align-items: center; gap: 3px; background: var(--brd); padding: 2px 6px; border-radius: 2px; font-size: 11px }
+.dice-pool-chip-rm { cursor: pointer; color: var(--tx3); font-size: 9px }
+.dice-pool-chip-rm:hover { color: var(--red) }
+.dice-mod { display: flex; gap: 6px; margin-bottom: 8px; align-items: center }
+.dice-mod label { font-size: 10px; color: var(--tx3); font-family: var(--fsc); letter-spacing: 0.5px }
+.dice-mod input { width: 60px; font-family: var(--fm); font-size: 12px; color: var(--tx); background: var(--bg2); border: 1px solid var(--brd); border-radius: 3px; padding: 3px 6px; outline: none; text-align: center }
+.dice-mod input:focus { border-color: var(--accent-dim) }
+
+.dice-roll-btn { width: 100%; padding: 8px; font-family: var(--fd); font-size: 13px; font-weight: 700; letter-spacing: 1px; background: var(--accent); color: var(--bg); border: none; border-radius: 4px; cursor: pointer; transition: opacity 0.12s }
+.dice-roll-btn:hover { opacity: 0.9 }
+.dice-roll-btn:active { transform: scale(0.98) }
+
+.dice-result { margin-top: 10px; padding: 10px; background: var(--bg2); border: 1px solid var(--brd); border-radius: 4px; display: none }
+.dice-result.show { display: block }
+.dice-result-total { font-family: var(--fd); font-size: 28px; font-weight: 900; color: var(--accent); text-align: center; line-height: 1 }
+.dice-result-breakdown { font-family: var(--fm); font-size: 10px; color: var(--tx3); text-align: center; margin-top: 4px; word-break: break-all }
+.dice-log { margin-top: 8px; max-height: 100px; overflow-y: auto; scrollbar-width: thin }
+.dice-log-item { font-family: var(--fm); font-size: 10px; color: var(--tx3); padding: 2px 0; border-bottom: 1px solid var(--brd) }
+.dice-log-item:last-child { border-bottom: none }
+.dice-log-item .dl-total { color: var(--tx); font-weight: 700 }
+
+/* ── Character Edit Modal ── */
+.chars-modal-body { padding: 14px 18px; max-height: 70vh; overflow-y: auto; scrollbar-width: thin }
+.chars-list { list-style: none; margin-bottom: 10px }
+.chars-item { display: flex; gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--brd) }
+.chars-item:last-child { border-bottom: none }
+.chars-item input { font-family: var(--fb); font-size: 12px; color: var(--tx); background: var(--bg2); border: 1px solid var(--brd); border-radius: 3px; padding: 4px 6px; outline: none }
+.chars-item input:focus { border-color: var(--accent-dim) }
+.chars-item .ci-name { flex: 2 }
+.chars-item .ci-player { flex: 1 }
+.chars-item .ci-sub { flex: 2; font-family: var(--fm); font-size: 11px }
+.chars-item-rm { background: none; border: none; color: var(--tx3); font-size: 13px; cursor: pointer; padding: 2px 4px }
+.chars-item-rm:hover { color: var(--red) }
+.chars-add-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; font-size: 10px; font-family: var(--fb); font-weight: 700; background: transparent; color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 3px; cursor: pointer; transition: all 0.12s }
+.chars-add-btn:hover { border-color: var(--accent); background: var(--hover-bg) }
 
 /* ── Footer ── */
 .ftr { padding: 10px 16px; font-size: 10px; color: var(--tx3); border-top: 1px solid var(--brd); background: var(--bg-section); position: relative; z-index: 1 }
@@ -316,6 +361,9 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   .mf-row { flex-direction: column; gap: 6px }
   .mf-field-sm, .mf-field-xs { flex: 1 }
   .modal-overlay { padding: 20px 8px }
+  .dice-tray { right: 10px; bottom: 70px; width: 240px }
+  .dice-fab { bottom: 14px; right: 14px; width: 42px; height: 42px; font-size: 18px }
+  .chars-item { flex-wrap: wrap }
 }
 </style>
 </head>
@@ -495,9 +543,54 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   </div>
 </div>
 
+<!-- Character Edit Modal -->
+<div class="modal-overlay" id="chars-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-hdr">
+      <div class="modal-title">EDIT PARTY</div>
+      <button class="modal-close" id="chars-modal-close">✕</button>
+    </div>
+    <div class="chars-modal-body">
+      <input type="hidden" id="cf-camp-id">
+      <ul class="chars-list" id="chars-list"></ul>
+      <button class="chars-add-btn" id="chars-add">+ Add Character</button>
+    </div>
+    <div class="modal-footer">
+      <button class="mf-btn-cancel" id="cf-cancel">Cancel</button>
+      <button class="mf-btn-save" id="cf-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Dice Roller -->
+<button class="dice-fab" id="dice-fab" title="Dice Roller">🎲</button>
+<div class="dice-tray" id="dice-tray">
+  <div class="dice-tray-hdr">
+    <div class="dice-tray-title">DICE</div>
+    <span class="dice-tray-clear" id="dice-clear">Clear</span>
+  </div>
+  <div class="dice-buttons">
+    <button class="dice-btn" data-die="4">d4</button>
+    <button class="dice-btn" data-die="6">d6</button>
+    <button class="dice-btn" data-die="8">d8</button>
+    <button class="dice-btn" data-die="10">d10</button>
+    <button class="dice-btn" data-die="12">d12</button>
+    <button class="dice-btn" data-die="20">d20</button>
+    <button class="dice-btn" data-die="100">d100</button>
+  </div>
+  <div class="dice-pool" id="dice-pool"><span class="dice-pool-empty">Click dice to add</span></div>
+  <div class="dice-mod"><label>MOD</label><input type="number" id="dice-modifier" value="0"></div>
+  <button class="dice-roll-btn" id="dice-roll">ROLL</button>
+  <div class="dice-result" id="dice-result">
+    <div class="dice-result-total" id="dice-total"></div>
+    <div class="dice-result-breakdown" id="dice-breakdown"></div>
+  </div>
+  <div class="dice-log" id="dice-log"></div>
+</div>
+
 <div class="ftr">
   <div class="ftr-inner">
-    <span>Graycloak's Campaign Corner v1.5</span>
+    <span>Graycloak's Campaign Corner v1.6</span>
     <span>Data stored locally in your browser</span>
   </div>
 </div>
@@ -695,14 +788,9 @@ function renderCampaigns() {
         </div>
         <div class="cc-bottom">
           <button class="cc-btn" data-action="edit-camp" data-camp-id="${ESC(c.id)}">Edit</button>
-          <button class="cc-btn" data-action="notes-camp" data-camp-id="${ESC(c.id)}">Notes</button>
+          <button class="cc-btn" data-action="edit-chars" data-camp-id="${ESC(c.id)}">Edit Party</button>
           <span style="flex:1"></span>
           <button class="cc-btn cc-btn-danger" data-action="del-camp" data-camp-id="${ESC(c.id)}">Delete</button>
-        </div>
-        <div class="cc-notes-panel" data-notes-id="${ESC(c.id)}">
-          <div class="cc-notes-title">CAMPAIGN NOTES</div>
-          <textarea class="cc-notes-area" data-notes-area="${ESC(c.id)}">${ESC(c.notes||'')}</textarea>
-          <button class="cc-notes-save" data-notes-save="${ESC(c.id)}">Save Notes</button>
         </div>
       </div>
     </div>`;
@@ -896,28 +984,8 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
   }
   const editBtn = e.target.closest('[data-action="edit-camp"]');
   if (editBtn) { openEditModal(editBtn.dataset.campId); return; }
-  const notesBtn = e.target.closest('[data-action="notes-camp"]');
-  if (notesBtn) {
-    const id = notesBtn.dataset.campId;
-    const panel = document.querySelector(`.cc-notes-panel[data-notes-id="${id}"]`);
-    if (panel) {
-      panel.classList.toggle('open');
-      if (panel.classList.contains('open')) {
-        const area = panel.querySelector('.cc-notes-area');
-        area.focus();
-      }
-    }
-    return;
-  }
-  const notesSave = e.target.closest('.cc-notes-save');
-  if (notesSave) {
-    const id = notesSave.dataset.notesSave;
-    const area = document.querySelector(`.cc-notes-area[data-notes-area="${id}"]`);
-    if (area) {
-      GCC.updateCampaign(id, { notes: area.value.trim() });
-    }
-    return;
-  }
+  const charsBtn = e.target.closest('[data-action="edit-chars"]');
+  if (charsBtn) { openCharsModal(charsBtn.dataset.campId); return; }
   const delBtn = e.target.closest('[data-action="del-camp"]');
   if (delBtn) {
     const id = delBtn.dataset.campId;
@@ -963,6 +1031,166 @@ document.getElementById('btn-new-campaign').addEventListener('click', () => {
   const camp = GCC.addCampaign({ name:name.trim(), system:sysIds[idx], gm:gm.trim(), world:world.trim(), genre:genre.trim() });
   GCC.logActivity({ campaign:camp.id, system:camp.system, text:'Created campaign: '+camp.name });
   renderCampaigns(); renderActivity();
+});
+
+// ── Character Edit Modal ──
+const charsModal = document.getElementById('chars-modal');
+let charsData = [];
+
+function openCharsModal(campId) {
+  const camp = GCC.loadCampaigns().find(c => c.id === campId);
+  if (!camp) return;
+  document.getElementById('cf-camp-id').value = campId;
+  charsData = JSON.parse(JSON.stringify(camp.characters || []));
+  renderCharsList();
+  charsModal.classList.add('open');
+}
+
+function closeCharsModal() { charsModal.classList.remove('open'); }
+
+function renderCharsList() {
+  const list = document.getElementById('chars-list');
+  if (!charsData.length) {
+    list.innerHTML = '<li style="font-size:11px;color:var(--tx3);font-style:italic;padding:8px 0">No characters. Click + Add Character.</li>';
+    return;
+  }
+  list.innerHTML = charsData.map((ch, i) =>
+    `<li class="chars-item">
+      <input class="ci-name" placeholder="Character name" value="${ESC(ch.name||'')}" data-ci="${i}" data-field="name">
+      <input class="ci-player" placeholder="Player" value="${ESC(ch.player||'')}" data-ci="${i}" data-field="player">
+      <input class="ci-sub" placeholder="Stats/class" value="${ESC(ch.sub||'')}" data-ci="${i}" data-field="sub">
+      <button class="chars-item-rm" data-ci-rm="${i}" title="Remove">✕</button>
+    </li>`
+  ).join('');
+}
+
+// Sync input changes to charsData
+document.getElementById('chars-list').addEventListener('input', (e) => {
+  const inp = e.target.closest('[data-ci]');
+  if (!inp) return;
+  const idx = parseInt(inp.dataset.ci);
+  const field = inp.dataset.field;
+  if (charsData[idx]) charsData[idx][field] = inp.value;
+});
+
+// Remove character
+document.getElementById('chars-list').addEventListener('click', (e) => {
+  const rm = e.target.closest('[data-ci-rm]');
+  if (!rm) return;
+  charsData.splice(parseInt(rm.dataset.ciRm), 1);
+  renderCharsList();
+});
+
+// Add character
+document.getElementById('chars-add').addEventListener('click', () => {
+  charsData.push({ name: '', player: '', sub: '' });
+  renderCharsList();
+  const inputs = document.querySelectorAll('#chars-list .ci-name');
+  if (inputs.length) inputs[inputs.length - 1].focus();
+});
+
+// Save
+document.getElementById('cf-save').addEventListener('click', () => {
+  const id = document.getElementById('cf-camp-id').value;
+  const cleaned = charsData.filter(ch => ch.name.trim());
+  GCC.updateCampaign(id, { characters: cleaned, players: cleaned.length });
+  closeCharsModal();
+  renderCampaigns();
+});
+
+document.getElementById('cf-cancel').addEventListener('click', closeCharsModal);
+document.getElementById('chars-modal-close').addEventListener('click', closeCharsModal);
+charsModal.addEventListener('click', (e) => { if (e.target === charsModal) closeCharsModal(); });
+
+// ── Dice Roller ──
+const diceFab = document.getElementById('dice-fab');
+const diceTray = document.getElementById('dice-tray');
+let dicePool = [];
+let diceLog = [];
+
+diceFab.addEventListener('click', () => { diceTray.classList.toggle('open'); });
+
+// Add die to pool
+document.querySelector('.dice-buttons').addEventListener('click', (e) => {
+  const btn = e.target.closest('.dice-btn');
+  if (!btn) return;
+  const sides = parseInt(btn.dataset.die);
+  // Check if same die type exists, increment count
+  const existing = dicePool.find(d => d.sides === sides);
+  if (existing) { existing.count++; } else { dicePool.push({ sides, count: 1 }); }
+  renderDicePool();
+});
+
+function renderDicePool() {
+  const el = document.getElementById('dice-pool');
+  if (!dicePool.length) { el.innerHTML = '<span class="dice-pool-empty">Click dice to add</span>'; return; }
+  el.innerHTML = dicePool.map((d, i) =>
+    `<span class="dice-pool-chip">${d.count}d${d.sides}<span class="dice-pool-chip-rm" data-dp-rm="${i}">✕</span></span>`
+  ).join('');
+}
+
+// Remove from pool
+document.getElementById('dice-pool').addEventListener('click', (e) => {
+  const rm = e.target.closest('[data-dp-rm]');
+  if (!rm) return;
+  dicePool.splice(parseInt(rm.dataset.dpRm), 1);
+  renderDicePool();
+});
+
+// Clear
+document.getElementById('dice-clear').addEventListener('click', () => {
+  dicePool = [];
+  document.getElementById('dice-modifier').value = 0;
+  document.getElementById('dice-result').classList.remove('show');
+  renderDicePool();
+});
+
+// Roll
+document.getElementById('dice-roll').addEventListener('click', () => {
+  if (!dicePool.length) return;
+  const mod = parseInt(document.getElementById('dice-modifier').value) || 0;
+  let total = mod;
+  const allRolls = [];
+  const parts = [];
+
+  dicePool.forEach(d => {
+    const rolls = [];
+    for (let i = 0; i < d.count; i++) {
+      const r = Math.floor(Math.random() * d.sides) + 1;
+      rolls.push(r);
+      total += r;
+    }
+    allRolls.push({ die: 'd' + d.sides, rolls });
+    parts.push(d.count + 'd' + d.sides + ' [' + rolls.join(', ') + ']');
+  });
+
+  if (mod !== 0) parts.push((mod > 0 ? '+' : '') + mod);
+
+  // Show result
+  const resultEl = document.getElementById('dice-result');
+  resultEl.classList.add('show');
+  document.getElementById('dice-total').textContent = total;
+  document.getElementById('dice-breakdown').textContent = parts.join(' + ');
+
+  // Log
+  const expr = dicePool.map(d => d.count + 'd' + d.sides).join('+') + (mod ? (mod > 0 ? '+' : '') + mod : '');
+  diceLog.unshift({ expr, total, parts: parts.join(' + ') });
+  if (diceLog.length > 20) diceLog.length = 20;
+  renderDiceLog();
+});
+
+function renderDiceLog() {
+  const el = document.getElementById('dice-log');
+  el.innerHTML = diceLog.map(l =>
+    `<div class="dice-log-item"><span class="dl-total">${l.total}</span> ← ${ESC(l.expr)} (${ESC(l.parts)})</div>`
+  ).join('');
+}
+
+// Close dice tray when clicking outside
+document.addEventListener('click', (e) => {
+  if (!diceTray.contains(e.target) && e.target !== diceFab && !diceFab.contains(e.target)) {
+    diceTray.classList.remove('open');
+  }
 });
 
 // ── Render ──
