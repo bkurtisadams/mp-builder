@@ -1149,7 +1149,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         if(h>maxH){w*=maxH/h;h=maxH;}
         canvas.width=w;canvas.height=h;
         canvas.getContext("2d").drawImage(img,0,0,w,h);
-        CHAR.portraitData=canvas.toDataURL("image/jpeg",0.8);
+        CHAR.portraitData=canvas.toDataURL("image/png");
         showPortrait(CHAR.portraitData);
         autosave();
       };
