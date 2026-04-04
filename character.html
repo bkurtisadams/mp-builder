@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mighty Protectors — Character Sheet</title>
-<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bitter:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bitter:wght@400;700&family=Cinzel:wght@500;700&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="gcc-header.css">
 <style>
 :root {
   --bg: #d6eaf8;
@@ -415,10 +416,28 @@ const MPDialog = (function() {
 </script>
 
 <!-- Screen header -->
+<div id="gcc-bar" class="gcc-bar">
+  <div class="gcc-bar-in">
+    <a href="index.html" class="gcc-brand" title="Back to Dashboard">
+      <img src="graycloak-icon-t64.png" alt="" class="gcc-brand-icon">
+      <div class="gcc-title-wrap">
+        <div class="gcc-title">GRAYCLOAK'S CAMPAIGN CORNER</div>
+        <div class="gcc-subtitle">Your Tabletop Toolkit</div>
+      </div>
+    </a>
+    <div class="gcc-nav">
+      <div class="gcc-tools-wrap">
+        <button class="gcc-nav-btn" id="gcc-btn-tools">🎲 Tools ▾</button>
+        <div class="gcc-tools-dd" id="gcc-tools-dd"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="gcc-tools-overlay" id="gcc-tools-overlay"></div>
+
 <div class="mp-hdr">
   <div class="mp-hdr-in">
     <div class="mp-logo-wrap">
-      <a href="index.html" title="Back to Dashboard" style="display:flex;align-items:center;text-decoration:none;color:#8be9fd;font-size:16px;margin-right:4px">◂</a>
       <img src="MP_logo_v3.png" alt="Mighty Protectors" style="height:24px">
       <span class="mp-logo-sub">CHARACTER BUILDER</span>
     </div>
@@ -698,6 +717,7 @@ const MPDialog = (function() {
 </div>
 </div>
 
+<script src="gcc-header.js"></script>
 <script src="mp-chargen.js"></script>
 <script>
 const STORE_KEY = 'mp-char-sheet';

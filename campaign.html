@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mighty Protectors — Campaigns</title>
-<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bitter:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bitter:wght@400;700&family=Cinzel:wght@500;700&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="gcc-header.css">
 <style>
 :root {
   --hdr-bg: #1a1430;
@@ -146,13 +147,33 @@ body { min-height: 100vh; background: var(--page-bg); color: var(--tx); font-fam
 </style>
 </head>
 <body>
-<div class="hdr"><div class="hdr-in"><div class="hdr-logo"><img src="MP_logo_v3.png" alt="Mighty Protectors"><span class="hdr-logo-sub">BUILDER</span></div><div class="hdr-nav"><a href="index.html">Dashboard</a><a href="campaign.html" class="active">Campaigns</a></div></div></div>
+<div id="gcc-bar" class="gcc-bar">
+  <div class="gcc-bar-in">
+    <a href="index.html" class="gcc-brand" title="Back to Dashboard">
+      <img src="graycloak-icon-t64.png" alt="" class="gcc-brand-icon">
+      <div class="gcc-title-wrap">
+        <div class="gcc-title">GRAYCLOAK'S CAMPAIGN CORNER</div>
+        <div class="gcc-subtitle">Your Tabletop Toolkit</div>
+      </div>
+    </a>
+    <div class="gcc-nav">
+      <div class="gcc-tools-wrap">
+        <button class="gcc-nav-btn" id="gcc-btn-tools">🎲 Tools ▾</button>
+        <div class="gcc-tools-dd" id="gcc-tools-dd"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="gcc-tools-overlay" id="gcc-tools-overlay"></div>
+
+<div class="hdr"><div class="hdr-in"><div class="hdr-logo"><img src="MP_logo_v3.png" alt="Mighty Protectors"><span class="hdr-logo-sub">BUILDER</span></div><div class="hdr-nav"><a href="campaign.html" class="active">Campaigns</a></div></div></div>
 <div class="main"><div class="main-in">
   <div class="page-hdr"><span class="page-title">MY CAMPAIGNS</span><button class="btn-new-camp" id="btn-new-camp">+ New Campaign</button></div>
   <div id="campaigns-container"></div>
 </div></div>
 <div class="ftr">Mighty Protectors is a registered trademark of Monkey House Games.</div>
 
+<script src="gcc-header.js"></script>
 <script>
 const CHARS_KEY='mp-char-list',VEHS_KEY='mp-veh-list',CAMP_KEY='mp-campaigns',CAMP_SEL_KEY='mp-campaign-sel',CAMP_DATA_KEY='mp-campaign-data';
 function loadList(k){try{return JSON.parse(localStorage.getItem(k))||[]}catch(e){return[]}}

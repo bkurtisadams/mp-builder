@@ -1,0 +1,160 @@
+/* gcc-header.css v1.0.0 — 2026-04-04 */
+/* Shared site-wide header for all GCC pages */
+
+/* ── GCC Site Bar (Row 1) ── */
+.gcc-bar {
+  background: #0e1218;
+  border-bottom: 1px solid #252a34;
+  padding: 0 16px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 100;
+}
+.gcc-bar-in {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+.gcc-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+.gcc-brand:hover .gcc-title { color: #8be9fd; }
+.gcc-brand-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.gcc-title-wrap { display: flex; flex-direction: column; }
+.gcc-title {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #c8ccd4;
+  letter-spacing: 2px;
+  line-height: 1.2;
+  transition: color 0.15s;
+}
+.gcc-subtitle {
+  font-family: 'Alegreya SC', serif;
+  font-size: 8px;
+  color: #4a5464;
+  letter-spacing: 3px;
+  margin-top: 1px;
+}
+.gcc-nav {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.gcc-nav-btn {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-family: 'Alegreya', serif;
+  font-weight: 700;
+  background: transparent;
+  border: 1px solid #303848;
+  color: #7a8494;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.gcc-nav-btn:hover {
+  border-color: #4a5464;
+  color: #c8ccd4;
+  background: rgba(255,255,255,0.03);
+}
+
+/* Tools Dropdown */
+.gcc-tools-wrap { position: relative; }
+.gcc-tools-dd {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  width: 280px;
+  background: #1a1e26;
+  border: 1px solid #303848;
+  border-radius: 5px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  z-index: 200;
+  max-height: 70vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.gcc-tools-dd.open { display: block; }
+.gcc-tools-dd::-webkit-scrollbar { width: 4px; }
+.gcc-tools-dd::-webkit-scrollbar-thumb { background: #303848; border-radius: 2px; }
+.gcc-tools-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+}
+.gcc-tools-overlay.open { display: block; }
+
+/* Dropdown items */
+.gcc-td-section { padding: 8px 0; }
+.gcc-td-section + .gcc-td-section { border-top: 1px solid #252a34; }
+.gcc-td-section-title {
+  font-family: 'Alegreya SC', serif;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #4a5464;
+  padding: 4px 14px;
+  margin-bottom: 2px;
+}
+.gcc-td-sys-hdr {
+  padding: 6px 14px 2px;
+  font-family: 'Alegreya', serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #c8ccd4;
+}
+.gcc-td-sys-icon { margin-right: 4px; }
+.gcc-td-link {
+  display: block;
+  padding: 4px 14px 4px 28px;
+  font-size: 11px;
+  font-family: 'Alegreya', serif;
+  color: #7a8494;
+  text-decoration: none;
+  transition: all 0.1s;
+}
+.gcc-td-link:hover { color: #c8ccd4; background: rgba(255,255,255,0.03); }
+.gcc-td-link.disabled { opacity: 0.35; pointer-events: none; }
+.gcc-td-link.active { color: #8be9fd; }
+.gcc-td-link .bullet { font-size: 6px; margin-right: 4px; vertical-align: 1px; }
+.gcc-td-shared-link {
+  display: block;
+  padding: 5px 14px;
+  font-size: 11px;
+  font-family: 'Alegreya', serif;
+  color: #7a8494;
+  text-decoration: none;
+  transition: all 0.1s;
+}
+.gcc-td-shared-link:hover { color: #c8ccd4; background: rgba(255,255,255,0.03); }
+.gcc-td-shared-icon { margin-right: 6px; }
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .gcc-title { font-size: 11px; letter-spacing: 1px; }
+  .gcc-subtitle { font-size: 7px; letter-spacing: 2px; }
+  .gcc-nav-btn { padding: 3px 7px; font-size: 9px; }
+  .gcc-tools-dd { width: 260px; right: -8px; }
+}

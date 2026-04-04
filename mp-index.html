@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mighty Protectors — Builder</title>
-<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bitter:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bitter:wght@400;700&family=Cinzel:wght@500;700&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="gcc-header.css">
 <style>
 /* ── Palette from cover art + logo ── */
 :root {
@@ -387,7 +388,27 @@ body {
 </head>
 <body>
 
-<!-- Header -->
+<!-- GCC Site Bar -->
+<div id="gcc-bar" class="gcc-bar">
+  <div class="gcc-bar-in">
+    <a href="index.html" class="gcc-brand" title="Back to Dashboard">
+      <img src="graycloak-icon-t64.png" alt="" class="gcc-brand-icon">
+      <div class="gcc-title-wrap">
+        <div class="gcc-title">GRAYCLOAK'S CAMPAIGN CORNER</div>
+        <div class="gcc-subtitle">Your Tabletop Toolkit</div>
+      </div>
+    </a>
+    <div class="gcc-nav">
+      <div class="gcc-tools-wrap">
+        <button class="gcc-nav-btn" id="gcc-btn-tools">🎲 Tools ▾</button>
+        <div class="gcc-tools-dd" id="gcc-tools-dd"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="gcc-tools-overlay" id="gcc-tools-overlay"></div>
+
+<!-- MP Page Header -->
 <div class="hdr">
   <div class="hdr-in">
     <div class="hdr-logo">
@@ -395,7 +416,6 @@ body {
       <span class="hdr-logo-sub">BUILDER</span>
     </div>
     <div style="display:flex;gap:4px;align-items:center">
-      <a href="index.html" style="padding:5px 10px;font-size:10px;font-family:var(--fb);font-weight:700;color:var(--gold);text-decoration:none;border-radius:3px;background:rgba(232,168,32,0.12)">Dashboard</a>
       <a href="campaign.html" style="padding:5px 10px;font-size:10px;font-family:var(--fb);font-weight:700;color:#ccc;text-decoration:none;border-radius:3px" onmouseover="this.style.color='#fff';this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.color='#ccc';this.style.background='transparent'">Campaign</a>
     </div>
     <!-- Guest: show auth buttons -->
@@ -495,6 +515,7 @@ body {
   Mighty Protectors is a registered trademark of Monkey House Games.
 </div>
 
+<script src="gcc-header.js"></script>
 <script>
 // ── Storage keys ──
 const CHARS_KEY = 'mp-char-list';
