@@ -175,7 +175,24 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 <body>
 
 <!-- GCC Site Bar -->
-<div class="gcc-bar"><div class="gcc-bar-in" id="gcc-bar-in"></div></div>
+<div id="gcc-bar" class="gcc-bar">
+  <div class="gcc-bar-in">
+    <a href="index.html" class="gcc-brand" title="Back to Dashboard">
+      <img src="graycloak-icon-t64.png" alt="" class="gcc-brand-icon">
+      <div class="gcc-title-wrap">
+        <div class="gcc-title">GRAYCLOAK'S CAMPAIGN CORNER</div>
+        <div class="gcc-subtitle">Your Tabletop Toolkit</div>
+      </div>
+    </a>
+    <div class="gcc-nav">
+      <div class="gcc-tools-wrap">
+        <button class="gcc-nav-btn" id="gcc-btn-tools">🎲 Tools ▾</button>
+        <div class="gcc-tools-dd" id="gcc-tools-dd"></div>
+      </div>
+      <button class="gcc-nav-btn" id="gcc-btn-theme" title="Toggle light/dark"><span id="gcc-theme-icon">◑</span></button>
+    </div>
+  </div>
+</div>
 <div class="gcc-tools-overlay" id="gcc-tools-overlay"></div>
 
 <!-- FASERIP Toolbar -->
