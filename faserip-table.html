@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FASERIP — Universal Table</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700;900&family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Cinzel:wght@500;700&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="gcc-header.css">
+<style>
+:root {
+  --sky:#5ac8e8;--sky-dk:#3ea8cc;--sky-pale:#c8eef8;
+  --white:#fff;--paper:#f5f5f0;
+  --green:#22bb22;--green-dk:#158015;
+  --yellow:#f0d800;--yellow-dk:#c4b000;
+  --red:#cc1111;--red-dk:#8b0000;
+  --dark:#111;--mid:#444;--soft:#666;--mute:#999;
+  --rule:rgba(0,0,0,.18);
+  --fd:'Oswald','Impact',sans-serif;
+  --fb:'Barlow Condensed','Arial Narrow',sans-serif;
+  --bg:#d6eaf8;--bg2:#c4dff0;
+  --hdr-bg:#1a2a3a;--accent:#c05a00;
+  /* table colors */
+  --tw:#fff;--tg:#22bb22;--ty:#f0d800;--tr:#cc1111;
+  --tw-tx:#000;--tg-tx:#000;--ty-tx:#000;--tr-tx:#fff;
+  --col-hdr:#e8e8e0;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{min-height:100%;background:var(--bg)}
+body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--fb);font-size:12px;display:flex;flex-direction:column}
+
+/* ── FASERIP Toolbar ── */
+.fas-hdr{background:var(--gcc-mp-bg);border-bottom:3px solid var(--gcc-mp-brd);padding:0 12px;flex-shrink:0}
+.fas-hdr-in{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;min-height:40px;gap:8px;flex-wrap:wrap;padding:4px 0}
+.fas-logo-wrap{display:flex;align-items:center;gap:8px}
+.fas-logo-title{font-family:var(--fd);font-size:22px;color:var(--gcc-mp-tx);letter-spacing:2px;text-shadow:1px 1px 0 rgba(0,0,0,.15)}
+.fas-logo-sub{font-family:var(--fb);font-size:9px;color:var(--gcc-mp-sub);letter-spacing:1px}
+.fas-hdr-btns{display:flex;gap:3px;align-items:center;flex-wrap:wrap}
+.hdr-btn{padding:3px 7px;font-size:9px;background:var(--gcc-mp-btn-bg);border:1px solid var(--gcc-mp-btn-brd);color:var(--gcc-mp-btn-tx);border-radius:2px;cursor:pointer;font-family:var(--fb);font-weight:700}
+.hdr-btn:hover{border-color:var(--gcc-mp-btn-hover-brd);background:var(--gcc-mp-btn-hover-bg)}
+.hdr-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* ── Footer ── */
+.fas-ftr{font-size:8px;color:#3a5a70;text-align:center;padding:6px;background:var(--bg2);border-top:1px solid #8ab4d0;margin-top:auto}
+
+/* ── Main Content ── */
+.ut-wrap{flex:1;overflow:auto;padding:10px;-webkit-overflow-scrolling:touch}
+.ut-inner{max-width:1200px;margin:0 auto}
+
+/* ── Action Types Table ── */
+.action-table-wrap{margin-bottom:12px;overflow-x:auto}
+table.action-tbl{border-collapse:collapse;font-family:var(--fb);font-size:10px;width:100%;min-width:900px}
+.action-tbl th,.action-tbl td{border:1px solid #000;padding:2px 3px;text-align:center;vertical-align:middle;line-height:1.15}
+.action-tbl thead th{background:var(--col-hdr);font-family:var(--fd);font-weight:700}
+.action-tbl .at-abbr{font-size:16px;font-weight:900;font-family:var(--fd);line-height:1}
+.action-tbl .at-name{font-size:8px;font-weight:600;line-height:1.1}
+.action-tbl .at-ability{font-size:8px;color:var(--soft);font-style:italic}
+.action-tbl .row-w{background:var(--tw)}
+.action-tbl .row-g{background:var(--tg);color:var(--tg-tx)}
+.action-tbl .row-y{background:var(--ty);color:var(--ty-tx)}
+.action-tbl .row-r{background:var(--tr);color:var(--tr-tx)}
+.action-tbl .row-label{font-weight:900;font-family:var(--fd);font-size:11px;text-align:left;padding-left:6px;width:50px}
+
+/* ── Rank Reference ── */
+.rank-ref-wrap{margin-bottom:12px;overflow-x:auto}
+table.rank-tbl{border-collapse:collapse;font-family:var(--fb);font-size:10px;min-width:800px}
+.rank-tbl th,.rank-tbl td{border:1px solid #000;padding:2px 4px;text-align:center;vertical-align:middle}
+.rank-tbl thead th{background:var(--col-hdr);font-family:var(--fd);font-weight:700}
+.rank-tbl .rk-abbr{font-size:18px;font-weight:900;font-family:var(--fd);line-height:1}
+.rank-tbl .rk-name{font-size:8px;font-weight:600;line-height:1.1}
+.rank-tbl .rk-val{font-weight:700;font-size:11px}
+.rank-tbl .rk-range{font-size:9px;color:var(--mid)}
+.rank-tbl .rk-gap{border:none;width:12px;background:transparent}
+.rank-tbl .rk-class{background:#e8f8e0}
+
+/* ── Universal Table Grid ── */
+.ut-grid-wrap{overflow-x:auto}
+table.ut-grid{border-collapse:collapse;font-family:var(--fd);font-size:10px;min-width:800px}
+.ut-grid th,.ut-grid td{border:1px solid #888;padding:0;text-align:center;vertical-align:middle;height:18px;min-width:42px}
+.ut-grid .ut-roll{font-weight:700;font-size:10px;background:#e0eff8;color:#000;min-width:42px;text-align:right;padding-right:6px;border-color:#789;font-family:var(--fb)}
+.ut-grid thead th{background:var(--col-hdr);font-family:var(--fd);font-weight:700;font-size:11px;height:22px;border-color:#000}
+.ut-grid .c-w{background:var(--tw)}
+.ut-grid .c-g{background:var(--tg)}
+.ut-grid .c-y{background:var(--ty)}
+.ut-grid .c-r{background:var(--tr)}
+
+/* ── Hover highlight ── */
+.ut-grid tbody tr:hover .ut-roll{background:#cde4f2}
+.ut-grid tbody tr:hover td:not(.ut-roll){opacity:.9}
+
+/* ── Column highlight on hover ── */
+.ut-grid th.col-hl,.ut-grid td.col-hl{outline:2px solid #c05a00;outline-offset:-1px;z-index:1;position:relative}
+
+/* ── Dice Roller ── */
+.dice-bar{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.dice-btn{
+  font-family:var(--fd);font-size:14px;font-weight:900;letter-spacing:1px;
+  padding:6px 18px;border:2px solid #000;border-radius:3px;cursor:pointer;
+  background:var(--paper);color:#000;transition:all .12s;
+}
+.dice-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.dice-btn:active{transform:scale(.96)}
+.dice-result{font-family:var(--fd);font-size:22px;font-weight:900;min-width:40px;text-align:center}
+.dice-color{display:inline-block;width:18px;height:18px;border-radius:3px;border:1px solid #000;vertical-align:middle;margin-left:4px}
+
+/* ── Print ── */
+@media print{
+  .gcc-bar,.fas-hdr,.fas-ftr,.dice-bar,.gcc-tools-overlay{display:none!important}
+  .ut-wrap{padding:0}
+  html,body{background:#fff}
+}
+@media(max-width:600px){
+  .fas-logo-title{font-size:16px}
+}
+</style>
+</head>
+<body>
+
+<!-- GCC Site Bar -->
+<div id="gcc-bar" class="gcc-bar">
+  <div class="gcc-bar-in">
+    <a href="index.html" class="gcc-brand" title="Back to Dashboard">
+      <img src="graycloak-icon-t64.png" alt="" class="gcc-brand-icon">
+      <div class="gcc-title-wrap">
+        <div class="gcc-title">GRAYCLOAK'S CAMPAIGN CORNER</div>
+        <div class="gcc-subtitle">Your Tabletop Toolkit</div>
+      </div>
+    </a>
+    <div class="gcc-nav">
+      <div class="gcc-tools-wrap">
+        <button class="gcc-nav-btn" id="gcc-btn-tools">🎲 Tools ▾</button>
+        <div class="gcc-tools-dd" id="gcc-tools-dd"></div>
+      </div>
+      <button class="gcc-nav-btn" id="gcc-btn-theme" title="Toggle light/dark"><span id="gcc-theme-icon">◑</span></button>
+    </div>
+  </div>
+</div>
+<div class="gcc-tools-overlay" id="gcc-tools-overlay"></div>
+
+<!-- FASERIP Toolbar -->
+<div class="fas-hdr">
+  <div class="fas-hdr-in">
+    <div class="fas-logo-wrap">
+      <div>
+        <div class="fas-logo-title">FASERIP</div>
+        <div class="fas-logo-sub">UNIVERSAL TABLE</div>
+      </div>
+    </div>
+    <div class="fas-hdr-btns">
+      <a class="hdr-btn" href="faserip.html">Character Sheet</a>
+      <button class="hdr-btn" id="btn-print" title="Print Table">Print</button>
+    </div>
+  </div>
+</div>
+
+<div class="ut-wrap">
+<div class="ut-inner">
+
+<!-- Dice Roller -->
+<div class="dice-bar">
+  <button class="dice-btn" id="btn-roll">ROLL d100</button>
+  <span class="dice-result" id="dice-result">—</span>
+  <span class="dice-color" id="dice-color" title="Result color"></span>
+</div>
+
+<!-- ═══ ACTION TYPES TABLE ═══ -->
+<div class="action-table-wrap">
+<table class="action-tbl">
+<thead>
+<tr>
+  <th></th>
+  <th><div class="at-name">Blunt<br>Attacks</div><div class="at-abbr">BA</div><div class="at-ability">Fighting</div></th>
+  <th><div class="at-name">Edged<br>Attacks</div><div class="at-abbr">EA</div><div class="at-ability">Fighting</div></th>
+  <th><div class="at-name">Shooting<br>Attacks</div><div class="at-abbr">Sh</div><div class="at-ability">Agility</div></th>
+  <th><div class="at-name">Throwing<br>Edged</div><div class="at-abbr">TE</div><div class="at-ability">Agility</div></th>
+  <th><div class="at-name">Throwing<br>Blunt</div><div class="at-abbr">TB</div><div class="at-ability">Agility</div></th>
+  <th><div class="at-name">Energy</div><div class="at-abbr">En</div><div class="at-ability">Agility</div></th>
+  <th><div class="at-name">Force</div><div class="at-abbr">Fo</div><div class="at-ability">Agility</div></th>
+  <th><div class="at-name">Grap-<br>pling</div><div class="at-abbr">Gp</div><div class="at-ability">Strength</div></th>
+  <th><div class="at-name">Grab-<br>bing</div><div class="at-abbr">Gb</div><div class="at-ability">Strength</div></th>
+  <th><div class="at-name">Escap-<br>ing</div><div class="at-abbr">Es</div><div class="at-ability">Strength</div></th>
+  <th><div class="at-name">Charg-<br>ing</div><div class="at-abbr">Ch</div><div class="at-ability">Endur-<br>ance</div></th>
+  <th><div class="at-name">Dodging</div><div class="at-abbr">Do</div><div class="at-ability">Agility</div></th>
+  <th><div class="at-name">Evad-<br>ing</div><div class="at-abbr">Ev</div><div class="at-ability">Fighting</div></th>
+  <th><div class="at-name">Blocking</div><div class="at-abbr">Bl</div><div class="at-ability">Strength</div></th>
+  <th><div class="at-name">Catching</div><div class="at-abbr">Ca</div><div class="at-ability">Agility</div></th>
+  <th><div class="at-name">Stun?</div><div class="at-abbr">St</div><div class="at-ability">Endur-<br>ance</div></th>
+  <th><div class="at-name">Slam?</div><div class="at-abbr">Sl</div><div class="at-ability">Endur-<br>ance</div></th>
+  <th><div class="at-name">Kill?</div><div class="at-abbr">Ki</div><div class="at-ability">Endur-<br>ance</div></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-w"><td class="row-label">White</td><td>Miss</td><td>Miss</td><td>Miss</td><td>Miss</td><td>Miss</td><td>Miss</td><td>Miss</td><td>Miss</td><td>Miss</td><td>Miss</td><td>Miss</td><td>None</td><td>Autohit</td><td>-6 CS</td><td>Autohit</td><td>1-10</td><td>Gr. Slam</td><td>En. Loss</td></tr>
+<tr class="row-g"><td class="row-label">Green</td><td>Hit</td><td>Hit</td><td>Hit</td><td>Hit</td><td>Hit</td><td>Hit</td><td>Hit</td><td>Miss</td><td>Take</td><td>Miss</td><td>Hit</td><td>-2 CS</td><td>Evasion</td><td>-4 CS</td><td>Miss</td><td>1</td><td>1 area</td><td>E/S</td></tr>
+<tr class="row-y"><td class="row-label">Yellow</td><td>Slam</td><td>Stun</td><td>Bullseye</td><td>Stun</td><td>Hit</td><td>Bullseye</td><td>Bullseye</td><td>Partial</td><td>Grab</td><td>Escape</td><td>Slam</td><td>-4 CS</td><td>+1 CS</td><td>-2 CS</td><td>Damage</td><td>No</td><td>Stagger</td><td>No</td></tr>
+<tr class="row-r"><td class="row-label">Red</td><td>Stun</td><td>Kill</td><td>Kill</td><td>Kill</td><td>Stun</td><td>Kill</td><td>Stun</td><td>Hold</td><td>Break</td><td>Reverse</td><td>Stun</td><td>-6 CS</td><td>+2 CS</td><td>+1 CS</td><td>Catch</td><td>No</td><td>No</td><td>No</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ═══ RANK REFERENCE ═══ -->
+<div class="rank-ref-wrap">
+<table class="rank-tbl">
+<thead>
+<tr>
+  <th><div class="rk-abbr">0</div><div class="rk-name">Shift</div></th>
+  <th><div class="rk-abbr">Fe</div><div class="rk-name">Feeble</div></th>
+  <th><div class="rk-abbr">Pr</div><div class="rk-name">Poor</div></th>
+  <th><div class="rk-abbr">Ty</div><div class="rk-name">Typical</div></th>
+  <th><div class="rk-abbr">Gd</div><div class="rk-name">Good</div></th>
+  <th><div class="rk-abbr">Ex</div><div class="rk-name">Excellent</div></th>
+  <th><div class="rk-abbr">Rm</div><div class="rk-name">Remarkable</div></th>
+  <th><div class="rk-abbr">In</div><div class="rk-name">Incredible</div></th>
+  <th><div class="rk-abbr">Am</div><div class="rk-name">Amazing</div></th>
+  <th><div class="rk-abbr">Mn</div><div class="rk-name">Monstrous</div></th>
+  <th><div class="rk-abbr">Un</div><div class="rk-name">Unearthly</div></th>
+  <th><div class="rk-abbr">X</div><div class="rk-name">Shift X</div></th>
+  <th><div class="rk-abbr">Y</div><div class="rk-name">Shift Y</div></th>
+  <th><div class="rk-abbr">Z</div><div class="rk-name">Shift Z</div></th>
+  <th class="rk-gap"></th>
+  <th class="rk-class"><div class="rk-abbr" style="font-size:14px">1000</div><div class="rk-name">Class</div></th>
+  <th class="rk-class"><div class="rk-abbr" style="font-size:14px">3000</div><div class="rk-name">Class</div></th>
+  <th class="rk-class"><div class="rk-abbr" style="font-size:14px">5000</div><div class="rk-name">Class</div></th>
+  <th class="rk-class"><div class="rk-abbr" style="font-size:14px">B</div><div class="rk-name">Beyond</div></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td class="rk-val">0</td><td class="rk-val">2</td><td class="rk-val">4</td><td class="rk-val">6</td>
+  <td class="rk-val">10</td><td class="rk-val">20</td><td class="rk-val">30</td><td class="rk-val">40</td>
+  <td class="rk-val">50</td><td class="rk-val">75</td><td class="rk-val">100</td><td class="rk-val">150</td>
+  <td class="rk-val">200</td><td class="rk-val">500</td>
+  <td class="rk-gap"></td>
+  <td class="rk-val rk-class">1000</td><td class="rk-val rk-class">3000</td><td class="rk-val rk-class">5000</td><td class="rk-val rk-class">∞</td>
+</tr>
+<tr>
+  <td class="rk-range">0</td><td class="rk-range">1-2</td><td class="rk-range">3-4</td><td class="rk-range">5-7</td>
+  <td class="rk-range">8-15</td><td class="rk-range">16-25</td><td class="rk-range">26-36</td><td class="rk-range">37-45</td>
+  <td class="rk-range">46-62</td><td class="rk-range">63-87</td><td class="rk-range">88-125</td><td class="rk-range">126-175</td>
+  <td class="rk-range">176-350</td><td class="rk-range">351+</td>
+  <td class="rk-gap"></td>
+  <td class="rk-range rk-class"></td><td class="rk-range rk-class"></td><td class="rk-range rk-class"></td><td class="rk-range rk-class"></td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<!-- ═══ UNIVERSAL TABLE GRID ═══ -->
+<div class="ut-grid-wrap">
+<table class="ut-grid" id="ut-grid">
+<thead>
+<tr id="ut-hdr"></tr>
+</thead>
+<tbody id="ut-body"></tbody>
+</table>
+</div>
+
+</div><!-- .ut-inner -->
+</div><!-- .ut-wrap -->
+
+<div class="fas-ftr">FASERIP Universal Table — Graycloak's Campaign Corner</div>
+
+<script src="gcc-header.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// FASERIP UNIVERSAL TABLE DATA
+// ══════════════════════════════════════════════════════════════
+
+const RANK_COLS = [
+  'Sh 0','Fe','Pr','Ty','Gd','Ex','Rm','In','Am','Mn','Un','ShX','ShY','ShZ','C1000','C3000','C5000','Bey'
+];
+const RANK_LABELS = [
+  '0','Fe','Pr','Ty','Gd','Ex','Rm','In','Am','Mn','Un','X','Y','Z','1000','3000','5000','B'
+];
+
+const ROLL_ROWS = [
+  '01','02-03','04-06','07-10','11-15','16-20','21-25','26-30',
+  '31-35','36-40','41-45','46-50','51-55','56-60','61-65','66-70',
+  '71-75','76-80','81-85','86-90','91-94','95-97','98-99','100'
+];
+
+// Color data: w=white, g=green, y=yellow, r=red
+// Each row is an array of 18 color codes, one per rank column
+const TABLE_DATA = [
+  // 01
+  ['w','w','w','w','w','w','w','w','w','w','w','w','w','w','w','w','w','w'],
+  // 02-03
+  ['w','w','w','w','w','w','w','w','w','w','w','w','w','w','w','w','w','w'],
+  // 04-06
+  ['w','w','w','w','w','w','w','w','w','w','w','w','w','w','g','g','g','g'],
+  // 07-10
+  ['w','w','w','w','w','w','w','w','w','w','w','w','w','w','g','g','g','g'],
+  // 11-15
+  ['w','w','w','w','w','w','w','w','w','w','w','g','g','g','g','g','g','g'],
+  // 16-20
+  ['w','w','w','w','w','w','w','w','w','g','g','g','g','g','g','g','g','g'],
+  // 21-25
+  ['w','w','w','w','w','w','w','w','g','g','g','g','g','g','g','g','g','g'],
+  // 26-30
+  ['w','w','w','w','w','w','w','g','g','g','g','g','g','g','g','g','g','g'],
+  // 31-35
+  ['w','w','w','w','w','g','g','g','g','g','g','g','g','g','g','g','g','g'],
+  // 36-40
+  ['w','w','w','w','w','g','g','g','g','g','g','g','g','g','g','g','g','g'],
+  // 41-45
+  ['w','w','w','w','g','g','g','g','g','g','g','g','g','g','g','g','g','g'],
+  // 46-50
+  ['w','w','w','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g'],
+  // 51-55
+  ['w','w','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g'],
+  // 56-60
+  ['w','w','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g'],
+  // 61-65
+  ['w','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g','g'],
+  // 66-70
+  ['w','g','g','g','g','y','y','g','g','g','g','g','g','g','g','g','g','g'],
+  // 71-75
+  ['g','g','g','g','y','y','y','g','g','g','g','g','g','g','g','g','g','g'],
+  // 76-80
+  ['g','g','g','y','y','y','y','y','g','g','g','g','g','g','g','g','g','g'],
+  // 81-85
+  ['g','g','y','y','y','y','y','y','y','g','g','g','g','g','g','g','g','g'],
+  // 86-90
+  ['g','g','y','y','y','y','y','y','y','y','g','g','g','g','g','g','g','g'],
+  // 91-94
+  ['g','y','y','y','y','y','y','y','y','y','y','y','y','g','g','g','g','g'],
+  // 95-97
+  ['y','y','y','y','y','y','y','y','y','y','y','y','y','y','y','y','y','g'],
+  // 98-99
+  ['r','r','r','y','y','y','y','y','y','y','y','y','y','y','y','y','y','y'],
+  // 100
+  ['r','r','r','r','r','r','r','r','r','r','r','r','r','r','r','r','r','r'],
+];
+
+// ══════════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════════
+
+function buildTable() {
+  const hdr = document.getElementById('ut-hdr');
+  const body = document.getElementById('ut-body');
+
+  // Header
+  let h = '<th class="ut-roll" style="min-width:50px">Roll</th>';
+  RANK_LABELS.forEach((lbl, i) => {
+    h += `<th data-col="${i}">${lbl}</th>`;
+  });
+  hdr.innerHTML = h;
+
+  // Body
+  let html = '';
+  ROLL_ROWS.forEach((roll, ri) => {
+    html += '<tr>';
+    html += `<td class="ut-roll">${roll}</td>`;
+    TABLE_DATA[ri].forEach((c, ci) => {
+      html += `<td class="c-${c}" data-col="${ci}"></td>`;
+    });
+    html += '</tr>';
+  });
+  body.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════
+// COLUMN HIGHLIGHT
+// ══════════════════════════════════════════════════════════════
+
+function wireColumnHighlight() {
+  const grid = document.getElementById('ut-grid');
+  let hlCol = -1;
+
+  grid.addEventListener('mouseover', e => {
+    const td = e.target.closest('th[data-col], td[data-col]');
+    const col = td ? parseInt(td.dataset.col) : -1;
+    if (col === hlCol) return;
+    if (hlCol >= 0) clearHL();
+    hlCol = col;
+    if (hlCol >= 0) setHL(hlCol);
+  });
+  grid.addEventListener('mouseleave', () => { clearHL(); hlCol = -1; });
+
+  function setHL(c) {
+    grid.querySelectorAll(`[data-col="${c}"]`).forEach(el => el.classList.add('col-hl'));
+  }
+  function clearHL() {
+    grid.querySelectorAll('.col-hl').forEach(el => el.classList.remove('col-hl'));
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// DICE ROLLER
+// ══════════════════════════════════════════════════════════════
+
+function getColorForRoll(roll, rankIdx) {
+  // Find row index
+  const ranges = [
+    [1,1],[2,3],[4,6],[7,10],[11,15],[16,20],[21,25],[26,30],
+    [31,35],[36,40],[41,45],[46,50],[51,55],[56,60],[61,65],[66,70],
+    [71,75],[76,80],[81,85],[86,90],[91,94],[95,97],[98,99],[100,100]
+  ];
+  let ri = -1;
+  for (let i = 0; i < ranges.length; i++) {
+    if (roll >= ranges[i][0] && roll <= ranges[i][1]) { ri = i; break; }
+  }
+  if (ri < 0) return 'w';
+  return TABLE_DATA[ri][rankIdx] || 'w';
+}
+
+const COLOR_MAP = {w:'#ffffff',g:'#22bb22',y:'#f0d800',r:'#cc1111'};
+const COLOR_NAMES = {w:'White',g:'Green',y:'Yellow',r:'Red'};
+
+function wireDice() {
+  const btn = document.getElementById('btn-roll');
+  const result = document.getElementById('dice-result');
+  const colorBox = document.getElementById('dice-color');
+
+  btn.addEventListener('click', () => {
+    const roll = Math.floor(Math.random() * 100) + 1;
+    result.textContent = roll;
+
+    // Highlight the matching row in the grid
+    const rows = document.querySelectorAll('#ut-body tr');
+    rows.forEach(r => r.style.outline = '');
+    const ranges = [
+      [1,1],[2,3],[4,6],[7,10],[11,15],[16,20],[21,25],[26,30],
+      [31,35],[36,40],[41,45],[46,50],[51,55],[56,60],[61,65],[66,70],
+      [71,75],[76,80],[81,85],[86,90],[91,94],[95,97],[98,99],[100,100]
+    ];
+    for (let i = 0; i < ranges.length; i++) {
+      if (roll >= ranges[i][0] && roll <= ranges[i][1]) {
+        rows[i].style.outline = '2px solid #c05a00';
+        rows[i].scrollIntoView({behavior:'smooth', block:'nearest'});
+        break;
+      }
+    }
+
+    // Color box — show nothing specific (depends on ability rank)
+    colorBox.style.background = '#ddd';
+    colorBox.title = `Roll: ${roll}`;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', () => {
+  buildTable();
+  wireColumnHighlight();
+  wireDice();
+
+  document.getElementById('btn-print').addEventListener('click', () => window.print());
+
+  if (window.GCC_HEADER && window.GCC_HEADER.setCurrentPage) {
+    window.GCC_HEADER.setCurrentPage('fas-table');
+  }
+});
+</script>
+</body>
+</html>
