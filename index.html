@@ -142,7 +142,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .filter-tab.active { color: var(--tx); border-color: var(--brd-lt); background: var(--hover-bg) }
 
 /* ── Campaign Cards ── */
-.campaign-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px }
+.campaign-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 8px }
 .campaign-card { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; overflow: hidden; transition: all 0.15s; position: relative; box-shadow: var(--card-shadow) }
 .campaign-card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; bottom: 0; background: var(--brd-lt); z-index: 1 }
 .campaign-card.status-active::before { background: var(--accent-dim) }
@@ -970,12 +970,15 @@ function resizeImageToThumb(file, cb) {
   reader.onload = (e) => {
     const img = new Image();
     img.onload = () => {
-      const tw = 160, th = 140;
+      const tw = 120, th = 160;
       const canvas = document.createElement('canvas');
       canvas.width = tw; canvas.height = th;
       const ctx = canvas.getContext('2d');
-      const scale = Math.max(tw / img.width, th / img.height);
-      const w = img.width * scale, h = img.height * scale;
+      ctx.fillStyle = '#2a2a2e';
+      ctx.fillRect(0, 0, tw, th);
+      let w = img.width, h = img.height;
+      if (w > tw) { h *= tw / w; w = tw; }
+      if (h > th) { w *= th / h; h = th; }
       ctx.drawImage(img, (tw - w) / 2, (th - h) / 2, w, h);
       cb(canvas.toDataURL('image/jpeg', 0.7));
     };
