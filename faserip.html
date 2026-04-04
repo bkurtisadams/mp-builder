@@ -95,8 +95,8 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 
 /* ── Expanded Bio (collapsible) ── */
 .bio-expand{margin-bottom:6px;border-top:1px dotted #ccc;padding-top:4px}
-.bio-toggle{font-size:9px;cursor:pointer;color:var(--accent);font-weight:700;border:none;background:none;font-family:var(--fb);margin-bottom:3px}
-.bio-toggle:hover{text-decoration:underline}
+.bio-toggle{font-size:11px;cursor:pointer;color:var(--accent);font-weight:700;border:none;background:none;font-family:var(--fd);padding:0 3px;line-height:1}
+.bio-toggle:hover{color:#d06a10}
 .bio-detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1px 10px}
 .bio-detail-grid .bio-row .lbl{min-width:60px}
 .bio-history{margin-top:4px}
@@ -153,6 +153,21 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .item-del{cursor:pointer;color:#c00;font-size:11px;border:none;background:none;padding:0 2px;font-weight:700;opacity:.4}
 .item-del:hover{opacity:1}
 .item-star{color:#c8960c;font-size:9px;margin-right:2px}
+.item-info{cursor:pointer;color:#1a6aaa;font-size:10px;border:none;background:none;padding:0 2px;font-weight:700;opacity:.6}
+.item-info:hover{opacity:1;color:var(--accent)}
+.item-row.equip-row{grid-template-columns:auto 60px 40px 1fr auto auto}
+.item-row.stunt-row{grid-template-columns:auto 60px 40px 1fr auto auto}
+.item-cat{font-size:8px;color:var(--soft);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.difficulty-badge{font-size:8px;font-weight:700;padding:1px 4px;border-radius:2px;font-family:var(--fd)}
+.diff-red{background:#fde0e0;color:#8b0000}
+.diff-yellow{background:#fefad0;color:#6a5e00}
+.diff-green{background:#d0f2d0;color:#158015}
+.diff-mastered{background:#e0e0ff;color:#334}
+
+/* Detail modal field grid */
+.detail-grid{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:6px 0}
+.detail-grid .dl{font-weight:700;font-size:10px;color:var(--soft);text-align:right;white-space:nowrap}
+.detail-grid .dv{font-size:11px}
 .feat-btn{
   padding:1px 4px;font-family:var(--fd);font-size:8px;font-weight:700;letter-spacing:.5px;
   border:1px solid #888;background:#e8e8e0;color:#444;border-radius:2px;cursor:pointer;
@@ -204,7 +219,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 /* ── Print ── */
 @media print{
   .gcc-bar,.fas-hdr,.fas-ftr,.chargen-panel,.hdr-btn,
-  .list-add,.item-del,.feat-btn,.modal-overlay{display:none!important}
+  .list-add,.item-del,.item-info,.feat-btn,.modal-overlay,.bio-toggle{display:none!important}
   .sheet-wrap{padding:0}
   .sheet{border:none;max-width:100%;box-shadow:none}
   .si{border-bottom-color:#999!important}
@@ -329,7 +344,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
           </select>
           <span class="lbl" style="min-width:24px">Age</span><input class="si" data-field="age" style="width:36px">
         </div>
-        <div class="bio-row"><span class="lbl">Bio</span><input class="si" data-field="biography"></div>
+        <div class="bio-row"><span class="lbl">Bio</span><input class="si" data-field="biography"><button class="bio-toggle" id="bio-toggle" title="Expand biography details">▼</button></div>
       </div>
     </div>
   </div>
@@ -355,7 +370,6 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
       <textarea data-field="history" rows="3"></textarea>
     </div>
   </div>
-  <button class="bio-toggle" id="bio-toggle">Bio ▼</button>
 
   <!-- Primary + Secondary Abilities -->
   <div class="abilities-wrap">
@@ -462,6 +476,25 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
         <ul class="item-list" id="contacts-list"></ul>
       </div>
     </div>
+
+    <!-- Equipment -->
+    <div class="list-section" id="equipment-section" style="display:none">
+      <div class="list-header">
+        <span class="list-title">Equipment:</span>
+        <button class="list-add" id="add-equipment">+ Add Equipment</button>
+      </div>
+      <ul class="item-list" id="equipment-list"></ul>
+    </div>
+
+    <!-- Stunts -->
+    <div class="list-section" id="stunts-section" style="display:none">
+      <div class="list-header">
+        <span class="list-title">Power Stunts:</span>
+        <button class="list-add" id="add-stunt">+ Add Stunt</button>
+      </div>
+      <ul class="item-list" id="stunts-list"></ul>
+    </div>
+
   </div>
 
 </div><!-- /sheet -->
@@ -475,6 +508,15 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
     <button class="modal-close" id="modal-close">&times;</button>
     <div class="modal-title" id="modal-title">Load Character</div>
     <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detail-overlay">
+  <div class="modal" style="max-width:480px">
+    <button class="modal-close" id="detail-close">&times;</button>
+    <div class="modal-title" id="detail-title"></div>
+    <div id="detail-body" style="font-size:11px;line-height:1.5"></div>
   </div>
 </div>
 
@@ -615,7 +657,7 @@ function newChar(){
     resourcesRank:"Typical", resourcesValue:6,
     popularityHero:10, popularitySecret:0,
     moveRun:0, moveLeap:0, moveSwim:0, moveFly:0, moveTeleport:0,
-    powers:[], talents:[], contacts:[],
+    powers:[], talents:[], contacts:[], equipment:[], stunts:[],
     limitation:"",
     advancementKarma:0, karmaPool:0, poolName:""
   };
@@ -707,6 +749,67 @@ function rollFeat(rankName, label){
   alert(msg);
 }
 
+// ── Movement calculation ──
+const GROUND_SPEED={"Feeble":1,"Poor":2,"Typical":2,"Good":2,"Excellent":2,"Remarkable":3,"Incredible":3,"Amazing":3,"Monstrous":4,"Unearthly":5};
+const LEAP_AREAS={"Feeble":0,"Poor":0,"Typical":0,"Good":0,"Excellent":0,"Remarkable":0,"Incredible":0,"Amazing":0,"Monstrous":0,"Unearthly":1,"Shift-X":1,"Shift-Y":2,"Shift-Z":4};
+function calcRun(endRank){ return GROUND_SPEED[endRank]||2; }
+function calcLeap(strRank){ return LEAP_AREAS[strRank]||0; }
+
+// ── Detail Modal ──
+function showDetail(title,fields){
+  const overlay=document.getElementById("detail-overlay");
+  document.getElementById("detail-title").textContent=title;
+  let html='<div class="detail-grid">';
+  for(const[label,val] of fields){
+    if(val===undefined||val===null||val==="") continue;
+    html+='<span class="dl">'+label+':</span><span class="dv">'+val+'</span>';
+  }
+  html+='</div>';
+  document.getElementById("detail-body").innerHTML=html;
+  overlay.classList.add("open");
+}
+
+function showPowerDetail(p){
+  showDetail(p.name,[
+    ["Rank",p.rank],["Value",p.value],["Category",p.category],
+    ["Range",p.range],["Source",p.source],
+    ["Active",p.isActive===false?"No":"Yes"],
+    ["Attack Power",p.isAttackPower?"Yes":null],
+    ["Defense Power",p.isDefensePower?"Yes":null],
+    ["Body Armor",p.isBodyArmor?("Phys "+p.armorPhysical+" / Energy "+p.armorEnergy):null],
+    ["Limitation",p.limitationDetail],
+    ["Starred",p.isStarred?"\u2605 Counts as 2 powers":null],
+    ["Init Roll",p.initialRoll],["Init Rank",p.initialRank],
+    ["Description",p.description]
+  ]);
+}
+function showTalentDetail(t){
+  showDetail(t.name,[
+    ["Bonus",t.bonus],["Ability",t.abilityModified],["Category",t.category],
+    ["Type",t.type],["Notes",t.notes]
+  ]);
+}
+function showContactDetail(c){
+  showDetail(c.name,[
+    ["Type",c.type],["Disposition",c.disposition],["Location",c.location],
+    ["Resources",c.resourceRank],["Notes",c.notes]
+  ]);
+}
+function showEquipDetail(eq){
+  showDetail(eq.name,[
+    ["Category",eq.category],["Rank",eq.rank],["Value",eq.value],
+    ["Material",eq.materialStrength],["Damage",eq.damage],["Type",eq.damageType],
+    ["Range",eq.range],["Rate",eq.rate],["Shots",eq.shots?(eq.shotsRemaining||0)+"/"+eq.shots:null],
+    ["Description",eq.description],["Notes",eq.notes]
+  ]);
+}
+function showStuntDetail(st){
+  showDetail(st.name,[
+    ["Parent Power",st.parentPower],["Rank",st.rank],["Value",st.value],
+    ["Times Used",st.timesUsed],["Description",st.description]
+  ]);
+}
+
 function renderList(listId, items, type){
   const ul=document.getElementById(listId);
   ul.innerHTML="";
@@ -714,56 +817,53 @@ function renderList(listId, items, type){
     const li=document.createElement("li");
     li.className="item-row " + (type==="power"?"power-row":type==="talent"?"talent-row":"contact-row");
     if(type==="power"){
-      const star=item.name.endsWith("*")?"<span class=\"item-star\">★</span>":"";
-      li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll FEAT">d100</button>
-        <select class="si item-rank" data-list="${type}" data-idx="${i}" data-lf="rank">${buildRankOptions(item.rank||"Typical")}</select>
-        <input class="si item-value" type="number" value="${item.value||6}" data-list="${type}" data-idx="${i}" data-lf="value" style="width:40px">
-        ${star}<input class="si" value="${item.name.replace(/\*$/,"")}" data-list="${type}" data-idx="${i}" data-lf="name">
-        <button class="item-del" data-list="${type}" data-idx="${i}">&times;</button>`;
+      const star=item.isStarred?'<span class="item-star">\u2605</span>':"";
+      li.innerHTML='<button class="feat-btn" data-list="'+type+'" data-idx="'+i+'" title="Roll FEAT">d100</button>'+
+        '<select class="si item-rank" data-list="'+type+'" data-idx="'+i+'" data-lf="rank">'+buildRankOptions(item.rank||"Typical")+'</select>'+
+        '<input class="si item-value" type="number" value="'+(item.value||6)+'" data-list="'+type+'" data-idx="'+i+'" data-lf="value" style="width:40px">'+
+        star+'<input class="si" value="'+(item.name||"").replace(/\*$/,"")+'" data-list="'+type+'" data-idx="'+i+'" data-lf="name">'+
+        '<button class="item-info" data-list="'+type+'" data-idx="'+i+'" title="Details">\u2139</button>'+
+        '<button class="item-del" data-list="'+type+'" data-idx="'+i+'">\u00d7</button>';
     } else if(type==="talent"){
-      li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll FEAT">d100</button>
-        <input class="si" value="${item.name.replace(/\*$/,"")}" data-list="${type}" data-idx="${i}" data-lf="name">
-        <button class="item-del" data-list="${type}" data-idx="${i}">&times;</button>`;
+      li.innerHTML='<button class="feat-btn" data-list="'+type+'" data-idx="'+i+'" title="Roll FEAT">d100</button>'+
+        '<input class="si" value="'+(item.name||"").replace(/\*$/,"")+'" data-list="'+type+'" data-idx="'+i+'" data-lf="name">'+
+        '<button class="item-info" data-list="'+type+'" data-idx="'+i+'" title="Details">\u2139</button>'+
+        '<button class="item-del" data-list="'+type+'" data-idx="'+i+'">\u00d7</button>';
     } else {
-      li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll Popularity FEAT">d100</button>
-        <input class="si" value="${item.name}" data-list="${type}" data-idx="${i}" data-lf="name">
-        <button class="item-del" data-list="${type}" data-idx="${i}">&times;</button>`;
+      li.innerHTML='<button class="feat-btn" data-list="'+type+'" data-idx="'+i+'" title="Roll Popularity FEAT">d100</button>'+
+        '<input class="si" value="'+(item.name||"")+'" data-list="'+type+'" data-idx="'+i+'" data-lf="name">'+
+        '<button class="item-info" data-list="'+type+'" data-idx="'+i+'" title="Details">\u2139</button>'+
+        '<button class="item-del" data-list="'+type+'" data-idx="'+i+'">\u00d7</button>';
     }
     ul.appendChild(li);
   });
-  // FEAT button listeners
+  ul.querySelectorAll(".item-info").forEach(el=>{
+    el.addEventListener("click",e=>{
+      const t=e.target.dataset.list, idx=+e.target.dataset.idx;
+      const arr=t==="power"?CHAR.powers:t==="talent"?CHAR.talents:CHAR.contacts;
+      if(t==="power") showPowerDetail(arr[idx]);
+      else if(t==="talent") showTalentDetail(arr[idx]);
+      else showContactDetail(arr[idx]);
+    });
+  });
   ul.querySelectorAll(".feat-btn").forEach(el=>{
     el.addEventListener("click",e=>{
       const t=e.target.dataset.list, idx=+e.target.dataset.idx;
       const arr=t==="power"?CHAR.powers:t==="talent"?CHAR.talents:CHAR.contacts;
       const item=arr[idx];
-      if(t==="power"){
-        rollFeat(item.rank||"Typical", item.name);
-      } else if(t==="talent"){
-        // Talents typically use a primary ability - default to Reason
-        rollFeat("Remarkable", item.name);
-      } else {
-        // Contacts use Popularity
-        const popRank = getRankForValue(Math.abs(CHAR.popularityHero));
-        rollFeat(popRank, item.name);
-      }
+      if(t==="power") rollFeat(item.rank||"Typical", item.name);
+      else if(t==="talent") rollFeat("Remarkable", item.name);
+      else{ const popRank=getRankForValue(Math.abs(CHAR.popularityHero)); rollFeat(popRank, item.name); }
     });
   });
-  // Field change listeners
   ul.querySelectorAll("input,select").forEach(el=>{
     if(el.classList.contains("feat-btn")) return;
     el.addEventListener("change",e=>{
       const t=e.target.dataset.list, idx=+e.target.dataset.idx, f=e.target.dataset.lf;
       const arr=t==="power"?CHAR.powers:t==="talent"?CHAR.talents:CHAR.contacts;
-      if(f==="rank"&&t==="power"){
-        arr[idx].rank=e.target.value;
-        arr[idx].value=getRankValue(e.target.value);
-        renderList(listId,arr,type);
-      } else if(f==="value"&&t==="power"){
-        arr[idx].value=parseInt(e.target.value)||0;
-      } else {
-        arr[idx][f]=e.target.value;
-      }
+      if(f==="rank"&&t==="power"){ arr[idx].rank=e.target.value; arr[idx].value=getRankValue(e.target.value); renderList(listId,arr,type); }
+      else if(f==="value"&&t==="power"){ arr[idx].value=parseInt(e.target.value)||0; }
+      else{ arr[idx][f]=e.target.value; }
       autosave();
     });
   });
@@ -771,12 +871,77 @@ function renderList(listId, items, type){
     el.addEventListener("click",e=>{
       const t=e.target.dataset.list, idx=+e.target.dataset.idx;
       const arr=t==="power"?CHAR.powers:t==="talent"?CHAR.talents:CHAR.contacts;
-      arr.splice(idx,1);
-      renderList(listId,arr,type);
-      autosave();
+      arr.splice(idx,1); renderList(listId,arr,type); autosave();
     });
   });
 }
+
+function renderEquipment(){
+  const sec=document.getElementById("equipment-section");
+  const arr=CHAR.equipment||[];
+  sec.style.display=arr.length?"block":"none";
+  const ul=document.getElementById("equipment-list");
+  ul.innerHTML="";
+  arr.forEach((eq,i)=>{
+    const li=document.createElement("li");
+    li.className="item-row equip-row";
+    li.innerHTML='<button class="feat-btn" data-idx="'+i+'" title="Roll FEAT">d100</button>'+
+      '<span class="si item-rank" style="font-size:9px;border:none;text-align:center">'+(eq.rank||"")+'</span>'+
+      '<span class="si item-value" style="border:none;text-align:center">'+(eq.value||"")+'</span>'+
+      '<input class="si" value="'+(eq.name||"")+'" data-idx="'+i+'" data-lf="name">'+
+      '<button class="item-info" data-idx="'+i+'" title="Details">\u2139</button>'+
+      '<button class="item-del" data-idx="'+i+'">\u00d7</button>';
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll(".item-info").forEach(el=>{
+    el.addEventListener("click",e=>showEquipDetail(arr[+e.target.dataset.idx]));
+  });
+  ul.querySelectorAll(".feat-btn").forEach(el=>{
+    el.addEventListener("click",e=>rollFeat(arr[+e.target.dataset.idx].rank||"Typical",arr[+e.target.dataset.idx].name));
+  });
+  ul.querySelectorAll(".item-del").forEach(el=>{
+    el.addEventListener("click",e=>{arr.splice(+e.target.dataset.idx,1);renderEquipment();autosave();});
+  });
+  ul.querySelectorAll("input").forEach(el=>{
+    el.addEventListener("change",e=>{arr[+e.target.dataset.idx].name=e.target.value;autosave();});
+  });
+}
+
+function renderStunts(){
+  const sec=document.getElementById("stunts-section");
+  const arr=CHAR.stunts||[];
+  sec.style.display=arr.length?"block":"none";
+  const ul=document.getElementById("stunts-list");
+  ul.innerHTML="";
+  arr.forEach((st,i)=>{
+    const li=document.createElement("li");
+    li.className="item-row stunt-row";
+    const used=st.timesUsed||0;
+    const diffCls=used<1?"diff-red":used<4?"diff-yellow":used<10?"diff-green":"diff-mastered";
+    const diffLbl=used<1?"Red":used<4?"Yellow":used<10?"Green":"Mastered";
+    li.innerHTML='<button class="feat-btn" data-idx="'+i+'" title="Roll Stunt FEAT">d100</button>'+
+      '<span class="si item-rank" style="font-size:9px;border:none;text-align:center">'+(st.rank||"")+'</span>'+
+      '<span class="si item-value" style="border:none;text-align:center">'+(st.value||"")+'</span>'+
+      '<input class="si" value="'+(st.name||"")+'" data-idx="'+i+'" data-lf="name">'+
+      '<span class="difficulty-badge '+diffCls+'">'+diffLbl+'</span>'+
+      '<button class="item-info" data-idx="'+i+'" title="Details">\u2139</button>'+
+      '<button class="item-del" data-idx="'+i+'">\u00d7</button>';
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll(".item-info").forEach(el=>{
+    el.addEventListener("click",e=>showStuntDetail(arr[+e.target.dataset.idx]));
+  });
+  ul.querySelectorAll(".feat-btn").forEach(el=>{
+    el.addEventListener("click",e=>rollFeat(arr[+e.target.dataset.idx].rank||"Typical",arr[+e.target.dataset.idx].name));
+  });
+  ul.querySelectorAll(".item-del").forEach(el=>{
+    el.addEventListener("click",e=>{arr.splice(+e.target.dataset.idx,1);renderStunts();autosave();});
+  });
+  ul.querySelectorAll("input").forEach(el=>{
+    el.addEventListener("change",e=>{arr[+e.target.dataset.idx].name=e.target.value;autosave();});
+  });
+}
+
 
 function renderAll(){
   // Bio fields (inputs and selects)
@@ -805,7 +970,21 @@ function renderAll(){
   renderList("powers-list",CHAR.powers,"power");
   renderList("talents-list",CHAR.talents,"talent");
   renderList("contacts-list",CHAR.contacts,"contact");
+  renderEquipment();
+  renderStunts();
   recalcSecondary();
+
+  // Auto-calc movement if not set
+  const runEl=document.querySelector('[data-field="moveRun"]');
+  const leapEl=document.querySelector('[data-field="moveLeap"]');
+  if(runEl && !CHAR.moveRun){
+    const calc=calcRun(CHAR.abilities.endurance.rank);
+    runEl.placeholder=calc;
+  }
+  if(leapEl && !CHAR.moveLeap){
+    const calc=calcLeap(CHAR.abilities.strength.rank);
+    leapEl.placeholder=calc;
+  }
 }
 
 // ── Field Change Listeners ──
@@ -845,6 +1024,18 @@ function bindAddButtons(){
   document.getElementById("add-contact").addEventListener("click",()=>{
     CHAR.contacts.push({name:"New Contact"});
     renderList("contacts-list",CHAR.contacts,"contact");
+    autosave();
+  });
+  document.getElementById("add-equipment").addEventListener("click",()=>{
+    if(!CHAR.equipment) CHAR.equipment=[];
+    CHAR.equipment.push({name:"New Item",category:"gear",rank:"Typical",value:6,materialStrength:"Typical"});
+    renderEquipment();
+    autosave();
+  });
+  document.getElementById("add-stunt").addEventListener("click",()=>{
+    if(!CHAR.stunts) CHAR.stunts=[];
+    CHAR.stunts.push({name:"New Stunt",parentPower:"",rank:"Typical",value:6,timesUsed:0,description:""});
+    renderStunts();
     autosave();
   });
 }
@@ -1271,6 +1462,11 @@ document.addEventListener("DOMContentLoaded",()=>{
   document.getElementById("modal-overlay").addEventListener("click",e=>{
     if(e.target===e.currentTarget) e.currentTarget.classList.remove("open");
   });
+  // Detail modal close
+  document.getElementById("detail-close").addEventListener("click",()=>document.getElementById("detail-overlay").classList.remove("open"));
+  document.getElementById("detail-overlay").addEventListener("click",e=>{
+    if(e.target===e.currentTarget) e.currentTarget.classList.remove("open");
+  });
 
   // Chargen
   const cgPanel=document.getElementById("chargen-panel");
@@ -1287,7 +1483,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   bioToggle.addEventListener("click",()=>{
     const open=bioExpand.style.display!=="none";
     bioExpand.style.display=open?"none":"block";
-    bioToggle.textContent=open?"Bio ▼":"Bio ▲";
+    bioToggle.textContent=open?"\u25BC":"\u25B2";
   });
 
   // History textarea
