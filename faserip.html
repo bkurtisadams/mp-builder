@@ -108,8 +108,8 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .item-list{list-style:none}
 .item-row{display:flex;align-items:center;gap:3px;padding:1px 0;border-bottom:1px dotted #ccc}
 .item-row .si{flex:1;font-size:11px;height:20px}
-.item-rank{width:56px;font-size:9px!important}
-.item-value{width:30px;text-align:center;font-size:10px!important}
+.item-rank{width:80px;font-size:9px!important}
+.item-value{width:40px;text-align:center;font-size:10px!important}
 .item-del{cursor:pointer;color:#c00;font-size:11px;border:none;background:none;padding:0 2px;font-weight:700;opacity:.4}
 .item-del:hover{opacity:1}
 .item-star{color:#c8960c;font-size:9px;margin-right:2px}
@@ -622,7 +622,7 @@ function renderList(listId, items, type){
       const star=item.name.endsWith("*")?"<span class=\"item-star\">★</span>":"";
       li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll FEAT">d100</button>
         <select class="si item-rank" data-list="${type}" data-idx="${i}" data-lf="rank">${buildRankOptions(item.rank||"Typical")}</select>
-        <input class="si item-value" type="number" value="${item.value||6}" data-list="${type}" data-idx="${i}" data-lf="value" style="width:30px">
+        <input class="si item-value" type="number" value="${item.value||6}" data-list="${type}" data-idx="${i}" data-lf="value" style="width:40px">
         ${star}<input class="si" value="${item.name.replace(/\*$/,"")}" data-list="${type}" data-idx="${i}" data-lf="name">
         <button class="item-del" data-list="${type}" data-idx="${i}">&times;</button>`;
     } else if(type==="talent"){
