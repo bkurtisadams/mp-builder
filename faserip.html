@@ -94,11 +94,12 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .id-checks input[type=radio]{margin:0}
 
 /* ── Expanded Bio (collapsible) ── */
-.bio-expand{margin-bottom:6px;border-top:1px dotted #ccc;padding-top:4px}
+.bio-expand{margin-bottom:6px;border-top:1px dotted #ccc;padding-top:4px;overflow:hidden}
 .bio-toggle{font-size:11px;cursor:pointer;color:var(--accent);font-weight:700;border:none;background:none;font-family:var(--fd);padding:0 3px;line-height:1}
 .bio-toggle:hover{color:#d06a10}
-.bio-detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1px 10px}
-.bio-detail-grid .bio-row .lbl{min-width:60px}
+.bio-detail-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px 10px;max-width:100%;overflow:hidden}
+.bio-detail-grid .bio-row .lbl{min-width:44px}
+.bio-detail-grid .bio-row .si{min-width:0}
 .bio-history{margin-top:4px}
 .bio-history textarea{width:100%;border:1.5px solid #000;background:transparent;font-family:var(--fb);font-size:10px;padding:3px 4px;resize:vertical;min-height:36px;outline:none}
 .bio-history textarea:focus{border-color:var(--accent)}
