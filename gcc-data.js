@@ -47,7 +47,7 @@ const GCC = (function() {
       icon: '⚡',
       color: '#4a7a9a',
       tools: [
-        { id: 'fas-char', name: 'Character Sheet', href: 'faserip.html' },
+        { id: 'fas-char', name: 'Character Sheet', href: 'faserip.html', charList: 'gcc-faserip-chars' },
         { id: 'fas-table', name: 'Universal Table', href: null },
         { id: 'fas-combat', name: 'Combat Tracker', href: null },
         { id: 'fas-karma', name: 'Karma Log', href: null },
@@ -96,6 +96,19 @@ const GCC = (function() {
       ]
     },
   ];
+
+  // ── System-specific labels ──
+  const TEAM_LABELS = {
+    faserip: 'Team',
+    mp: 'Team',
+    vnv: 'Team',
+    add1e: 'Party',
+    add2e: 'Party',
+    chainmail: 'Army',
+  };
+  function teamLabel(systemId) {
+    return TEAM_LABELS[systemId] || 'Party';
+  }
 
   // ── Campaigns ──
   function loadCampaigns() {
@@ -422,6 +435,8 @@ const GCC = (function() {
   return {
     KEYS,
     SYSTEM_DEFS,
+    TEAM_LABELS,
+    teamLabel,
     init,
     // Campaigns
     loadCampaigns,

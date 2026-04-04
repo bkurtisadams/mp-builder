@@ -1402,9 +1402,15 @@ function importFoundryActor(data){
     }
   }
 
-  // Portrait — Foundry uses img path, can't embed it, but store the path
-  if(data.img && !data.img.includes("mystery-man")){
-    char.foundryImg=data.img;
+  // Portrait — check for embedded base64 data first, then token texture, then file path
+  const imgSrc = data.img || '';
+  const tokenSrc = (data.prototypeToken?.texture?.src) || '';
+  if(imgSrc.startsWith('data:image/')){
+    char.portraitData = imgSrc;
+  } else if(tokenSrc.startsWith('data:image/')){
+    char.portraitData = tokenSrc;
+  } else if(imgSrc && !imgSrc.includes('mystery-man')){
+    char.foundryImg = imgSrc;
   }
 
   return char;
@@ -1420,8 +1426,10 @@ function importChar(file){
         renderAll();
         autosave();
         const itemCount=(data.items||[]).length;
+        const portraitNote = CHAR.portraitData ? '\nPortrait imported.' :
+          (CHAR.foundryImg ? '\nPortrait path found (not embedded) — click portrait to set manually.' : '');
         alert(`Imported Foundry actor: ${data.name}\n${CHAR.powers.length} powers, ${CHAR.talents.length} talents, ${CHAR.contacts.length} contacts` +
-          (CHAR.equipment&&CHAR.equipment.length?`, ${CHAR.equipment.length} equipment`:""));
+          (CHAR.equipment&&CHAR.equipment.length?`, ${CHAR.equipment.length} equipment`:"") + portraitNote);
       } else {
         CHAR={...newChar(),...data};
         renderAll();
