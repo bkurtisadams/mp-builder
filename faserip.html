@@ -158,7 +158,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .item-info{cursor:pointer;color:#1a6aaa;font-size:10px;border:none;background:none;padding:0 2px;font-weight:700;opacity:.6}
 .item-info:hover{opacity:1;color:var(--accent)}
 .item-row.equip-row{grid-template-columns:auto 60px 40px 1fr auto auto}
-.item-row.stunt-row{grid-template-columns:auto 60px 40px 1fr auto auto}
+.item-row.stunt-row{grid-template-columns:auto 60px 40px 1fr auto auto auto}
 .item-cat{font-size:8px;color:var(--soft);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .difficulty-badge{font-size:8px;font-weight:700;padding:1px 4px;border-radius:2px;font-family:var(--fd)}
 .diff-red{background:#fde0e0;color:#8b0000}
@@ -1049,7 +1049,7 @@ function bindAddButtons(){
   });
   document.getElementById("add-stunt").addEventListener("click",()=>{
     if(!CHAR.stunts) CHAR.stunts=[];
-    CHAR.stunts.push({name:"New Stunt",parentPower:"",rank:"Typical",value:6,timesUsed:0,description:""});
+    CHAR.stunts.push({name:"New Stunt",parentPower:"",rank:"Typical",value:6,difficulty:"Red",timesUsed:0,description:""});
     document.getElementById("stunts-toggle").classList.add("open");
     renderStunts();
     autosave();
@@ -1339,15 +1339,18 @@ function importFoundryActor(data){
   char.karmaPool=kp.pool||0;
   char.poolName=kp.poolName||"";
 
-  // Stunts
-  char.stunts=(s.stunts||[]).map(st=>({
-    name:st.name||"",
-    parentPower:st.parentPower||"",
-    rank:st.rank||"",
-    value:st.value||0,
-    timesUsed:st.timesUsed||0,
-    description:st.description||""
-  }));
+  // Stunts — fallback from system-level array if no item-based stunts were imported
+  if(!char.stunts.length && s.stunts && s.stunts.length){
+    char.stunts=s.stunts.map(st=>({
+      name:st.name||"",
+      parentPower:st.parentPower||"",
+      rank:st.rank||"",
+      value:st.value||0,
+      difficulty:st.difficulty||"",
+      timesUsed:st.timesUsed||0,
+      description:st.description||""
+    }));
+  }
 
   // Chargen provenance
   if(s.chargen){
@@ -1403,6 +1406,17 @@ function importFoundryActor(data){
           location:is.location||"",
           notes:is.notes||"",
           resourceRank:is.resourceRank||""
+        });
+        break;
+      case "stunt":
+        char.stunts.push({
+          name:item.name||"",
+          parentPower:is.parentPower||"",
+          rank:is.rank||"Typical",
+          value:is.value||0,
+          difficulty:is.difficulty||"",
+          timesUsed:is.timesUsed||0,
+          description:is.description||""
         });
         break;
       case "equipment":
