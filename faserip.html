@@ -568,6 +568,7 @@ function renderAbilities(){
         CHAR.abilities[key][field]=e.target.value;
       }
       recalcSecondary();
+      autosave();
     });
   });
 }
@@ -672,6 +673,7 @@ function renderList(listId, items, type){
       } else {
         arr[idx][f]=e.target.value;
       }
+      autosave();
     });
   });
   ul.querySelectorAll(".item-del").forEach(el=>{
@@ -680,6 +682,7 @@ function renderList(listId, items, type){
       const arr=t==="power"?CHAR.powers:t==="talent"?CHAR.talents:CHAR.contacts;
       arr.splice(idx,1);
       renderList(listId,arr,type);
+      autosave();
     });
   });
 }
@@ -714,15 +717,17 @@ function bindFields(){
       if(f in CHAR){
         CHAR[f]=e.target.type==="number"?parseInt(e.target.value)||0:e.target.value;
       }
+      autosave();
     });
   });
   document.querySelectorAll('[name="idType"]').forEach(r=>{
-    r.addEventListener("change",e=>{CHAR.idType=e.target.value});
+    r.addEventListener("change",e=>{CHAR.idType=e.target.value;autosave();});
   });
   document.getElementById("res-rank").addEventListener("change",e=>{
     CHAR.resourcesRank=e.target.value;
     CHAR.resourcesValue=getRankValue(e.target.value);
     document.querySelector('[data-field="resourcesValue"]').value=CHAR.resourcesValue;
+    autosave();
   });
 }
 
@@ -731,14 +736,17 @@ function bindAddButtons(){
   document.getElementById("add-power").addEventListener("click",()=>{
     CHAR.powers.push({name:"New Power",rank:"Typical",value:6});
     renderList("powers-list",CHAR.powers,"power");
+    autosave();
   });
   document.getElementById("add-talent").addEventListener("click",()=>{
     CHAR.talents.push({name:"New Talent"});
     renderList("talents-list",CHAR.talents,"talent");
+    autosave();
   });
   document.getElementById("add-contact").addEventListener("click",()=>{
     CHAR.contacts.push({name:"New Contact"});
     renderList("contacts-list",CHAR.contacts,"contact");
+    autosave();
   });
 }
 
@@ -853,6 +861,7 @@ function quickRandom(){
   CHAR.talents=talents;
   CHAR.contacts=contacts;
   renderAll();
+  autosave();
 
   // Show log
   const logEl=document.getElementById("cg-log");
@@ -864,6 +873,27 @@ function quickRandom(){
 // SAVE / LOAD / EXPORT / IMPORT
 // ══════════════════════════════════════════════════════════════
 const STORAGE_KEY="gcc-faserip-chars";
+const AUTOSAVE_KEY="gcc-faserip-current";
+let _saveTimer=null;
+
+function autosave(){
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(()=>{
+    try{localStorage.setItem(AUTOSAVE_KEY,JSON.stringify(CHAR));}catch(e){}
+  },300);
+}
+
+function loadAutosave(){
+  try{
+    const data=localStorage.getItem(AUTOSAVE_KEY);
+    if(data){
+      const parsed=JSON.parse(data);
+      CHAR={...newChar(),...parsed};
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
 
 function getSavedChars(){
   try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[];}catch(e){return[];}
@@ -875,6 +905,7 @@ function saveChar(){
   const entry={...CHAR, _saved:new Date().toISOString()};
   if(existing>=0) chars[existing]=entry; else chars.push(entry);
   localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));
+  autosave();
   alert(`Saved: ${name}`);
 }
 
@@ -902,6 +933,7 @@ function showLoadModal(){
         const idx=+el.dataset.idx;
         CHAR={...newChar(),...chars[idx]};
         renderAll();
+        autosave();
         overlay.classList.remove("open");
       });
     });
@@ -924,6 +956,7 @@ function importChar(file){
       const data=JSON.parse(e.target.result);
       CHAR={...newChar(),...data};
       renderAll();
+      autosave();
     }catch(err){alert("Invalid JSON file");}
   };
   reader.readAsText(file);
@@ -933,6 +966,7 @@ function importChar(file){
 // INIT
 // ══════════════════════════════════════════════════════════════
 document.addEventListener("DOMContentLoaded",()=>{
+  loadAutosave();
   renderAll();
   bindFields();
   bindAddButtons();
@@ -940,7 +974,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   // Header buttons
   document.getElementById("btn-new").addEventListener("click",()=>{
     if(confirm("Start a new character? Unsaved changes will be lost.")){
-      CHAR=newChar(); renderAll();
+      CHAR=newChar(); renderAll(); autosave();
     }
   });
   document.getElementById("btn-save").addEventListener("click",saveChar);
