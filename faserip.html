@@ -1350,8 +1350,10 @@ function showLoadModal(){
     }).join("")+"</ul>";
     body.querySelectorAll(".save-item").forEach(el=>{
       el.addEventListener("click",e=>{
-        if(e.target.classList.contains("save-item-del")){
-          const idx=+e.target.dataset.idx;
+        if(e.target.closest(".save-item-del")){
+          e.stopPropagation();
+          const idx=+e.target.closest(".save-item-del").dataset.idx;
+          if(!confirm("Delete "+( chars[idx].heroName||"this character")+"?")) return;
           chars.splice(idx,1);
           localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));
           showLoadModal();
