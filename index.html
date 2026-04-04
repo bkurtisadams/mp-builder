@@ -285,40 +285,25 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 
 /* ── Character Edit Modal ── */
 .chars-modal-body { padding: 14px 18px; max-height: 70vh; overflow-y: auto; scrollbar-width: thin }
-.chars-list { list-style: none; margin-bottom: 10px }
-.chars-item { display: flex; gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--brd) }
-.chars-item:last-child { border-bottom: none }
-.chars-item input { font-family: var(--fb); font-size: 12px; color: var(--tx); background: var(--bg2); border: 1px solid var(--brd); border-radius: 3px; padding: 4px 6px; outline: none }
-.chars-item input:focus { border-color: var(--accent-dim) }
-.chars-item .ci-name { flex: 2 }
-.chars-item .ci-player { flex: 1 }
-.chars-item .ci-sub { flex: 2; font-family: var(--fm); font-size: 11px }
-.chars-item-rm { background: none; border: none; color: var(--tx3); font-size: 13px; cursor: pointer; padding: 2px 4px }
-.chars-item-rm:hover { color: var(--red) }
-.chars-add-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; font-size: 10px; font-family: var(--fb); font-weight: 700; background: transparent; color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 3px; cursor: pointer; transition: all 0.12s }
-.chars-add-btn:hover { border-color: var(--accent); background: var(--hover-bg) }
+.chars-picker-info { font-size: 11px; color: var(--tx3); margin-bottom: 10px }
+.chars-picker { display: flex; flex-direction: column; gap: 2px }
+.chars-picker-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--brd); border-radius: 4px; cursor: pointer; transition: all 0.12s; user-select: none }
+.chars-picker-item:hover { background: var(--hover-bg); border-color: var(--accent-dim) }
+.chars-picker-item.selected { background: var(--hover-bg); border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent) }
+.chars-picker-check { width: 16px; height: 16px; border: 2px solid var(--brd); border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: transparent; transition: all 0.1s }
+.chars-picker-item.selected .chars-picker-check { background: var(--accent); border-color: var(--accent); color: #fff }
+.cp-portrait { width: 32px; height: 32px; border-radius: 50%; object-fit: contain; flex-shrink: 0; border: 1px solid var(--brd); background: var(--bg) }
+.cp-portrait-ph { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; border: 1px solid var(--brd); background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 14px; color: var(--tx3) }
+.cp-info { flex: 1; min-width: 0 }
+.cp-name { font-family: var(--fb); font-size: 12px; font-weight: 700; color: var(--tx) }
+.cp-sub { font-family: var(--fm); font-size: 10px; color: var(--tx3) }
+.cp-player { font-family: var(--fm); font-size: 10px; color: var(--tx3); font-style: italic }
+.chars-picker-empty { padding: 16px; font-size: 11px; color: var(--tx3); font-style: italic; text-align: center; border: 1px dashed var(--brd); border-radius: 4px }
 
 /* ── Portrait pip on campaign card char list ── */
-.cc-char-portrait { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--brd) }
+.cc-char-portrait { width: 20px; height: 20px; border-radius: 50%; object-fit: contain; flex-shrink: 0; border: 1px solid var(--brd) }
 .cc-char-link { text-decoration: none; color: var(--tx); cursor: pointer }
 .cc-char-link:hover { color: var(--accent); text-decoration: underline }
-
-/* ── Saved Character Picker ── */
-.saved-picker { margin-top: 8px; border: 1px solid var(--brd); border-radius: 4px; background: var(--bg2); max-height: 200px; overflow-y: auto; scrollbar-width: thin }
-.saved-picker-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; border-bottom: 1px solid var(--brd); transition: background 0.1s }
-.saved-picker-item:last-child { border-bottom: none }
-.saved-picker-item:hover { background: var(--hover-bg) }
-.saved-picker-item.already-added { opacity: 0.4; pointer-events: none }
-.sp-portrait { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--brd); background: var(--bg) }
-.sp-portrait-placeholder { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; border: 1px solid var(--brd); background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--tx3) }
-.sp-info { flex: 1; min-width: 0 }
-.sp-name { font-family: var(--fb); font-size: 12px; font-weight: 700; color: var(--tx) }
-.sp-sub { font-family: var(--fm); font-size: 10px; color: var(--tx3) }
-.saved-picker-empty { padding: 12px; font-size: 11px; color: var(--tx3); font-style: italic; text-align: center }
-
-/* ── Portrait thumbnail in chars edit list ── */
-.ci-portrait { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--brd) }
-.ci-portrait-ph { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; border: 1px solid var(--brd); background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--tx3) }
 
 /* ── Footer ── */
 .ftr { padding: 10px 16px; font-size: 10px; color: var(--tx3); border-top: 1px solid var(--brd); background: var(--bg-section); position: relative; z-index: 1 }
@@ -567,16 +552,15 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 
 <!-- Character Edit Modal -->
 <div class="modal-overlay" id="chars-modal">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:480px">
     <div class="modal-hdr">
       <div class="modal-title" id="chars-modal-title">EDIT TEAM</div>
       <button class="modal-close" id="chars-modal-close">✕</button>
     </div>
     <div class="chars-modal-body">
       <input type="hidden" id="cf-camp-id">
-      <ul class="chars-list" id="chars-list"></ul>
-      <button class="chars-add-btn" id="chars-add">+ Add Character</button>
-      <button class="chars-add-btn" id="chars-add-saved" style="margin-left:6px">+ Add from Saved</button>
+      <div class="chars-picker-info" id="chars-picker-info"></div>
+      <div class="chars-picker" id="chars-picker"></div>
     </div>
     <div class="modal-footer">
       <button class="mf-btn-cancel" id="cf-cancel">Cancel</button>
@@ -700,6 +684,46 @@ document.getElementById('jumpback-row').addEventListener('click', (e) => {
   renderJumpback();
 });
 
+// ── Character resolution (live data from saved chars) ──
+function _resolveChar(savedChar, systemId, storageKey) {
+  let name = '', sub = '', player = '', portrait = '';
+  if (systemId === 'faserip') {
+    name = savedChar.heroName || savedChar.name || 'Unnamed';
+    player = savedChar.playerName || '';
+    portrait = savedChar.portraitData || '';
+    const ab = savedChar.abilities || {};
+    const abbr = ['fighting','agility','strength','endurance','reason','intuition','psyche']
+      .map(k => (ab[k]?.rank || 'TY').substring(0,2).toUpperCase()).join('-');
+    sub = savedChar.origin ? savedChar.origin + ' · ' + abbr : abbr;
+  } else if (systemId === 'mp') {
+    name = savedChar.name || 'Unnamed';
+    player = savedChar.player || '';
+    portrait = savedChar.portrait || '';
+    sub = savedChar.archetype || savedChar.className || '';
+  } else {
+    name = savedChar.name || savedChar.heroName || 'Unnamed';
+    player = savedChar.player || savedChar.playerName || '';
+    sub = savedChar.sub || savedChar.class || '';
+  }
+  return { name, player, sub, portrait, storageKey };
+}
+
+function _getSavedCharsForSystem(systemId) {
+  const sys = GCC.SYSTEM_DEFS.find(s => s.id === systemId);
+  if (!sys) return [];
+  const results = [];
+  sys.tools.forEach(t => {
+    if (!t.charList) return;
+    try {
+      const list = JSON.parse(localStorage.getItem(t.charList)) || [];
+      list.forEach(ch => {
+        results.push(_resolveChar(ch, systemId, t.charList));
+      });
+    } catch(e) {}
+  });
+  return results;
+}
+
 // ── Campaigns ──
 function renderCampaigns() {
   const all = GCC.loadCampaigns();
@@ -722,20 +746,28 @@ function renderCampaigns() {
 
     const charsHtml = (c.characters||[]).map((ch,i) => {
       const col = PIP_COLORS[i % PIP_COLORS.length];
-      const portraitHtml = ch.portrait
-        ? `<img class="cc-char-portrait" src="${ch.portrait}" alt="">`
+      // Resolve live data from saved character
+      let resolved = ch;
+      if (ch.storageKey && ch.name) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(ch.storageKey)) || [];
+          const found = saved.find(s => (s.heroName || s.name) === ch.name);
+          if (found) resolved = _resolveChar(found, c.system, ch.storageKey);
+        } catch(e) {}
+      }
+      const portraitHtml = resolved.portrait
+        ? `<img class="cc-char-portrait" src="${resolved.portrait}" alt="">`
         : `<span class="cc-char-pip" style="background:${col}"></span>`;
-      // Build link to character page if system has a char tool
       let nameHtml;
       const charSys = GCC.SYSTEM_DEFS.find(s => s.id === c.system);
       const charTool = charSys?.tools.find(t => t.charList && t.href);
-      if(charTool && ch.name){
-        const href = charTool.href + '?char=' + encodeURIComponent(ch.name);
-        nameHtml = `<a class="cc-char-name cc-char-link" href="${ESC(href)}">${ESC(ch.name)}</a>`;
+      if(charTool && resolved.name){
+        const href = charTool.href + '?char=' + encodeURIComponent(resolved.name);
+        nameHtml = `<a class="cc-char-name cc-char-link" href="${ESC(href)}">${ESC(resolved.name)}</a>`;
       } else {
-        nameHtml = `<span class="cc-char-name">${ESC(ch.name)}</span>`;
+        nameHtml = `<span class="cc-char-name">${ESC(resolved.name)}</span>`;
       }
-      return `<li class="cc-char-item">${portraitHtml}${nameHtml}${ch.player ? '<span class="cc-char-player">('+ESC(ch.player)+')</span>' : ''}<span class="cc-char-sub">${ESC(ch.sub||'')}</span></li>`;
+      return `<li class="cc-char-item">${portraitHtml}${nameHtml}${resolved.player ? '<span class="cc-char-player">('+ESC(resolved.player)+')</span>' : ''}<span class="cc-char-sub">${ESC(resolved.sub||'')}</span></li>`;
     }).join('');
 
     const sessHtml = (c.sessions||[]).slice(0,4).map(s =>
@@ -1052,152 +1084,79 @@ document.getElementById('btn-new-campaign').addEventListener('click', () => {
   renderCampaigns(); renderActivity();
 });
 
-// ── Character Edit Modal ──
+// ── Character Edit Modal (picker-based) ──
 const charsModal = document.getElementById('chars-modal');
-let charsData = [];
+let charsCampId = '';
 let charsCampSystem = 'mp';
+let charsSelected = new Set(); // set of character names currently in team
 
 function openCharsModal(campId) {
   const camp = GCC.loadCampaigns().find(c => c.id === campId);
   if (!camp) return;
-  document.getElementById('cf-camp-id').value = campId;
+  charsCampId = campId;
   charsCampSystem = camp.system || 'mp';
+  document.getElementById('cf-camp-id').value = campId;
   document.getElementById('chars-modal-title').textContent = 'EDIT ' + GCC.teamLabel(charsCampSystem).toUpperCase();
-  charsData = JSON.parse(JSON.stringify(camp.characters || []));
-  renderCharsList();
-  // Hide picker if open
-  const picker = document.getElementById('saved-picker');
-  if (picker) picker.remove();
+
+  // Build selected set from current campaign characters
+  charsSelected = new Set((camp.characters || []).map(ch => ch.name));
+
+  renderCharsPicker();
   charsModal.classList.add('open');
 }
 
 function closeCharsModal() { charsModal.classList.remove('open'); }
 
-function renderCharsList() {
-  const list = document.getElementById('chars-list');
-  if (!charsData.length) {
-    list.innerHTML = '<li style="font-size:11px;color:var(--tx3);font-style:italic;padding:8px 0">No characters. Click + Add Character.</li>';
+function renderCharsPicker() {
+  const picker = document.getElementById('chars-picker');
+  const info = document.getElementById('chars-picker-info');
+  const saved = _getSavedCharsForSystem(charsCampSystem);
+
+  if (!saved.length) {
+    info.textContent = 'No saved characters for this system. Create and save characters in the character sheet first.';
+    picker.innerHTML = '';
     return;
   }
-  list.innerHTML = charsData.map((ch, i) => {
-    const portraitHtml = ch.portrait
-      ? `<img class="ci-portrait" src="${ch.portrait}" alt="">`
-      : `<div class="ci-portrait-ph">?</div>`;
-    return `<li class="chars-item">
+
+  info.textContent = 'Select characters to add to this campaign. Click to toggle.';
+  picker.innerHTML = saved.map((sc, i) => {
+    const sel = charsSelected.has(sc.name);
+    const portraitHtml = sc.portrait
+      ? `<img class="cp-portrait" src="${sc.portrait}" alt="">`
+      : `<div class="cp-portrait-ph">?</div>`;
+    return `<div class="chars-picker-item${sel ? ' selected' : ''}" data-cp-idx="${i}">
+      <div class="chars-picker-check">${sel ? '✓' : ''}</div>
       ${portraitHtml}
-      <input class="ci-name" placeholder="Character name" value="${ESC(ch.name||'')}" data-ci="${i}" data-field="name">
-      <input class="ci-player" placeholder="Player" value="${ESC(ch.player||'')}" data-ci="${i}" data-field="player">
-      <input class="ci-sub" placeholder="Stats/class" value="${ESC(ch.sub||'')}" data-ci="${i}" data-field="sub">
-      <button class="chars-item-rm" data-ci-rm="${i}" title="Remove">✕</button>
-    </li>`;
+      <div class="cp-info">
+        <div class="cp-name">${ESC(sc.name)}</div>
+        <div class="cp-sub">${ESC(sc.sub)}</div>
+        ${sc.player ? '<div class="cp-player">' + ESC(sc.player) + '</div>' : ''}
+      </div>
+    </div>`;
   }).join('');
+
+  // Toggle selection on click
+  picker.querySelectorAll('.chars-picker-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.dataset.cpIdx);
+      const sc = saved[idx];
+      if (charsSelected.has(sc.name)) {
+        charsSelected.delete(sc.name);
+      } else {
+        charsSelected.add(sc.name);
+      }
+      renderCharsPicker();
+    });
+  });
 }
 
-// Sync input changes to charsData
-document.getElementById('chars-list').addEventListener('input', (e) => {
-  const inp = e.target.closest('[data-ci]');
-  if (!inp) return;
-  const idx = parseInt(inp.dataset.ci);
-  const field = inp.dataset.field;
-  if (charsData[idx]) charsData[idx][field] = inp.value;
-});
-
-// Remove character
-document.getElementById('chars-list').addEventListener('click', (e) => {
-  const rm = e.target.closest('[data-ci-rm]');
-  if (!rm) return;
-  charsData.splice(parseInt(rm.dataset.ciRm), 1);
-  renderCharsList();
-});
-
-// Add character
-document.getElementById('chars-add').addEventListener('click', () => {
-  charsData.push({ name: '', player: '', sub: '' });
-  renderCharsList();
-  const inputs = document.querySelectorAll('#chars-list .ci-name');
-  if (inputs.length) inputs[inputs.length - 1].focus();
-});
-
-// Add from Saved — show picker of saved characters for this system
-document.getElementById('chars-add-saved').addEventListener('click', () => {
-  let picker = document.getElementById('saved-picker');
-  if (picker) { picker.remove(); return; } // toggle off
-
-  const sys = GCC.SYSTEM_DEFS.find(s => s.id === charsCampSystem);
-  if (!sys) return;
-
-  // Gather saved chars from all charList keys in this system
-  let savedChars = [];
-  sys.tools.forEach(t => {
-    if (!t.charList) return;
-    try {
-      const list = JSON.parse(localStorage.getItem(t.charList)) || [];
-      list.forEach((ch, idx) => {
-        // Build display fields based on system
-        let name = '', sub = '', player = '', portrait = '';
-        if (charsCampSystem === 'faserip') {
-          name = ch.heroName || ch.name || 'Unnamed';
-          player = ch.playerName || '';
-          portrait = ch.portraitData || '';
-          // Build abbreviated FASERIP ranks
-          const ab = ch.abilities || {};
-          const abbr = ['fighting','agility','strength','endurance','reason','intuition','psyche']
-            .map(k => (ab[k]?.rank || 'TY').substring(0,2).toUpperCase()).join('-');
-          sub = abbr;
-          if (ch.origin) sub = ch.origin + ' · ' + sub;
-        } else if (charsCampSystem === 'mp') {
-          name = ch.name || 'Unnamed';
-          player = ch.player || '';
-          portrait = ch.portrait || '';
-          sub = ch.archetype || ch.className || '';
-        } else {
-          name = ch.name || ch.heroName || 'Unnamed';
-          player = ch.player || ch.playerName || '';
-          sub = ch.sub || ch.class || '';
-        }
-        savedChars.push({ _listKey: t.charList, _idx: idx, name, player, sub, portrait });
-      });
-    } catch(e) {}
-  });
-
-  picker = document.createElement('div');
-  picker.id = 'saved-picker';
-  picker.className = 'saved-picker';
-
-  if (!savedChars.length) {
-    picker.innerHTML = '<div class="saved-picker-empty">No saved characters for this system.<br>Create and save characters first.</div>';
-  } else {
-    picker.innerHTML = savedChars.map((sc, i) => {
-      const alreadyAdded = charsData.some(cd => cd.name === sc.name);
-      const portraitHtml = sc.portrait
-        ? `<img class="sp-portrait" src="${sc.portrait}" alt="">`
-        : `<div class="sp-portrait-placeholder">?</div>`;
-      return `<div class="saved-picker-item${alreadyAdded ? ' already-added' : ''}" data-sp-idx="${i}">
-        ${portraitHtml}
-        <div class="sp-info"><div class="sp-name">${ESC(sc.name)}</div><div class="sp-sub">${ESC(sc.sub)}${sc.player ? ' — ' + ESC(sc.player) : ''}</div></div>
-      </div>`;
-    }).join('');
-
-    picker.addEventListener('click', (e) => {
-      const item = e.target.closest('[data-sp-idx]');
-      if (!item || item.classList.contains('already-added')) return;
-      const sc = savedChars[parseInt(item.dataset.spIdx)];
-      charsData.push({ name: sc.name, player: sc.player, sub: sc.sub, portrait: sc.portrait || '' });
-      renderCharsList();
-      item.classList.add('already-added');
-    });
-  }
-
-  // Insert picker after the buttons
-  const addBtn = document.getElementById('chars-add-saved');
-  addBtn.parentElement.insertBefore(picker, addBtn.nextSibling);
-});
-
-// Save
+// Save — store only references (name + storageKey)
 document.getElementById('cf-save').addEventListener('click', () => {
-  const id = document.getElementById('cf-camp-id').value;
-  const cleaned = charsData.filter(ch => ch.name.trim());
-  GCC.updateCampaign(id, { characters: cleaned, players: cleaned.length });
+  const saved = _getSavedCharsForSystem(charsCampSystem);
+  const characters = saved
+    .filter(sc => charsSelected.has(sc.name))
+    .map(sc => ({ name: sc.name, storageKey: sc.storageKey }));
+  GCC.updateCampaign(charsCampId, { characters, players: characters.length });
   closeCharsModal();
   renderCampaigns();
 });
