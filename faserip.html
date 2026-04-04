@@ -1327,11 +1327,17 @@ function getSavedChars(){
 }
 function saveChar(){
   const chars=getSavedChars();
-  const name=CHAR.heroName||"Unnamed Hero";
+  const name=CHAR.heroName||"";
+  if(!name.trim()){alert("Cannot save: Hero Name is empty.");return;}
   const existing=chars.findIndex(c=>c.heroName===name);
   const entry={...CHAR, _saved:new Date().toISOString()};
   if(existing>=0) chars[existing]=entry; else chars.push(entry);
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));
+  try{
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));
+  }catch(e){
+    alert("Save failed — browser storage is full.\nTry removing unused characters or clearing portrait data.");
+    return;
+  }
   autosave();
   alert(`Saved: ${name}`);
 }
