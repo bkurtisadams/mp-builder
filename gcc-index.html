@@ -187,6 +187,13 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-btn-danger { color: var(--red); border-color: rgba(192,64,48,0.25) }
 .cc-btn-danger:hover { color: var(--red-lt); border-color: var(--red) }
 
+/* Campaign details panel (expanded) */
+.cc-details { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 20px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--brd) }
+.cc-detail-row { display: flex; gap: 6px; padding: 2px 0; font-size: 11px; align-items: baseline }
+.cc-detail-label { color: var(--tx3); min-width: 70px; flex-shrink: 0; font-family: var(--fsc); font-size: 9px; letter-spacing: 0.5px }
+.cc-detail-value { color: var(--tx2) }
+.cc-pitch { grid-column: 1 / -1; font-size: 12px; color: var(--tx2); font-style: italic; padding: 4px 0 2px; line-height: 1.3 }
+
 /* ── Activity (collapsible) ── */
 .activity-section { }
 .activity-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none }
@@ -213,6 +220,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   .campaign-card.open { grid-column: 1 }
   .main { padding: 10px 10px 30px }
   .cc-grid { grid-template-columns: 1fr; gap: 12px }
+  .cc-details { grid-template-columns: 1fr }
   .jb-card { width: 180px }
   .tools-dropdown { width: 260px; right: -8px }
 }
@@ -288,7 +296,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 
 <div class="ftr">
   <div class="ftr-inner">
-    <span>Graycloak's Campaign Corner v1.1</span>
+    <span>Graycloak's Campaign Corner v1.2</span>
     <span>Data stored locally in your browser</span>
   </div>
 </div>
@@ -402,7 +410,6 @@ function renderJumpback() {
 // ── Render Campaigns ──
 function renderCampaigns() {
   const allCamps = GCC.loadCampaigns();
-  // Sort: pinned first, then by lastPlayed desc
   allCamps.sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
@@ -422,6 +429,8 @@ function renderCampaigns() {
     const tools = sys.tools || [];
     const status = c.status || 'active';
     const nextStr = formatDateTime(c.nextSession);
+    const gmLabel = c.gmTitle || 'GM';
+    const playModeLabel = { online: 'Online', 'in-person': 'In-Person', hybrid: 'Hybrid' }[c.playMode] || '';
 
     // Characters with colored pips
     const charsHtml = (c.characters || []).map((ch, i) => {
@@ -445,8 +454,21 @@ function renderCampaigns() {
     // VTT
     const vttHtml = c.vttLabel ? `<div class="cc-vtt"><a class="cc-vtt-link" href="${ESC(c.vttUrl || '#')}" target="_blank"><span style="font-size:11px">▶</span> ${ESC(c.vttLabel)}${c.name ? ' — ' + ESC(c.name) : ''}</a></div>` : '';
 
-    // Schedule
-    const schedHtml = c.schedule ? `<div class="cc-schedule">${ESC(c.schedule)}</div>` : '';
+    // Build detail rows for expanded view
+    const detailRow = (label, value) => value ? `<div class="cc-detail-row"><span class="cc-detail-label">${label}</span><span class="cc-detail-value">${ESC(value)}</span></div>` : '';
+
+    const detailsHtml = `<div class="cc-details">
+      ${c.pitch ? '<div class="cc-pitch">"' + ESC(c.pitch) + '"</div>' : ''}
+      ${detailRow('WORLD', c.world)}
+      ${detailRow('GENRE', c.genre)}
+      ${detailRow(gmLabel.toUpperCase(), c.gm)}
+      ${detailRow('SCHEDULE', c.schedule)}
+      ${detailRow('PLAY MODE', playModeLabel + (c.vttLabel ? ' (' + c.vttLabel + ')' : ''))}
+      ${detailRow('XP METHOD', c.xpMethod)}
+      ${detailRow('RULEBOOKS', c.rulebooks)}
+      ${detailRow('HOUSE RULES', c.houseRules)}
+      ${detailRow('STARTED', formatDate(c.created))}
+    </div>`;
 
     return `<div class="campaign-card${status === 'active' ? ' active' : ''}" data-camp-id="${ESC(c.id)}">
       <div class="cc-summary">
@@ -464,24 +486,26 @@ function renderCampaigns() {
         <div class="cc-info">
           <span class="cc-system-badge" style="${sysColorCSS(c.system)}">${ESC(sys.name || c.system)}</span>
           <div class="cc-meta">
-            ${c.gm ? '<span>GM: ' + ESC(c.gm) + '</span>' : ''}
+            ${c.gm ? '<span>' + ESC(gmLabel) + ': ' + ESC(c.gm) + '</span>' : ''}
+            ${c.world ? '<span>' + ESC(c.world) + '</span>' : ''}
             ${c.players ? '<span>' + c.players + ' players</span>' : ''}
             ${c.session ? '<span>Session ' + c.session + '</span>' : ''}
           </div>
         </div>
         <div class="cc-meta2">
           ${c.vttLabel ? '<span>' + ESC(c.vttLabel) + '</span>' : ''}
+          ${c.schedule ? '<span>' + ESC(c.schedule) + '</span>' : ''}
           ${c.lastPlayed ? '<span>Last: ' + formatDate(c.lastPlayed) + '</span>' : ''}
           ${nextStr ? '<span class="cc-next">Next: ' + ESC(nextStr) + '</span>' : ''}
         </div>
       </div>
       <div class="cc-expand">
+        ${detailsHtml}
         <div class="cc-grid">
           <div>
             <div class="cc-col-title">TOOLS</div>
             <ul class="cc-tool-list">${toolsHtml}</ul>
             ${vttHtml}
-            ${schedHtml}
           </div>
           <div>
             <div class="cc-col-title">PARTY</div>
@@ -588,9 +612,17 @@ document.getElementById('btn-new-campaign').addEventListener('click', () => {
   const idx = parseInt(sysIdx) - 1;
   if (idx < 0 || idx >= systemIds.length) { alert('Invalid selection.'); return; }
 
-  const gm = prompt('GM name (optional):') || '';
+  const gm = prompt('GM/DM/Judge name (optional):') || '';
+  const world = prompt('Campaign world/setting (optional):') || '';
+  const genre = prompt('Genre/tone (optional, e.g. "Dungeon Crawl", "Bronze Age Superhero"):') || '';
 
-  const camp = GCC.addCampaign({ name: name.trim(), system: systemIds[idx], gm: gm.trim() });
+  const camp = GCC.addCampaign({
+    name: name.trim(),
+    system: systemIds[idx],
+    gm: gm.trim(),
+    world: world.trim(),
+    genre: genre.trim(),
+  });
   GCC.logActivity({ campaign: camp.id, system: camp.system, text: 'Created campaign: ' + camp.name });
   renderCampaigns();
   renderActivity();
