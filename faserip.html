@@ -158,7 +158,8 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .item-info{cursor:pointer;color:#1a6aaa;font-size:10px;border:none;background:none;padding:0 2px;font-weight:700;opacity:.6}
 .item-info:hover{opacity:1;color:var(--accent)}
 .item-row.equip-row{grid-template-columns:auto 60px 40px 1fr auto auto}
-.item-row.stunt-row{grid-template-columns:auto 60px 40px 1fr auto auto auto}
+.item-row.stunt-row{grid-template-columns:auto 60px 40px 1fr auto 36px auto auto}
+.stunt-used{width:36px!important;text-align:center;font-size:10px!important}
 .item-cat{font-size:8px;color:var(--soft);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .difficulty-badge{font-size:8px;font-weight:700;padding:1px 4px;border-radius:2px;font-family:var(--fd)}
 .diff-red{background:#fde0e0;color:#8b0000}
@@ -938,6 +939,7 @@ function renderStunts(){
       '<span class="si item-value" style="border:none;text-align:center">'+(st.value||"")+'</span>'+
       '<input class="si" value="'+(st.name||"")+'" data-idx="'+i+'" data-lf="name">'+
       '<span class="difficulty-badge '+diffCls+'">'+diffLbl+'</span>'+
+      '<input class="si stunt-used" type="number" min="0" value="'+used+'" data-idx="'+i+'" title="Times Used">'+
       '<button class="item-info" data-idx="'+i+'" title="Details">\u2139</button>'+
       '<button class="item-del" data-idx="'+i+'">\u00d7</button>';
     ul.appendChild(li);
@@ -952,7 +954,16 @@ function renderStunts(){
     el.addEventListener("click",e=>{arr.splice(+e.target.dataset.idx,1);renderStunts();autosave();});
   });
   ul.querySelectorAll("input").forEach(el=>{
-    el.addEventListener("change",e=>{arr[+e.target.dataset.idx].name=e.target.value;autosave();});
+    el.addEventListener("change",e=>{
+      const idx=+e.target.dataset.idx;
+      if(e.target.classList.contains("stunt-used")){
+        arr[idx].timesUsed=Math.max(0,parseInt(e.target.value)||0);
+        renderStunts();
+      } else {
+        arr[idx].name=e.target.value;
+      }
+      autosave();
+    });
   });
 }
 
