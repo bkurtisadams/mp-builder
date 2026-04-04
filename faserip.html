@@ -60,7 +60,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .portrait-box{
   width:120px;height:160px;border:2px solid #000;border-radius:2px;
   overflow:hidden;position:relative;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;background:#f0ede6;
+  display:flex;align-items:center;justify-content:center;background:#2a2a2e;
 }
 .portrait-box img{width:100%;height:100%;object-fit:contain;display:block}
 .portrait-placeholder{color:#bbb;font-size:9px;text-align:center}
@@ -1586,9 +1586,9 @@ function importFoundryActor(data){
   const imgSrc = data.img || '';
   const tokenSrc = (data.prototypeToken?.texture?.src) || '';
   if(imgSrc.startsWith('data:image/')){
-    char.portraitData = imgSrc;
+    char._rawPortrait = imgSrc;
   } else if(tokenSrc.startsWith('data:image/')){
-    char.portraitData = tokenSrc;
+    char._rawPortrait = tokenSrc;
   } else if(imgSrc && !imgSrc.includes('mystery-man')){
     char.foundryImg = imgSrc;
   }
@@ -1596,13 +1596,40 @@ function importFoundryActor(data){
   return char;
 }
 
+function compressPortrait(dataUrl){
+  return new Promise(resolve=>{
+    if(!dataUrl){resolve("");return;}
+    const img=new Image();
+    img.onload=()=>{
+      const maxW=120,maxH=160;
+      let w=img.width,h=img.height;
+      if(w>maxW){h*=maxW/w;w=maxW;}
+      if(h>maxH){w*=maxH/h;h=maxH;}
+      const c=document.createElement("canvas");
+      c.width=w;c.height=h;
+      const ctx=c.getContext("2d");
+      ctx.fillStyle="#2a2a2e";
+      ctx.fillRect(0,0,w,h);
+      ctx.drawImage(img,0,0,w,h);
+      resolve(c.toDataURL("image/jpeg",0.7));
+    };
+    img.onerror=()=>resolve("");
+    img.src=dataUrl;
+  });
+}
+
 function importChar(file){
   const reader=new FileReader();
-  reader.onload=e=>{
+  reader.onload=async e=>{
     try{
       const data=JSON.parse(e.target.result);
       if(isFoundryActor(data)){
         CHAR=importFoundryActor(data);
+        // Compress portrait if raw base64 was found
+        if(CHAR._rawPortrait){
+          CHAR.portraitData=await compressPortrait(CHAR._rawPortrait);
+          delete CHAR._rawPortrait;
+        }
         renderAll();
         autosave();
         const itemCount=(data.items||[]).length;
@@ -1615,6 +1642,10 @@ function importChar(file){
           (CHAR.vehicles&&CHAR.vehicles.length?`, ${CHAR.vehicles.length} vehicles`:"") + portraitNote);
       } else {
         CHAR={...newChar(),...data};
+        // Compress portrait from native GCC import too
+        if(CHAR.portraitData && CHAR.portraitData.length > 20000){
+          CHAR.portraitData=await compressPortrait(CHAR.portraitData);
+        }
         renderAll();
         autosave();
       }
@@ -1720,13 +1751,16 @@ document.addEventListener("DOMContentLoaded",()=>{
       const canvas=document.createElement("canvas");
       const img=new Image();
       img.onload=()=>{
-        const maxW=240,maxH=320;
+        const maxW=120,maxH=160;
         let w=img.width,h=img.height;
         if(w>maxW){h*=maxW/w;w=maxW;}
         if(h>maxH){w*=maxH/h;h=maxH;}
         canvas.width=w;canvas.height=h;
-        canvas.getContext("2d").drawImage(img,0,0,w,h);
-        CHAR.portraitData=canvas.toDataURL("image/png");
+        const ctx=canvas.getContext("2d");
+        ctx.fillStyle="#2a2a2e";
+        ctx.fillRect(0,0,w,h);
+        ctx.drawImage(img,0,0,w,h);
+        CHAR.portraitData=canvas.toDataURL("image/jpeg",0.7);
         showPortrait(CHAR.portraitData);
         autosave();
       };
