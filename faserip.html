@@ -54,25 +54,62 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .si-box:focus{border-color:var(--accent)}
 .lbl{font-weight:700;font-size:10px;white-space:nowrap}
 
-/* ── Header Area ── */
-.sheet-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px}
-.sheet-logo{font-family:var(--fd);line-height:1}
-.sheet-logo-main{font-size:28px;font-weight:900;letter-spacing:1px}
-.sheet-logo-sub{font-size:11px;font-weight:600;letter-spacing:3px}
-.sheet-title{font-family:var(--fd);font-size:22px;font-weight:700;letter-spacing:1px;margin-top:4px}
-.sheet-top-right{flex:1;text-align:right}
+/* ── Header Area: Portrait + Logo/Bio ── */
+.sheet-header{display:grid;grid-template-columns:130px 1fr;gap:10px;margin-bottom:8px}
+.portrait-col{grid-row:1/2}
+.portrait-box{
+  width:120px;height:160px;border:2px solid #000;border-radius:2px;
+  overflow:hidden;position:relative;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;background:#f0ede6;
+}
+.portrait-box img{width:100%;height:100%;object-fit:cover;display:block}
+.portrait-placeholder{color:#bbb;font-size:9px;text-align:center}
+.portrait-placeholder svg{display:block;margin:0 auto 3px;opacity:.25}
+.portrait-del{
+  position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:2px;border:none;
+  cursor:pointer;padding:0;background:rgba(0,0,0,.5);color:rgba(255,255,255,.7);
+  display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .12s;font-size:11px;
+}
+.portrait-box:hover .portrait-del{opacity:1}
+.portrait-del:hover{background:rgba(0,0,0,.8);color:#ff4040}
+@media print{.portrait-del{display:none!important}}
 
-/* ── Bio Grid ── */
-.bio-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 12px;margin-bottom:6px}
+.header-right{display:flex;flex-direction:column;gap:2px}
+.logo-player-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px}
+.sheet-logo{font-family:var(--fd);line-height:1}
+.sheet-logo-main{font-size:22px;font-weight:900;letter-spacing:1px}
+.sheet-logo-sub{font-size:9px;font-weight:600;letter-spacing:2px}
+.sheet-title{font-family:var(--fd);font-size:13px;font-weight:700;letter-spacing:1px;color:var(--mid)}
+.player-field{text-align:right}
+.player-field .lbl{font-size:9px}
+
+/* ── Bio Grid (inside header-right) ── */
+.bio-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px 10px}
 .bio-row{display:flex;align-items:baseline;gap:3px}
-.bio-row .lbl{min-width:50px;text-align:right}
+.bio-row .lbl{min-width:44px;text-align:right}
 .bio-row .si{flex:1}
 .bio-full{grid-column:1/-1}
-.bio-half{grid-column:span 1}
-.bio-2col{grid-column:span 2}
-.id-checks{display:flex;gap:8px;align-items:center;font-size:10px;font-weight:700}
+.id-checks{display:flex;gap:6px;align-items:center;font-size:9px;font-weight:700}
 .id-checks label{display:flex;align-items:center;gap:2px;cursor:pointer}
 .id-checks input[type=radio]{margin:0}
+
+/* ── Expanded Bio (collapsible) ── */
+.bio-expand{margin-bottom:6px;border-top:1px dotted #ccc;padding-top:4px}
+.bio-toggle{font-size:9px;cursor:pointer;color:var(--accent);font-weight:700;border:none;background:none;font-family:var(--fb);margin-bottom:3px}
+.bio-toggle:hover{text-decoration:underline}
+.bio-detail-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1px 10px}
+.bio-detail-grid .bio-row .lbl{min-width:60px}
+.bio-history{margin-top:4px}
+.bio-history textarea{width:100%;border:1.5px solid #000;background:transparent;font-family:var(--fb);font-size:10px;padding:3px 4px;resize:vertical;min-height:36px;outline:none}
+.bio-history textarea:focus{border-color:var(--accent)}
+
+/* ── Movement Row ── */
+.movement-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;padding:3px 0;border-top:1px solid #000;border-bottom:1px solid #000}
+.movement-item{display:flex;align-items:center;gap:2px}
+.movement-item .lbl{font-family:var(--fd);font-size:9px;font-weight:700;letter-spacing:.5px;cursor:pointer;min-width:auto}
+.movement-item .lbl:hover{color:var(--accent)}
+.movement-item input{width:32px;border:none;border-bottom:1px solid #999;background:transparent;text-align:center;font-family:var(--fb);font-size:11px;font-weight:700;outline:none;padding:0}
+.movement-item input:focus{border-bottom-color:var(--accent)}
 
 /* ── Abilities Tables ── */
 .abilities-wrap{display:flex;gap:12px;margin-bottom:8px;flex-wrap:wrap}
@@ -243,45 +280,82 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 <div class="sheet-wrap">
 <div class="sheet" id="sheet">
 
-  <!-- Top: Logo + Title + Player -->
-  <div class="sheet-top">
-    <div class="sheet-logo">
-      <div class="sheet-logo-main">MARVEL</div>
-      <div class="sheet-logo-sub">SUPER HEROES</div>
+  <!-- Header: Portrait + Logo + Bio -->
+  <div class="sheet-header">
+    <!-- Portrait -->
+    <div class="portrait-col">
+      <div class="portrait-box" id="portrait-box" title="Click to set portrait">
+        <img id="portrait-img" style="display:none">
+        <div class="portrait-placeholder" id="portrait-ph">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <div>Click to add<br>portrait</div>
+        </div>
+        <button class="portrait-del" id="portrait-del" title="Remove portrait">&times;</button>
+      </div>
     </div>
-    <div style="flex:1">
-      <div class="sheet-title">Character Information Sheet</div>
-    </div>
-    <div class="sheet-top-right">
-      <div class="bio-row"><span class="lbl">Player Name</span></div>
-      <input class="si" style="width:160px" data-field="playerName">
+
+    <!-- Right side: logo + bio fields -->
+    <div class="header-right">
+      <div class="logo-player-row">
+        <div class="sheet-logo">
+          <div class="sheet-logo-main">MARVEL SUPER HEROES</div>
+          <div class="sheet-title">Character Sheet</div>
+        </div>
+        <div class="player-field">
+          <span class="lbl">Player Name</span><br>
+          <input class="si" style="width:130px" data-field="playerName">
+        </div>
+      </div>
+
+      <div class="bio-grid">
+        <div class="bio-row"><span class="lbl">Name</span><input class="si" data-field="heroName"></div>
+        <div class="bio-row"><span class="lbl">Group</span><input class="si" data-field="group"></div>
+
+        <div class="bio-row">
+          <span class="lbl">Identity</span><input class="si" data-field="identity">
+          <span class="id-checks">
+            <label><input type="radio" name="idType" value="secret" checked> S</label>
+            <label><input type="radio" name="idType" value="public"> P</label>
+          </span>
+        </div>
+        <div class="bio-row"><span class="lbl">Base</span><input class="si" data-field="base"></div>
+
+        <div class="bio-row">
+          <span class="lbl">Origin</span>
+          <select class="si" data-field="origin" style="border-bottom:1.5px solid #000;height:var(--cell-h)">
+            <option value=""></option>
+            <option>Altered Human</option><option>Mutant</option><option>Hi-Tech</option>
+            <option>Robot</option><option>Alien</option><option>Normal Human</option>
+          </select>
+          <span class="lbl" style="min-width:24px">Age</span><input class="si" data-field="age" style="width:36px">
+        </div>
+        <div class="bio-row"><span class="lbl">Bio</span><input class="si" data-field="biography"></div>
+      </div>
     </div>
   </div>
 
-  <!-- Bio Fields -->
-  <div class="bio-grid">
-    <div class="bio-2col bio-row"><span class="lbl">Hero&rsquo;s Name</span><input class="si" data-field="heroName"></div>
-    <div class="bio-row"><span class="lbl">Group</span><input class="si" data-field="group"></div>
-
-    <div class="bio-2col bio-row">
-      <span class="lbl">Identity</span><input class="si" data-field="identity">
-      <span class="id-checks">
-        <label><input type="radio" name="idType" value="secret" checked> Secret</label>
-        <label><input type="radio" name="idType" value="public"> Public</label>
-      </span>
+  <!-- Expanded Bio (toggle) -->
+  <div class="bio-expand" id="bio-expand" style="display:none">
+    <div class="bio-detail-grid">
+      <div class="bio-row"><span class="lbl">Race</span><input class="si" data-field="race"></div>
+      <div class="bio-row"><span class="lbl">Sex</span><input class="si" data-field="sex"></div>
+      <div class="bio-row"><span class="lbl">DOB</span><input class="si" data-field="dob"></div>
+      <div class="bio-row"><span class="lbl">Handed</span><input class="si" data-field="handedness"></div>
+      <div class="bio-row"><span class="lbl">Height</span><input class="si" data-field="height"></div>
+      <div class="bio-row"><span class="lbl">Weight</span><input class="si" data-field="weight"></div>
+      <div class="bio-row"><span class="lbl">Eyes</span><input class="si" data-field="eyeColor"></div>
+      <div class="bio-row"><span class="lbl">Hair</span><input class="si" data-field="hairColor"></div>
+      <div class="bio-row"><span class="lbl">Nation</span><input class="si" data-field="nationality"></div>
+      <div class="bio-row"><span class="lbl">Legal</span><input class="si" data-field="legalStatus"></div>
+      <div class="bio-row"><span class="lbl">Marital</span><input class="si" data-field="maritalStatus"></div>
+      <div class="bio-row"><span class="lbl">Occup.</span><input class="si" data-field="occupation"></div>
     </div>
-    <div class="bio-row"><span class="lbl">Base</span><input class="si" data-field="base"></div>
-
-    <div class="bio-row"><span class="lbl">Origin</span>
-      <select class="si" data-field="origin" style="border-bottom:1.5px solid #000;height:var(--cell-h)">
-        <option value=""></option>
-        <option>Altered Human</option><option>Mutant</option><option>Hi-Tech</option>
-        <option>Robot</option><option>Alien</option><option>Normal Human</option>
-      </select>
+    <div class="bio-history">
+      <span class="lbl">History</span>
+      <textarea data-field="history" rows="3"></textarea>
     </div>
-    <div class="bio-row"><span class="lbl">Age</span><input class="si" data-field="age" style="width:50px"></div>
-    <div class="bio-row"></div>
   </div>
+  <button class="bio-toggle" id="bio-toggle">Bio ▼</button>
 
   <!-- Primary + Secondary Abilities -->
   <div class="abilities-wrap">
@@ -325,6 +399,15 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
         </tr></tbody>
       </table>
     </div>
+  </div>
+
+  <!-- Movement -->
+  <div class="movement-row">
+    <div class="movement-item"><span class="lbl">RUN</span><input type="number" data-field="moveRun" placeholder="—"></div>
+    <div class="movement-item"><span class="lbl">LEAP</span><input type="number" data-field="moveLeap" placeholder="—"></div>
+    <div class="movement-item"><span class="lbl">SWIM</span><input type="number" data-field="moveSwim" placeholder="—"></div>
+    <div class="movement-item"><span class="lbl">FLY</span><input type="number" data-field="moveFly" placeholder="0"></div>
+    <div class="movement-item"><span class="lbl">TELE</span><input type="number" data-field="moveTeleport" placeholder="0"></div>
   </div>
 
   <!-- Special Abilities -->
@@ -512,7 +595,13 @@ let CHAR = newChar();
 function newChar(){
   return {
     playerName:"", heroName:"", identity:"", idType:"secret",
-    group:"", base:"", origin:"", age:"",
+    group:"", base:"", origin:"", age:"", biography:"",
+    portraitData:"",
+    race:"", sex:"", dob:"", handedness:"",
+    height:"", weight:"", eyeColor:"", hairColor:"",
+    nationality:"", legalStatus:"", maritalStatus:"", occupation:"",
+    history:"",
+    characterType:"player", isMutant:false,
     abilities:{
       fighting:{initialRoll:"",initialRank:"",rank:"Typical",value:6},
       agility:{initialRoll:"",initialRank:"",rank:"Typical",value:6},
@@ -522,8 +611,10 @@ function newChar(){
       intuition:{initialRoll:"",initialRank:"",rank:"Typical",value:6},
       psyche:{initialRoll:"",initialRank:"",rank:"Typical",value:6}
     },
-    health:24, karma:18, resourcesRank:"Typical", resourcesValue:6,
+    health:24, healthMax:24, karma:18, karmaMax:18,
+    resourcesRank:"Typical", resourcesValue:6,
     popularityHero:10, popularitySecret:0,
+    moveRun:0, moveLeap:0, moveSwim:0, moveFly:0, moveTeleport:0,
     powers:[], talents:[], contacts:[],
     limitation:"",
     advancementKarma:0, karmaPool:0, poolName:""
@@ -688,10 +779,13 @@ function renderList(listId, items, type){
 }
 
 function renderAll(){
-  // Bio fields
+  // Bio fields (inputs and selects)
   document.querySelectorAll("[data-field]").forEach(el=>{
     const f=el.dataset.field;
-    if(f in CHAR) el.value=CHAR[f]||"";
+    if(f in CHAR){
+      if(el.tagName==="TEXTAREA") el.value=CHAR[f]||"";
+      else el.value=CHAR[f]||"";
+    }
   });
   // Identity type
   document.querySelectorAll('[name="idType"]').forEach(r=>{r.checked=r.value===CHAR.idType});
@@ -701,6 +795,11 @@ function renderAll(){
   // Resources rank
   const resSel=document.getElementById("res-rank");
   resSel.innerHTML=RANKS.slice(0,11).map(r=>`<option value="${r.name}"${r.name===CHAR.resourcesRank?" selected":""}>${r.name}</option>`).join("");
+  // Portrait
+  const pImg=document.getElementById("portrait-img");
+  const pPh=document.getElementById("portrait-ph");
+  if(CHAR.portraitData){pImg.src=CHAR.portraitData;pImg.style.display="block";pPh.style.display="none";}
+  else{pImg.style.display="none";pImg.src="";pPh.style.display="";}
 
   renderAbilities();
   renderList("powers-list",CHAR.powers,"power");
@@ -999,7 +1098,71 @@ document.addEventListener("DOMContentLoaded",()=>{
   document.getElementById("cg-close").addEventListener("click",()=>cgPanel.classList.remove("open"));
   document.getElementById("cg-quick").addEventListener("click",quickRandom);
   document.getElementById("cg-step").addEventListener("click",()=>{
-    quickRandom(); // For now, step-by-step uses quick random
+    quickRandom();
+  });
+
+  // Bio toggle
+  const bioExpand=document.getElementById("bio-expand");
+  const bioToggle=document.getElementById("bio-toggle");
+  bioToggle.addEventListener("click",()=>{
+    const open=bioExpand.style.display!=="none";
+    bioExpand.style.display=open?"none":"block";
+    bioToggle.textContent=open?"Bio ▼":"Bio ▲";
+  });
+
+  // History textarea
+  const histTA=document.querySelector('[data-field="history"]');
+  if(histTA){
+    histTA.value=CHAR.history||"";
+    histTA.addEventListener("input",()=>{CHAR.history=histTA.value;autosave();});
+  }
+
+  // Portrait
+  const pBox=document.getElementById("portrait-box");
+  const pImg=document.getElementById("portrait-img");
+  const pPh=document.getElementById("portrait-ph");
+  const pDel=document.getElementById("portrait-del");
+  const pInput=document.createElement("input");
+  pInput.type="file"; pInput.accept="image/*"; pInput.style.display="none";
+  document.body.appendChild(pInput);
+
+  function showPortrait(dataUrl){
+    if(dataUrl){pImg.src=dataUrl;pImg.style.display="block";pPh.style.display="none";}
+    else{pImg.style.display="none";pImg.src="";pPh.style.display="";}
+  }
+  showPortrait(CHAR.portraitData);
+
+  pBox.addEventListener("click",e=>{
+    if(e.target===pDel||e.target.parentElement===pDel) return;
+    pInput.click();
+  });
+  pInput.addEventListener("change",e=>{
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const canvas=document.createElement("canvas");
+      const img=new Image();
+      img.onload=()=>{
+        const maxW=240,maxH=320;
+        let w=img.width,h=img.height;
+        if(w>maxW){h*=maxW/w;w=maxW;}
+        if(h>maxH){w*=maxH/h;h=maxH;}
+        canvas.width=w;canvas.height=h;
+        canvas.getContext("2d").drawImage(img,0,0,w,h);
+        CHAR.portraitData=canvas.toDataURL("image/jpeg",0.8);
+        showPortrait(CHAR.portraitData);
+        autosave();
+      };
+      img.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value="";
+  });
+  pDel.addEventListener("click",e=>{
+    e.stopPropagation();
+    CHAR.portraitData="";
+    showPortrait("");
+    autosave();
   });
 
   // Set current page in GCC header
