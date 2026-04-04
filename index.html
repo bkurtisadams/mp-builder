@@ -150,30 +150,29 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-card-body { display: flex }
 .cc-side-img { width: 110px; flex-shrink: 0; background: var(--bg2); position: relative; overflow: hidden; cursor: pointer }
 .cc-side-img img { width: 100%; height: 100%; object-fit: cover; display: block }
-.cc-side-img-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 28px; opacity: 0.2; color: var(--tx3) }
-.cc-summary { padding: 12px 14px 10px 18px; cursor: pointer; transition: background 0.12s; flex: 1; min-width: 0 }
-.campaign-card.has-img .cc-summary { padding-left: 12px }
+.cc-summary { padding: 8px 10px 8px 14px; cursor: pointer; transition: background 0.12s; flex: 1; min-width: 0 }
+.campaign-card.has-img .cc-summary { padding-left: 10px }
 .cc-summary:hover { background: var(--bg-card-hover) }
-.cc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px }
-.cc-name { font-family: var(--fd); font-size: 15px; font-weight: 700; color: var(--tx); letter-spacing: 1px; display: flex; align-items: center; gap: 6px; min-width: 0 }
+.cc-top { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; min-width: 0 }
+.cc-name { font-family: var(--fd); font-size: 14px; font-weight: 700; color: var(--tx); letter-spacing: 1px; display: flex; align-items: center; gap: 5px; min-width: 0; flex: 1 }
 .cc-name-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.cc-star { color: var(--accent); font-size: 12px; flex-shrink: 0 }
-.cc-status { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; flex-shrink: 0; margin-left: auto }
+.cc-star { color: var(--accent); font-size: 11px; flex-shrink: 0 }
+.cc-status { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; flex-shrink: 0 }
 .cc-status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0 }
 .cc-status-dot.active { background: var(--green) }
 .cc-status-dot.hiatus { background: var(--amber) }
 .cc-status-dot.completed { background: var(--tx3) }
 .cc-status-dot.archived { background: var(--brd) }
 .cc-status-label { color: var(--tx3); white-space: nowrap }
-.cc-chevron { color: var(--tx3); font-size: 10px; transition: transform 0.2s; flex-shrink: 0; margin-left: 8px }
+.cc-chevron { color: var(--tx3); font-size: 10px; transition: transform 0.2s; flex-shrink: 0 }
 .campaign-card.open .cc-chevron { transform: rotate(180deg) }
 
-.cc-info { display: flex; align-items: center; gap: 10px; margin-bottom: 4px }
-.cc-system-badge { display: inline-block; font-family: var(--fsc); font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 2px; letter-spacing: 1px; white-space: nowrap; flex-shrink: 0 }
-.cc-thumb { width: 36px; height: 36px; border-radius: 3px; border: 1px solid var(--brd); object-fit: cover; flex-shrink: 0; background: var(--bg2); display: flex; align-items: center; justify-content: center; font-size: 16px }
-.cc-meta { font-size: 11px; color: var(--tx2); display: flex; gap: 8px; flex-wrap: wrap }
+.cc-info { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; flex-wrap: wrap }
+.cc-system-badge { display: inline-block; font-family: var(--fsc); font-size: 8px; font-weight: 700; padding: 1px 6px; border-radius: 2px; letter-spacing: 1px; white-space: nowrap; flex-shrink: 0 }
+.cc-thumb { width: 32px; height: 32px; border-radius: 3px; border: 1px solid var(--brd); object-fit: cover; flex-shrink: 0; background: var(--bg2); display: flex; align-items: center; justify-content: center; font-size: 14px }
+.cc-meta { font-size: 11px; color: var(--tx2); display: flex; gap: 6px; flex-wrap: wrap }
 .cc-meta span { white-space: nowrap }
-.cc-meta2 { font-size: 10px; color: var(--tx3); display: flex; gap: 8px; flex-wrap: wrap; margin-top: 3px }
+.cc-meta2 { font-size: 10px; color: var(--tx3); display: flex; gap: 6px; flex-wrap: wrap; margin-top: 1px }
 .cc-meta2 span { white-space: nowrap }
 .cc-next { color: var(--accent); font-weight: 700 }
 
@@ -806,20 +805,18 @@ function renderCampaigns() {
         <div class="cc-info">
           <span class="cc-system-badge" style="${sysColorCSS(c.system)}">${ESC(sys.name||c.system)}</span>
           ${fallbackThumb}
-          <div>
-            <div class="cc-meta">
-              ${c.gm?'<span>'+ESC(gml)+': '+ESC(c.gm)+'</span>':''}
-              ${c.world?'<span>'+ESC(c.world)+'</span>':''}
-              ${c.players?'<span>'+c.players+' players</span>':''}
-              ${c.session?'<span>Session '+c.session+'</span>':''}
-            </div>
-            <div class="cc-meta2">
-              ${c.vttLabel?'<span>'+ESC(c.vttLabel)+'</span>':''}
-              ${c.schedule?'<span>'+ESC(c.schedule)+'</span>':''}
-              ${c.lastPlayed?'<span>Last: '+formatDate(c.lastPlayed)+'</span>':''}
-              ${nextStr?'<span class="cc-next">Next: '+ESC(nextStr)+'</span>':''}
-            </div>
+          <div class="cc-meta">
+            ${c.gm?'<span>'+ESC(gml)+': '+ESC(c.gm)+'</span>':''}
+            ${c.world?'<span>'+ESC(c.world)+'</span>':''}
+            ${c.players?'<span>'+c.players+' players</span>':''}
+            ${c.session?'<span>Session '+c.session+'</span>':''}
           </div>
+        </div>
+        <div class="cc-meta2">
+          ${c.vttLabel?'<span>'+ESC(c.vttLabel)+'</span>':''}
+          ${c.schedule?'<span>'+ESC(c.schedule)+'</span>':''}
+          ${c.lastPlayed?'<span>Last: '+formatDate(c.lastPlayed)+'</span>':''}
+          ${nextStr?'<span class="cc-next">Next: '+ESC(nextStr)+'</span>':''}
         </div>
       </div>
       </div>
