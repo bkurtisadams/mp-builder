@@ -29,15 +29,15 @@ input[type=number]{-moz-appearance:textfield}
 html{min-height:100%;background:var(--bg)}
 body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--fb);font-size:12px;display:flex;flex-direction:column}
 
-/* ── FASERIP Toolbar (Row 2) ── */
-.fas-hdr{background:var(--hdr-bg);border-bottom:3px solid var(--accent);padding:0 12px;flex-shrink:0}
+/* ── FASERIP Toolbar (Row 2) — uses shared gcc-mp theme vars ── */
+.fas-hdr{background:var(--gcc-mp-bg);border-bottom:3px solid var(--gcc-mp-brd);padding:0 12px;flex-shrink:0}
 .fas-hdr-in{max-width:780px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;min-height:40px;gap:8px;flex-wrap:wrap;padding:4px 0}
 .fas-logo-wrap{display:flex;align-items:center;gap:8px}
-.fas-logo-title{font-family:var(--fd);font-size:22px;color:#fff;letter-spacing:2px;text-shadow:2px 2px 0 var(--accent)}
-.fas-logo-sub{font-family:var(--fb);font-size:9px;color:#8be9fd;letter-spacing:1px}
+.fas-logo-title{font-family:var(--fd);font-size:22px;color:var(--gcc-mp-tx);letter-spacing:2px;text-shadow:1px 1px 0 rgba(0,0,0,.15)}
+.fas-logo-sub{font-family:var(--fb);font-size:9px;color:var(--gcc-mp-sub);letter-spacing:1px}
 .fas-hdr-btns{display:flex;gap:3px;align-items:center;flex-wrap:wrap}
-.hdr-btn{padding:3px 7px;font-size:9px;background:#2a3a4a;border:1px solid #4a6a7a;color:#ccc;border-radius:2px;cursor:pointer;font-family:var(--fb);font-weight:700}
-.hdr-btn:hover{border-color:var(--accent);background:#3a4a5a}
+.hdr-btn{padding:3px 7px;font-size:9px;background:var(--gcc-mp-btn-bg);border:1px solid var(--gcc-mp-btn-brd);color:var(--gcc-mp-btn-tx);border-radius:2px;cursor:pointer;font-family:var(--fb);font-weight:700}
+.hdr-btn:hover{border-color:var(--gcc-mp-btn-hover-brd);background:var(--gcc-mp-btn-hover-bg)}
 .hdr-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
 
 /* ── Footer ── */
@@ -106,13 +106,20 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .list-add{font-size:9px;cursor:pointer;color:var(--accent);font-weight:700;border:none;background:none;font-family:var(--fb)}
 .list-add:hover{text-decoration:underline}
 .item-list{list-style:none}
-.item-row{display:flex;align-items:center;gap:4px;padding:1px 0;border-bottom:1px dotted #ccc}
+.item-row{display:flex;align-items:center;gap:3px;padding:1px 0;border-bottom:1px dotted #ccc}
 .item-row .si{flex:1;font-size:11px;height:20px}
-.item-rank{width:80px}
-.item-value{width:40px;text-align:center}
+.item-rank{width:56px;font-size:9px!important}
+.item-value{width:30px;text-align:center;font-size:10px!important}
 .item-del{cursor:pointer;color:#c00;font-size:11px;border:none;background:none;padding:0 2px;font-weight:700;opacity:.4}
 .item-del:hover{opacity:1}
 .item-star{color:#c8960c;font-size:9px;margin-right:2px}
+.feat-btn{
+  padding:1px 4px;font-family:var(--fd);font-size:8px;font-weight:700;letter-spacing:.5px;
+  border:1px solid #888;background:#e8e8e0;color:#444;border-radius:2px;cursor:pointer;
+  white-space:nowrap;line-height:1.4;
+}
+.feat-btn:hover{background:#ffd700;border-color:#c8960c;color:#000}
+.feat-btn:active{background:#c8960c;color:#fff}
 
 /* ── Bottom Section: Talents / Karma / Contacts ── */
 .bottom-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;margin-top:8px}
@@ -157,7 +164,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 /* ── Print ── */
 @media print{
   .gcc-bar,.fas-hdr,.fas-ftr,.chargen-panel,.hdr-btn,
-  .list-add,.item-del,.modal-overlay{display:none!important}
+  .list-add,.item-del,.feat-btn,.modal-overlay{display:none!important}
   .sheet-wrap{padding:0}
   .sheet{border:none;max-width:100%;box-shadow:none}
   .si{border-bottom-color:#999!important}
@@ -571,6 +578,40 @@ function recalcSecondary(){
   CHAR.health=h; CHAR.karma=k;
 }
 
+function rollFeat(rankName, label){
+  const roll = roll100();
+  const rankIdx = RANKS.findIndex(r=>r.name===rankName);
+  // Universal Table thresholds (simplified for standalone)
+  // White < Green < Yellow < Red
+  const thresholds = [
+    {rank:"Shift-0",  g:66,y:95,r:100},
+    {rank:"Feeble",   g:61,y:91,r:100},
+    {rank:"Poor",     g:56,y:86,r:98},
+    {rank:"Typical",  g:51,y:81,r:97},
+    {rank:"Good",     g:46,y:76,r:95},
+    {rank:"Excellent",g:41,y:71,r:91},
+    {rank:"Remarkable",g:36,y:66,r:86},
+    {rank:"Incredible",g:31,y:61,r:81},
+    {rank:"Amazing",  g:26,y:56,r:76},
+    {rank:"Monstrous", g:21,y:46,r:66},
+    {rank:"Unearthly", g:16,y:36,r:56},
+    {rank:"Shift-X",  g:11,y:26,r:46},
+    {rank:"Shift-Y",  g:7, y:16,r:36},
+    {rank:"Shift-Z",  g:4, y:7, r:21},
+    {rank:"Class 1000",g:2, y:4, r:6},
+    {rank:"Class 3000",g:2, y:4, r:6},
+    {rank:"Class 5000",g:2, y:4, r:6},
+    {rank:"Beyond",   g:2, y:4, r:6}
+  ];
+  const t = thresholds[Math.min(rankIdx, thresholds.length-1)] || thresholds[3];
+  let color="White", colorHex="#ccc";
+  if(roll >= t.r){ color="Red"; colorHex="#cc1111"; }
+  else if(roll >= t.y){ color="Yellow"; colorHex="#e0c800"; }
+  else if(roll >= t.g){ color="Green"; colorHex="#22bb22"; }
+  const msg = `${label}: Roll ${roll} vs ${rankName} → ${color}`;
+  alert(msg);
+}
+
 function renderList(listId, items, type){
   const ul=document.getElementById(listId);
   ul.innerHTML="";
@@ -579,21 +620,43 @@ function renderList(listId, items, type){
     li.className="item-row";
     if(type==="power"){
       const star=item.name.endsWith("*")?"<span class=\"item-star\">★</span>":"";
-      li.innerHTML=`${star}<input class="si" value="${item.name.replace(/\*$/,"")}" data-list="${type}" data-idx="${i}" data-lf="name">
+      li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll FEAT">FEAT</button>
+        ${star}<input class="si" value="${item.name.replace(/\*$/,"")}" data-list="${type}" data-idx="${i}" data-lf="name">
         <select class="si item-rank" data-list="${type}" data-idx="${i}" data-lf="rank">${buildRankOptions(item.rank||"Typical")}</select>
-        <input class="si item-value" type="number" value="${item.value||6}" data-list="${type}" data-idx="${i}" data-lf="value" style="width:40px">
+        <input class="si item-value" type="number" value="${item.value||6}" data-list="${type}" data-idx="${i}" data-lf="value" style="width:30px">
         <button class="item-del" data-list="${type}" data-idx="${i}">&times;</button>`;
     } else if(type==="talent"){
-      li.innerHTML=`<input class="si" value="${item.name.replace(/\*$/,"")}" data-list="${type}" data-idx="${i}" data-lf="name">
+      li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll FEAT">FEAT</button>
+        <input class="si" value="${item.name.replace(/\*$/,"")}" data-list="${type}" data-idx="${i}" data-lf="name">
         <button class="item-del" data-list="${type}" data-idx="${i}">&times;</button>`;
     } else {
-      li.innerHTML=`<input class="si" value="${item.name}" data-list="${type}" data-idx="${i}" data-lf="name">
+      li.innerHTML=`<button class="feat-btn" data-list="${type}" data-idx="${i}" title="Roll Popularity FEAT">FEAT</button>
+        <input class="si" value="${item.name}" data-list="${type}" data-idx="${i}" data-lf="name">
         <button class="item-del" data-list="${type}" data-idx="${i}">&times;</button>`;
     }
     ul.appendChild(li);
   });
-  // Listeners
+  // FEAT button listeners
+  ul.querySelectorAll(".feat-btn").forEach(el=>{
+    el.addEventListener("click",e=>{
+      const t=e.target.dataset.list, idx=+e.target.dataset.idx;
+      const arr=t==="power"?CHAR.powers:t==="talent"?CHAR.talents:CHAR.contacts;
+      const item=arr[idx];
+      if(t==="power"){
+        rollFeat(item.rank||"Typical", item.name);
+      } else if(t==="talent"){
+        // Talents typically use a primary ability - default to Reason
+        rollFeat("Remarkable", item.name);
+      } else {
+        // Contacts use Popularity
+        const popRank = getRankForValue(Math.abs(CHAR.popularityHero));
+        rollFeat(popRank, item.name);
+      }
+    });
+  });
+  // Field change listeners
   ul.querySelectorAll("input,select").forEach(el=>{
+    if(el.classList.contains("feat-btn")) return;
     el.addEventListener("change",e=>{
       const t=e.target.dataset.list, idx=+e.target.dataset.idx, f=e.target.dataset.lf;
       const arr=t==="power"?CHAR.powers:t==="talent"?CHAR.talents:CHAR.contacts;
