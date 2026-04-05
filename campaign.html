@@ -216,7 +216,7 @@ const xSvg=`<svg viewBox="0 0 12 12" width="12" height="12"><line x1="2" y1="2" 
 
 function sc(s){if(!s)return'side-none';const l=s.toLowerCase();return l==='good'?'side-good':l==='evil'?'side-evil':l==='neutral'?'side-neutral':'side-none'}
 
-function charCard(c,i){
+function charCard(c,i,listKey){
   const n=c.name||'Unnamed',sp=c.species||'',si=c.side||'';
   let cp=0;if(c.stats){for(const s of Object.values(c.stats))cp+=parseFloat(s.cp)||0}
   if(c.abilities){for(const a of c.abilities)cp+=parseFloat(a.cp)||0}
@@ -224,16 +224,16 @@ function charCard(c,i){
   const b=[];if(c.power)b.push('<span>Power '+escH(c.power)+'</span>');if(c.hitPts)b.push('<span>HP '+escH(c.hitPts)+'</span>');if(c.initiative)b.push('<span>Init '+escH(c.initiative)+'</span>');
   const badge=si?`<span class="card-side-badge">${escH(si.toUpperCase())}</span>`:'';
   const th=c._image?`<img src="${c._image}" alt="">`:tSvg;
-  return`<div class="card ${sc(si)}" data-type="char" data-idx="${i}"><div class="card-content" data-action="edit"><div class="card-thumb">${th}</div><div class="card-info"><div class="card-name-row"><div class="card-name">${escH(n)}</div>${badge}</div><div class="card-sub">${escH([cp?cp+' CPs':'',sp].filter(Boolean).join(' · '))}</div>${bc?`<div class="card-bcs">${escH(bc)}</div>`:''}${b.length?`<div class="card-derived">${b.join('')}</div>`:''}</div></div><div class="card-actions"><button class="card-btn" data-action="edit">EDIT</button><button class="card-btn" data-action="view">VIEW</button><button class="card-btn" data-action="remove" style="color:var(--danger)">REMOVE</button></div></div>`;
+  return`<div class="card ${sc(si)}" data-type="char" data-idx="${i}" data-list="${listKey||CHARS_KEY}"><div class="card-content" data-action="edit"><div class="card-thumb">${th}</div><div class="card-info"><div class="card-name-row"><div class="card-name">${escH(n)}</div>${badge}</div><div class="card-sub">${escH([cp?cp+' CPs':'',sp].filter(Boolean).join(' · '))}</div>${bc?`<div class="card-bcs">${escH(bc)}</div>`:''}${b.length?`<div class="card-derived">${b.join('')}</div>`:''}</div></div><div class="card-actions"><button class="card-btn" data-action="edit">EDIT</button><button class="card-btn" data-action="view">VIEW</button><button class="card-btn" data-action="remove" style="color:var(--danger)">REMOVE</button></div></div>`;
 }
-function vehCard(v,i){
+function vehCard(v,i,listKey){
   const n=v.name||'Unnamed';
   const tc=v._totalCost||(function(){let c=(v.basicCost||0)+(v.techMod||0)+(v.maneuverMod||0);if(v.wontExplode)c+=5;if(v.isBase)c-=15;if(v.systems)for(const s of v.systems)c+=(s.extraCPs||0);return c})();
   const sp=v._spaces?v._spaces+' spc':'';
   const b=[];if(v._hits)b.push('<span>Hits '+v._hits+'</span>');if(v._power)b.push('<span>Power '+v._power+'</span>');
   const op=v.operator?`<div style="font-size:8px;color:#D06020;font-weight:500;margin-top:2px">Operator: ${escH(v.operator)}</div>`:'';
   const th=v.pictureData?`<img src="${v.pictureData}" alt="">`:(v._image?`<img src="${v._image}" alt="">`:vSvg);
-  return`<div class="card side-vehicle" data-type="veh" data-idx="${i}"><div class="card-content" data-action="edit-veh"><div class="card-thumb">${th}</div><div class="card-info"><div class="card-name-row"><div class="card-name">${escH(n)}</div></div><div class="card-sub">${escH([tc?tc+' CPs':'',sp].filter(Boolean).join(' · '))}</div>${b.length?`<div class="card-derived">${b.join('')}</div>`:''}${op}</div></div><div class="card-actions"><button class="card-btn" data-action="edit-veh">EDIT</button><button class="card-btn" data-action="view-veh">VIEW</button><button class="card-btn" data-action="remove-veh" style="color:var(--danger)">REMOVE</button></div></div>`;
+  return`<div class="card side-vehicle" data-type="veh" data-idx="${i}" data-list="${listKey||VEHS_KEY}"><div class="card-content" data-action="edit-veh"><div class="card-thumb">${th}</div><div class="card-info"><div class="card-name-row"><div class="card-name">${escH(n)}</div></div><div class="card-sub">${escH([tc?tc+' CPs':'',sp].filter(Boolean).join(' · '))}</div>${b.length?`<div class="card-derived">${b.join('')}</div>`:''}${op}</div></div><div class="card-actions"><button class="card-btn" data-action="edit-veh">EDIT</button><button class="card-btn" data-action="view-veh">VIEW</button><button class="card-btn" data-action="remove-veh" style="color:var(--danger)">REMOVE</button></div></div>`;
 }
 
 function renderAll(){
@@ -241,11 +241,16 @@ function renderAll(){
   if(!camps.length){con.innerHTML='<div style="text-align:center;color:var(--tx3);padding:40px 0;font-style:italic">No campaigns yet.</div>';return}
   con.innerHTML=camps.map(camp=>{
     const isAct=camp.id===act;
-    const cc=chars.map((c,i)=>({c,i})).filter(x=>x.c.type!=='mp-vehicle'&&(x.c._campaign===camp.id||(!x.c._campaign&&isAct)));
-    const cv=vehs.map((v,i)=>({v,i})).filter(x=>x.v._campaign===camp.id||(!x.v._campaign&&isAct));
-    const h=cc.filter(x=>(x.c.side||'').toLowerCase()==='good');
-    const n=cc.filter(x=>{const s=(x.c.side||'').toLowerCase();return s==='neutral'||s===''});
-    const e=cc.filter(x=>(x.c.side||'').toLowerCase()==='evil');
+    // Merge both lists, tag each item with its source list and original index
+    const allItems=[];
+    chars.forEach((c,i)=>{ allItems.push({d:c,i:i,list:CHARS_KEY,isVeh:c.type==='mp-vehicle'}); });
+    vehs.forEach((v,i)=>{ allItems.push({d:v,i:i,list:VEHS_KEY,isVeh:true}); });
+    const inCamp=allItems.filter(x=>x.d._campaign===camp.id||(!x.d._campaign&&isAct));
+    const cc=inCamp.filter(x=>!x.isVeh);
+    const cv=inCamp.filter(x=>x.isVeh);
+    const h=cc.filter(x=>(x.d.side||'').toLowerCase()==='good');
+    const n=cc.filter(x=>{const s=(x.d.side||'').toLowerCase();return s==='neutral'||s===''});
+    const e=cc.filter(x=>(x.d.side||'').toLowerCase()==='evil');
     const cnt=cc.length+' char'+(cc.length!==1?'s':'')+(cv.length?', '+cv.length+' veh':'');
     const ses=camp.sessions||[];
     let banner;
@@ -257,10 +262,10 @@ function renderAll(){
       <div class="camp-slot-body">${banner}
         <div class="camp-desc" contenteditable="true" data-placeholder="Add a campaign description..." data-desc="${camp.id}">${escH(camp.desc||'')}</div>
         <div class="camp-gm">GM: ${escH(camp.gm||'—')}</div>
-        <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-hero">HEROES</span><div style="display:flex;gap:4px"><button class="btn-sm" data-add-existing-char="${camp.id}" data-add-side="Good">+ Add</button><button class="btn-sm" data-new-char="${camp.id}" data-new-side="Good">+ New</button></div></div><div class="card-grid">${h.length?h.map(x=>charCard(x.c,x.i)).join(''):'<div class="sec-empty">No heroes yet.</div>'}</div></div>
-        <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-neutral">NEUTRALS</span><div style="display:flex;gap:4px"><button class="btn-sm" data-add-existing-char="${camp.id}" data-add-side="Neutral">+ Add</button><button class="btn-sm" data-new-char="${camp.id}" data-new-side="Neutral">+ New</button></div></div><div class="card-grid">${n.length?n.map(x=>charCard(x.c,x.i)).join(''):'<div class="sec-empty">No neutrals.</div>'}</div></div>
-        <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-villain">VILLAINS</span><div style="display:flex;gap:4px"><button class="btn-sm" data-add-existing-char="${camp.id}" data-add-side="Evil">+ Add</button><button class="btn-sm" data-new-char="${camp.id}" data-new-side="Evil">+ New</button></div></div><div class="card-grid">${e.length?e.map(x=>charCard(x.c,x.i)).join(''):'<div class="sec-empty">No villains yet.</div>'}</div></div>
-        <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-vehicle">VEHICLES</span><div style="display:flex;gap:4px"><button class="btn-sm" data-add-existing-veh="${camp.id}">+ Add</button><button class="btn-sm" data-new-veh="${camp.id}">+ New</button></div></div><div class="card-grid">${cv.length?cv.map(x=>vehCard(x.v,x.i)).join(''):'<div class="sec-empty">No vehicles.</div>'}</div></div>
+        <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-hero">HEROES</span><div style="display:flex;gap:4px"><button class="btn-sm" data-add-existing-char="${camp.id}" data-add-side="Good">+ Add</button><button class="btn-sm" data-new-char="${camp.id}" data-new-side="Good">+ New</button></div></div><div class="card-grid">${h.length?h.map(x=>charCard(x.d,x.i,x.list)).join(''):'<div class="sec-empty">No heroes yet.</div>'}</div></div>
+        <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-neutral">NEUTRALS</span><div style="display:flex;gap:4px"><button class="btn-sm" data-add-existing-char="${camp.id}" data-add-side="Neutral">+ Add</button><button class="btn-sm" data-new-char="${camp.id}" data-new-side="Neutral">+ New</button></div></div><div class="card-grid">${n.length?n.map(x=>charCard(x.d,x.i,x.list)).join(''):'<div class="sec-empty">No neutrals.</div>'}</div></div>
+        <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-villain">VILLAINS</span><div style="display:flex;gap:4px"><button class="btn-sm" data-add-existing-char="${camp.id}" data-add-side="Evil">+ Add</button><button class="btn-sm" data-new-char="${camp.id}" data-new-side="Evil">+ New</button></div></div><div class="card-grid">${e.length?e.map(x=>charCard(x.d,x.i,x.list)).join(''):'<div class="sec-empty">No villains yet.</div>'}</div></div>
+        <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-vehicle">VEHICLES</span><div style="display:flex;gap:4px"><button class="btn-sm" data-add-existing-veh="${camp.id}">+ Add</button><button class="btn-sm" data-new-veh="${camp.id}">+ New</button></div></div><div class="card-grid">${cv.length?cv.map(x=>vehCard(x.d,x.i,x.list)).join(''):'<div class="sec-empty">No vehicles.</div>'}</div></div>
         <div class="inner-sec"><div class="inner-sec-hdr sub-toggle open" data-sub="ses-${camp.id}"><span class="sub-arrow">▶</span><span class="inner-sec-title">SESSION LOG</span></div><div class="sub-body" id="ses-${camp.id}" style="display:block">${sesHtml}</div></div>
         <div class="inner-sec"><div class="inner-sec-hdr sub-toggle open" data-sub="notes-${camp.id}"><span class="sub-arrow">▶</span><span class="inner-sec-title">GM NOTES</span></div><div class="sub-body" id="notes-${camp.id}" style="display:block"><div class="notes-grid"><div class="note-box"><div class="note-label note-label-public">📢 Public</div><textarea class="note-textarea" data-note-pub="${camp.id}" placeholder="Notes visible to players...">${escH(camp.publicNotes||'')}</textarea></div><div class="note-box"><div class="note-label note-label-private">🔒 Private</div><textarea class="note-textarea" data-note-priv="${camp.id}" placeholder="GM-only secrets...">${escH(camp.privateNotes||'')}</textarea></div></div></div></div>
       </div></div>`}).join('')}
@@ -282,11 +287,11 @@ document.addEventListener('click',async e=>{
   const aev=e.target.closest('[data-add-existing-veh]');if(aev){const campId=aev.dataset.addExistingVeh;const vehs=loadList(VEHS_KEY);const unlinked=vehs.map((v,i)=>({v,i})).filter(x=>!x.v._campaign);if(!unlinked.length){await MPDialog.alert('No Vehicles','All vehicles are already assigned to a campaign.');return}const items=unlinked.map(x=>({name:x.v.name||'Unnamed',sub:[x.v.model,x.v.operator].filter(Boolean).join(' · '),image:x.v.pictureData||x.v._image||null,icon:'🚗'}));const pick=await MPDialog.listPick('Add Vehicle',items);if(pick==null)return;const realIdx=unlinked[pick].i;vehs[realIdx]._campaign=campId;saveList(VEHS_KEY,vehs);renderAll();return}
   const nc=e.target.closest('[data-new-char]');if(nc){const id=nc.dataset.newChar,si=nc.dataset.newSide||'';setActiveCampaign(id);localStorage.removeItem('mp-char-sheet');localStorage.setItem('mp-char-edit-idx','-1');localStorage.setItem('mp-char-campaign',id);if(si)localStorage.setItem('mp-char-default-side',si);window.location.href='character.html';return}
   const nv=e.target.closest('[data-new-veh]');if(nv){const id=nv.dataset.newVeh;setActiveCampaign(id);localStorage.removeItem('mp-vehicle-autosave');localStorage.setItem('mp-veh-edit-idx','-1');localStorage.setItem('mp-veh-campaign',id);window.location.href='vehicle.html';return}
-  const ac=e.target.closest('[data-action]');if(ac){const card=ac.closest('.card');if(!card)return;const t=card.dataset.type,i=parseInt(card.dataset.idx),a=ac.dataset.action;
-    if(a==='edit-veh'||a==='view-veh'){if(t!=='veh')return;const l=loadList(VEHS_KEY);localStorage.setItem('mp-vehicle-autosave',JSON.stringify(l[i]));localStorage.setItem('mp-veh-edit-idx',i);window.location.href='vehicle.html';return}
-    if(a==='edit'||a==='view'){if(t!=='char')return;const l=loadList(CHARS_KEY);localStorage.setItem('mp-char-sheet',JSON.stringify(l[i]));localStorage.setItem('mp-char-edit-idx',i);window.location.href='character.html';return}
-    if(a==='remove-veh'&&t==='veh'){const l=loadList(VEHS_KEY);const nm=l[i]?.name||'Unnamed';const ok=await MPDialog.confirm('Remove Vehicle','Remove <b>'+escH(nm)+'</b> from this campaign?<br>(The vehicle will not be deleted, just unlinked.)',{okText:'Remove',danger:true});if(!ok)return;delete l[i]._campaign;saveList(VEHS_KEY,l);renderAll();return}
-    if(a==='remove'&&t==='char'){const l=loadList(CHARS_KEY);const nm=l[i]?.name||'Unnamed';const ok=await MPDialog.confirm('Remove Character','Remove <b>'+escH(nm)+'</b> from this campaign?<br>(The character will not be deleted, just unlinked.)',{okText:'Remove',danger:true});if(!ok)return;delete l[i]._campaign;saveList(CHARS_KEY,l);renderAll();return}
+  const ac=e.target.closest('[data-action]');if(ac){const card=ac.closest('.card');if(!card)return;const t=card.dataset.type,i=parseInt(card.dataset.idx),lk=card.dataset.list,a=ac.dataset.action;
+    if(a==='edit-veh'||a==='view-veh'){const l=loadList(lk||VEHS_KEY);localStorage.setItem('mp-vehicle-autosave',JSON.stringify(l[i]));localStorage.setItem('mp-veh-edit-idx',lk===VEHS_KEY?i:-1);window.location.href='vehicle.html';return}
+    if(a==='edit'||a==='view'){const l=loadList(lk||CHARS_KEY);localStorage.setItem('mp-char-sheet',JSON.stringify(l[i]));localStorage.setItem('mp-char-edit-idx',lk===CHARS_KEY?i:-1);window.location.href='character.html';return}
+    if(a==='remove-veh'){const l=loadList(lk||VEHS_KEY);const nm=l[i]?.name||'Unnamed';const ok=await MPDialog.confirm('Remove Vehicle','Remove <b>'+escH(nm)+'</b> from this campaign?<br>(The vehicle will not be deleted, just unlinked.)',{okText:'Remove',danger:true});if(!ok)return;delete l[i]._campaign;saveList(lk||VEHS_KEY,l);renderAll();return}
+    if(a==='remove'){const l=loadList(lk||CHARS_KEY);const nm=l[i]?.name||'Unnamed';const ok=await MPDialog.confirm('Remove Character','Remove <b>'+escH(nm)+'</b> from this campaign?<br>(The character will not be deleted, just unlinked.)',{okText:'Remove',danger:true});if(!ok)return;delete l[i]._campaign;saveList(lk||CHARS_KEY,l);renderAll();return}
   }
 });
 document.addEventListener('input',e=>{
