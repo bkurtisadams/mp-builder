@@ -91,18 +91,20 @@ table.ut-grid{border-collapse:collapse;font-family:var(--fd);font-size:10px;tabl
   display:none;
 }
 
-/* ── Dice Roller (in-grid) ── */
-.ut-grid .ut-roll-btn{
+/* ── Dice Roller (in rank table header) ── */
+.rank-tbl .ut-roll-btn{
   background:var(--accent)!important;color:#fff!important;cursor:pointer;
   font-family:var(--fd);font-size:9px;font-weight:900;letter-spacing:.5px;
   border-color:var(--accent)!important;line-height:1.2;padding:2px 0;
   user-select:none;
 }
-.ut-grid .ut-roll-btn:hover{background:#d06a10!important}
-.ut-grid .ut-roll-btn:active{background:#a04800!important}
+.rank-tbl .ut-roll-btn:hover{background:#d06a10!important}
+.rank-tbl .ut-roll-btn:active{background:#a04800!important}
 
-/* Selected column on grid */
-.ut-grid th.col-sel{background:var(--accent)!important;color:#fff!important}
+/* Selected column on rank table + grid */
+.rank-tbl th.col-sel{background:var(--accent)!important;color:#fff!important}
+.rank-tbl th.col-sel .rk-name{color:#fff!important}
+.rank-tbl th[data-col]:hover{background:#ddd8c8;cursor:pointer}
 .ut-grid td.col-sel-bg{outline:1px solid rgba(192,90,0,.25);outline-offset:-1px}
 
 /* Dice result cell highlight */
@@ -357,8 +359,8 @@ function buildActionTable() {
 
 function buildRankTable() {
   const cols = makeCols();
-  let r1 = '<tr><th class="ut-col-roll"></th>';
-  RANKS.forEach(r => { r1 += `<th class="ut-col-rank"><div class="rk-abbr">${r.abbr}</div><div class="rk-name">${r.name}</div></th>`; });
+  let r1 = '<tr><th class="ut-col-roll ut-roll-btn" id="btn-roll">ROLL<br>d100</th>';
+  RANKS.forEach((r, i) => { r1 += `<th class="ut-col-rank" data-col="${i}" style="cursor:pointer"><div class="rk-abbr">${r.abbr}</div><div class="rk-name">${r.name}</div></th>`; });
   r1 += '</tr>';
   let r2 = '<tr><th></th>';
   RANKS.forEach(r => { r2 += `<td class="rk-val">${r.val}</td>`; });
@@ -372,9 +374,6 @@ function buildRankTable() {
 
 function buildGrid() {
   const cols = makeCols();
-  let hdr = '<tr><th class="ut-col-roll ut-roll-btn" id="btn-roll">ROLL<br>d100</th>';
-  RANK_LABELS.forEach((lbl, i) => { hdr += `<th class="ut-col-rank" data-col="${i}" style="cursor:pointer">${lbl}</th>`; });
-  hdr += '</tr>';
   let body = '';
   ROLL_ROWS.forEach((roll, ri) => {
     body += `<tr data-row="${ri}">`;
@@ -385,7 +384,7 @@ function buildGrid() {
     body += '</tr>';
   });
   document.getElementById('grid-mount').innerHTML =
-    `<table class="ut-grid" id="ut-grid">${cols}<thead>${hdr}</thead><tbody id="ut-body">${body}</tbody></table>`;
+    `<table class="ut-grid" id="ut-grid">${cols}<tbody id="ut-body">${body}</tbody></table>`;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -445,9 +444,8 @@ function wireCellHover() {
 let selectedCol = -1;
 
 function wireColumnSelect() {
-  const grid = document.getElementById('ut-grid');
-
-  grid.querySelector('thead').addEventListener('click', e => {
+  const rankTbl = document.querySelector('.rank-tbl thead');
+  rankTbl.addEventListener('click', e => {
     const th = e.target.closest('th[data-col]');
     if (!th) return;
     const col = parseInt(th.dataset.col);
@@ -456,11 +454,14 @@ function wireColumnSelect() {
 }
 
 function setSelectedCol(col) {
+  // Clear previous on rank table
+  document.querySelectorAll('.rank-tbl .col-sel').forEach(el => el.classList.remove('col-sel'));
+  // Clear previous on grid
   const grid = document.getElementById('ut-grid');
-  grid.querySelectorAll('.col-sel,.col-sel-bg').forEach(el => el.classList.remove('col-sel','col-sel-bg'));
+  grid.querySelectorAll('.col-sel-bg').forEach(el => el.classList.remove('col-sel-bg'));
 
   selectedCol = col;
-  const th = grid.querySelector(`th[data-col="${col}"]`);
+  const th = document.querySelector(`.rank-tbl th[data-col="${col}"]`);
   if (th) th.classList.add('col-sel');
   grid.querySelectorAll(`td[data-col="${col}"]`).forEach(el => el.classList.add('col-sel-bg'));
 
