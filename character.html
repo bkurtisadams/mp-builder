@@ -552,6 +552,8 @@ const MPDialog = (function() {
       <option value="standard" selected>Standard</option>
       <option value="high">High</option>
     </select>
+    <span class="lbl" style="margin-left:4px">CPs:</span>
+    <input type="number" id="cg-base-cps" style="width:48px; text-align:center; background:#0d0d1a; color:#f4d03f; border:1px solid #2a2040; padding:2px; font-weight:bold; font-size:11px; border-radius:3px" title="Base CP budget (editable)">
     <button class="btn-cg" id="btn-roll-all" title="Random character skeleton"><svg viewBox="0 0 16 16" width="11" height="11" style="fill:#fff;vertical-align:-1px"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="4.5" r="1.2"/><circle cx="4.5" cy="11.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg> Roll All</button>
     <button class="btn-cg" id="btn-roll-bcs" title="Random BCs only" style="background:#2a5a7a"><svg viewBox="0 0 16 16" width="11" height="11" style="fill:#fff;vertical-align:-1px"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="4.5" r="1.2"/><circle cx="4.5" cy="11.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg> BCs</button>
     <button class="btn-cg" id="btn-roll-abilities" title="Random abilities" style="background:#2a5a7a"><svg viewBox="0 0 16 16" width="11" height="11" style="fill:#fff;vertical-align:-1px"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="4.5" r="1.2"/><circle cx="4.5" cy="11.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg> Abilities</button>
@@ -904,17 +906,19 @@ function recalcDerived() {
   // Always update CP strip
   const bcTotal = st + en + ag + inVal + cl;
   const pl = MP.CG.POWER_LEVELS.find(p => p.id === document.getElementById('cg-power-level').value);
+  const cpBox = document.getElementById('cg-base-cps');
+  const baseCPs = parseInt(cpBox.value) || (pl ? pl.totalCPs : 0);
   let abCpTotal = 0;
   const abRows = document.querySelectorAll('[data-ab][data-abf="cp"]');
   abRows.forEach(cpEl => { abCpTotal += parseFloat(cpEl.value) || 0; });
   const sumEl = document.getElementById('cg-cp-summary');
-  if (pl) {
-    const baseCPs = pl.totalCPs;
+  if (baseCPs > 0) {
     const totalSpent = bcTotal + abCpTotal;
     const remain = baseCPs - totalSpent;
+    const bcBudget = pl && pl.totalCPs === baseCPs ? pl.bcPoints : '—';
     sumEl.textContent = `${totalSpent} / ${baseCPs} CPs`;
     document.getElementById('cp-base').textContent = baseCPs;
-    document.getElementById('cp-bc').textContent = bcTotal + ' / ' + pl.bcPoints;
+    document.getElementById('cp-bc').textContent = bcTotal + (bcBudget !== '—' ? ' / ' + bcBudget : '');
     document.getElementById('cp-ab').textContent = abCpTotal;
     document.getElementById('cp-spent').textContent = totalSpent;
     document.getElementById('cp-remain').textContent = remain;
@@ -972,14 +976,25 @@ document.querySelectorAll('.stat-cp').forEach(inp => {
 document.getElementById('ab-area').addEventListener('input', (e) => {
   if (e.target.dataset.abf === 'cp') recalcDerived();
 });
-// Also recalc when power level changes
-document.getElementById('cg-power-level').addEventListener('change', recalcDerived);
+// Also recalc when power level changes — and sync CP box
+document.getElementById('cg-power-level').addEventListener('change', () => {
+  const pl = MP.CG.POWER_LEVELS.find(p => p.id === document.getElementById('cg-power-level').value);
+  if (pl) document.getElementById('cg-base-cps').value = pl.totalCPs;
+  recalcDerived();
+});
+
+// Recalc when CP box is manually edited
+document.getElementById('cg-base-cps').addEventListener('input', recalcDerived);
 
 // Recalc when XP earned/spent changes (affects caps)
 document.querySelector('[data-field="xpEarned"]').addEventListener('input', recalcDerived);
 document.querySelector('[data-field="xpSpent"]').addEventListener('input', recalcDerived);
 
-// Initial CP strip population
+// Initial CP box from dropdown, then recalc
+(function() {
+  const pl = MP.CG.POWER_LEVELS.find(p => p.id === document.getElementById('cg-power-level').value);
+  if (pl) document.getElementById('cg-base-cps').value = pl.totalCPs;
+})();
 recalcDerived();
 
 // ── Roll Buttons ──
@@ -1209,6 +1224,14 @@ function populateData(d) {
     if (d[el.dataset.field] != null) el.value = d[el.dataset.field];
   });
   if (d.powerLevel) document.getElementById('cg-power-level').value = d.powerLevel;
+  // Set CP box: prefer xpBase from import, fall back to power level
+  const cpBox = document.getElementById('cg-base-cps');
+  if (d.xpBase) {
+    cpBox.value = d.xpBase;
+  } else {
+    const pl = MP.CG.POWER_LEVELS.find(p => p.id === document.getElementById('cg-power-level').value);
+    if (pl) cpBox.value = pl.totalCPs;
+  }
   if (d.stats) {
     document.querySelectorAll('.stat-row[data-stat]').forEach(row => {
       const s = d.stats[row.dataset.stat];
@@ -1251,6 +1274,9 @@ function clearAll() {
   // Trim extra ability rows back to default
   const abCells = abArea.children;
   while (abCells.length > AB_COUNT * 3) abArea.removeChild(abArea.lastChild);
+  // Reset CP box from dropdown default
+  const pl = MP.CG.POWER_LEVELS.find(p => p.id === document.getElementById('cg-power-level').value);
+  if (pl) document.getElementById('cg-base-cps').value = pl.totalCPs;
 }
 
 // ── Slot management ──
