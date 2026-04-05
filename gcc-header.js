@@ -11,6 +11,7 @@
   }
 
   const SHARED_TOOLS = [
+    { icon: '🏰', name: 'Campaigns', href: 'index.html' },
     { icon: '📅', name: 'Calendar & Time' },
     { icon: '🌦', name: 'Greyhawk Weather' },
     { icon: '🎲', name: 'Dice Roller' },
@@ -59,7 +60,8 @@
     });
     dd += '</div><div class="gcc-td-section"><div class="gcc-td-section-title">SHARED TOOLS</div>';
     SHARED_TOOLS.forEach(t => {
-      dd += `<a class="gcc-td-shared-link" href="#"><span class="gcc-td-shared-icon">${t.icon}</span> ${ESC(t.name)}</a>`;
+      const href = t.href ? ESC(t.href) : '#';
+      dd += `<a class="gcc-td-shared-link" href="${href}"><span class="gcc-td-shared-icon">${t.icon}</span> ${ESC(t.name)}</a>`;
     });
     dd += '</div>';
 

@@ -138,6 +138,10 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .entity-name a:hover { color: var(--accent) }
 .entity-sub { font-size: 11px; color: var(--tx2); font-family: var(--fm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .entity-player { font-size: 10px; color: var(--tx3); font-style: italic }
+.entity-stats { font-family: var(--fm); font-size: 9px; color: var(--tx2); margin-top: 2px; display: flex; gap: 2px; flex-wrap: wrap }
+.entity-stats span { white-space: nowrap; margin-right: 4px }
+.entity-derived { font-size: 10px; font-weight: 700; color: var(--tx2); margin-top: 1px; display: flex; gap: 2px; flex-wrap: wrap }
+.entity-derived span { white-space: nowrap; margin-right: 6px }
 .entity-pip { position: absolute; top: 0; left: 0; bottom: 0; width: 3px; border-radius: 4px 0 0 4px }
 .entity-empty { font-size: 12px; color: var(--tx3); font-style: italic; padding: 16px 0 }
 
@@ -295,26 +299,55 @@ function statusLabel(s) {
 
 // ── Resolve character data from saved storage ──
 function resolveChar(savedChar, systemId, storageKey) {
-  let name = '', sub = '', player = '', portrait = '';
+  let name = '', sub = '', player = '', portrait = '', statsHtml = '';
   if (systemId === 'faserip') {
     name = savedChar.heroName || savedChar.name || 'Unnamed';
     player = savedChar.playerName || '';
     portrait = savedChar.portraitData || '';
     const ab = savedChar.abilities || {};
-    const abbr = ['fighting','agility','strength','endurance','reason','intuition','psyche']
-      .map(k => (ab[k]?.rank || 'TY').substring(0,2).toUpperCase()).join('-');
-    sub = savedChar.origin ? savedChar.origin + ' · ' + abbr : abbr;
+    sub = savedChar.origin || '';
+    // Build FASERIP stat line with rank names and values
+    const lines = ['fighting','agility','strength','endurance','reason','intuition','psyche']
+      .map(k => {
+        const a = ab[k];
+        if (!a) return '';
+        const label = k.substring(0,1).toUpperCase();
+        return `<span>${label}\u2009${ESC(a.rank||'TY')}</span>`;
+      }).filter(Boolean);
+    if (lines.length) statsHtml += `<div class="entity-stats">${lines.join('')}</div>`;
+    const derived = [];
+    if (savedChar.health) derived.push(`<span>Health ${savedChar.health}</span>`);
+    if (savedChar.karma) derived.push(`<span>Karma ${savedChar.karma}</span>`);
+    if (savedChar.resourcesRank) derived.push(`<span>Res: ${ESC(savedChar.resourcesRank)}</span>`);
+    if (derived.length) statsHtml += `<div class="entity-derived">${derived.join('')}</div>`;
   } else if (systemId === 'mp') {
     name = savedChar.name || 'Unnamed';
     player = savedChar.player || '';
     portrait = savedChar._image || savedChar.portrait || '';
     sub = savedChar.archetype || savedChar.className || savedChar.model || '';
+    // CP total
+    let cp = 0;
+    if (savedChar.stats) { for (const s of Object.values(savedChar.stats)) cp += parseFloat(s.cp) || 0; }
+    if (savedChar.abilities) { for (const a of savedChar.abilities) cp += parseFloat(a.cp) || 0; }
+    if (cp) sub = cp + ' CPs' + (sub ? ' · ' + sub : '');
+    // Stat line
+    if (savedChar.stats) {
+      const statLine = ['st','en','ag','in','cl']
+        .map(k => { const v = savedChar.stats[k] ? (savedChar.stats[k].cp || '0') : '0'; return `<span>${k.toUpperCase()}\u2009${v}</span>`; });
+      statsHtml += `<div class="entity-stats">${statLine.join('')}</div>`;
+    }
+    // Derived
+    const derived = [];
+    if (savedChar.power) derived.push(`<span>Power ${ESC(savedChar.power)}</span>`);
+    if (savedChar.hitPts) derived.push(`<span>HP ${ESC(savedChar.hitPts)}</span>`);
+    if (savedChar.initiative) derived.push(`<span>Init ${ESC(savedChar.initiative)}</span>`);
+    if (derived.length) statsHtml += `<div class="entity-derived">${derived.join('')}</div>`;
   } else {
     name = savedChar.name || savedChar.heroName || 'Unnamed';
     player = savedChar.player || savedChar.playerName || '';
     sub = savedChar.sub || savedChar.class || '';
   }
-  return { name, player, sub, portrait, _id: savedChar._id || '', storageKey: storageKey || '' };
+  return { name, player, sub, portrait, statsHtml, _id: savedChar._id || '', storageKey: storageKey || '' };
 }
 
 // ── Get campaign ID from URL ──
@@ -420,7 +453,7 @@ function render() {
         nameHtml = ESC(resolved.name);
       }
 
-      partyHtml += `<div class="entity-card"><div class="entity-pip" style="background:${col}"></div>${portraitHtml}<div class="entity-info"><div class="entity-name">${nameHtml}</div><div class="entity-sub">${ESC(resolved.sub || '')}</div>${resolved.player ? '<div class="entity-player">' + ESC(resolved.player) + '</div>' : ''}</div></div>`;
+      partyHtml += `<div class="entity-card"><div class="entity-pip" style="background:${col}"></div>${portraitHtml}<div class="entity-info"><div class="entity-name">${nameHtml}</div><div class="entity-sub">${ESC(resolved.sub || '')}</div>${resolved.statsHtml || ''}${resolved.player ? '<div class="entity-player">' + ESC(resolved.player) + '</div>' : ''}</div></div>`;
     });
     partyHtml += '</div>';
   }
