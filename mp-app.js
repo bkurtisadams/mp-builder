@@ -1362,6 +1362,7 @@ function autoSave() {
       data._spaces = veh.totalSpaces;
       // Campaign association
       if (_vehCampaign) data._campaign = _vehCampaign;
+      data._saved = new Date().toISOString();
       localStorage.setItem(LS_KEY, JSON.stringify(data));
       // Sync to slot list for landing page
       const list = JSON.parse(localStorage.getItem(VEHS_LIST_KEY)) || [];

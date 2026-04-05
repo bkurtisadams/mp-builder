@@ -1062,6 +1062,7 @@ function saveToSlot() {
       data._id = (typeof GCC!=='undefined' && GCC.genId) ? GCC.genId('mp') : 'mp_'+Date.now();
     }
   }
+  data._saved = new Date().toISOString();
   try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
   try {
     const list = JSON.parse(localStorage.getItem(CHARS_LIST_KEY)) || [];

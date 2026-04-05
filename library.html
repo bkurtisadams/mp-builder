@@ -291,12 +291,12 @@ function render() {
   let entities = GCC.getAllCharacters();
 
   // Tag each entity
-  entities = entities.forEach ? entities.map(e => {
+  entities = entities.map(e => {
     const isVeh = e.type === 'mp-vehicle' || e._toolId === 'mp-veh';
     const resolved = resolveEntity(e, e._system);
     const camp = findCampaign(e, campLookup);
     return { raw: e, ...resolved, entityType: isVeh ? 'vehicle' : 'character', systemId: e._system, camp, _saved: e._saved || e._lastSaved || '' };
-  }) : [];
+  });
 
   // Filter by type
   if (currentType !== 'all') {
