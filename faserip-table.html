@@ -81,9 +81,7 @@ table.ut-grid{border-collapse:collapse;font-family:var(--fd);font-size:10px;tabl
 .ut-grid td.row-hl{background-image:linear-gradient(rgba(0,0,0,.08),rgba(0,0,0,.08))}
 .ut-grid .ut-roll.row-hl{background:#c0dae8}
 
-/* ── Dice roll row highlight ── */
-.ut-grid tr.dice-hl td.ut-roll{background:#f8e0a0;font-weight:900}
-.ut-grid tr.dice-hl{outline:2px solid var(--accent);outline-offset:-1px}
+/* (dice result highlight is .dice-cell — see roller section) */
 
 /* ── Tooltip ── */
 .ut-tip{
@@ -93,17 +91,29 @@ table.ut-grid{border-collapse:collapse;font-family:var(--fd);font-size:10px;tabl
   display:none;
 }
 
-/* ── Dice Roller ── */
-.dice-bar{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+/* ── Dice Roller (compact bar between rank table and grid) ── */
+.dice-bar{display:flex;align-items:center;gap:6px;margin:4px 0;flex-wrap:wrap;padding:4px 6px;background:#e0eff8;border:1px solid #a0c4d8;border-radius:3px}
+.dice-sel{font-family:var(--fd);font-size:11px;font-weight:700;color:#444;white-space:nowrap}
+.dice-sel-rank{color:var(--accent);font-size:13px}
 .dice-btn{
-  font-family:var(--fd);font-size:14px;font-weight:900;letter-spacing:1px;
-  padding:6px 18px;border:2px solid #000;border-radius:3px;cursor:pointer;
+  font-family:var(--fd);font-size:11px;font-weight:900;letter-spacing:1px;
+  padding:3px 12px;border:1.5px solid #000;border-radius:2px;cursor:pointer;
   background:var(--paper);color:#000;transition:all .12s;
 }
 .dice-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 .dice-btn:active{transform:scale(.96)}
-.dice-result{font-family:var(--fd);font-size:22px;font-weight:900;min-width:40px;text-align:center}
-.dice-color{display:inline-block;width:18px;height:18px;border-radius:3px;border:1px solid #000;vertical-align:middle;margin-left:4px}
+.dice-result-num{font-family:var(--fd);font-size:16px;font-weight:900;min-width:28px;text-align:center}
+.dice-result-eq{font-size:11px;color:#444;font-weight:700}
+.dice-result-color{display:inline-block;width:14px;height:14px;border-radius:2px;border:1px solid rgba(0,0,0,.3);vertical-align:middle}
+.dice-result-label{font-family:var(--fd);font-size:12px;font-weight:900}
+.dice-no-sel{font-size:10px;color:#888;font-style:italic}
+
+/* Selected column on grid */
+.ut-grid th.col-sel{background:#c05a00!important;color:#fff!important}
+.ut-grid td.col-sel-bg{outline:1px solid rgba(192,90,0,.3);outline-offset:-1px}
+
+/* Dice result cell highlight */
+.ut-grid td.dice-cell{outline:3px solid #000;outline-offset:-1px;z-index:3;position:relative}
 
 /* ── Action Rules Popup ── */
 .ar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;align-items:flex-start;justify-content:center;padding:40px 10px;overflow-y:auto}
@@ -183,16 +193,18 @@ table.ut-grid{border-collapse:collapse;font-family:var(--fd);font-size:10px;tabl
 <div class="ut-wrap">
 <div class="ut-inner">
 
-<!-- Dice Roller -->
-<div class="dice-bar">
-  <button class="dice-btn" id="btn-roll">ROLL d100</button>
-  <span class="dice-result" id="dice-result">—</span>
-  <span class="dice-color" id="dice-color" title="Result color"></span>
-</div>
-
 <!-- All tables rendered by JS for consistent column sizing -->
 <div id="action-mount"></div>
 <div id="rank-mount"></div>
+
+<!-- Dice Roller (between rank reference and grid) -->
+<div class="dice-bar" id="dice-bar">
+  <div class="dice-sel"><span class="dice-no-sel" id="dice-no-sel">Click a rank column below to select</span><span id="dice-sel-wrap" style="display:none">Rank: <span class="dice-sel-rank" id="dice-sel-rank"></span></span></div>
+  <button class="dice-btn" id="btn-roll">ROLL</button>
+  <span class="dice-result-num" id="dice-result">—</span>
+  <span class="dice-result-eq" id="dice-eq" style="display:none">= <span class="dice-result-color" id="dice-rcolor"></span> <span class="dice-result-label" id="dice-rlabel"></span></span>
+</div>
+
 <div id="grid-mount"></div>
 
 <!-- Tooltip -->
@@ -430,30 +442,89 @@ function wireCellHover() {
 // DICE ROLLER
 // ══════════════════════════════════════════════════════════════
 
+let selectedCol = -1;
+
+function wireColumnSelect() {
+  const grid = document.getElementById('ut-grid');
+
+  // Click rank column headers to select
+  grid.querySelector('thead').addEventListener('click', e => {
+    const th = e.target.closest('th[data-col]');
+    if (!th) return;
+    const col = parseInt(th.dataset.col);
+    setSelectedCol(col);
+  });
+}
+
+function setSelectedCol(col) {
+  const grid = document.getElementById('ut-grid');
+  // Clear previous
+  grid.querySelectorAll('.col-sel,.col-sel-bg').forEach(el => el.classList.remove('col-sel','col-sel-bg'));
+
+  selectedCol = col;
+  // Highlight header
+  const th = grid.querySelector(`th[data-col="${col}"]`);
+  if (th) th.classList.add('col-sel');
+  // Light highlight on column cells
+  grid.querySelectorAll(`td[data-col="${col}"]`).forEach(el => el.classList.add('col-sel-bg'));
+
+  // Update dice bar
+  document.getElementById('dice-no-sel').style.display = 'none';
+  const wrap = document.getElementById('dice-sel-wrap');
+  wrap.style.display = '';
+  document.getElementById('dice-sel-rank').textContent = RANKS[col].name + ' (' + RANKS[col].abbr + ')';
+
+  // Clear previous result
+  clearDiceResult();
+}
+
+function clearDiceResult() {
+  document.getElementById('dice-result').textContent = '\u2014';
+  document.getElementById('dice-eq').style.display = 'none';
+  const grid = document.getElementById('ut-grid');
+  grid.querySelectorAll('.dice-cell,.dice-hl').forEach(el => el.classList.remove('dice-cell','dice-hl'));
+}
+
+const COLOR_HEX = {w:'#ffffff',g:'#22bb22',y:'#f0d800',r:'#cc1111'};
+
 function wireDice() {
   const btn = document.getElementById('btn-roll');
-  const result = document.getElementById('dice-result');
-  const colorBox = document.getElementById('dice-color');
 
   btn.addEventListener('click', () => {
-    const roll = Math.floor(Math.random() * 100) + 1;
-    result.textContent = roll;
-
-    document.querySelectorAll('#ut-body tr.dice-hl').forEach(r => r.classList.remove('dice-hl'));
-
-    for (let i = 0; i < ROLL_RANGES.length; i++) {
-      if (roll >= ROLL_RANGES[i][0] && roll <= ROLL_RANGES[i][1]) {
-        const row = document.querySelector(`#ut-body tr[data-row="${i}"]`);
-        if (row) {
-          row.classList.add('dice-hl');
-          row.scrollIntoView({behavior:'smooth', block:'nearest'});
-        }
-        break;
-      }
+    if (selectedCol < 0) {
+      document.getElementById('dice-no-sel').textContent = '\u2190 Select a rank column first!';
+      return;
     }
 
-    colorBox.style.background = '#ddd';
-    colorBox.title = `Roll: ${roll}`;
+    const roll = Math.floor(Math.random() * 100) + 1;
+    document.getElementById('dice-result').textContent = roll;
+
+    // Find row
+    let ri = -1;
+    for (let i = 0; i < ROLL_RANGES.length; i++) {
+      if (roll >= ROLL_RANGES[i][0] && roll <= ROLL_RANGES[i][1]) { ri = i; break; }
+    }
+    if (ri < 0) return;
+
+    const color = TABLE_DATA[ri][selectedCol];
+    const grid = document.getElementById('ut-grid');
+
+    // Clear previous dice highlight
+    grid.querySelectorAll('.dice-cell,.dice-hl').forEach(el => el.classList.remove('dice-cell','dice-hl'));
+
+    // Highlight the specific cell
+    const cell = grid.querySelector(`td[data-col="${selectedCol}"][data-row="${ri}"]`);
+    if (cell) {
+      cell.classList.add('dice-cell');
+      cell.scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+
+    // Show result
+    const eq = document.getElementById('dice-eq');
+    eq.style.display = '';
+    document.getElementById('dice-rcolor').style.background = COLOR_HEX[color];
+    document.getElementById('dice-rlabel').textContent = COLOR_NAMES[color];
+    document.getElementById('dice-rlabel').style.color = color === 'r' ? '#cc1111' : color === 'y' ? '#998800' : color === 'g' ? '#158015' : '#666';
   });
 }
 
@@ -704,6 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
   buildRankTable();
   buildGrid();
   wireCellHover();
+  wireColumnSelect();
   wireDice();
   wireActionPopup();
 
