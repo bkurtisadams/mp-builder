@@ -569,6 +569,7 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
 </div>
 
 <script src="gcc-header.js"></script>
+<script src="gcc-data.js"></script>
 <script src="mp-chargen.js"></script>
 <script>
 const STORE_KEY = 'mp-char-sheet';
@@ -971,10 +972,11 @@ function gatherData() {
     });
     d.attacks.push(row);
   }
-  // Preserve image and campaign from existing saved data
+  // Preserve image, campaign, and entity ID from existing saved data
   if (window._charMeta) {
     if (window._charMeta._image) d._image = window._charMeta._image;
     if (window._charMeta._campaign) d._campaign = window._charMeta._campaign;
+    if (window._charMeta._id) d._id = window._charMeta._id;
   }
   return d;
 }
@@ -1049,6 +1051,17 @@ function getEditIdx() {
 }
 function saveToSlot() {
   const data = gatherData();
+  // Ensure stable entity ID
+  if (!data._id) {
+    // Check if we're editing an existing slot that has an _id
+    const list = JSON.parse(localStorage.getItem(CHARS_LIST_KEY)) || [];
+    const idx = getEditIdx();
+    if (idx >= 0 && idx < list.length && list[idx]._id) {
+      data._id = list[idx]._id;
+    } else {
+      data._id = (typeof GCC!=='undefined' && GCC.genId) ? GCC.genId('mp') : 'mp_'+Date.now();
+    }
+  }
   try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
   try {
     const list = JSON.parse(localStorage.getItem(CHARS_LIST_KEY)) || [];
@@ -1081,6 +1094,7 @@ document.getElementById('btn-load').addEventListener('click', async () => {
   const data = list[idx];
   if (data._image) window._charMeta._image = data._image;
   if (data._campaign) window._charMeta._campaign = data._campaign;
+  if (data._id) window._charMeta._id = data._id;
   populateData(data);
   showPortrait(data._image || null);
   localStorage.setItem(STORE_KEY, JSON.stringify(data));
@@ -1278,6 +1292,7 @@ try {
     const d = JSON.parse(raw);
     if (d._image) window._charMeta._image = d._image;
     if (d._campaign) window._charMeta._campaign = d._campaign;
+    if (d._id) window._charMeta._id = d._id;
     populateData(d);
     showPortrait(d._image || null);
   } else {
@@ -1305,17 +1320,22 @@ if (new URLSearchParams(window.location.search).get('r20') === '1') {
   setTimeout(() => document.getElementById('btn-r20-import').click(), 300);
 }
 
-// Deep-link: ?char=Name loads a specific character from the list
+// Deep-link: ?id=xxx or ?char=Name loads a specific character from the list
 (function() {
-  const charName = new URLSearchParams(window.location.search).get('char');
-  if (!charName) return;
+  const params = new URLSearchParams(window.location.search);
+  const charId = params.get('id');
+  const charName = params.get('char');
+  if (!charId && !charName) return;
   const list = JSON.parse(localStorage.getItem(CHARS_LIST_KEY)) || [];
-  const idx = list.findIndex(c => (c.name || '') === charName);
+  const idx = charId
+    ? list.findIndex(c => c._id === charId)
+    : list.findIndex(c => (c.name || '') === charName);
   if (idx < 0) return;
   clearAll();
   const data = list[idx];
   if (data._image) window._charMeta._image = data._image;
   if (data._campaign) window._charMeta._campaign = data._campaign;
+  if (data._id) window._charMeta._id = data._id;
   populateData(data);
   showPortrait(data._image || null);
   localStorage.setItem(STORE_KEY, JSON.stringify(data));

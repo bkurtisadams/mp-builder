@@ -562,6 +562,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 
 <script src="mp-dialog.js"></script>
 <script src="gcc-header.js"></script>
+<script src="gcc-data.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 // FASERIP CHARACTER SHEET — fas-app.js (inline)
@@ -1693,9 +1694,12 @@ function saveChar(){
   const chars=getSavedChars();
   const name=CHAR.heroName||"";
   if(!name.trim()){MPDialog.alert("Cannot Save","Hero Name is empty.");return;}
-  const existing=chars.findIndex(c=>c.heroName===name);
+  if(!CHAR._id) CHAR._id = (typeof GCC!=='undefined' && GCC.genId) ? GCC.genId('fas') : 'fas_'+Date.now();
+  const existing=chars.findIndex(c=>c._id && c._id===CHAR._id);
+  const fallback=existing<0 ? chars.findIndex(c=>c.heroName===name) : -1;
   const entry={...CHAR, _saved:new Date().toISOString()};
-  if(existing>=0) chars[existing]=entry; else chars.push(entry);
+  const idx = existing>=0 ? existing : fallback;
+  if(idx>=0) chars[idx]=entry; else chars.push(entry);
   try{
     localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));
   }catch(e){
@@ -2002,12 +2006,15 @@ function importChar(file){
 // INIT
 // ══════════════════════════════════════════════════════════════
 document.addEventListener("DOMContentLoaded",()=>{
-  // Check for ?char= param to load a specific saved character
+  // Check for ?id= or ?char= param to load a specific saved character
   const urlParams = new URLSearchParams(window.location.search);
+  const charId = urlParams.get('id');
   const charParam = urlParams.get('char');
-  if(charParam){
+  if(charId || charParam){
     const chars = getSavedChars();
-    const found = chars.find(c => c.heroName === charParam);
+    const found = charId
+      ? chars.find(c => c._id === charId)
+      : chars.find(c => c.heroName === charParam);
     if(found){ CHAR = {...newChar(), ...found}; }
     else { loadAutosave(); }
   } else {

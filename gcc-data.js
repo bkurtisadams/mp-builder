@@ -3,6 +3,12 @@
 
 const GCC = (function() {
 
+  // ── ID generation ──
+  let _idCounter = 0;
+  function genId(prefix) {
+    return (prefix || 'id') + '_' + Date.now() + '_' + (++_idCounter);
+  }
+
   // ── Storage helpers ──
   function load(key) {
     try { return JSON.parse(localStorage.getItem(key)); } catch(e) { return null; }
@@ -111,9 +117,37 @@ const GCC = (function() {
     return TEAM_LABELS[systemId] || 'Party';
   }
 
+  // ── Schema Migration ──
+  function migrateEntity(entity) {
+    if (!entity) return entity;
+    if (!entity.schemaVersion) entity.schemaVersion = 0;
+    if (entity.schemaVersion < 1) {
+      // v0→v1: normalize listKey→storageKey in campaign character refs
+      if (entity.characters) {
+        entity.characters.forEach(ch => {
+          if (ch.listKey && !ch.storageKey) {
+            ch.storageKey = ch.listKey;
+            delete ch.listKey;
+          }
+        });
+      }
+      entity.schemaVersion = 1;
+    }
+    return entity;
+  }
+
   // ── Campaigns ──
   function loadCampaigns() {
-    return load(KEYS.campaigns) || [];
+    const list = load(KEYS.campaigns) || [];
+    let dirty = false;
+    list.forEach((c, i) => {
+      if (!c.schemaVersion || c.schemaVersion < 1) {
+        list[i] = migrateEntity(c);
+        dirty = true;
+      }
+    });
+    if (dirty) save(KEYS.campaigns, list);
+    return list;
   }
   function saveCampaigns(list) {
     save(KEYS.campaigns, list);
@@ -125,6 +159,7 @@ const GCC = (function() {
     const list = loadCampaigns();
     const camp = {
       id: 'camp-' + Date.now(),
+      schemaVersion: 1,
       name: data.name || 'Untitled',
       system: data.system || 'mp',
       gm: data.gm || '',
@@ -247,6 +282,64 @@ const GCC = (function() {
     return all;
   }
 
+  // ── Ensure all saved entities have stable IDs ──
+  // Runs on init — assigns IDs to any saved chars/vehicles that lack one
+  function ensureEntityIds() {
+    SYSTEM_DEFS.forEach(sys => {
+      sys.tools.forEach(t => {
+        if (!t.charList) return;
+        const list = load(t.charList);
+        if (!list || !list.length) return;
+        let changed = false;
+        list.forEach(item => {
+          if (!item._id) {
+            item._id = genId(sys.id);
+            changed = true;
+          }
+        });
+        if (changed) save(t.charList, list);
+      });
+    });
+  }
+
+  // ── Migrate campaign character refs from name-based to ID-based ──
+  // Looks up each campaign character by name in the storage list,
+  // finds the matching entity's _id, and stores it on the reference.
+  function migrateCampaignRefs() {
+    if (load('gcc-camp-refs-migrated')) return;
+    const camps = loadCampaigns();
+    if (!camps.length) { save('gcc-camp-refs-migrated', true); return; }
+    let changed = false;
+    camps.forEach(camp => {
+      if (!camp.characters || !camp.characters.length) return;
+      const sys = SYSTEM_DEFS.find(s => s.id === camp.system);
+      if (!sys) return;
+      camp.characters.forEach(ref => {
+        if (ref._id) return; // already migrated
+        const sk = ref.storageKey || ref.listKey || '';
+        if (!sk || !ref.name) return;
+        const list = load(sk);
+        if (!list) return;
+        const nameKey = camp.system === 'faserip' ? 'heroName' : 'name';
+        const found = list.find(c => (c[nameKey] || c.name || c.heroName) === ref.name);
+        if (found && found._id) {
+          ref._id = found._id;
+          changed = true;
+        }
+      });
+    });
+    if (changed) saveCampaigns(camps);
+    save('gcc-camp-refs-migrated', true);
+  }
+
+  // ── Resolve a character by _id from a storage list ──
+  function findEntityById(storageKey, entityId) {
+    if (!storageKey || !entityId) return null;
+    const list = load(storageKey);
+    if (!list) return null;
+    return list.find(item => item._id === entityId) || null;
+  }
+
   // ── Migration from old MP Builder data ──
   function migrateFromMP() {
     if (load('gcc-migrated')) return;
@@ -294,6 +387,8 @@ const GCC = (function() {
   // ── Init ──
   function init() {
     migrateFromMP();
+    ensureEntityIds();
+    migrateCampaignRefs();
   }
 
   // ── Public API ──
@@ -322,9 +417,11 @@ const GCC = (function() {
     // Characters
     getCharactersForSystem,
     getAllCharacters,
+    findEntityById,
     // Helpers
     load,
     save,
+    genId,
   };
 
 })();

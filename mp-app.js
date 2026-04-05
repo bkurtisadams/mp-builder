@@ -1345,6 +1345,16 @@ function autoSave() {
   _saveTimer = setTimeout(() => {
     try {
       const data = veh.toJSON();
+      // Ensure stable entity ID
+      if (!data._id) {
+        const list = JSON.parse(localStorage.getItem(VEHS_LIST_KEY)) || [];
+        const idx = _getVehEditIdx();
+        if (idx >= 0 && idx < list.length && list[idx]._id) {
+          data._id = list[idx]._id;
+        } else {
+          data._id = (typeof GCC!=='undefined' && GCC.genId) ? GCC.genId('veh') : 'veh_'+Date.now();
+        }
+      }
       // Add computed summary for campaign card display
       data._totalCost = veh.totalCost;
       data._hits = veh.hits;

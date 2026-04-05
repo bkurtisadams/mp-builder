@@ -715,7 +715,7 @@ function _resolveChar(savedChar, systemId, storageKey) {
     player = savedChar.player || savedChar.playerName || '';
     sub = savedChar.sub || savedChar.class || '';
   }
-  return { name, player, sub, portrait, storageKey: storageKey || savedChar.storageKey || savedChar.listKey || '' };
+  return { name, player, sub, portrait, _id: savedChar._id || '', storageKey: storageKey || savedChar.storageKey || savedChar.listKey || '' };
 }
 
 function _getSavedCharsForSystem(systemId) {
@@ -762,13 +762,15 @@ function renderCampaigns() {
 
     const charsHtml = (c.characters||[]).map((ch,i) => {
       const col = PIP_COLORS[i % PIP_COLORS.length];
-      // Resolve live data from saved character
+      // Resolve live data from saved character — prefer _id, fall back to name
       let resolved = ch;
       const refKey = ch.storageKey || ch.listKey || resolved.storageKey || resolved.listKey || '';
-      if (refKey && ch.name) {
+      if (refKey) {
         try {
           const saved = JSON.parse(localStorage.getItem(refKey)) || [];
-          const found = saved.find(s => (s.heroName || s.name) === ch.name);
+          const found = ch._id
+            ? saved.find(s => s._id === ch._id)
+            : (ch.name ? saved.find(s => (s.heroName || s.name) === ch.name) : null);
           if (found) resolved = _resolveChar(found, c.system, refKey);
         } catch(e) {}
       }
@@ -781,12 +783,17 @@ function renderCampaigns() {
       const charTool = charSys?.tools.find(t => t.charList === effectiveKey && t.href)
         || charSys?.tools.find(t => t.charList && t.href);
       if(charTool && resolved.name){
-        const href = charTool.href + (charTool.href.includes('?')?'&':'?') + 'char=' + encodeURIComponent(resolved.name);
+        // Prefer ?id= link if we have one, fall back to ?char=
+        const linkParam = (resolved._id || ch._id)
+          ? 'id=' + encodeURIComponent(resolved._id || ch._id)
+          : 'char=' + encodeURIComponent(resolved.name);
+        const href = charTool.href + (charTool.href.includes('?')?'&':'?') + linkParam;
         nameHtml = `<a class="cc-char-name cc-char-link" href="${ESC(href)}">${ESC(resolved.name)}</a>`;
       } else {
         nameHtml = `<span class="cc-char-name">${ESC(resolved.name)}</span>`;
       }
-      return `<li class="cc-char-item">${portraitHtml}${nameHtml}${resolved.player ? '<span class="cc-char-player">('+ESC(resolved.player)+')</span>' : ''}<span class="cc-char-sub">${ESC(resolved.sub||'')}</span><button class="cc-char-rm" data-rm-camp="${ESC(c.id)}" data-rm-char="${ESC(resolved.name)}" title="Remove from team">✕</button></li>`;
+      const rmId = resolved._id || ch._id || '';
+      return `<li class="cc-char-item">${portraitHtml}${nameHtml}${resolved.player ? '<span class="cc-char-player">('+ESC(resolved.player)+')</span>' : ''}<span class="cc-char-sub">${ESC(resolved.sub||'')}</span><button class="cc-char-rm" data-rm-camp="${ESC(c.id)}" data-rm-char="${ESC(resolved.name)}" data-rm-id="${ESC(rmId)}" title="Remove from team">✕</button></li>`;
     }).join('');
 
     const sessHtml = (c.sessions||[]).slice(0,4).map(s =>
@@ -1094,10 +1101,13 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
     e.stopPropagation();
     const campId = rmChar.dataset.rmCamp;
     const charName = rmChar.dataset.rmChar;
+    const rmId = rmChar.dataset.rmId;
     if (!confirm('Remove "' + charName + '" from this team?')) return;
     const camp = GCC.getCampaign(campId);
     if (!camp) return;
-    const chars = (camp.characters || []).filter(ch => ch.name !== charName);
+    const chars = (camp.characters || []).filter(ch =>
+      rmId ? ch._id !== rmId : ch.name !== charName
+    );
     GCC.updateCampaign(campId, { characters: chars, players: chars.length });
     renderCampaigns();
     const card = document.querySelector(`[data-camp-id="${campId}"]`);
@@ -1228,12 +1238,12 @@ function renderCharsPicker() {
   });
 }
 
-// Save — store only references (name + storageKey)
+// Save — store references (name + storageKey + _id)
 document.getElementById('cf-save').addEventListener('click', () => {
   const saved = _getSavedCharsForSystem(charsCampSystem);
   const characters = saved
     .filter(sc => charsSelected.has(sc.name))
-    .map(sc => ({ name: sc.name, storageKey: sc.storageKey }));
+    .map(sc => ({ name: sc.name, storageKey: sc.storageKey, _id: sc._id || '' }));
   GCC.updateCampaign(charsCampId, { characters, players: characters.length });
   closeCharsModal();
   renderCampaigns();
