@@ -91,7 +91,9 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
 .id-full { grid-column: 1 / -1 }
 
 /* Story box */
-.story-box { border: 1.5px solid #000; min-height: 48px; padding: 3px 4px; font-family: var(--fb); font-size: 10px; margin: 4px 0; resize: vertical; width: 100%; outline: none; background: transparent }
+.story-wrap { position: relative; margin: 4px 0 }
+.story-label { position: absolute; top: 4px; left: 5px; font-family: var(--fb); font-size: 9px; font-weight: 700; color: #000; pointer-events: none; letter-spacing: 0.5px; z-index: 1 }
+.story-box { border: 1.5px solid #000; min-height: 48px; padding: 3px 4px 3px 48px; font-family: var(--fb); font-size: 10px; resize: vertical; width: 100%; outline: none; background: transparent; margin: 0 }
 .story-box:focus { border-color: var(--accent) }
 
 /* Motivation / Origin / Legal (inside bio-col) */
@@ -365,7 +367,10 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
     <div class="id-row"><span class="lbl">MASS:</span><input class="si" style="width:50px" data-field="mass"></div>
     <div class="id-row id-full"><span class="lbl">BACKGROUND:</span><input class="si" data-field="background"><button class="btn-roll" id="btn-roll-background" title="Roll background (3d100, pick 2)"><svg viewBox="0 0 16 16" width="12" height="12"><rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><circle cx="11.5" cy="11.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/></svg></button></div>
   </div>
-  <textarea class="story-box" rows="3" data-field="story"></textarea>
+  <div class="story-wrap">
+    <span class="story-label">STORY:</span>
+    <textarea class="story-box" rows="3" data-field="story"></textarea>
+  </div>
 
   <!-- Motivation / Origin / Legal -->
   <div class="mol-grid">
@@ -941,8 +946,6 @@ function gatherData() {
   document.querySelectorAll('[data-field]').forEach(el => {
     d[el.dataset.field] = el.value;
   });
-  // Strip "STORY: " prefix from stored data
-  if (d.story) d.story = d.story.replace(/^STORY:\s*/, '');
   d.powerLevel = document.getElementById('cg-power-level').value;
   d.stats = {};
   document.querySelectorAll('.stat-row[data-stat]').forEach(row => {
@@ -1020,43 +1023,7 @@ function populateData(d) {
   }
   // Recalc derived after populating
   recalcDerived();
-  // Ensure STORY: prefix on textarea
-  storyPrefix();
 }
-
-const STORY_PREFIX = 'STORY: ';
-function storyPrefix() {
-  const el = document.querySelector('[data-field="story"]');
-  if (!el) return;
-  if (!el.value.startsWith(STORY_PREFIX)) {
-    const raw = el.value.replace(/^STORY:\s*/, '');
-    el.value = STORY_PREFIX + raw;
-  }
-}
-// Enforce prefix on every keystroke
-document.querySelector('[data-field="story"]').addEventListener('input', () => {
-  const el = document.querySelector('[data-field="story"]');
-  if (!el.value.startsWith(STORY_PREFIX)) {
-    const pos = el.selectionStart;
-    const raw = el.value.replace(/^STORY:\s*/, '');
-    el.value = STORY_PREFIX + raw;
-    el.selectionStart = el.selectionEnd = Math.max(STORY_PREFIX.length, pos);
-  }
-});
-// Prevent cursor from entering the prefix
-document.querySelector('[data-field="story"]').addEventListener('click', () => {
-  const el = document.querySelector('[data-field="story"]');
-  if (el.selectionStart < STORY_PREFIX.length) {
-    el.selectionStart = el.selectionEnd = STORY_PREFIX.length;
-  }
-});
-document.querySelector('[data-field="story"]').addEventListener('keydown', (e) => {
-  const el = document.querySelector('[data-field="story"]');
-  if (el.selectionStart <= STORY_PREFIX.length && (e.key === 'Backspace' || e.key === 'Delete') && el.selectionStart === el.selectionEnd) {
-    if (el.selectionStart <= STORY_PREFIX.length && e.key === 'Backspace') e.preventDefault();
-    if (el.selectionStart < STORY_PREFIX.length && e.key === 'Delete') e.preventDefault();
-  }
-});
 
 // Clear all inputs
 function clearAll() {
@@ -1071,8 +1038,6 @@ function clearAll() {
   // Reset CP box from dropdown default
   const pl = MP.CG.POWER_LEVELS.find(p => p.id === document.getElementById('cg-power-level').value);
   if (pl) document.getElementById('cg-base-cps').value = pl.totalCPs;
-  // Restore STORY: prefix
-  storyPrefix();
 }
 
 // ── Slot management ──
@@ -1177,8 +1142,13 @@ document.getElementById('inp-import').addEventListener('change', (e) => {
   const reader = new FileReader();
   reader.onload = (ev) => {
     try {
+      const data = JSON.parse(ev.target.result);
       clearAll();
-      populateData(JSON.parse(ev.target.result));
+      window._charMeta = {};
+      if (data._image) window._charMeta._image = data._image;
+      if (data._campaign) window._charMeta._campaign = data._campaign;
+      populateData(data);
+      showPortrait(data._image || null);
       saveToSlot();
       MPDialog.alert('Imported', 'Character imported: ' + file.name);
     } catch(err) { MPDialog.alert('Error', 'Import failed: ' + err.message); }
@@ -1208,7 +1178,11 @@ document.getElementById('btn-r20-import').addEventListener('click', async () => 
       .trim();
     const data = JSON.parse(json);
     clearAll();
+    window._charMeta = {};
+    if (data._image) window._charMeta._image = data._image;
+    if (data._campaign) window._charMeta._campaign = data._campaign;
     populateData(data);
+    showPortrait(data._image || null);
     saveToSlot();
     MPDialog.alert('Imported', 'Character imported from Roll20: <b>' + (data.name || 'Unknown') + '</b>');
   } catch(err) { MPDialog.alert('Error', 'Import failed: ' + err.message); }
@@ -1293,7 +1267,6 @@ try {
       if (sideEl) sideEl.value = defSide;
       localStorage.removeItem('mp-char-default-side');
     }
-    storyPrefix();
   }
 } catch(e) {}
 
