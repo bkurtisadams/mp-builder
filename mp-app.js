@@ -1212,6 +1212,29 @@ document.getElementById("btn-export").addEventListener("click", () => {
   _fallbackDownload();
 });
 
+// Campaign — assign vehicle to a campaign
+document.getElementById("btn-campaign").addEventListener("click", async () => {
+  const camps = (function(){try{return JSON.parse(localStorage.getItem('mp-campaigns'))||[]}catch(e){return[]}})();
+  if (!camps.length) { await MPDialog.alert('No Campaigns', 'No campaigns found. Create one on the Campaigns page first.'); return; }
+  const current = _vehCampaign || null;
+  const items = camps.map(c => ({
+    label: c.name,
+    desc: c.id === current ? '(current)' : '',
+  }));
+  if (current) items.push({ label: 'Remove from campaign', desc: 'Unlink this vehicle' });
+  const pick = await MPDialog.choose('Assign to Campaign', items, { intro: 'Select a campaign for this vehicle:' });
+  if (pick == null) return;
+  if (current && pick === items.length - 1) {
+    _vehCampaign = null;
+    autoSave();
+    await MPDialog.alert('Removed', 'Vehicle removed from campaign.');
+  } else {
+    _vehCampaign = camps[pick].id;
+    autoSave();
+    await MPDialog.alert('Assigned', 'Vehicle assigned to <b>' + camps[pick].name + '</b>.');
+  }
+});
+
 document.getElementById("btn-import").addEventListener("click", () => {
   document.getElementById("inp-json").click();
 });

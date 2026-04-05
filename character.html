@@ -290,6 +290,7 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
       <button class="gcc-mp-btn" id="btn-save">Save</button>
       <button class="gcc-mp-btn" id="btn-load">Load</button>
       <button class="gcc-mp-btn" id="btn-delete" title="Delete current character">Delete</button>
+      <button class="gcc-mp-btn" id="btn-campaign" title="Add to or change campaign">Campaign</button>
       <button class="gcc-mp-btn" id="btn-export">Export JSON</button>
       <button class="gcc-mp-btn" id="btn-import">Import JSON</button>
       <button class="gcc-mp-btn" id="btn-r20-import" title="Paste JSON from Roll20 !mp export">Paste from Roll20</button>
@@ -1118,6 +1119,29 @@ document.getElementById('btn-new').addEventListener('click', async () => {
   showPortrait(null);
   localStorage.removeItem(STORE_KEY);
   localStorage.setItem('mp-char-edit-idx', '-1');
+});
+
+// Campaign — assign character to a campaign
+document.getElementById('btn-campaign').addEventListener('click', async () => {
+  const camps = (function(){try{return JSON.parse(localStorage.getItem('mp-campaigns'))||[]}catch(e){return[]}})();
+  if (!camps.length) { await MPDialog.alert('No Campaigns', 'No campaigns found. Create one on the Campaigns page first.'); return; }
+  const current = window._charMeta._campaign || null;
+  const items = camps.map(c => ({
+    label: c.name,
+    desc: c.id === current ? '(current)' : '',
+  }));
+  if (current) items.push({ label: 'Remove from campaign', desc: 'Unlink this character' });
+  const pick = await MPDialog.choose('Assign to Campaign', items, { intro: 'Select a campaign for this character:' });
+  if (pick == null) return;
+  if (current && pick === items.length - 1) {
+    window._charMeta._campaign = null;
+    saveToSlot();
+    await MPDialog.alert('Removed', 'Character removed from campaign.');
+  } else {
+    window._charMeta._campaign = camps[pick].id;
+    saveToSlot();
+    await MPDialog.alert('Assigned', 'Character assigned to <b>' + camps[pick].name + '</b>.');
+  }
 });
 
 // Export JSON
