@@ -241,7 +241,7 @@ function renderAll(){
   if(!camps.length){con.innerHTML='<div style="text-align:center;color:var(--tx3);padding:40px 0;font-style:italic">No campaigns yet.</div>';return}
   con.innerHTML=camps.map(camp=>{
     const isAct=camp.id===act;
-    const cc=chars.map((c,i)=>({c,i})).filter(x=>x.c._campaign===camp.id||(!x.c._campaign&&isAct));
+    const cc=chars.map((c,i)=>({c,i})).filter(x=>x.c.type!=='mp-vehicle'&&(x.c._campaign===camp.id||(!x.c._campaign&&isAct)));
     const cv=vehs.map((v,i)=>({v,i})).filter(x=>x.v._campaign===camp.id||(!x.v._campaign&&isAct));
     const h=cc.filter(x=>(x.c.side||'').toLowerCase()==='good');
     const n=cc.filter(x=>{const s=(x.c.side||'').toLowerCase();return s==='neutral'||s===''});
@@ -283,10 +283,11 @@ document.addEventListener('click',async e=>{
   const nc=e.target.closest('[data-new-char]');if(nc){const id=nc.dataset.newChar,si=nc.dataset.newSide||'';setActiveCampaign(id);localStorage.removeItem('mp-char-sheet');localStorage.setItem('mp-char-edit-idx','-1');localStorage.setItem('mp-char-campaign',id);if(si)localStorage.setItem('mp-char-default-side',si);window.location.href='character.html';return}
   const nv=e.target.closest('[data-new-veh]');if(nv){const id=nv.dataset.newVeh;setActiveCampaign(id);localStorage.removeItem('mp-vehicle-autosave');localStorage.setItem('mp-veh-edit-idx','-1');localStorage.setItem('mp-veh-campaign',id);window.location.href='vehicle.html';return}
   const ac=e.target.closest('[data-action]');if(ac){const card=ac.closest('.card');if(!card)return;const t=card.dataset.type,i=parseInt(card.dataset.idx),a=ac.dataset.action;
-    if((a==='edit'||a==='view')&&t==='char'){const l=loadList(CHARS_KEY);localStorage.setItem('mp-char-sheet',JSON.stringify(l[i]));localStorage.setItem('mp-char-edit-idx',i);window.location.href='character.html'}
-    if((a==='edit-veh'||a==='view-veh')&&t==='veh'){const l=loadList(VEHS_KEY);localStorage.setItem('mp-vehicle-autosave',JSON.stringify(l[i]));localStorage.setItem('mp-veh-edit-idx',i);window.location.href='vehicle.html'}
-    if(a==='remove'&&t==='char'){const l=loadList(CHARS_KEY);const nm=l[i]?.name||'Unnamed';const ok=await MPDialog.confirm('Remove Character','Remove <b>'+escH(nm)+'</b> from this campaign?<br>(The character will not be deleted, just unlinked.)',{okText:'Remove',danger:true});if(!ok)return;delete l[i]._campaign;saveList(CHARS_KEY,l);renderAll()}
-    if(a==='remove-veh'&&t==='veh'){const l=loadList(VEHS_KEY);const nm=l[i]?.name||'Unnamed';const ok=await MPDialog.confirm('Remove Vehicle','Remove <b>'+escH(nm)+'</b> from this campaign?<br>(The vehicle will not be deleted, just unlinked.)',{okText:'Remove',danger:true});if(!ok)return;delete l[i]._campaign;saveList(VEHS_KEY,l);renderAll()}}
+    if(a==='edit-veh'||a==='view-veh'){if(t!=='veh')return;const l=loadList(VEHS_KEY);localStorage.setItem('mp-vehicle-autosave',JSON.stringify(l[i]));localStorage.setItem('mp-veh-edit-idx',i);window.location.href='vehicle.html';return}
+    if(a==='edit'||a==='view'){if(t!=='char')return;const l=loadList(CHARS_KEY);localStorage.setItem('mp-char-sheet',JSON.stringify(l[i]));localStorage.setItem('mp-char-edit-idx',i);window.location.href='character.html';return}
+    if(a==='remove-veh'&&t==='veh'){const l=loadList(VEHS_KEY);const nm=l[i]?.name||'Unnamed';const ok=await MPDialog.confirm('Remove Vehicle','Remove <b>'+escH(nm)+'</b> from this campaign?<br>(The vehicle will not be deleted, just unlinked.)',{okText:'Remove',danger:true});if(!ok)return;delete l[i]._campaign;saveList(VEHS_KEY,l);renderAll();return}
+    if(a==='remove'&&t==='char'){const l=loadList(CHARS_KEY);const nm=l[i]?.name||'Unnamed';const ok=await MPDialog.confirm('Remove Character','Remove <b>'+escH(nm)+'</b> from this campaign?<br>(The character will not be deleted, just unlinked.)',{okText:'Remove',danger:true});if(!ok)return;delete l[i]._campaign;saveList(CHARS_KEY,l);renderAll();return}
+  }
 });
 document.addEventListener('input',e=>{
   const p=e.target.closest('[data-note-pub]');if(p){updateCamp(p.dataset.notePub,{publicNotes:p.value})}
