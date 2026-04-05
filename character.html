@@ -906,17 +906,18 @@ function recalcDerived() {
     document.getElementById('cp-remain').textContent = remain;
     document.getElementById('cp-remain').style.color = remain < 0 ? '#c00' : '';
 
-    // Experience: Base CPs = totalCPs from power level
+    // Experience
     const setField = (f, v) => { const el = document.querySelector(`[data-field="${f}"]`); if (el) el.value = v; };
     setField('xpBase', baseCPs);
-    // Total CPs = Base + Earned
     const xpEarned = parseFloat(document.querySelector('[data-field="xpEarned"]')?.value) || 0;
+    const xpSpent = Math.max(0, totalSpent - baseCPs);
     const xpTotal = baseCPs + xpEarned;
+    setField('xpSpent', xpSpent);
     setField('xpTotal', xpTotal);
 
-    // Caps (based on current total CPs including earned XP)
-    const caps = MP.CG.calcCaps(xpTotal);
-    setField('caps', xpTotal);
+    // Caps (based on total CPs spent on BCs + abilities, matching Roll20 total_eps)
+    const caps = MP.CG.calcCaps(totalSpent);
+    setField('caps', totalSpent);
     setField('capBc', caps.bcCap);
     setField('capAbility', caps.abilityCap);
     setField('capDmg', caps.dotCap);
