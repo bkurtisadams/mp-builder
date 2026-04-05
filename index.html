@@ -709,13 +709,13 @@ function _resolveChar(savedChar, systemId, storageKey) {
     name = savedChar.name || 'Unnamed';
     player = savedChar.player || '';
     portrait = savedChar._image || savedChar.portrait || '';
-    sub = savedChar.archetype || savedChar.className || '';
+    sub = savedChar.archetype || savedChar.className || savedChar.model || '';
   } else {
     name = savedChar.name || savedChar.heroName || 'Unnamed';
     player = savedChar.player || savedChar.playerName || '';
     sub = savedChar.sub || savedChar.class || '';
   }
-  return { name, player, sub, portrait, storageKey };
+  return { name, player, sub, portrait, storageKey: storageKey || savedChar.storageKey || savedChar.listKey || '' };
 }
 
 function _getSavedCharsForSystem(systemId) {
@@ -764,11 +764,12 @@ function renderCampaigns() {
       const col = PIP_COLORS[i % PIP_COLORS.length];
       // Resolve live data from saved character
       let resolved = ch;
-      if (ch.storageKey && ch.name) {
+      const refKey = ch.storageKey || ch.listKey || resolved.storageKey || resolved.listKey || '';
+      if (refKey && ch.name) {
         try {
-          const saved = JSON.parse(localStorage.getItem(ch.storageKey)) || [];
+          const saved = JSON.parse(localStorage.getItem(refKey)) || [];
           const found = saved.find(s => (s.heroName || s.name) === ch.name);
-          if (found) resolved = _resolveChar(found, c.system, ch.storageKey);
+          if (found) resolved = _resolveChar(found, c.system, refKey);
         } catch(e) {}
       }
       const portraitHtml = resolved.portrait
@@ -776,9 +777,11 @@ function renderCampaigns() {
         : `<span class="cc-char-pip" style="background:${col}"></span>`;
       let nameHtml;
       const charSys = GCC.SYSTEM_DEFS.find(s => s.id === c.system);
-      const charTool = charSys?.tools.find(t => t.charList && t.href);
+      const effectiveKey = resolved.storageKey || refKey;
+      const charTool = charSys?.tools.find(t => t.charList === effectiveKey && t.href)
+        || charSys?.tools.find(t => t.charList && t.href);
       if(charTool && resolved.name){
-        const href = charTool.href + '?char=' + encodeURIComponent(resolved.name);
+        const href = charTool.href + (charTool.href.includes('?')?'&':'?') + 'char=' + encodeURIComponent(resolved.name);
         nameHtml = `<a class="cc-char-name cc-char-link" href="${ESC(href)}">${ESC(resolved.name)}</a>`;
       } else {
         nameHtml = `<span class="cc-char-name">${ESC(resolved.name)}</span>`;

@@ -2690,3 +2690,19 @@ if (autoLoad()) {
 }
 restoreViewState();
 updateAll();
+
+// Deep-link: ?char=Name loads a specific vehicle from the list
+(function() {
+  const vehName = new URLSearchParams(window.location.search).get('char');
+  if (!vehName) return;
+  const list = JSON.parse(localStorage.getItem(VEHS_LIST_KEY)) || [];
+  const idx = list.findIndex(v => (v.name || '') === vehName);
+  if (idx < 0) return;
+  veh.fromJSON(list[idx]);
+  syncFormFromVeh();
+  updateAll();
+  _vehCampaign = list[idx]._campaign || null;
+  localStorage.setItem(LS_KEY, JSON.stringify(list[idx]));
+  localStorage.setItem('mp-veh-edit-idx', idx);
+  document.title = (veh.name || "Vehicle") + " — MP Vehicle Builder";
+})();
