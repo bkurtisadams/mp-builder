@@ -253,6 +253,10 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
 .mp-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 9000; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; pointer-events: none }
 .mp-modal-overlay.open { opacity: 1; pointer-events: auto }
 .mp-modal { background: #fff; border: 2px solid var(--brd); border-radius: 6px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); min-width: 320px; max-width: 480px; width: 90%; font-family: var(--fb); overflow: hidden; transform: translateY(8px) scale(0.97); transition: transform 0.15s }
+.mp-modal.wide { max-width: 600px }
+.mp-modal-body textarea.r20-paste { width: 100%; height: 180px; font-family: var(--fm); font-size: 10px; border: 1.5px solid #c0c0c0; border-radius: 3px; padding: 6px 8px; resize: vertical; background: #f8f8f0; color: #1a2a3a }
+.mp-modal-body textarea.r20-paste:focus { outline: none; border-color: var(--accent) }
+.mp-modal-body .r20-hint { font-size: 9px; color: #888; margin-top: 4px; line-height: 1.4 }
 .mp-modal-overlay.open .mp-modal { transform: translateY(0) scale(1) }
 .mp-modal-header { background: var(--hdr-bg); color: #fff; padding: 8px 14px; font-family: var(--fd); font-size: 16px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px }
 .mp-modal-header svg { flex-shrink: 0 }
@@ -411,7 +415,32 @@ const MPDialog = (function() {
     return new Promise(r => { _resolve = r; });
   }
 
-  return { alert, confirm, choose, pickMulti };
+  // Prompt with textarea
+  function prompt(title, opts) {
+    opts = opts || {};
+    const modal = document.getElementById('mp-modal');
+    modal.classList.toggle('wide', !!opts.wide);
+    header.innerHTML = (opts.icon || infoIcon) + ' ' + title;
+    body.innerHTML = (opts.intro ? '<p>' + opts.intro + '</p>' : '') +
+      '<textarea class="' + (opts.textClass || '') + '" placeholder="' + (opts.placeholder || '') + '"></textarea>' +
+      (opts.hint ? '<div class="' + (opts.hintClass || '') + '">' + opts.hint + '</div>' : '');
+    footer.innerHTML = '';
+    const btnCancel = document.createElement('button');
+    btnCancel.className = 'mp-modal-btn';
+    btnCancel.textContent = opts.cancelText || 'Cancel';
+    btnCancel.onclick = () => { modal.classList.remove('wide'); close(null); };
+    const btnOk = document.createElement('button');
+    btnOk.className = 'mp-modal-btn primary';
+    btnOk.textContent = opts.okText || 'Import';
+    btnOk.onclick = () => { const v = body.querySelector('textarea').value; modal.classList.remove('wide'); close(v); };
+    footer.appendChild(btnCancel);
+    footer.appendChild(btnOk);
+    open();
+    body.querySelector('textarea').focus();
+    return new Promise(r => { _resolve = r; });
+  }
+
+  return { alert, confirm, choose, pickMulti, prompt };
 })();
 </script>
 
@@ -448,6 +477,7 @@ const MPDialog = (function() {
       <button class="gcc-mp-btn" id="btn-load">Load</button>
       <button class="gcc-mp-btn" id="btn-export">Export JSON</button>
       <button class="gcc-mp-btn" id="btn-import">Import JSON</button>
+      <button class="gcc-mp-btn" id="btn-r20-import" title="Paste JSON from Roll20 !mp export">Paste from Roll20</button>
       <button class="gcc-mp-btn" id="btn-pdf">PDF</button>
       <input type="file" id="inp-import" accept=".json" style="display:none">
     </div>
@@ -1230,6 +1260,33 @@ document.getElementById('inp-import').addEventListener('change', (e) => {
   e.target.value = '';
 });
 
+// Paste from Roll20
+document.getElementById('btn-r20-import').addEventListener('click', async () => {
+  const raw = await MPDialog.prompt('Paste from Roll20', {
+    wide: true,
+    intro: 'In Roll20, run <b>!mp export</b> with a token selected.<br>Open the handout, select all the JSON text, and paste it below.',
+    placeholder: 'Paste JSON here...',
+    textClass: 'r20-paste',
+    hint: 'Tip: Ctrl+A in the handout to select all, then Ctrl+V here.',
+    hintClass: 'r20-hint',
+    okText: 'Import Character',
+  });
+  if (raw == null || !raw.trim()) return;
+  try {
+    // Strip <pre> tags and HTML entities from Roll20 handout copy
+    let json = raw.trim()
+      .replace(/<\/?pre[^>]*>/gi, '')
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ')
+      .trim();
+    const data = JSON.parse(json);
+    clearAll();
+    populateData(data);
+    saveToSlot();
+    MPDialog.alert('Imported', 'Character imported from Roll20: <b>' + (data.name || 'Unknown') + '</b>');
+  } catch(err) { MPDialog.alert('Error', 'Import failed: ' + err.message); }
+});
+
 // PDF (print)
 document.getElementById('btn-pdf').addEventListener('click', () => window.print());
 
@@ -1317,6 +1374,11 @@ try {
   const luckEl = document.querySelector('[data-field="luck"]');
   if (luckEl && !luckEl.value) luckEl.value = '10-';
 })();
+
+// Auto-open Roll20 paste dialog if ?r20=1
+if (new URLSearchParams(window.location.search).get('r20') === '1') {
+  setTimeout(() => document.getElementById('btn-r20-import').click(), 300);
+}
 </script>
 
 </body>

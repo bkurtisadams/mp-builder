@@ -38,6 +38,7 @@ const GCC = (function() {
         { id: 'mp-char', name: 'Character Builder', href: 'character.html', charList: 'mp-char-list' },
         { id: 'mp-veh', name: 'Vehicle Builder', href: 'vehicle.html', charList: 'mp-veh-list' },
         { id: 'mp-campaign', name: 'Campaign Manager', href: 'campaign.html' },
+        { id: 'mp-r20', name: 'Roll20 Import', href: 'character.html?r20=1' },
         { id: 'mp-canvas', name: 'Canvas (Layout Editor)', href: null },
       ]
     },
