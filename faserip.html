@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FASERIP — Character Sheet</title>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700;900&family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Cinzel:wght@500;700&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700;900&family=Bitter:wght@400;700&family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Cinzel:wght@500;700&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="gcc-header.css">
 <link rel="stylesheet" href="mp-dialog.css">
 <style>
@@ -18,9 +18,10 @@
   --dark: #111; --mid: #444; --soft: #666; --mute: #999;
   --rule: rgba(0,0,0,.18);
   --fd: 'Oswald','Impact',sans-serif;
-  --fb: 'Barlow Condensed','Arial Narrow',sans-serif;
+  --fb: 'Bitter', serif;
   --bg: #d6eaf8; --bg2: #c4dff0;
   --hdr-bg: #1a2a3a; --accent: #c05a00;
+  --val: #b03000;
   --cell-h: 24px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -46,7 +47,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 
 /* ── Sheet Area ── */
 .sheet-wrap{flex:1;overflow-y:auto;overflow-x:auto;padding:10px;-webkit-overflow-scrolling:touch}
-.sheet{width:100%;max-width:720px;min-width:360px;margin:0 auto;background:var(--paper);border:2px solid #000;padding:14px 16px 10px;font-family:var(--fb);font-size:11px;color:#000}
+.sheet{width:100%;max-width:720px;min-width:360px;margin:0 auto;background:#fff;border:2px solid #000;padding:14px 16px 10px;font-family:var(--fb);font-size:11px;color:#000}
 
 /* ── Shared Inputs ── */
 .si{border:none;border-bottom:1.5px solid #000;background:transparent;font-family:var(--fb);font-size:11px;color:#000;padding:0 2px;height:var(--cell-h);outline:none}
@@ -54,6 +55,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .si-box{border:1.5px solid #000;background:transparent;font-family:var(--fb);font-size:12px;font-weight:700;color:#000;padding:0 2px;height:26px;text-align:center;outline:none;width:50px}
 .si-box:focus{border-color:var(--accent)}
 .lbl{font-weight:700;font-size:10px;white-space:nowrap}
+.si-calc{border:none;border-bottom:1.5px solid #000;background:#f8f8f0;font-family:var(--fb);font-size:11px;color:var(--val);font-weight:700;padding:0 2px;height:var(--cell-h);outline:none;text-align:center}
 
 /* ── Header Area: Portrait + Logo/Bio ── */
 .sheet-header{display:grid;grid-template-columns:130px 1fr;gap:10px;margin-bottom:8px}
@@ -81,7 +83,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .sheet-logo-main{font-size:22px;font-weight:900;letter-spacing:1px}
 .sheet-logo-sub{font-size:9px;font-weight:600;letter-spacing:2px}
 .sheet-title{font-family:var(--fd);font-size:13px;font-weight:700;letter-spacing:1px;color:var(--mid)}
-.player-field{text-align:right}
+.player-field{display:flex;align-items:baseline;gap:3px}
 .player-field .lbl{font-size:9px}
 
 /* ── Bio Grid (inside header-right) ── */
@@ -106,7 +108,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .bio-history textarea:focus{border-color:var(--accent)}
 
 /* ── Movement Row ── */
-.movement-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;padding:3px 0;border-top:1px solid #000;border-bottom:1px solid #000}
+.movement-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:4px 0 0;margin-top:auto;border-top:1px solid #ddd}
 .movement-item{display:flex;align-items:center;gap:2px}
 .movement-item .lbl{font-family:var(--fd);font-size:9px;font-weight:700;letter-spacing:.5px;cursor:pointer;min-width:auto}
 .movement-item .lbl:hover{color:var(--accent)}
@@ -115,30 +117,30 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 
 /* ── Abilities Tables ── */
 .abilities-wrap{display:flex;gap:12px;margin-bottom:8px;flex-wrap:wrap}
-.primary-block,.secondary-block{border:1.5px solid #000}
 .primary-block{flex:0 0 auto}
-.secondary-block{flex:1;min-width:200px}
-.section-label{font-family:var(--fd);font-size:13px;font-weight:700;text-align:center;padding:2px 0;letter-spacing:1px}
+.secondary-block{flex:1;min-width:200px;display:flex;flex-direction:column}
+.section-label{font-family:var(--fd);font-size:13px;font-weight:700;text-align:center;padding:2px 0;letter-spacing:1px;border-bottom:2px solid #000;margin-bottom:4px}
 .ab-table{border-collapse:collapse;width:100%}
-.ab-table th,.ab-table td{border:1px solid #000;padding:2px 4px;text-align:center;height:var(--cell-h)}
-.ab-table th{font-family:var(--fd);font-size:9px;font-weight:700;background:#e8e8e0;letter-spacing:.5px}
-.ab-table .ab-key{font-family:var(--fd);font-size:18px;font-weight:900;width:28px;background:#e8e8e0;cursor:default}
+.ab-table th{font-family:var(--fd);font-size:9px;font-weight:700;letter-spacing:.5px;padding:2px 4px;text-align:center;border-bottom:1.5px solid #000}
+.ab-table td{padding:2px 4px;text-align:center;height:var(--cell-h);border-bottom:1px solid #ddd}
+.ab-table .ab-key{font-family:var(--fd);font-size:18px;font-weight:900;width:28px;background:#f4f4f0;cursor:default}
 .ab-table input{width:100%;border:none;background:transparent;text-align:center;font-family:var(--fb);font-size:11px;font-weight:700;outline:none;padding:0}
-.ab-table input:focus{background:#fffde0}
+.ab-table input:focus{border-bottom:1px solid var(--accent)}
 .ab-table select{width:100%;border:none;background:transparent;font-family:var(--fb);font-size:10px;font-weight:700;outline:none;cursor:pointer;text-align:center;-webkit-appearance:none;appearance:none;padding:0 2px}
 .ab-table select:focus{background:#fffde0}
+.ab-table .si-calc{width:100%;border:none;border-bottom:none;background:#f8f8f0;font-family:var(--fb);font-size:11px;font-weight:700;color:var(--val);text-align:center;outline:none;padding:0;height:auto}
 
 /* Secondary abilities */
 .sec-table{border-collapse:collapse;width:100%}
-.sec-table th,.sec-table td{border:1px solid #000;padding:2px 4px;text-align:center;height:var(--cell-h)}
-.sec-table th{font-family:var(--fd);font-size:9px;font-weight:700;background:#e8e8e0;letter-spacing:.5px}
+.sec-table th{font-family:var(--fd);font-size:9px;font-weight:700;letter-spacing:.5px;padding:2px 4px;text-align:center;border-bottom:1.5px solid #000}
+.sec-table td{padding:4px;text-align:center;height:auto;border-bottom:1px solid #ddd}
 .sec-table input,.sec-table select{width:100%;border:none;background:transparent;text-align:center;font-family:var(--fb);font-size:12px;font-weight:700;outline:none;padding:0}
-.sec-table input:focus,.sec-table select:focus{background:#fffde0}
+.sec-table input:focus,.sec-table select:focus{border-bottom:1px solid var(--accent)}
 .sec-formula{font-size:8px;color:var(--soft);font-weight:400}
 
 /* ── Special Abilities ── */
 .special-section{margin-top:8px}
-.special-label{font-family:var(--fd);font-size:13px;font-weight:700;letter-spacing:1px;margin-bottom:4px;border-bottom:1.5px solid #000;padding-bottom:2px}
+.special-label{font-family:var(--fd);font-size:13px;font-weight:700;letter-spacing:1px;margin-bottom:4px;border-bottom:2px solid #000;padding-bottom:2px}
 .list-section{margin-bottom:8px}
 .list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
 .list-title{font-family:var(--fd);font-size:11px;font-weight:700;letter-spacing:1px}
@@ -192,6 +194,9 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 /* ── Limitation ── */
 .limitation-row{margin:6px 0;display:flex;align-items:baseline;gap:4px}
 .limitation-row .si{flex:1}
+
+/* ── Sub-labels inside unified collapsible ── */
+.sub-label{font-family:var(--fd);font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--soft);margin:6px 0 2px;display:flex;align-items:center;justify-content:space-between}
 
 /* ── Collapsible Sections ── */
 .collapsible-hdr{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;padding:4px 0;margin:4px 0 0}
@@ -348,7 +353,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
           <div class="sheet-title">Character Sheet</div>
         </div>
         <div class="player-field">
-          <span class="lbl">Player Name</span><br>
+          <span class="lbl">Player Name</span>
           <input class="si" style="width:130px" data-field="playerName">
         </div>
       </div>
@@ -430,8 +435,8 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
           <th>Popularity</th>
         </tr></thead>
         <tbody><tr>
-          <td><input class="si-box" data-field="health" type="number" style="width:60px"></td>
-          <td><input class="si-box" data-field="karma" type="number" style="width:60px"></td>
+          <td><input class="si-calc" data-field="health" type="number" style="width:60px" readonly></td>
+          <td><input class="si-calc" data-field="karma" type="number" style="width:60px" readonly></td>
           <td>
             <select data-field="resourcesRank" style="width:70px;border:none;font-family:var(--fb);font-size:10px;font-weight:700;text-align:center;outline:none;background:transparent" id="res-rank"></select>
             <input class="si-box" data-field="resourcesValue" type="number" style="width:40px;margin-top:2px">
@@ -443,16 +448,15 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
           </td>
         </tr></tbody>
       </table>
+      <!-- Movement -->
+      <div class="movement-row">
+        <div class="movement-item"><span class="lbl">RUN</span><input type="number" data-field="moveRun" placeholder="—"></div>
+        <div class="movement-item"><span class="lbl">LEAP</span><input type="number" data-field="moveLeap" placeholder="—"></div>
+        <div class="movement-item"><span class="lbl">SWIM</span><input type="number" data-field="moveSwim" placeholder="—"></div>
+        <div class="movement-item"><span class="lbl">FLY</span><input type="number" data-field="moveFly" placeholder="0"></div>
+        <div class="movement-item"><span class="lbl">TELE</span><input type="number" data-field="moveTeleport" placeholder="0"></div>
+      </div>
     </div>
-  </div>
-
-  <!-- Movement -->
-  <div class="movement-row">
-    <div class="movement-item"><span class="lbl">RUN</span><input type="number" data-field="moveRun" placeholder="—"></div>
-    <div class="movement-item"><span class="lbl">LEAP</span><input type="number" data-field="moveLeap" placeholder="—"></div>
-    <div class="movement-item"><span class="lbl">SWIM</span><input type="number" data-field="moveSwim" placeholder="—"></div>
-    <div class="movement-item"><span class="lbl">FLY</span><input type="number" data-field="moveFly" placeholder="0"></div>
-    <div class="movement-item"><span class="lbl">TELE</span><input type="number" data-field="moveTeleport" placeholder="0"></div>
   </div>
 
   <!-- Special Abilities -->
@@ -474,47 +478,27 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
       <input class="si" data-field="limitation" placeholder="">
     </div>
 
-    <!-- Equipment (collapsible) -->
-    <div class="collapsible-hdr" id="equipment-toggle">
+    <!-- Gear & Resources (unified collapsible) -->
+    <div class="collapsible-hdr" id="gear-toggle">
       <span class="collapsible-caret">▶</span>
-      <span class="collapsible-title">EQUIPMENT</span>
-      <span class="collapsible-count" id="equipment-count"></span>
-      <button class="list-add" id="add-equipment" style="margin-left:auto" onclick="event.stopPropagation()">+ Add</button>
+      <span class="collapsible-title">GEAR &amp; RESOURCES</span>
+      <span class="collapsible-count" id="gear-count"></span>
     </div>
-    <div class="collapsible-body" id="equipment-body">
+    <div class="collapsible-body" id="gear-body">
+      <!-- Equipment -->
+      <div class="sub-label">Equipment <button class="list-add" id="add-equipment" onclick="event.stopPropagation()">+ Add</button></div>
       <ul class="item-list" id="equipment-list"></ul>
-    </div>
 
-    <!-- Power Stunts (collapsible) -->
-    <div class="collapsible-hdr" id="stunts-toggle">
-      <span class="collapsible-caret">▶</span>
-      <span class="collapsible-title">POWER STUNTS</span>
-      <span class="collapsible-count" id="stunts-count"></span>
-      <button class="list-add" id="add-stunt" style="margin-left:auto" onclick="event.stopPropagation()">+ Add</button>
-    </div>
-    <div class="collapsible-body" id="stunts-body">
+      <!-- Power Stunts -->
+      <div class="sub-label">Power Stunts <button class="list-add" id="add-stunt" onclick="event.stopPropagation()">+ Add</button></div>
       <ul class="item-list" id="stunts-list"></ul>
-    </div>
 
-    <!-- Headquarters (collapsible) -->
-    <div class="collapsible-hdr" id="hq-toggle">
-      <span class="collapsible-caret">▶</span>
-      <span class="collapsible-title">HEADQUARTERS</span>
-      <span class="collapsible-count" id="hq-count"></span>
-      <button class="list-add" id="add-hq" style="margin-left:auto" onclick="event.stopPropagation()">+ Add</button>
-    </div>
-    <div class="collapsible-body" id="hq-body">
+      <!-- Headquarters -->
+      <div class="sub-label">Headquarters <button class="list-add" id="add-hq" onclick="event.stopPropagation()">+ Add</button></div>
       <ul class="item-list" id="hq-list"></ul>
-    </div>
 
-    <!-- Vehicles (collapsible) -->
-    <div class="collapsible-hdr" id="vehicles-toggle">
-      <span class="collapsible-caret">▶</span>
-      <span class="collapsible-title">VEHICLES</span>
-      <span class="collapsible-count" id="vehicles-count"></span>
-      <button class="list-add" id="add-vehicle" style="margin-left:auto" onclick="event.stopPropagation()">+ Add</button>
-    </div>
-    <div class="collapsible-body" id="vehicles-body">
+      <!-- Vehicles -->
+      <div class="sub-label">Vehicles <button class="list-add" id="add-vehicle" onclick="event.stopPropagation()">+ Add</button></div>
       <ul class="item-list" id="vehicles-list"></ul>
     </div>
 
@@ -723,9 +707,9 @@ function renderAbilities(){
     tr.innerHTML=`
       <td class="ab-key" title="${key}">${AB_LABELS[key]}</td>
       <td><input type="number" value="${a.initialRoll}" data-ab="${key}" data-abf="initialRoll"></td>
-      <td><input type="text" value="${a.initialRank}" data-ab="${key}" data-abf="initialRank" style="font-size:9px"></td>
+      <td><input class="si-calc" type="text" value="${a.initialRank}" data-ab="${key}" data-abf="initialRank" style="font-size:9px" readonly></td>
       <td><select data-ab="${key}" data-abf="rank">${buildRankOptions(a.rank)}</select></td>
-      <td><input type="number" value="${a.value}" data-ab="${key}" data-abf="value"></td>`;
+      <td><input class="si-calc" type="number" value="${a.value}" data-ab="${key}" data-abf="value"></td>`;
     tbody.appendChild(tr);
   }
   // Attach listeners
@@ -916,9 +900,14 @@ function renderList(listId, items, type){
   });
 }
 
+function updateGearCount(){
+  const n=(CHAR.equipment||[]).length+(CHAR.stunts||[]).length+(CHAR.headquarters||[]).length+(CHAR.vehicles||[]).length;
+  return n?"("+n+")":"";
+}
+
 function renderEquipment(){
   const arr=CHAR.equipment||[];
-  document.getElementById("equipment-count").textContent=arr.length?"("+arr.length+")":"";
+  document.getElementById("gear-count").textContent=updateGearCount();
   const ul=document.getElementById("equipment-list");
   ul.innerHTML="";
   arr.forEach((eq,i)=>{
@@ -948,7 +937,7 @@ function renderEquipment(){
 
 function renderStunts(){
   const arr=CHAR.stunts||[];
-  document.getElementById("stunts-count").textContent=arr.length?"("+arr.length+")":"";
+  document.getElementById("gear-count").textContent=updateGearCount();
   const ul=document.getElementById("stunts-list");
   ul.innerHTML="";
   arr.forEach((st,i)=>{
@@ -993,7 +982,7 @@ function renderStunts(){
 
 function renderHQ(){
   const arr=CHAR.headquarters||[];
-  document.getElementById("hq-count").textContent=arr.length?"("+arr.length+")":"";
+  document.getElementById("gear-count").textContent=updateGearCount();
   const ul=document.getElementById("hq-list");
   ul.innerHTML="";
   arr.forEach((hq,i)=>{
@@ -1014,7 +1003,7 @@ function renderHQ(){
 
 function renderVehicles(){
   const arr=CHAR.vehicles||[];
-  document.getElementById("vehicles-count").textContent=arr.length?"("+arr.length+")":"";
+  document.getElementById("gear-count").textContent=updateGearCount();
   const ul=document.getElementById("vehicles-list");
   ul.innerHTML="";
   arr.forEach((v,i)=>{
@@ -1122,36 +1111,35 @@ function bindAddButtons(){
   document.getElementById("add-equipment").addEventListener("click",()=>{
     if(!CHAR.equipment) CHAR.equipment=[];
     CHAR.equipment.push({name:"New Item",category:"gear",rank:"Typical",value:6,materialStrength:"Typical"});
-    setCollapseState("equipment-toggle",true);
+    setCollapseState("gear-toggle",true);
     renderEquipment();
     autosave();
   });
   document.getElementById("add-stunt").addEventListener("click",()=>{
     if(!CHAR.stunts) CHAR.stunts=[];
     CHAR.stunts.push({name:"New Stunt",parentPower:"",rank:"Typical",value:6,difficulty:"Red",timesUsed:0,description:""});
-    setCollapseState("stunts-toggle",true);
+    setCollapseState("gear-toggle",true);
     renderStunts();
     autosave();
   });
   document.getElementById("add-hq").addEventListener("click",()=>{
     if(!CHAR.headquarters) CHAR.headquarters=[];
     CHAR.headquarters.push({name:"New HQ",materialStrength:"Good",rooms:"",features:"",rent:"",notes:""});
-    setCollapseState("hq-toggle",true);
+    setCollapseState("gear-toggle",true);
     renderHQ();
     autosave();
   });
   document.getElementById("add-vehicle").addEventListener("click",()=>{
     if(!CHAR.vehicles) CHAR.vehicles=[];
     CHAR.vehicles.push({name:"New Vehicle",type:"Car",speed:"Typical",body:"Typical",protection:"Typical",control:"Typical",notes:""});
-    setCollapseState("vehicles-toggle",true);
+    setCollapseState("gear-toggle",true);
     renderVehicles();
     autosave();
   });
 
-  // Collapsible section toggles — persistent via localStorage
-  ["equipment-toggle","stunts-toggle","hq-toggle","vehicles-toggle"].forEach(id=>{
+  // Collapsible section toggle — persistent via localStorage
+  ["gear-toggle"].forEach(id=>{
     const el=document.getElementById(id);
-    // Restore saved state
     if(getCollapseState(id)) el.classList.add("open");
     el.addEventListener("click",()=>{
       el.classList.toggle("open");
