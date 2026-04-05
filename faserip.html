@@ -1664,7 +1664,7 @@ function quickRandom(){
 // ══════════════════════════════════════════════════════════════
 // SAVE / LOAD / EXPORT / IMPORT
 // ══════════════════════════════════════════════════════════════
-const STORAGE_KEY="gcc-faserip-chars";
+const STORAGE_KEY=GCC.KEYS.faseripChars;
 const AUTOSAVE_KEY="gcc-faserip-current";
 let _saveTimer=null;
 
@@ -2043,7 +2043,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 
   // Campaign — assign character to a campaign
   document.getElementById("btn-campaign").addEventListener("click", async () => {
-    const camps = (function(){try{return JSON.parse(localStorage.getItem('gcc-campaigns'))||[]}catch(e){return[]}})();
+    const camps = (function(){try{return JSON.parse(localStorage.getItem(GCC.KEYS.campaigns))||[]}catch(e){return[]}})();
     if (!camps.length) { await MPDialog.alert('No Campaigns', 'No campaigns found. Create one on the Campaigns page first.'); return; }
     const current = CHAR._campaign || null;
     const items = camps.map(c => ({

@@ -30,6 +30,8 @@ const GCC = (function() {
     mpVehs: 'mp-veh-list',
     mpCamps: 'mp-campaigns',
     mpCampSel: 'mp-campaign-sel',
+    // System char lists
+    faseripChars: 'gcc-faserip-chars',
   };
 
   // ── System Registry ──

@@ -458,9 +458,9 @@ function render() {
     partyHtml += '</div>';
   }
 
-  // Vehicles tab — find vehicles linked to this campaign via mp-veh-list
+  // Vehicles tab — find vehicles linked to this campaign
   let vehHtml = '';
-  const vehTool = sys.tools?.find(t => t.charList === 'mp-veh-list');
+  const vehTool = sys.tools?.find(t => t.charList === GCC.KEYS.mpVehs);
   let vehs = [];
   if (vehTool) {
     try {

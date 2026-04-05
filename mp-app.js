@@ -1214,7 +1214,7 @@ document.getElementById("btn-export").addEventListener("click", () => {
 
 // Campaign — assign vehicle to a campaign
 document.getElementById("btn-campaign").addEventListener("click", async () => {
-  const camps = (function(){try{return JSON.parse(localStorage.getItem('gcc-campaigns'))||[]}catch(e){return[]}})();
+  const camps = (function(){try{const k=(typeof GCC!=='undefined'&&GCC.KEYS)?GCC.KEYS.campaigns:'gcc-campaigns';return JSON.parse(localStorage.getItem(k))||[]}catch(e){return[]}})();
   if (!camps.length) { await MPDialog.alert('No Campaigns', 'No campaigns found. Create one on the Campaigns page first.'); return; }
   const current = _vehCampaign || null;
   const items = camps.map(c => ({
@@ -1331,7 +1331,7 @@ document.getElementById("btn-pdf").addEventListener("click", () => {
 
 // ---- localStorage auto-save ----
 const LS_KEY = "mp-vehicle-autosave";
-const VEHS_LIST_KEY = "mp-veh-list";
+const VEHS_LIST_KEY = (typeof GCC!=='undefined' && GCC.KEYS) ? GCC.KEYS.mpVehs : 'mp-veh-list';
 let _saveTimer = null;
 let _vehCampaign = null; // campaign association metadata
 

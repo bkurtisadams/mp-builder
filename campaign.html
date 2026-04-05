@@ -179,7 +179,7 @@ body { min-height: 100vh; background: var(--page-bg); color: var(--tx); font-fam
 <script src="gcc-data.js"></script>
 <script src="gcc-header.js"></script>
 <script>
-const CHARS_KEY='mp-char-list',VEHS_KEY='mp-veh-list',CAMP_KEY='gcc-campaigns',CAMP_SEL_KEY='mp-campaign-sel';
+const CHARS_KEY=GCC.KEYS.mpChars,VEHS_KEY=GCC.KEYS.mpVehs,CAMP_KEY=GCC.KEYS.campaigns,CAMP_SEL_KEY=GCC.KEYS.mpCampSel;
 function loadList(k){try{return JSON.parse(localStorage.getItem(k))||[]}catch(e){return[]}}
 function saveList(k,l){try{localStorage.setItem(k,JSON.stringify(l))}catch(e){}}
 function loadCampaigns(){try{return JSON.parse(localStorage.getItem(CAMP_KEY))||[]}catch(e){return[]}}
@@ -194,7 +194,7 @@ function escH(s){const d=document.createElement('div');d.textContent=s||'';retur
 (function migrateLegacy(){
   const gcc = loadCampaigns();
   if (gcc.length > 0) return; // already have gcc-campaigns data
-  const old = (function(){try{return JSON.parse(localStorage.getItem('mp-campaigns'))||[]}catch(e){return[]}})();
+  const old = (function(){try{return JSON.parse(localStorage.getItem(GCC.KEYS.mpCamps))||[]}catch(e){return[]}})();
   if (!old.length) return;
   const oldData = (function(){try{return JSON.parse(localStorage.getItem('mp-campaign-data'))||{}}catch(e){return{}}})();
   const merged = old.map(c => {

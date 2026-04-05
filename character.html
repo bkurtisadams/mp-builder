@@ -1044,7 +1044,7 @@ function clearAll() {
 }
 
 // ── Slot management ──
-const CHARS_LIST_KEY = 'mp-char-list';
+const CHARS_LIST_KEY = GCC.KEYS.mpChars;
 function getEditIdx() {
   const v = localStorage.getItem('mp-char-edit-idx');
   return v != null ? parseInt(v) : -1;
@@ -1137,7 +1137,7 @@ document.getElementById('btn-new').addEventListener('click', async () => {
 
 // Campaign — assign character to a campaign
 document.getElementById('btn-campaign').addEventListener('click', async () => {
-  const camps = (function(){try{return JSON.parse(localStorage.getItem('gcc-campaigns'))||[]}catch(e){return[]}})();
+  const camps = (function(){try{return JSON.parse(localStorage.getItem(GCC.KEYS.campaigns))||[]}catch(e){return[]}})();
   if (!camps.length) { await MPDialog.alert('No Campaigns', 'No campaigns found. Create one on the Campaigns page first.'); return; }
   const current = window._charMeta._campaign || null;
   const items = camps.map(c => ({
