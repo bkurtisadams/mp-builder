@@ -1159,43 +1159,43 @@ async function fileOpen() {
 
 document.getElementById("btn-save").addEventListener("click", () => {
   autoSave();
-  alert("Vehicle saved.");
+  MPDialog.alert("Saved", "Vehicle saved successfully.");
 });
 
-document.getElementById("btn-load").addEventListener("click", () => {
+document.getElementById("btn-load").addEventListener("click", async () => {
   const list = JSON.parse(localStorage.getItem(VEHS_LIST_KEY)) || [];
-  if (!list.length) { alert("No saved vehicles found."); return; }
-  const names = list.map((v, i) => (i + 1) + ". " + (v.name || "Unnamed")).join("\n");
-  const pick = prompt("Load Vehicle:\n\n" + names + "\n\nEnter number:", "1");
-  if (pick == null) return;
-  const idx = parseInt(pick) - 1;
-  if (isNaN(idx) || idx < 0 || idx >= list.length) { alert("Invalid selection."); return; }
+  const idx = await MPDialog.listVehs("Load Vehicle", list);
+  if (idx == null || idx < 0 || idx >= list.length) return;
   veh.fromJSON(list[idx]);
   syncFormFromVeh();
   updateAll();
+  _vehCampaign = list[idx]._campaign || null;
   localStorage.setItem(LS_KEY, JSON.stringify(list[idx]));
   localStorage.setItem('mp-veh-edit-idx', idx);
   _fileHandle = null;
   document.title = (veh.name || "Vehicle") + " — MP Vehicle Builder";
 });
 
-document.getElementById("btn-new").addEventListener("click", () => {
-  if (!confirm("Clear all fields and start a new vehicle?")) return;
+document.getElementById("btn-new").addEventListener("click", async () => {
+  const ok = await MPDialog.confirm("New Vehicle", "Clear all fields and start a new vehicle?", { okText: "Clear", danger: true });
+  if (!ok) return;
   veh.fromJSON({ type: "mp-vehicle", name: "", basicCost: 15, systems: [] });
   syncFormFromVeh();
   updateAll();
   localStorage.removeItem(LS_KEY);
   localStorage.setItem('mp-veh-edit-idx', '-1');
+  _vehCampaign = null;
   _fileHandle = null;
   document.title = "MP Vehicle Builder";
 });
 
-document.getElementById("btn-delete").addEventListener("click", () => {
+document.getElementById("btn-delete").addEventListener("click", async () => {
   const idx = _getVehEditIdx();
   const list = JSON.parse(localStorage.getItem(VEHS_LIST_KEY)) || [];
-  if (idx < 0 || idx >= list.length) { alert("No vehicle is currently loaded to delete."); return; }
+  if (idx < 0 || idx >= list.length) { MPDialog.alert("No Vehicle", "No vehicle is currently loaded to delete."); return; }
   const name = list[idx].name || "Unnamed";
-  if (!confirm('Permanently delete "' + name + '"?')) return;
+  const ok = await MPDialog.confirm("Delete Vehicle", "Permanently delete <b>" + name + "</b>?", { okText: "Delete", danger: true });
+  if (!ok) return;
   list.splice(idx, 1);
   localStorage.setItem(VEHS_LIST_KEY, JSON.stringify(list));
   veh.fromJSON({ type: "mp-vehicle", name: "", basicCost: 15, systems: [] });
@@ -1205,7 +1205,7 @@ document.getElementById("btn-delete").addEventListener("click", () => {
   localStorage.setItem('mp-veh-edit-idx', '-1');
   _fileHandle = null;
   document.title = "MP Vehicle Builder";
-  alert('"' + name + '" has been deleted.');
+  MPDialog.alert("Deleted", "<b>" + name + "</b> has been deleted.");
 });
 
 document.getElementById("btn-export").addEventListener("click", () => {
@@ -1228,8 +1228,8 @@ document.getElementById("inp-json").addEventListener("change", e => {
       autoSave();
       _fileHandle = null;
       document.title = (veh.name || "Vehicle") + " — MP Vehicle Builder";
-      alert("Imported: " + e.target.files[0].name);
-    } catch (err) { alert("Import failed: " + err.message); }
+      MPDialog.alert("Imported", "Vehicle imported: " + e.target.files[0].name);
+    } catch (err) { MPDialog.alert("Error", "Import failed: " + err.message); }
   };
   reader.readAsText(e.target.files[0]);
   e.target.value = "";
@@ -1239,7 +1239,7 @@ document.getElementById("inp-json").addEventListener("change", e => {
 window.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key === "s") {
     e.preventDefault();
-    if (e.shiftKey) _fallbackDownload(); else { autoSave(); alert("Vehicle saved."); }
+    if (e.shiftKey) _fallbackDownload(); else { autoSave(); MPDialog.alert("Saved", "Vehicle saved successfully."); }
   }
   if ((e.ctrlKey || e.metaKey) && e.key === "o") {
     e.preventDefault();
@@ -1310,6 +1310,7 @@ document.getElementById("btn-pdf").addEventListener("click", () => {
 const LS_KEY = "mp-vehicle-autosave";
 const VEHS_LIST_KEY = "mp-veh-list";
 let _saveTimer = null;
+let _vehCampaign = null; // campaign association metadata
 
 function _getVehEditIdx() {
   const v = localStorage.getItem('mp-veh-edit-idx');
@@ -1326,6 +1327,8 @@ function autoSave() {
       data._hits = veh.hits;
       data._power = veh.power;
       data._spaces = veh.totalSpaces;
+      // Campaign association
+      if (_vehCampaign) data._campaign = _vehCampaign;
       localStorage.setItem(LS_KEY, JSON.stringify(data));
       // Sync to slot list for landing page
       const list = JSON.parse(localStorage.getItem(VEHS_LIST_KEY)) || [];
@@ -2652,6 +2655,15 @@ editor.panY = 20;
 // Restore from localStorage if available
 if (autoLoad()) {
   syncFormFromVeh();
+  // Restore campaign association from loaded data
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) { const d = JSON.parse(raw); if (d._campaign) _vehCampaign = d._campaign; }
+  } catch(e) {}
+} else {
+  // New vehicle — pick up campaign from campaign page
+  const camp = localStorage.getItem('mp-veh-campaign');
+  if (camp) { _vehCampaign = camp; localStorage.removeItem('mp-veh-campaign'); }
 }
 restoreViewState();
 updateAll();
