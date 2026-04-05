@@ -1957,7 +1957,7 @@ function compressPortrait(dataUrl){
       c.width=w;c.height=h;
       const ctx=c.getContext("2d");
       ctx.drawImage(img,0,0,w,h);
-      resolve(c.toDataURL("image/jpeg",0.7));
+      resolve(c.toDataURL("image/png"));
     };
     img.onerror=()=>resolve("");
     img.src=dataUrl;
@@ -2121,7 +2121,7 @@ document.addEventListener("DOMContentLoaded",()=>{
         canvas.width=w;canvas.height=h;
         const ctx=canvas.getContext("2d");
         ctx.drawImage(img,0,0,w,h);
-        CHAR.portraitData=canvas.toDataURL("image/jpeg",0.7);
+        CHAR.portraitData=canvas.toDataURL("image/png");
         showPortrait(CHAR.portraitData);
         autosave();
       };
