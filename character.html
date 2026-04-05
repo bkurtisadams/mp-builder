@@ -1307,6 +1307,8 @@ document.getElementById('btn-new').addEventListener('click', async () => {
   if (!ok) return;
   clearAll();
   recalcDerived();
+  window._charMeta = {};
+  showPortrait(null);
   localStorage.removeItem(STORE_KEY);
   localStorage.setItem('mp-char-edit-idx', '-1');
 });

@@ -1147,15 +1147,39 @@ function renderCharsPicker() {
   const picker = document.getElementById('chars-picker');
   const info = document.getElementById('chars-picker-info');
   const saved = _getSavedCharsForSystem(charsCampSystem);
+  const camp = GCC.getCampaign(charsCampId);
+  const teamNames = (camp?.characters || []).map(ch => ch.name);
+  const savedNames = new Set(saved.map(sc => sc.name));
 
-  if (!saved.length) {
+  // Find orphans — team members with no matching saved character
+  const orphans = teamNames.filter(n => !savedNames.has(n));
+
+  if (!saved.length && !orphans.length) {
     info.textContent = 'No saved characters for this system. Create and save characters in the character sheet first.';
     picker.innerHTML = '';
     return;
   }
 
   info.textContent = 'Select characters to add to this campaign. Click to toggle.';
-  picker.innerHTML = saved.map((sc, i) => {
+  let html = '';
+
+  // Render orphaned team members first with remove button
+  if (orphans.length) {
+    html += '<div style="font-size:9px;color:var(--tx3);letter-spacing:1px;margin:6px 0 4px;font-family:var(--fsc)">UNRESOLVED (no saved data found)</div>';
+    orphans.forEach(name => {
+      html += `<div class="chars-picker-item orphan" data-orphan-name="${ESC(name)}">
+        <div class="chars-picker-check" style="border-color:var(--red);color:var(--red)">✕</div>
+        <div class="cp-portrait-ph">?</div>
+        <div class="cp-info">
+          <div class="cp-name">${ESC(name)}</div>
+          <div class="cp-sub" style="color:var(--red)">Click to remove from team</div>
+        </div>
+      </div>`;
+    });
+  }
+
+  // Render saved characters with toggle
+  html += saved.map((sc, i) => {
     const sel = charsSelected.has(sc.name);
     const portraitHtml = sc.portrait
       ? `<img class="cp-portrait" src="${sc.portrait}" alt="">`
@@ -1171,8 +1195,10 @@ function renderCharsPicker() {
     </div>`;
   }).join('');
 
-  // Toggle selection on click
-  picker.querySelectorAll('.chars-picker-item').forEach(el => {
+  picker.innerHTML = html;
+
+  // Toggle selection on saved characters
+  picker.querySelectorAll('.chars-picker-item[data-cp-idx]').forEach(el => {
     el.addEventListener('click', () => {
       const idx = parseInt(el.dataset.cpIdx);
       const sc = saved[idx];
@@ -1181,6 +1207,19 @@ function renderCharsPicker() {
       } else {
         charsSelected.add(sc.name);
       }
+      renderCharsPicker();
+    });
+  });
+
+  // Remove orphan on click
+  picker.querySelectorAll('.chars-picker-item.orphan').forEach(el => {
+    el.addEventListener('click', () => {
+      const name = el.dataset.orphanName;
+      const camp = GCC.getCampaign(charsCampId);
+      if (!camp) return;
+      const chars = (camp.characters || []).filter(ch => ch.name !== name);
+      GCC.updateCampaign(charsCampId, { characters: chars, players: chars.length });
+      charsSelected.delete(name);
       renderCharsPicker();
     });
   });
