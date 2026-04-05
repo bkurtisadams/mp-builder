@@ -1956,8 +1956,6 @@ function compressPortrait(dataUrl){
       const c=document.createElement("canvas");
       c.width=w;c.height=h;
       const ctx=c.getContext("2d");
-      ctx.fillStyle="#2a2a2e";
-      ctx.fillRect(0,0,w,h);
       ctx.drawImage(img,0,0,w,h);
       resolve(c.toDataURL("image/jpeg",0.7));
     };
@@ -2122,8 +2120,6 @@ document.addEventListener("DOMContentLoaded",()=>{
         if(h>maxH){w*=maxH/h;h=maxH;}
         canvas.width=w;canvas.height=h;
         const ctx=canvas.getContext("2d");
-        ctx.fillStyle="#2a2a2e";
-        ctx.fillRect(0,0,w,h);
         ctx.drawImage(img,0,0,w,h);
         CHAR.portraitData=canvas.toDataURL("image/jpeg",0.7);
         showPortrait(CHAR.portraitData);
