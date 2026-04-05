@@ -201,19 +201,23 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-vtt-link:hover { background: rgba(48,80,138,0.06); border-color: rgba(48,80,138,0.35) }
 
 .cc-char-list { list-style: none }
-.cc-char-item { display: flex; align-items: center; gap: 7px; padding: 3px 0; border-bottom: 1px solid var(--brd); font-size: 12px }
+.cc-char-item { display: flex; align-items: flex-start; gap: 7px; padding: 6px 0; border-bottom: 1px solid var(--brd); font-size: 12px }
 .cc-char-item:last-child { border-bottom: none }
-.cc-char-item:hover { color: var(--accent) }
-.cc-char-pip { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0 }
+.cc-char-pip { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; margin-top: 6px }
+.cc-char-info { flex: 1; min-width: 0 }
 .cc-char-name { font-weight: 700 }
 .cc-char-link { text-decoration: none; color: inherit }
 .cc-char-link:hover { color: var(--accent); text-decoration: underline }
-.cc-char-player { font-size: 10px; color: var(--tx3); margin-left: 2px }
-.cc-char-sub { font-size: 10px; color: var(--tx3); margin-left: auto; white-space: nowrap; font-family: var(--fm) }
-.cc-char-rm { background: none; border: none; color: var(--tx3); cursor: pointer; font-size: 10px; padding: 0 2px; opacity: 0; transition: opacity 0.1s; flex-shrink: 0 }
+.cc-char-player { font-size: 10px; color: var(--tx3); margin-left: 4px }
+.cc-char-sub { font-size: 10px; color: var(--tx3); font-family: var(--fm) }
+.cc-char-stats { font-family: var(--fm); font-size: 9px; color: var(--tx2); margin-top: 1px; display: flex; gap: 1px; flex-wrap: wrap }
+.cc-char-stats span { margin-right: 5px; white-space: nowrap }
+.cc-char-derived { font-size: 9px; font-weight: 700; color: var(--tx2); margin-top: 1px }
+.cc-char-derived span { margin-right: 6px; white-space: nowrap }
+.cc-char-rm { background: none; border: none; color: var(--tx3); cursor: pointer; font-size: 10px; padding: 0 2px; opacity: 0; transition: opacity 0.1s; flex-shrink: 0; margin-top: 4px }
 .cc-char-item:hover .cc-char-rm { opacity: 1 }
 .cc-char-rm:hover { color: var(--red) }
-.cc-char-portrait { width: 20px; height: 20px; border-radius: 2px; object-fit: cover; flex-shrink: 0 }
+.cc-char-portrait { width: 28px; height: 28px; border-radius: 3px; object-fit: contain; flex-shrink: 0; border: 1px solid var(--brd) }
 
 .cc-log-title { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 1.5px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between }
 .cc-log-new { font-family: var(--fb); font-size: 10px; color: var(--accent-dim); cursor: pointer; letter-spacing: 0; font-weight: 700 }
@@ -224,6 +228,8 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-log-item:hover { color: var(--accent) }
 .cc-log-date { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 0.5px }
 .cc-log-text { font-size: 11px; color: var(--tx2); margin-top: 1px; line-height: 1.3 }
+.cc-log-title-text { font-weight: 700; color: var(--tx) }
+.cc-log-xp { font-family: var(--fm); font-size: 9px; color: var(--accent); margin-left: 6px }
 
 .cc-bottom { display: flex; gap: 6px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--brd); align-items: center }
 .cc-btn { padding: 4px 12px; font-size: 10px; font-family: var(--fb); font-weight: 700; border-radius: 2px; cursor: pointer; transition: all 0.12s; border: 1px solid var(--brd); background: transparent; color: var(--tx2) }
@@ -605,9 +611,28 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   <div class="dice-log" id="dice-log"></div>
 </div>
 
+<!-- Session Modal -->
+<div class="modal-overlay" id="session-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-hdr">
+      <div class="modal-title" id="session-modal-title">NEW SESSION</div>
+      <button class="modal-close" id="session-modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="mf-row"><div class="mf-field"><label class="mf-label">DATE</label><input class="mf-input" id="sm-date" type="date"></div><div class="mf-field-xs"><label class="mf-label">XP / KARMA</label><input class="mf-input" id="sm-xp" type="number" placeholder="0"></div></div>
+      <div class="mf-row"><div class="mf-field"><label class="mf-label">TITLE (optional)</label><input class="mf-input" id="sm-title" placeholder="e.g. The Warehouse Ambush"></div></div>
+      <div class="mf-row"><div class="mf-field"><label class="mf-label">SUMMARY</label><textarea class="mf-textarea" id="sm-text" rows="3" placeholder="What happened this session..."></textarea></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="mf-btn-cancel" id="sm-cancel">Cancel</button>
+      <button class="mf-btn-save" id="sm-save">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="ftr">
   <div class="ftr-inner">
-    <span>Graycloak's Campaign Corner v1.6</span>
+    <span>Graycloak's Campaign Corner v1.7</span>
     <span>Data stored locally in your browser</span>
   </div>
 </div>
@@ -696,26 +721,47 @@ document.getElementById('jumpback-row').addEventListener('click', (e) => {
 
 // ── Character resolution (live data from saved chars) ──
 function _resolveChar(savedChar, systemId, storageKey) {
-  let name = '', sub = '', player = '', portrait = '';
+  let name = '', sub = '', player = '', portrait = '', statsHtml = '';
   if (systemId === 'faserip') {
     name = savedChar.heroName || savedChar.name || 'Unnamed';
     player = savedChar.playerName || '';
     portrait = savedChar.portraitData || '';
+    sub = savedChar.origin || '';
     const ab = savedChar.abilities || {};
-    const abbr = ['fighting','agility','strength','endurance','reason','intuition','psyche']
-      .map(k => (ab[k]?.rank || 'TY').substring(0,2).toUpperCase()).join('-');
-    sub = savedChar.origin ? savedChar.origin + ' · ' + abbr : abbr;
+    const ranks = ['fighting','agility','strength','endurance','reason','intuition','psyche']
+      .map(k => { const a = ab[k]; return a ? `<span>${k.substring(0,1).toUpperCase()}\u2009${ESC(a.rank||'TY')}</span>` : ''; })
+      .filter(Boolean);
+    if (ranks.length) statsHtml += `<div class="cc-char-stats">${ranks.join('')}</div>`;
+    const derived = [];
+    if (savedChar.health) derived.push('Health ' + savedChar.health);
+    if (savedChar.karma) derived.push('Karma ' + savedChar.karma);
+    if (savedChar.resourcesRank) derived.push('Res: ' + savedChar.resourcesRank);
+    if (derived.length) statsHtml += `<div class="cc-char-derived">${derived.map(d=>'<span>'+ESC(d)+'</span>').join('')}</div>`;
   } else if (systemId === 'mp') {
     name = savedChar.name || 'Unnamed';
     player = savedChar.player || '';
     portrait = savedChar._image || savedChar.portrait || '';
     sub = savedChar.archetype || savedChar.className || savedChar.model || '';
+    let cp = 0;
+    if (savedChar.stats) { for (const s of Object.values(savedChar.stats)) cp += parseFloat(s.cp) || 0; }
+    if (savedChar.abilities) { for (const a of savedChar.abilities) cp += parseFloat(a.cp) || 0; }
+    if (cp) sub = cp + ' CPs' + (sub ? ' · ' + sub : '');
+    if (savedChar.stats) {
+      const statLine = ['st','en','ag','in','cl']
+        .map(k => { const v = savedChar.stats[k] ? (savedChar.stats[k].cp || '0') : '0'; return `<span>${k.toUpperCase()}\u2009${v}</span>`; });
+      statsHtml += `<div class="cc-char-stats">${statLine.join('')}</div>`;
+    }
+    const derived = [];
+    if (savedChar.power) derived.push('Power ' + savedChar.power);
+    if (savedChar.hitPts) derived.push('HP ' + savedChar.hitPts);
+    if (savedChar.initiative) derived.push('Init ' + savedChar.initiative);
+    if (derived.length) statsHtml += `<div class="cc-char-derived">${derived.map(d=>'<span>'+ESC(d)+'</span>').join('')}</div>`;
   } else {
     name = savedChar.name || savedChar.heroName || 'Unnamed';
     player = savedChar.player || savedChar.playerName || '';
     sub = savedChar.sub || savedChar.class || '';
   }
-  return { name, player, sub, portrait, _id: savedChar._id || '', storageKey: storageKey || savedChar.storageKey || savedChar.listKey || '' };
+  return { name, player, sub, portrait, statsHtml, _id: savedChar._id || '', storageKey: storageKey || savedChar.storageKey || savedChar.listKey || '' };
 }
 
 function _getSavedCharsForSystem(systemId) {
@@ -793,12 +839,14 @@ function renderCampaigns() {
         nameHtml = `<span class="cc-char-name">${ESC(resolved.name)}</span>`;
       }
       const rmId = resolved._id || ch._id || '';
-      return `<li class="cc-char-item">${portraitHtml}${nameHtml}${resolved.player ? '<span class="cc-char-player">('+ESC(resolved.player)+')</span>' : ''}<span class="cc-char-sub">${ESC(resolved.sub||'')}</span><button class="cc-char-rm" data-rm-camp="${ESC(c.id)}" data-rm-char="${ESC(resolved.name)}" data-rm-id="${ESC(rmId)}" title="Remove from team">✕</button></li>`;
+      return `<li class="cc-char-item">${portraitHtml}<div class="cc-char-info">${nameHtml}${resolved.player ? '<span class="cc-char-player">('+ESC(resolved.player)+')</span>' : ''}<div class="cc-char-sub">${ESC(resolved.sub||'')}</div>${resolved.statsHtml||''}</div><button class="cc-char-rm" data-rm-camp="${ESC(c.id)}" data-rm-char="${ESC(resolved.name)}" data-rm-id="${ESC(rmId)}" title="Remove from team">✕</button></li>`;
     }).join('');
 
-    const sessHtml = (c.sessions||[]).slice(0,4).map(s =>
-      `<li class="cc-log-item"><div class="cc-log-date">${formatDate(s.date)}</div><div class="cc-log-text">${ESC(s.text)}</div></li>`
-    ).join('');
+    const sessHtml = (c.sessions||[]).slice(0,4).map(s => {
+      const title = s.title ? '<span class="cc-log-title-text">' + ESC(s.title) + '</span> — ' : '';
+      const xp = s.xp ? '<span class="cc-log-xp">+' + s.xp + ' XP</span>' : '';
+      return `<li class="cc-log-item"><div class="cc-log-date">${formatDate(s.date)} ${xp}</div><div class="cc-log-text">${title}${ESC(s.text||'')}</div></li>`;
+    }).join('');
 
     const toolsHtml = tools.map(t => {
       const cls = t.href ? 'cc-tool-link' : 'cc-tool-link disabled';
@@ -865,7 +913,6 @@ function renderCampaigns() {
           </div>
         </div>
         <div class="cc-bottom">
-          <a class="cc-btn" href="campaign-detail.html?id=${encodeURIComponent(c.id)}" style="text-decoration:none">View Campaign</a>
           <button class="cc-btn" data-action="edit-camp" data-camp-id="${ESC(c.id)}">Edit</button>
           <button class="cc-btn" data-action="edit-chars" data-camp-id="${ESC(c.id)}">Edit ${ESC(GCC.teamLabel(c.system))}</button>
           <span style="flex:1"></span>
@@ -1079,21 +1126,7 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
   }
   const newSess = e.target.closest('.cc-log-new');
   if (newSess) {
-    const id = newSess.dataset.campId;
-    const text = prompt('Session note:');
-    if (!text) return;
-    const camps = GCC.loadCampaigns();
-    const camp = camps.find(c => c.id === id);
-    if (!camp) return;
-    if (!camp.sessions) camp.sessions = [];
-    camp.session = (camp.session||0) + 1;
-    camp.lastPlayed = new Date().toISOString().slice(0,10);
-    camp.sessions.unshift({ date: camp.lastPlayed, text: 'Session '+camp.session+' — '+text });
-    GCC.saveCampaigns(camps);
-    GCC.logActivity({ campaign: id, system: camp.system, text: camp.name+' — Session '+camp.session+': '+text });
-    renderCampaigns(); renderActivity();
-    const card = document.querySelector(`[data-camp-id="${id}"]`);
-    if (card) card.classList.add('open');
+    openSessionModal(newSess.dataset.campId);
     return;
   }
   // Remove character from team
@@ -1344,6 +1377,45 @@ document.addEventListener('click', (e) => {
     diceTray.classList.remove('open');
   }
 });
+
+// ── Session Modal ──
+const sesModal = document.getElementById('session-modal');
+let sesCampId = '';
+
+function openSessionModal(campId) {
+  sesCampId = campId;
+  document.getElementById('session-modal-title').textContent = 'NEW SESSION';
+  document.getElementById('sm-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('sm-title').value = '';
+  document.getElementById('sm-text').value = '';
+  document.getElementById('sm-xp').value = '';
+  sesModal.classList.add('open');
+}
+function closeSessionModal() { sesModal.classList.remove('open'); sesCampId = ''; }
+
+document.getElementById('sm-save').addEventListener('click', () => {
+  if (!sesCampId) return;
+  const camps = GCC.loadCampaigns();
+  const camp = camps.find(c => c.id === sesCampId);
+  if (!camp) return;
+  if (!camp.sessions) camp.sessions = [];
+  camp.session = (camp.session||0) + 1;
+  camp.lastPlayed = document.getElementById('sm-date').value || new Date().toISOString().slice(0,10);
+  const title = document.getElementById('sm-title').value.trim();
+  const text = document.getElementById('sm-text').value.trim();
+  const xp = parseInt(document.getElementById('sm-xp').value) || 0;
+  camp.sessions.unshift({ date: camp.lastPlayed, title, text, xp });
+  GCC.saveCampaigns(camps);
+  const label = title || text || ('Session ' + camp.session);
+  GCC.logActivity({ campaign: sesCampId, system: camp.system, text: camp.name + ' — ' + label });
+  closeSessionModal();
+  renderCampaigns(); renderActivity();
+  const card = document.querySelector(`[data-camp-id="${sesCampId}"]`);
+  if (card) card.classList.add('open');
+});
+document.getElementById('sm-cancel').addEventListener('click', closeSessionModal);
+document.getElementById('session-modal-close').addEventListener('click', closeSessionModal);
+sesModal.addEventListener('click', (e) => { if (e.target === sesModal) closeSessionModal(); });
 
 // ── Render ──
 renderToolsDropdown(); renderJumpback(); renderCampaigns(); renderActivity();
