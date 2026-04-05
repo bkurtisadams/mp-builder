@@ -178,16 +178,36 @@ body { min-height: 100vh; background: var(--page-bg); color: var(--tx); font-fam
 <script src="mp-dialog.js"></script>
 <script src="gcc-header.js"></script>
 <script>
-const CHARS_KEY='mp-char-list',VEHS_KEY='mp-veh-list',CAMP_KEY='mp-campaigns',CAMP_SEL_KEY='mp-campaign-sel',CAMP_DATA_KEY='mp-campaign-data';
+const CHARS_KEY='mp-char-list',VEHS_KEY='mp-veh-list',CAMP_KEY='gcc-campaigns',CAMP_SEL_KEY='mp-campaign-sel';
 function loadList(k){try{return JSON.parse(localStorage.getItem(k))||[]}catch(e){return[]}}
 function saveList(k,l){try{localStorage.setItem(k,JSON.stringify(l))}catch(e){}}
 function loadCampaigns(){try{return JSON.parse(localStorage.getItem(CAMP_KEY))||[]}catch(e){return[]}}
 function saveCampaigns(l){try{localStorage.setItem(CAMP_KEY,JSON.stringify(l))}catch(e){}}
 function getActiveCampaign(){return localStorage.getItem(CAMP_SEL_KEY)||''}
 function setActiveCampaign(id){localStorage.setItem(CAMP_SEL_KEY,id)}
+function getCamp(id){return loadCampaigns().find(c=>c.id===id)||{}}
+function updateCamp(id,updates){const l=loadCampaigns();const c=l.find(x=>x.id===id);if(!c)return;Object.assign(c,updates);saveCampaigns(l)}
 function escH(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML}
-function loadCampData(id){try{const a=JSON.parse(localStorage.getItem(CAMP_DATA_KEY))||{};return a[id]||{}}catch(e){return{}}}
-function saveCampData(id,d){try{const a=JSON.parse(localStorage.getItem(CAMP_DATA_KEY))||{};a[id]=d;localStorage.setItem(CAMP_DATA_KEY,JSON.stringify(a))}catch(e){}}
+
+// One-time migration from old mp-campaigns + mp-campaign-data into gcc-campaigns
+(function migrateLegacy(){
+  const gcc = loadCampaigns();
+  if (gcc.length > 0) return; // already have gcc-campaigns data
+  const old = (function(){try{return JSON.parse(localStorage.getItem('mp-campaigns'))||[]}catch(e){return[]}})();
+  if (!old.length) return;
+  const oldData = (function(){try{return JSON.parse(localStorage.getItem('mp-campaign-data'))||{}}catch(e){return{}}})();
+  const merged = old.map(c => {
+    const d = oldData[c.id] || {};
+    return {
+      id: c.id, name: c.name || 'Untitled', system: 'mp',
+      gm: d.gm || '', desc: d.desc || '',
+      campaignImage: d._image || '', publicNotes: d.publicNotes || '', privateNotes: d.privateNotes || '',
+      sessions: d.sessions || [], characters: [], status: 'active',
+      created: new Date().toISOString(),
+    };
+  });
+  saveCampaigns(merged);
+})();
 function resizeImage(file,mw,mh){return new Promise(r=>{const rd=new FileReader();rd.onload=e=>{const img=new Image();img.onload=()=>{const rt=Math.min(mw/img.width,mh/img.height,1);const w=Math.round(img.width*rt),h=Math.round(img.height*rt);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);r(c.toDataURL('image/jpeg',0.8))};img.src=e.target.result};rd.readAsDataURL(file)})}
 
 const tSvg=`<svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="9" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 22c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>`;
@@ -220,42 +240,42 @@ function renderAll(){
   const camps=loadCampaigns(),chars=loadList(CHARS_KEY),vehs=loadList(VEHS_KEY),act=getActiveCampaign(),con=document.getElementById('campaigns-container');
   if(!camps.length){con.innerHTML='<div style="text-align:center;color:var(--tx3);padding:40px 0;font-style:italic">No campaigns yet.</div>';return}
   con.innerHTML=camps.map(camp=>{
-    const cd=loadCampData(camp.id),isAct=camp.id===act;
+    const isAct=camp.id===act;
     const cc=chars.map((c,i)=>({c,i})).filter(x=>x.c._campaign===camp.id||(!x.c._campaign&&isAct));
     const cv=vehs.map((v,i)=>({v,i})).filter(x=>x.v._campaign===camp.id||(!x.v._campaign&&isAct));
     const h=cc.filter(x=>(x.c.side||'').toLowerCase()==='good');
     const n=cc.filter(x=>{const s=(x.c.side||'').toLowerCase();return s==='neutral'||s===''});
     const e=cc.filter(x=>(x.c.side||'').toLowerCase()==='evil');
     const cnt=cc.length+' char'+(cc.length!==1?'s':'')+(cv.length?', '+cv.length+' veh':'');
-    const ses=cd.sessions||[];
+    const ses=camp.sessions||[];
     let banner;
-    if(cd._image){banner=`<div class="camp-banner" data-camp-id="${camp.id}" data-banner="upload"><img src="${cd._image}" alt=""><button class="camp-banner-del" data-camp-id="${camp.id}" data-banner="del">${xSvg}</button></div>`}
+    if(camp.campaignImage){banner=`<div class="camp-banner" data-camp-id="${camp.id}" data-banner="upload"><img src="${camp.campaignImage}" alt=""><button class="camp-banner-del" data-camp-id="${camp.id}" data-banner="del">${xSvg}</button></div>`}
     else{banner=`<div class="camp-banner" data-camp-id="${camp.id}" data-banner="upload"><div class="camp-banner-placeholder"><svg viewBox="0 0 32 32" width="32" height="32"><rect x="2" y="8" width="28" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="11" cy="17" r="3" fill="none" stroke="currentColor" stroke-width="1.2"/><polyline points="20,22 24,15 28,20" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>Click to add banner</div></div>`}
     const sesHtml=ses.length?ses.map((s,si)=>`<div class="log-entry"><div class="log-hdr"><span class="log-title">#${ses.length-si} — ${escH(s.date||'')}</span><div class="log-actions"><button data-ses-edit="${camp.id}" data-ses-idx="${si}">Edit</button> <button data-ses-del="${camp.id}" data-ses-idx="${si}" style="color:var(--danger)">Del</button></div></div><div class="log-body">${escH(s.text||'')}</div></div>`).join(''):'<div class="sec-empty">No session entries yet.</div>';
     return`<div class="camp-slot ${isAct?'open':''}" data-camp-id="${camp.id}">
       <div class="camp-slot-hdr" data-toggle="${camp.id}"><span class="camp-arrow">▶</span><span class="camp-slot-name">${escH(camp.name)}</span><span class="camp-slot-count">${cnt}</span><div class="camp-slot-btns"><button class="camp-slot-btn" data-rename="${camp.id}">✎</button><button class="camp-slot-btn" data-add-session="${camp.id}">+ Session</button><button class="camp-slot-btn" data-del-camp="${camp.id}" style="color:var(--danger)">✕</button></div></div>
       <div class="camp-slot-body">${banner}
-        <div class="camp-desc" contenteditable="true" data-placeholder="Add a campaign description..." data-desc="${camp.id}">${escH(cd.desc||'')}</div>
-        <div class="camp-gm">GM: ${escH(cd.gm||'—')}</div>
+        <div class="camp-desc" contenteditable="true" data-placeholder="Add a campaign description..." data-desc="${camp.id}">${escH(camp.desc||'')}</div>
+        <div class="camp-gm">GM: ${escH(camp.gm||'—')}</div>
         <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-hero">HEROES</span><div style="display:flex;gap:4px"><button class="btn-sm" data-add-existing-char="${camp.id}" data-add-side="Good">+ Add</button><button class="btn-sm" data-new-char="${camp.id}" data-new-side="Good">+ New</button></div></div><div class="card-grid">${h.length?h.map(x=>charCard(x.c,x.i)).join(''):'<div class="sec-empty">No heroes yet.</div>'}</div></div>
         <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-neutral">NEUTRALS</span><div style="display:flex;gap:4px"><button class="btn-sm" data-add-existing-char="${camp.id}" data-add-side="Neutral">+ Add</button><button class="btn-sm" data-new-char="${camp.id}" data-new-side="Neutral">+ New</button></div></div><div class="card-grid">${n.length?n.map(x=>charCard(x.c,x.i)).join(''):'<div class="sec-empty">No neutrals.</div>'}</div></div>
         <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-villain">VILLAINS</span><div style="display:flex;gap:4px"><button class="btn-sm" data-add-existing-char="${camp.id}" data-add-side="Evil">+ Add</button><button class="btn-sm" data-new-char="${camp.id}" data-new-side="Evil">+ New</button></div></div><div class="card-grid">${e.length?e.map(x=>charCard(x.c,x.i)).join(''):'<div class="sec-empty">No villains yet.</div>'}</div></div>
         <div class="inner-sec"><div class="inner-sec-hdr"><span class="inner-sec-title inner-sec-title-vehicle">VEHICLES</span><div style="display:flex;gap:4px"><button class="btn-sm" data-add-existing-veh="${camp.id}">+ Add</button><button class="btn-sm" data-new-veh="${camp.id}">+ New</button></div></div><div class="card-grid">${cv.length?cv.map(x=>vehCard(x.v,x.i)).join(''):'<div class="sec-empty">No vehicles.</div>'}</div></div>
         <div class="inner-sec"><div class="inner-sec-hdr sub-toggle open" data-sub="ses-${camp.id}"><span class="sub-arrow">▶</span><span class="inner-sec-title">SESSION LOG</span></div><div class="sub-body" id="ses-${camp.id}" style="display:block">${sesHtml}</div></div>
-        <div class="inner-sec"><div class="inner-sec-hdr sub-toggle open" data-sub="notes-${camp.id}"><span class="sub-arrow">▶</span><span class="inner-sec-title">GM NOTES</span></div><div class="sub-body" id="notes-${camp.id}" style="display:block"><div class="notes-grid"><div class="note-box"><div class="note-label note-label-public">📢 Public</div><textarea class="note-textarea" data-note-pub="${camp.id}" placeholder="Notes visible to players...">${escH(cd.publicNotes||'')}</textarea></div><div class="note-box"><div class="note-label note-label-private">🔒 Private</div><textarea class="note-textarea" data-note-priv="${camp.id}" placeholder="GM-only secrets...">${escH(cd.privateNotes||'')}</textarea></div></div></div></div>
+        <div class="inner-sec"><div class="inner-sec-hdr sub-toggle open" data-sub="notes-${camp.id}"><span class="sub-arrow">▶</span><span class="inner-sec-title">GM NOTES</span></div><div class="sub-body" id="notes-${camp.id}" style="display:block"><div class="notes-grid"><div class="note-box"><div class="note-label note-label-public">📢 Public</div><textarea class="note-textarea" data-note-pub="${camp.id}" placeholder="Notes visible to players...">${escH(camp.publicNotes||'')}</textarea></div><div class="note-box"><div class="note-label note-label-private">🔒 Private</div><textarea class="note-textarea" data-note-priv="${camp.id}" placeholder="GM-only secrets...">${escH(camp.privateNotes||'')}</textarea></div></div></div></div>
       </div></div>`}).join('')}
 renderAll();
 
 document.addEventListener('click',async e=>{
   const tog=e.target.closest('[data-toggle]');if(tog&&!e.target.closest('.camp-slot-btns')){tog.closest('.camp-slot').classList.toggle('open');return}
   const st=e.target.closest('.sub-toggle');if(st){st.classList.toggle('open');const b=document.getElementById(st.dataset.sub);if(b)b.style.display=st.classList.contains('open')?'block':'none';return}
-  const ren=e.target.closest('[data-rename]');if(ren){e.stopPropagation();const id=ren.dataset.rename,cs=loadCampaigns(),c=cs.find(x=>x.id===id);if(!c)return;const nm=await MPDialog.prompt('Rename Campaign',{placeholder:c.name,okText:'Save'});if(!nm||!nm.trim())return;c.name=nm.trim();saveCampaigns(cs);const cd=loadCampData(id);const gm=await MPDialog.prompt('GM Name',{placeholder:cd.gm||'',okText:'Save'});if(gm!==null&&gm.trim()){cd.gm=gm.trim();saveCampData(id,cd)}renderAll();return}
+  const ren=e.target.closest('[data-rename]');if(ren){e.stopPropagation();const id=ren.dataset.rename,cs=loadCampaigns(),c=cs.find(x=>x.id===id);if(!c)return;const nm=await MPDialog.prompt('Rename Campaign',{placeholder:c.name,okText:'Save'});if(!nm||!nm.trim())return;c.name=nm.trim();const gm=await MPDialog.prompt('GM Name',{placeholder:c.gm||'',okText:'Save'});if(gm!==null&&gm.trim())c.gm=gm.trim();saveCampaigns(cs);renderAll();return}
   const dc=e.target.closest('[data-del-camp]');if(dc){e.stopPropagation();const id=dc.dataset.delCamp,cs=loadCampaigns();if(cs.length<=1){await MPDialog.alert('Cannot Delete','Cannot delete the last campaign.');return}const c=cs.find(x=>x.id===id);const ok=await MPDialog.confirm('Delete Campaign','Delete <b>'+escH(c.name)+'</b> and all its data?',{okText:'Delete',danger:true});if(!ok)return;cs.splice(cs.indexOf(c),1);saveCampaigns(cs);if(getActiveCampaign()===id)setActiveCampaign(cs[0].id);renderAll();return}
-  const as=e.target.closest('[data-add-session]');if(as){e.stopPropagation();const id=as.dataset.addSession;const d=await MPDialog.prompt('Session Date',{placeholder:new Date().toISOString().split('T')[0],okText:'Next'});if(d===null||!d.trim())return;const t=await MPDialog.prompt('Session Summary',{placeholder:'What happened...',okText:'Add'});if(t===null)return;const cd=loadCampData(id);if(!cd.sessions)cd.sessions=[];cd.sessions.unshift({date:d.trim(),text:t.trim()});saveCampData(id,cd);renderAll();return}
-  const es=e.target.closest('[data-ses-edit]');if(es){const id=es.dataset.sesEdit,i=parseInt(es.dataset.sesIdx),cd=loadCampData(id),s=cd.sessions[i];const d=await MPDialog.prompt('Edit Date',{placeholder:s.date||'',okText:'Next'});if(d===null)return;const t=await MPDialog.prompt('Edit Summary',{placeholder:s.text||'',okText:'Save'});if(t===null)return;s.date=d.trim();s.text=t.trim();saveCampData(id,cd);renderAll();return}
-  const ds=e.target.closest('[data-ses-del]');if(ds){const id=ds.dataset.sesDel,i=parseInt(ds.dataset.sesIdx);const ok=await MPDialog.confirm('Delete Entry','Delete this session entry?',{okText:'Delete',danger:true});if(!ok)return;const cd=loadCampData(id);cd.sessions.splice(i,1);saveCampData(id,cd);renderAll();return}
-  const bu=e.target.closest('[data-banner="upload"]');if(bu&&!e.target.closest('[data-banner="del"]')){const id=bu.dataset.campId;const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.addEventListener('change',async ev=>{const f=ev.target.files[0];if(!f)return;const url=await resizeImage(f,800,300);const cd=loadCampData(id);cd._image=url;saveCampData(id,cd);renderAll()});inp.click();return}
-  const bd=e.target.closest('[data-banner="del"]');if(bd){const id=bd.dataset.campId;const cd=loadCampData(id);delete cd._image;saveCampData(id,cd);renderAll();return}
+  const as=e.target.closest('[data-add-session]');if(as){e.stopPropagation();const id=as.dataset.addSession;const d=await MPDialog.prompt('Session Date',{placeholder:new Date().toISOString().split('T')[0],okText:'Next'});if(d===null||!d.trim())return;const t=await MPDialog.prompt('Session Summary',{placeholder:'What happened...',okText:'Add'});if(t===null)return;const c=getCamp(id);if(!c.sessions)c.sessions=[];c.sessions.unshift({date:d.trim(),text:t.trim()});updateCamp(id,{sessions:c.sessions});renderAll();return}
+  const es=e.target.closest('[data-ses-edit]');if(es){const id=es.dataset.sesEdit,i=parseInt(es.dataset.sesIdx),c=getCamp(id),s=c.sessions[i];const d=await MPDialog.prompt('Edit Date',{placeholder:s.date||'',okText:'Next'});if(d===null)return;const t=await MPDialog.prompt('Edit Summary',{placeholder:s.text||'',okText:'Save'});if(t===null)return;s.date=d.trim();s.text=t.trim();updateCamp(id,{sessions:c.sessions});renderAll();return}
+  const ds=e.target.closest('[data-ses-del]');if(ds){const id=ds.dataset.sesDel,i=parseInt(ds.dataset.sesIdx);const ok=await MPDialog.confirm('Delete Entry','Delete this session entry?',{okText:'Delete',danger:true});if(!ok)return;const c=getCamp(id);c.sessions.splice(i,1);updateCamp(id,{sessions:c.sessions});renderAll();return}
+  const bu=e.target.closest('[data-banner="upload"]');if(bu&&!e.target.closest('[data-banner="del"]')){const id=bu.dataset.campId;const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.addEventListener('change',async ev=>{const f=ev.target.files[0];if(!f)return;const url=await resizeImage(f,800,300);updateCamp(id,{campaignImage:url});renderAll()});inp.click();return}
+  const bd=e.target.closest('[data-banner="del"]');if(bd){const id=bd.dataset.campId;updateCamp(id,{campaignImage:''});renderAll();return}
   // Add Existing Character
   const aec=e.target.closest('[data-add-existing-char]');if(aec){const campId=aec.dataset.addExistingChar,side=aec.dataset.addSide||'';const chars=loadList(CHARS_KEY);const unlinked=chars.map((c,i)=>({c,i})).filter(x=>!x.c._campaign);if(!unlinked.length){await MPDialog.alert('No Characters','All characters are already assigned to a campaign.');return}const items=unlinked.map(x=>({name:x.c.name||'Unnamed',sub:[x.c.side,x.c.species].filter(Boolean).join(' · '),image:x.c._image||null}));const pick=await MPDialog.listPick('Add Character',items);if(pick==null)return;const realIdx=unlinked[pick].i;chars[realIdx]._campaign=campId;if(side)chars[realIdx].side=side;saveList(CHARS_KEY,chars);renderAll();return}
   // Add Existing Vehicle
@@ -269,11 +289,11 @@ document.addEventListener('click',async e=>{
     if(a==='remove-veh'&&t==='veh'){const l=loadList(VEHS_KEY);const nm=l[i]?.name||'Unnamed';const ok=await MPDialog.confirm('Remove Vehicle','Remove <b>'+escH(nm)+'</b> from this campaign?<br>(The vehicle will not be deleted, just unlinked.)',{okText:'Remove',danger:true});if(!ok)return;delete l[i]._campaign;saveList(VEHS_KEY,l);renderAll()}}
 });
 document.addEventListener('input',e=>{
-  const p=e.target.closest('[data-note-pub]');if(p){const cd=loadCampData(p.dataset.notePub);cd.publicNotes=p.value;saveCampData(p.dataset.notePub,cd)}
-  const v=e.target.closest('[data-note-priv]');if(v){const cd=loadCampData(v.dataset.notePriv);cd.privateNotes=v.value;saveCampData(v.dataset.notePriv,cd)}
+  const p=e.target.closest('[data-note-pub]');if(p){updateCamp(p.dataset.notePub,{publicNotes:p.value})}
+  const v=e.target.closest('[data-note-priv]');if(v){updateCamp(v.dataset.notePriv,{privateNotes:v.value})}
 });
-document.addEventListener('blur',e=>{const d=e.target.closest('[data-desc]');if(d){const cd=loadCampData(d.dataset.desc);cd.desc=d.textContent.trim();saveCampData(d.dataset.desc,cd)}},true);
-document.getElementById('btn-new-camp').addEventListener('click',()=>{const nm=prompt('Campaign name:');if(!nm||!nm.trim())return;const cs=loadCampaigns(),id='camp-'+Date.now();cs.push({id,name:nm.trim()});saveCampaigns(cs);setActiveCampaign(id);renderAll();const s=document.querySelector(`[data-camp-id="${id}"]`);if(s)s.classList.add('open')});
+document.addEventListener('blur',e=>{const d=e.target.closest('[data-desc]');if(d){updateCamp(d.dataset.desc,{desc:d.textContent.trim()})}},true);
+document.getElementById('btn-new-camp').addEventListener('click',async ()=>{const nm=await MPDialog.prompt('New Campaign',{placeholder:'Campaign name...',okText:'Create'});if(!nm||!nm.trim())return;const cs=loadCampaigns(),id='camp-'+Date.now();cs.push({id,name:nm.trim(),system:'mp',sessions:[],created:new Date().toISOString()});saveCampaigns(cs);setActiveCampaign(id);renderAll();const s=document.querySelector(`[data-camp-id="${id}"]`);if(s)s.classList.add('open')});
 </script>
 </body>
 </html>

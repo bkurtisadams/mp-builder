@@ -1214,7 +1214,7 @@ document.getElementById("btn-export").addEventListener("click", () => {
 
 // Campaign — assign vehicle to a campaign
 document.getElementById("btn-campaign").addEventListener("click", async () => {
-  const camps = (function(){try{return JSON.parse(localStorage.getItem('mp-campaigns'))||[]}catch(e){return[]}})();
+  const camps = (function(){try{return JSON.parse(localStorage.getItem('gcc-campaigns'))||[]}catch(e){return[]}})();
   if (!camps.length) { await MPDialog.alert('No Campaigns', 'No campaigns found. Create one on the Campaigns page first.'); return; }
   const current = _vehCampaign || null;
   const items = camps.map(c => ({
