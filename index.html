@@ -206,8 +206,14 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-char-item:hover { color: var(--accent) }
 .cc-char-pip { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0 }
 .cc-char-name { font-weight: 700 }
+.cc-char-link { text-decoration: none; color: inherit }
+.cc-char-link:hover { color: var(--accent); text-decoration: underline }
 .cc-char-player { font-size: 10px; color: var(--tx3); margin-left: 2px }
 .cc-char-sub { font-size: 10px; color: var(--tx3); margin-left: auto; white-space: nowrap; font-family: var(--fm) }
+.cc-char-rm { background: none; border: none; color: var(--tx3); cursor: pointer; font-size: 10px; padding: 0 2px; opacity: 0; transition: opacity 0.1s; flex-shrink: 0 }
+.cc-char-item:hover .cc-char-rm { opacity: 1 }
+.cc-char-rm:hover { color: var(--red) }
+.cc-char-portrait { width: 20px; height: 20px; border-radius: 2px; object-fit: cover; flex-shrink: 0 }
 
 .cc-log-title { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 1.5px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between }
 .cc-log-new { font-family: var(--fb); font-size: 10px; color: var(--accent-dim); cursor: pointer; letter-spacing: 0; font-weight: 700 }
@@ -702,7 +708,7 @@ function _resolveChar(savedChar, systemId, storageKey) {
   } else if (systemId === 'mp') {
     name = savedChar.name || 'Unnamed';
     player = savedChar.player || '';
-    portrait = savedChar.portrait || '';
+    portrait = savedChar._image || savedChar.portrait || '';
     sub = savedChar.archetype || savedChar.className || '';
   } else {
     name = savedChar.name || savedChar.heroName || 'Unnamed';
@@ -777,7 +783,7 @@ function renderCampaigns() {
       } else {
         nameHtml = `<span class="cc-char-name">${ESC(resolved.name)}</span>`;
       }
-      return `<li class="cc-char-item">${portraitHtml}${nameHtml}${resolved.player ? '<span class="cc-char-player">('+ESC(resolved.player)+')</span>' : ''}<span class="cc-char-sub">${ESC(resolved.sub||'')}</span></li>`;
+      return `<li class="cc-char-item">${portraitHtml}${nameHtml}${resolved.player ? '<span class="cc-char-player">('+ESC(resolved.player)+')</span>' : ''}<span class="cc-char-sub">${ESC(resolved.sub||'')}</span><button class="cc-char-rm" data-rm-camp="${ESC(c.id)}" data-rm-char="${ESC(resolved.name)}" title="Remove from team">✕</button></li>`;
     }).join('');
 
     const sessHtml = (c.sessions||[]).slice(0,4).map(s =>
@@ -1076,6 +1082,22 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
     GCC.logActivity({ campaign: id, system: camp.system, text: camp.name+' — Session '+camp.session+': '+text });
     renderCampaigns(); renderActivity();
     const card = document.querySelector(`[data-camp-id="${id}"]`);
+    if (card) card.classList.add('open');
+    return;
+  }
+  // Remove character from team
+  const rmChar = e.target.closest('.cc-char-rm');
+  if (rmChar) {
+    e.stopPropagation();
+    const campId = rmChar.dataset.rmCamp;
+    const charName = rmChar.dataset.rmChar;
+    if (!confirm('Remove "' + charName + '" from this team?')) return;
+    const camp = GCC.getCampaign(campId);
+    if (!camp) return;
+    const chars = (camp.characters || []).filter(ch => ch.name !== charName);
+    GCC.updateCampaign(campId, { characters: chars, players: chars.length });
+    renderCampaigns();
+    const card = document.querySelector(`[data-camp-id="${campId}"]`);
     if (card) card.classList.add('open');
     return;
   }
