@@ -91,29 +91,32 @@ table.ut-grid{border-collapse:collapse;font-family:var(--fd);font-size:10px;tabl
   display:none;
 }
 
-/* ── Dice Roller (compact bar between rank table and grid) ── */
-.dice-bar{display:flex;align-items:center;gap:6px;margin:4px 0;flex-wrap:wrap;padding:4px 6px;background:#e0eff8;border:1px solid #a0c4d8;border-radius:3px}
-.dice-sel{font-family:var(--fd);font-size:11px;font-weight:700;color:#444;white-space:nowrap}
-.dice-sel-rank{color:var(--accent);font-size:13px}
-.dice-btn{
-  font-family:var(--fd);font-size:11px;font-weight:900;letter-spacing:1px;
-  padding:3px 12px;border:1.5px solid #000;border-radius:2px;cursor:pointer;
-  background:var(--paper);color:#000;transition:all .12s;
+/* ── Dice Roller (in-grid) ── */
+.ut-grid .ut-roll-btn{
+  background:var(--accent)!important;color:#fff!important;cursor:pointer;
+  font-family:var(--fd);font-size:9px;font-weight:900;letter-spacing:.5px;
+  border-color:var(--accent)!important;line-height:1.2;padding:2px 0;
+  user-select:none;
 }
-.dice-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
-.dice-btn:active{transform:scale(.96)}
-.dice-result-num{font-family:var(--fd);font-size:16px;font-weight:900;min-width:28px;text-align:center}
-.dice-result-eq{font-size:11px;color:#444;font-weight:700}
-.dice-result-color{display:inline-block;width:14px;height:14px;border-radius:2px;border:1px solid rgba(0,0,0,.3);vertical-align:middle}
-.dice-result-label{font-family:var(--fd);font-size:12px;font-weight:900}
-.dice-no-sel{font-size:10px;color:#888;font-style:italic}
+.ut-grid .ut-roll-btn:hover{background:#d06a10!important}
+.ut-grid .ut-roll-btn:active{background:#a04800!important}
 
 /* Selected column on grid */
-.ut-grid th.col-sel{background:#c05a00!important;color:#fff!important}
-.ut-grid td.col-sel-bg{outline:1px solid rgba(192,90,0,.3);outline-offset:-1px}
+.ut-grid th.col-sel{background:var(--accent)!important;color:#fff!important}
+.ut-grid td.col-sel-bg{outline:1px solid rgba(192,90,0,.25);outline-offset:-1px}
 
 /* Dice result cell highlight */
 .ut-grid td.dice-cell{outline:3px solid #000;outline-offset:-1px;z-index:3;position:relative}
+
+/* Result strip below grid */
+.dice-result-strip{display:flex;align-items:center;gap:8px;margin-top:4px;padding:3px 8px;min-height:22px;font-family:var(--fb);font-size:11px}
+.dice-result-strip .dr-num{font-family:var(--fd);font-size:16px;font-weight:900}
+.dice-result-strip .dr-arrow{color:#888}
+.dice-result-strip .dr-rank{font-weight:700;color:#444}
+.dice-result-strip .dr-eq{font-weight:700}
+.dice-result-strip .dr-swatch{display:inline-block;width:12px;height:12px;border-radius:2px;border:1px solid rgba(0,0,0,.3);vertical-align:middle}
+.dice-result-strip .dr-label{font-family:var(--fd);font-size:12px;font-weight:900}
+.dice-result-strip .dr-hint{color:#888;font-style:italic;font-size:10px}
 
 /* ── Action Rules Popup ── */
 .ar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;align-items:flex-start;justify-content:center;padding:40px 10px;overflow-y:auto}
@@ -142,7 +145,7 @@ table.ut-grid{border-collapse:collapse;font-family:var(--fd);font-size:10px;tabl
 
 /* ── Print ── */
 @media print{
-  .gcc-bar,.fas-hdr,.fas-ftr,.dice-bar,.gcc-tools-overlay,.ut-tip,.ar-overlay{display:none!important}
+  .gcc-bar,.fas-hdr,.fas-ftr,.gcc-tools-overlay,.ut-tip,.ar-overlay,.dice-result-strip{display:none!important}
   .ut-wrap{padding:0}
   html,body{background:#fff}
 }
@@ -197,15 +200,12 @@ table.ut-grid{border-collapse:collapse;font-family:var(--fd);font-size:10px;tabl
 <div id="action-mount"></div>
 <div id="rank-mount"></div>
 
-<!-- Dice Roller (between rank reference and grid) -->
-<div class="dice-bar" id="dice-bar">
-  <div class="dice-sel"><span class="dice-no-sel" id="dice-no-sel">Click a rank column below to select</span><span id="dice-sel-wrap" style="display:none">Rank: <span class="dice-sel-rank" id="dice-sel-rank"></span></span></div>
-  <button class="dice-btn" id="btn-roll">ROLL</button>
-  <span class="dice-result-num" id="dice-result">—</span>
-  <span class="dice-result-eq" id="dice-eq" style="display:none">= <span class="dice-result-color" id="dice-rcolor"></span> <span class="dice-result-label" id="dice-rlabel"></span></span>
-</div>
-
 <div id="grid-mount"></div>
+
+<!-- Dice result strip -->
+<div class="dice-result-strip" id="dice-strip">
+  <span class="dr-hint" id="dr-hint">Click a rank column header, then click ROLL to roll d100</span>
+</div>
 
 <!-- Tooltip -->
 <div class="ut-tip" id="ut-tip"></div>
@@ -372,8 +372,8 @@ function buildRankTable() {
 
 function buildGrid() {
   const cols = makeCols();
-  let hdr = '<tr><th class="ut-col-roll">Roll</th>';
-  RANK_LABELS.forEach((lbl, i) => { hdr += `<th class="ut-col-rank" data-col="${i}">${lbl}</th>`; });
+  let hdr = '<tr><th class="ut-col-roll ut-roll-btn" id="btn-roll">ROLL<br>d100</th>';
+  RANK_LABELS.forEach((lbl, i) => { hdr += `<th class="ut-col-rank" data-col="${i}" style="cursor:pointer">${lbl}</th>`; });
   hdr += '</tr>';
   let body = '';
   ROLL_ROWS.forEach((roll, ri) => {
@@ -447,7 +447,6 @@ let selectedCol = -1;
 function wireColumnSelect() {
   const grid = document.getElementById('ut-grid');
 
-  // Click rank column headers to select
   grid.querySelector('thead').addEventListener('click', e => {
     const th = e.target.closest('th[data-col]');
     if (!th) return;
@@ -458,48 +457,33 @@ function wireColumnSelect() {
 
 function setSelectedCol(col) {
   const grid = document.getElementById('ut-grid');
-  // Clear previous
   grid.querySelectorAll('.col-sel,.col-sel-bg').forEach(el => el.classList.remove('col-sel','col-sel-bg'));
 
   selectedCol = col;
-  // Highlight header
   const th = grid.querySelector(`th[data-col="${col}"]`);
   if (th) th.classList.add('col-sel');
-  // Light highlight on column cells
   grid.querySelectorAll(`td[data-col="${col}"]`).forEach(el => el.classList.add('col-sel-bg'));
 
-  // Update dice bar
-  document.getElementById('dice-no-sel').style.display = 'none';
-  const wrap = document.getElementById('dice-sel-wrap');
-  wrap.style.display = '';
-  document.getElementById('dice-sel-rank').textContent = RANKS[col].name + ' (' + RANKS[col].abbr + ')';
-
   // Clear previous result
-  clearDiceResult();
-}
-
-function clearDiceResult() {
-  document.getElementById('dice-result').textContent = '\u2014';
-  document.getElementById('dice-eq').style.display = 'none';
-  const grid = document.getElementById('ut-grid');
-  grid.querySelectorAll('.dice-cell,.dice-hl').forEach(el => el.classList.remove('dice-cell','dice-hl'));
+  grid.querySelectorAll('.dice-cell').forEach(el => el.classList.remove('dice-cell'));
+  document.getElementById('dice-strip').innerHTML =
+    '<span class="dr-rank">' + RANKS[col].name + ' (' + RANKS[col].abbr + ')</span>' +
+    ' <span class="dr-hint">selected \u2014 click ROLL</span>';
 }
 
 const COLOR_HEX = {w:'#ffffff',g:'#22bb22',y:'#f0d800',r:'#cc1111'};
+const COLOR_TX = {w:'#666',g:'#158015',y:'#998800',r:'#cc1111'};
 
 function wireDice() {
-  const btn = document.getElementById('btn-roll');
-
-  btn.addEventListener('click', () => {
+  document.getElementById('btn-roll').addEventListener('click', () => {
     if (selectedCol < 0) {
-      document.getElementById('dice-no-sel').textContent = '\u2190 Select a rank column first!';
+      document.getElementById('dice-strip').innerHTML =
+        '<span class="dr-hint">\u2190 Click a rank column header first!</span>';
       return;
     }
 
     const roll = Math.floor(Math.random() * 100) + 1;
-    document.getElementById('dice-result').textContent = roll;
 
-    // Find row
     let ri = -1;
     for (let i = 0; i < ROLL_RANGES.length; i++) {
       if (roll >= ROLL_RANGES[i][0] && roll <= ROLL_RANGES[i][1]) { ri = i; break; }
@@ -509,22 +493,21 @@ function wireDice() {
     const color = TABLE_DATA[ri][selectedCol];
     const grid = document.getElementById('ut-grid');
 
-    // Clear previous dice highlight
-    grid.querySelectorAll('.dice-cell,.dice-hl').forEach(el => el.classList.remove('dice-cell','dice-hl'));
+    grid.querySelectorAll('.dice-cell').forEach(el => el.classList.remove('dice-cell'));
 
-    // Highlight the specific cell
     const cell = grid.querySelector(`td[data-col="${selectedCol}"][data-row="${ri}"]`);
     if (cell) {
       cell.classList.add('dice-cell');
       cell.scrollIntoView({behavior:'smooth', block:'nearest'});
     }
 
-    // Show result
-    const eq = document.getElementById('dice-eq');
-    eq.style.display = '';
-    document.getElementById('dice-rcolor').style.background = COLOR_HEX[color];
-    document.getElementById('dice-rlabel').textContent = COLOR_NAMES[color];
-    document.getElementById('dice-rlabel').style.color = color === 'r' ? '#cc1111' : color === 'y' ? '#998800' : color === 'g' ? '#158015' : '#666';
+    document.getElementById('dice-strip').innerHTML =
+      '<span class="dr-num">' + roll + '</span>' +
+      '<span class="dr-arrow">\u2192</span>' +
+      '<span class="dr-rank">' + RANKS[selectedCol].name + ' (' + RANKS[selectedCol].abbr + ')</span>' +
+      '<span class="dr-eq">=</span>' +
+      '<span class="dr-swatch" style="background:' + COLOR_HEX[color] + '"></span>' +
+      '<span class="dr-label" style="color:' + COLOR_TX[color] + '">' + COLOR_NAMES[color] + '</span>';
   });
 }
 
