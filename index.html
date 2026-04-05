@@ -612,8 +612,8 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   </div>
 </div>
 
-<script src="gcc-header.js"></script>
 <script src="gcc-data.js"></script>
+<script src="gcc-header.js"></script>
 <script>
 // ── Init ──
 GCC.init();
@@ -865,6 +865,7 @@ function renderCampaigns() {
           </div>
         </div>
         <div class="cc-bottom">
+          <a class="cc-btn" href="campaign-detail.html?id=${encodeURIComponent(c.id)}" style="text-decoration:none">View Campaign</a>
           <button class="cc-btn" data-action="edit-camp" data-camp-id="${ESC(c.id)}">Edit</button>
           <button class="cc-btn" data-action="edit-chars" data-camp-id="${ESC(c.id)}">Edit ${ESC(GCC.teamLabel(c.system))}</button>
           <span style="flex:1"></span>

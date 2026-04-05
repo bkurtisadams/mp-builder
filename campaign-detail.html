@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campaign — Graycloak's Campaign Corner</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="gcc-header.css">
+<link rel="stylesheet" href="mp-dialog.css">
+<style>
+/* ── Theme: Slate & Ice (dark) ── */
+[data-gcc-theme="dark"] {
+  --bg: #101418;
+  --bg2: #161a20;
+  --bg-card: #1a1e26;
+  --bg-card-hover: #20252e;
+  --bg-section: #141820;
+  --brd: #252a34;
+  --brd-lt: #303848;
+  --tx: #c8ccd4;
+  --tx2: #7a8494;
+  --tx3: #4a5464;
+  --accent: #60a0d0;
+  --accent-lt: #78b8e8;
+  --accent-dim: #3a6a90;
+  --red: #d04848;
+  --red-lt: #e05858;
+  --green: #48a858;
+  --blue: #60a0d0;
+  --amber: #d0a040;
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  --dd-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  --hover-bg: rgba(255,255,255,0.03);
+  --noise-opacity: 0.3;
+  --banner-overlay: linear-gradient(180deg, transparent 40%, rgba(16,20,24,0.95) 100%);
+}
+/* ── Theme: Linen (light) ── */
+[data-gcc-theme="light"] {
+  --bg: #eef0f4;
+  --bg2: #e4e8ee;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f6f8fa;
+  --bg-section: #e8eaee;
+  --brd: #d0d4dc;
+  --brd-lt: #bcc2cc;
+  --tx: #181c24;
+  --tx2: #505868;
+  --tx3: #8890a0;
+  --accent: #30508a;
+  --accent-lt: #2a4878;
+  --accent-dim: #8890a0;
+  --red: #c03030;
+  --red-lt: #d03838;
+  --green: #287830;
+  --blue: #30508a;
+  --amber: #a07818;
+  --card-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  --dd-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  --hover-bg: rgba(0,0,0,0.02);
+  --noise-opacity: 0.15;
+  --banner-overlay: linear-gradient(180deg, transparent 40%, rgba(238,240,244,0.95) 100%);
+}
+
+:root {
+  --fd: 'Cinzel', serif;
+  --fb: 'Alegreya', serif;
+  --fsc: 'Alegreya SC', serif;
+  --fm: 'IBM Plex Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+html { min-height: 100%; background: var(--bg) }
+body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: var(--fb); font-size: 14px; display: flex; flex-direction: column }
+body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background: url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"); opacity: var(--noise-opacity) }
+
+/* ── Main ── */
+.main { flex: 1; padding: 0 16px 40px; position: relative; z-index: 1 }
+.main-in { max-width: 960px; margin: 0 auto }
+
+/* ── Campaign Banner ── */
+.camp-banner { position: relative; width: 100%; max-width: 960px; margin: 0 auto; height: 160px; overflow: hidden; border-bottom: 1px solid var(--brd) }
+.camp-banner img { width: 100%; height: 100%; object-fit: cover; display: block }
+.camp-banner-empty { width: 100%; height: 100%; background: var(--bg2); display: flex; align-items: center; justify-content: center; color: var(--tx3); font-size: 12px }
+.camp-banner::after { content: ''; position: absolute; inset: 0; background: var(--banner-overlay); pointer-events: none }
+
+/* ── Campaign Header ── */
+.camp-header { position: relative; z-index: 2; margin-top: -50px; padding: 0 16px }
+.camp-header-in { max-width: 960px; margin: 0 auto; display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap }
+.camp-title-area { flex: 1; min-width: 0 }
+.camp-name { font-family: var(--fd); font-size: 24px; font-weight: 700; color: var(--tx); letter-spacing: 2px; line-height: 1.2 }
+.camp-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px }
+.camp-system-badge { display: inline-block; font-family: var(--fsc); font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 2px; letter-spacing: 1px; white-space: nowrap }
+.camp-status { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--tx2) }
+.camp-status-dot { width: 7px; height: 7px; border-radius: 50% }
+.camp-status-dot.active { background: var(--green) }
+.camp-status-dot.hiatus { background: var(--amber) }
+.camp-status-dot.completed { background: var(--tx3) }
+.camp-status-dot.archived { background: var(--brd) }
+.camp-pitch { font-size: 13px; color: var(--tx2); font-style: italic; margin-top: 4px; line-height: 1.3 }
+.camp-header-btns { display: flex; gap: 6px; align-items: center; flex-shrink: 0; padding-bottom: 4px }
+.camp-btn { padding: 5px 14px; font-size: 11px; font-family: var(--fb); font-weight: 700; background: transparent; color: var(--tx2); border: 1px solid var(--brd-lt); border-radius: 3px; cursor: pointer; transition: all 0.15s }
+.camp-btn:hover { border-color: var(--accent-dim); color: var(--tx) }
+.camp-btn-vtt { color: var(--blue); border-color: rgba(96,160,208,0.3) }
+.camp-btn-vtt:hover { border-color: var(--blue); background: rgba(96,160,208,0.06) }
+
+/* ── Tabs ── */
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--brd); margin: 16px 0 0; padding: 0 }
+.tab { padding: 8px 18px; font-size: 11px; font-family: var(--fsc); font-weight: 700; letter-spacing: 1px; color: var(--tx3); background: transparent; border: none; border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.12s }
+.tab:hover { color: var(--tx2) }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent) }
+.tab-panel { display: none; padding: 16px 0 }
+.tab-panel.active { display: block }
+
+/* ── Details Grid ── */
+.details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 24px; margin-bottom: 16px }
+.detail-row { display: flex; gap: 8px; padding: 4px 0; font-size: 12px; align-items: baseline }
+.detail-label { color: var(--tx3); min-width: 80px; flex-shrink: 0; font-family: var(--fsc); font-size: 9px; letter-spacing: 0.5px }
+.detail-value { color: var(--tx2) }
+.detail-full { grid-column: 1 / -1 }
+
+/* ── Tools Grid ── */
+.tools-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0 }
+.tool-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; font-size: 11px; font-family: var(--fb); font-weight: 700; color: var(--tx2); background: var(--bg-card); border: 1px solid var(--brd); border-radius: 3px; text-decoration: none; cursor: pointer; transition: all 0.12s }
+.tool-chip:hover { border-color: var(--accent-dim); color: var(--accent) }
+.tool-chip.disabled { color: var(--tx3); cursor: default }
+.tool-chip.disabled:hover { border-color: var(--brd); color: var(--tx3) }
+.tool-bullet { color: var(--accent-dim); font-size: 6px }
+
+/* ── Character / Vehicle Cards ── */
+.entity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px }
+.entity-card { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; transition: all 0.12s; box-shadow: var(--card-shadow); position: relative }
+.entity-card:hover { border-color: var(--brd-lt); background: var(--bg-card-hover) }
+.entity-portrait { width: 40px; height: 40px; border-radius: 50%; object-fit: contain; flex-shrink: 0; border: 1px solid var(--brd); background: var(--bg2) }
+.entity-portrait-ph { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; border: 1px solid var(--brd); background: var(--bg2); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--tx3) }
+.entity-info { flex: 1; min-width: 0 }
+.entity-name { font-family: var(--fd); font-size: 13px; font-weight: 700; color: var(--tx); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.entity-name a { color: inherit; text-decoration: none }
+.entity-name a:hover { color: var(--accent) }
+.entity-sub { font-size: 11px; color: var(--tx2); font-family: var(--fm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.entity-player { font-size: 10px; color: var(--tx3); font-style: italic }
+.entity-pip { position: absolute; top: 0; left: 0; bottom: 0; width: 3px; border-radius: 4px 0 0 4px }
+.entity-empty { font-size: 12px; color: var(--tx3); font-style: italic; padding: 16px 0 }
+
+/* ── Session Log ── */
+.session-list { list-style: none }
+.session-item { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; padding: 10px 14px; margin-bottom: 6px; box-shadow: var(--card-shadow) }
+.session-hdr { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px }
+.session-num { font-family: var(--fsc); font-size: 10px; color: var(--accent); letter-spacing: 0.5px }
+.session-date { font-family: var(--fm); font-size: 11px; color: var(--tx3) }
+.session-text { font-size: 12px; color: var(--tx2); line-height: 1.4 }
+.session-actions { display: flex; gap: 6px; opacity: 0; transition: opacity 0.1s }
+.session-item:hover .session-actions { opacity: 1 }
+.session-action-btn { background: none; border: none; color: var(--tx3); font-size: 10px; cursor: pointer; padding: 0 2px; font-family: var(--fb); font-weight: 700 }
+.session-action-btn:hover { color: var(--tx) }
+.session-action-btn.danger:hover { color: var(--red) }
+.btn-add-session { display: inline-flex; align-items: center; gap: 4px; padding: 5px 14px; font-size: 11px; font-family: var(--fb); font-weight: 700; background: transparent; color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 3px; cursor: pointer; transition: all 0.15s; margin-bottom: 12px }
+.btn-add-session:hover { border-color: var(--accent); color: var(--accent-lt); background: var(--hover-bg) }
+
+/* ── Notes ── */
+.notes-area { width: 100%; min-height: 200px; font-family: var(--fb); font-size: 13px; color: var(--tx); background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; padding: 12px 14px; outline: none; resize: vertical; line-height: 1.5; transition: border-color 0.12s }
+.notes-area:focus { border-color: var(--accent-dim) }
+.notes-label { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 1.5px; margin-bottom: 6px }
+
+/* ── Section Headers ── */
+.sec-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px }
+.sec-title { font-family: var(--fsc); font-size: 10px; color: var(--tx3); letter-spacing: 1.5px }
+
+/* ── Footer ── */
+.ftr { padding: 10px 16px; font-size: 10px; color: var(--tx3); border-top: 1px solid var(--brd); background: var(--bg-section); position: relative; z-index: 1 }
+.ftr-inner { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px }
+
+/* ── Not Found ── */
+.not-found { text-align: center; padding: 60px 20px; color: var(--tx3) }
+.not-found-title { font-family: var(--fd); font-size: 20px; color: var(--tx2); margin-bottom: 8px }
+.not-found a { color: var(--accent); text-decoration: none }
+.not-found a:hover { text-decoration: underline }
+
+/* ── Session Modal ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 500; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto }
+.modal-overlay.open { display: flex }
+.modal { background: var(--bg-card); border: 1px solid var(--brd-lt); border-radius: 6px; box-shadow: var(--dd-shadow); width: 100%; max-width: 480px; position: relative }
+.modal-hdr { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 12px; border-bottom: 1px solid var(--brd) }
+.modal-title { font-family: var(--fd); font-size: 14px; font-weight: 700; color: var(--tx); letter-spacing: 1.5px }
+.modal-close { background: none; border: none; color: var(--tx3); font-size: 18px; cursor: pointer; padding: 2px 6px; line-height: 1 }
+.modal-close:hover { color: var(--tx) }
+.modal-body { padding: 16px 18px }
+.mf-label { display: block; font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 0.5px; margin-bottom: 3px }
+.mf-input, .mf-textarea { width: 100%; font-family: var(--fb); font-size: 13px; color: var(--tx); background: var(--bg2); border: 1px solid var(--brd); border-radius: 3px; padding: 6px 8px; outline: none; transition: border-color 0.12s; margin-bottom: 10px }
+.mf-input:focus, .mf-textarea:focus { border-color: var(--accent-dim) }
+.mf-textarea { resize: vertical; min-height: 80px; line-height: 1.4 }
+.modal-footer { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--brd) }
+.mf-btn-save { padding: 6px 20px; font-size: 12px; font-family: var(--fb); font-weight: 700; background: var(--accent); color: var(--bg); border: none; border-radius: 3px; cursor: pointer }
+.mf-btn-save:hover { opacity: 0.9 }
+.mf-btn-cancel { padding: 6px 16px; font-size: 12px; font-family: var(--fb); font-weight: 700; background: transparent; color: var(--tx2); border: 1px solid var(--brd); border-radius: 3px; cursor: pointer }
+.mf-btn-cancel:hover { border-color: var(--tx3); color: var(--tx) }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .camp-name { font-size: 18px }
+  .camp-banner { height: 120px }
+  .camp-header { margin-top: -40px }
+  .camp-header-in { flex-direction: column; align-items: flex-start }
+  .details-grid { grid-template-columns: 1fr }
+  .entity-grid { grid-template-columns: 1fr }
+  .tab { padding: 6px 12px; font-size: 10px }
+}
+</style>
+</head>
+<body>
+
+<div id="gcc-bar" class="gcc-bar">
+  <div class="gcc-bar-in">
+    <a href="index.html" class="gcc-brand" title="Back to Dashboard">
+      <img src="graycloak-icon-t64.png" alt="" class="gcc-brand-icon">
+      <div class="gcc-title-wrap">
+        <div class="gcc-title">GRAYCLOAK'S CAMPAIGN CORNER</div>
+        <div class="gcc-subtitle">Your Tabletop Toolkit</div>
+      </div>
+    </a>
+    <div class="gcc-nav">
+      <div class="gcc-tools-wrap">
+        <button class="gcc-nav-btn" id="gcc-btn-tools">🎲 Tools ▾</button>
+        <div class="gcc-tools-dd" id="gcc-tools-dd"></div>
+      </div>
+      <button class="gcc-nav-btn" id="gcc-btn-theme" title="Toggle light/dark"><span id="gcc-theme-icon">◑</span></button>
+    </div>
+  </div>
+</div>
+<div class="gcc-tools-overlay" id="gcc-tools-overlay"></div>
+
+<div id="page-content"></div>
+
+<div class="ftr">
+  <div class="ftr-inner">
+    <span>Graycloak's Campaign Corner v1.7</span>
+    <span>Data stored locally in your browser</span>
+  </div>
+</div>
+
+<!-- Session Modal -->
+<div class="modal-overlay" id="session-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="session-modal-title">NEW SESSION</div>
+      <button class="modal-close" id="session-modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="mf-label">DATE</label>
+      <input class="mf-input" id="sm-date" type="date">
+      <label class="mf-label">TITLE (optional)</label>
+      <input class="mf-input" id="sm-title" placeholder="e.g. The Warehouse Ambush">
+      <label class="mf-label">SUMMARY</label>
+      <textarea class="mf-textarea" id="sm-text" rows="4" placeholder="What happened this session..."></textarea>
+      <label class="mf-label">XP / KARMA AWARDED</label>
+      <input class="mf-input" id="sm-xp" type="number" placeholder="0">
+    </div>
+    <div class="modal-footer">
+      <button class="mf-btn-cancel" id="sm-cancel">Cancel</button>
+      <button class="mf-btn-save" id="sm-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="mp-dialog.js"></script>
+<script src="gcc-data.js"></script>
+<script src="gcc-header.js"></script>
+<script>
+GCC.init();
+
+const ESC = s => { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
+const PIP_COLORS = ['#5090b0','#7a5a8a','#5a9a40','#d0a040','#c04040','#508a7a','#9a6a30','#6a6a9a'];
+const SYSTEM_COLORS = {};
+GCC.SYSTEM_DEFS.forEach(s => { SYSTEM_COLORS[s.id] = s.color; });
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function formatDateShort(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function formatDateTime(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' @ ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+function sysColorCSS(sysId) {
+  const c = SYSTEM_COLORS[sysId] || '#888';
+  return `background:${c}18;color:${c};border:1px solid ${c}30`;
+}
+function statusLabel(s) {
+  return { active: 'Active', hiatus: 'On Hiatus', completed: 'Completed', archived: 'Archived' }[s] || s;
+}
+
+// ── Resolve character data from saved storage ──
+function resolveChar(savedChar, systemId, storageKey) {
+  let name = '', sub = '', player = '', portrait = '';
+  if (systemId === 'faserip') {
+    name = savedChar.heroName || savedChar.name || 'Unnamed';
+    player = savedChar.playerName || '';
+    portrait = savedChar.portraitData || '';
+    const ab = savedChar.abilities || {};
+    const abbr = ['fighting','agility','strength','endurance','reason','intuition','psyche']
+      .map(k => (ab[k]?.rank || 'TY').substring(0,2).toUpperCase()).join('-');
+    sub = savedChar.origin ? savedChar.origin + ' · ' + abbr : abbr;
+  } else if (systemId === 'mp') {
+    name = savedChar.name || 'Unnamed';
+    player = savedChar.player || '';
+    portrait = savedChar._image || savedChar.portrait || '';
+    sub = savedChar.archetype || savedChar.className || savedChar.model || '';
+  } else {
+    name = savedChar.name || savedChar.heroName || 'Unnamed';
+    player = savedChar.player || savedChar.playerName || '';
+    sub = savedChar.sub || savedChar.class || '';
+  }
+  return { name, player, sub, portrait, _id: savedChar._id || '', storageKey: storageKey || '' };
+}
+
+// ── Get campaign ID from URL ──
+const campId = new URLSearchParams(window.location.search).get('id');
+let currentTab = 'overview';
+
+function getCamp() {
+  return GCC.getCampaign(campId);
+}
+
+// ── Render ──
+function render() {
+  const camp = getCamp();
+  const page = document.getElementById('page-content');
+
+  if (!camp) {
+    page.innerHTML = `<div class="not-found"><div class="not-found-title">Campaign Not Found</div><div>This campaign doesn't exist or has been deleted.</div><div style="margin-top:12px"><a href="index.html">← Back to Dashboard</a></div></div>`;
+    document.title = 'Not Found — GCC';
+    return;
+  }
+
+  document.title = camp.name + ' — GCC';
+
+  const sys = GCC.SYSTEM_DEFS.find(s => s.id === camp.system) || {};
+  const tools = sys.tools || [];
+  const status = camp.status || 'active';
+  const nextStr = formatDateTime(camp.nextSession);
+  const gml = camp.gmTitle || 'GM';
+
+  // Banner
+  const bannerHtml = camp.campaignImage
+    ? `<div class="camp-banner"><img src="${ESC(camp.campaignImage)}" alt=""></div>`
+    : `<div class="camp-banner"><div class="camp-banner-empty">${sys.icon || ''}</div></div>`;
+
+  // Header
+  const vttBtn = camp.vttLabel
+    ? `<a class="camp-btn camp-btn-vtt" href="${ESC(camp.vttUrl||'#')}" target="_blank">▶ ${ESC(camp.vttLabel)}</a>`
+    : '';
+
+  // Overview tab
+  const pm = {online:'Online','in-person':'In-Person',hybrid:'Hybrid'}[camp.playMode] || '';
+  const dr = (l,v) => v ? `<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-value">${ESC(v)}</span></div>` : '';
+
+  const overviewHtml = `
+    <div class="details-grid">
+      ${dr('WORLD', camp.world)}
+      ${dr('GENRE', camp.genre)}
+      ${dr(gml.toUpperCase(), camp.gm)}
+      ${dr('PLAYERS', camp.players ? camp.players + ' players' : '')}
+      ${dr('SCHEDULE', camp.schedule)}
+      ${dr('PLAY MODE', pm + (camp.vttLabel ? ' (' + camp.vttLabel + ')' : ''))}
+      ${dr('XP METHOD', camp.xpMethod)}
+      ${dr('STARTED', camp.startDate ? formatDate(camp.startDate) : (camp.created ? formatDate(camp.created) : ''))}
+      ${nextStr ? `<div class="detail-row"><span class="detail-label">NEXT SESSION</span><span class="detail-value" style="color:var(--accent);font-weight:700">${ESC(nextStr)}</span></div>` : ''}
+      ${dr('RULEBOOKS', camp.rulebooks)}
+      ${camp.houseRules ? `<div class="detail-row detail-full"><span class="detail-label">HOUSE RULES</span><span class="detail-value">${ESC(camp.houseRules)}</span></div>` : ''}
+    </div>
+    <div class="sec-hdr"><div class="sec-title">TOOLS</div></div>
+    <div class="tools-row">
+      ${tools.map(t => {
+        const cls = t.href ? 'tool-chip' : 'tool-chip disabled';
+        return `<a class="${cls}"${t.href ? ' href="'+ESC(t.href)+'"' : ''}><span class="tool-bullet">◆</span> ${ESC(t.name)}</a>`;
+      }).join('')}
+    </div>`;
+
+  // Party tab
+  const chars = camp.characters || [];
+  let partyHtml = '';
+  if (!chars.length) {
+    partyHtml = `<div class="entity-empty">No characters assigned to this campaign yet.</div>`;
+  } else {
+    partyHtml = '<div class="entity-grid">';
+    chars.forEach((ch, i) => {
+      const col = PIP_COLORS[i % PIP_COLORS.length];
+      let resolved = ch;
+      const refKey = ch.storageKey || ch.listKey || '';
+      if (refKey) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(refKey)) || [];
+          const found = ch._id
+            ? saved.find(s => s._id === ch._id)
+            : (ch.name ? saved.find(s => (s.heroName || s.name) === ch.name) : null);
+          if (found) resolved = resolveChar(found, camp.system, refKey);
+        } catch(e) {}
+      }
+      const portraitHtml = resolved.portrait
+        ? `<img class="entity-portrait" src="${resolved.portrait}" alt="">`
+        : `<div class="entity-portrait-ph">?</div>`;
+
+      // Build link
+      let nameHtml;
+      const charSys = GCC.SYSTEM_DEFS.find(s => s.id === camp.system);
+      const effectiveKey = resolved.storageKey || refKey;
+      const charTool = charSys?.tools.find(t => t.charList === effectiveKey && t.href)
+        || charSys?.tools.find(t => t.charList && t.href);
+      if (charTool && resolved.name) {
+        const linkParam = (resolved._id || ch._id)
+          ? 'id=' + encodeURIComponent(resolved._id || ch._id)
+          : 'char=' + encodeURIComponent(resolved.name);
+        const href = charTool.href + (charTool.href.includes('?') ? '&' : '?') + linkParam;
+        nameHtml = `<a href="${ESC(href)}">${ESC(resolved.name)}</a>`;
+      } else {
+        nameHtml = ESC(resolved.name);
+      }
+
+      partyHtml += `<div class="entity-card"><div class="entity-pip" style="background:${col}"></div>${portraitHtml}<div class="entity-info"><div class="entity-name">${nameHtml}</div><div class="entity-sub">${ESC(resolved.sub || '')}</div>${resolved.player ? '<div class="entity-player">' + ESC(resolved.player) + '</div>' : ''}</div></div>`;
+    });
+    partyHtml += '</div>';
+  }
+
+  // Vehicles tab — find vehicles linked to this campaign via mp-veh-list
+  let vehHtml = '';
+  const vehTool = sys.tools?.find(t => t.charList === 'mp-veh-list');
+  let vehs = [];
+  if (vehTool) {
+    try {
+      const allVehs = JSON.parse(localStorage.getItem(vehTool.charList)) || [];
+      vehs = allVehs.filter(v => v._campaign === campId);
+    } catch(e) {}
+  }
+  if (!vehs.length) {
+    vehHtml = `<div class="entity-empty">No vehicles assigned to this campaign.</div>`;
+  } else {
+    vehHtml = '<div class="entity-grid">';
+    vehs.forEach((v, i) => {
+      const col = PIP_COLORS[(i + 3) % PIP_COLORS.length];
+      const portrait = v.pictureData || v._image || '';
+      const portraitHtml = portrait
+        ? `<img class="entity-portrait" src="${portrait}" alt="" style="border-radius:4px">`
+        : `<div class="entity-portrait-ph" style="border-radius:4px">🚗</div>`;
+      const sub = [v.model, v._totalCost != null ? v._totalCost + ' CPs' : ''].filter(Boolean).join(' · ');
+      const nameHtml = vehTool.href
+        ? `<a href="${ESC(vehTool.href)}">${ESC(v.name || 'Unnamed')}</a>`
+        : ESC(v.name || 'Unnamed');
+      vehHtml += `<div class="entity-card"><div class="entity-pip" style="background:${col}"></div>${portraitHtml}<div class="entity-info"><div class="entity-name">${nameHtml}</div><div class="entity-sub">${ESC(sub)}</div>${v.operator ? '<div class="entity-player">' + ESC(v.operator) + '</div>' : ''}</div></div>`;
+    });
+    vehHtml += '</div>';
+  }
+
+  // Sessions tab
+  const sessions = camp.sessions || [];
+  let sessHtml = `<button class="btn-add-session" id="btn-add-session">+ New Session</button>`;
+  if (!sessions.length) {
+    sessHtml += `<div class="entity-empty">No sessions logged yet.</div>`;
+  } else {
+    sessHtml += '<ul class="session-list">';
+    sessions.forEach((s, i) => {
+      const num = sessions.length - i;
+      const title = s.title ? ' — ' + ESC(s.title) : '';
+      sessHtml += `<li class="session-item" data-ses-idx="${i}">
+        <div class="session-hdr">
+          <div><span class="session-num">Session ${num}${title}</span></div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="session-date">${formatDateShort(s.date)}</span>
+            <div class="session-actions">
+              <button class="session-action-btn" data-ses-edit="${i}">Edit</button>
+              <button class="session-action-btn danger" data-ses-del="${i}">Del</button>
+            </div>
+          </div>
+        </div>
+        <div class="session-text">${ESC(s.text || '')}</div>
+        ${s.xp ? '<div style="font-size:10px;color:var(--accent);margin-top:4px;font-family:var(--fm)">+' + s.xp + ' XP/Karma</div>' : ''}
+      </li>`;
+    });
+    sessHtml += '</ul>';
+  }
+
+  // Notes tab
+  const notesHtml = `
+    <div class="notes-label">CAMPAIGN NOTES</div>
+    <textarea class="notes-area" id="camp-notes" placeholder="Campaign notes, reminders, links...">${ESC(camp.notes || '')}</textarea>`;
+
+  // Count labels for tabs
+  const charCount = chars.length ? ` (${chars.length})` : '';
+  const vehCount = vehs.length ? ` (${vehs.length})` : '';
+  const sesCount = sessions.length ? ` (${sessions.length})` : '';
+
+  page.innerHTML = `
+    ${bannerHtml}
+    <div class="camp-header">
+      <div class="camp-header-in">
+        <div class="camp-title-area">
+          <div class="camp-name">${ESC(camp.name)}</div>
+          <div class="camp-meta">
+            <span class="camp-system-badge" style="${sysColorCSS(camp.system)}">${ESC(sys.name || camp.system)}</span>
+            <span class="camp-status"><span class="camp-status-dot ${status}"></span> ${statusLabel(status)}</span>
+          </div>
+          ${camp.pitch ? '<div class="camp-pitch">"' + ESC(camp.pitch) + '"</div>' : ''}
+        </div>
+        <div class="camp-header-btns">
+          ${vttBtn}
+          <a class="camp-btn" href="index.html">← Dashboard</a>
+          <button class="camp-btn" id="btn-edit-camp">Edit</button>
+        </div>
+      </div>
+    </div>
+    <div class="main"><div class="main-in">
+      <div class="tabs" id="tabs">
+        <button class="tab${currentTab==='overview'?' active':''}" data-tab="overview">Overview</button>
+        <button class="tab${currentTab==='party'?' active':''}" data-tab="party">${ESC(GCC.teamLabel(camp.system).toUpperCase())}${charCount}</button>
+        <button class="tab${currentTab==='vehicles'?' active':''}" data-tab="vehicles">Vehicles${vehCount}</button>
+        <button class="tab${currentTab==='sessions'?' active':''}" data-tab="sessions">Sessions${sesCount}</button>
+        <button class="tab${currentTab==='notes'?' active':''}" data-tab="notes">Notes</button>
+      </div>
+      <div class="tab-panel${currentTab==='overview'?' active':''}" data-panel="overview">${overviewHtml}</div>
+      <div class="tab-panel${currentTab==='party'?' active':''}" data-panel="party">${partyHtml}</div>
+      <div class="tab-panel${currentTab==='vehicles'?' active':''}" data-panel="vehicles">${vehHtml}</div>
+      <div class="tab-panel${currentTab==='sessions'?' active':''}" data-panel="sessions">${sessHtml}</div>
+      <div class="tab-panel${currentTab==='notes'?' active':''}" data-panel="notes">${notesHtml}</div>
+    </div></div>`;
+
+  wireEvents();
+}
+
+// ── Event Wiring ──
+function wireEvents() {
+  // Tabs
+  document.getElementById('tabs')?.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    currentTab = tab.dataset.tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === currentTab));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === currentTab));
+  });
+
+  // Notes auto-save
+  document.getElementById('camp-notes')?.addEventListener('input', e => {
+    GCC.updateCampaign(campId, { notes: e.target.value });
+  });
+
+  // Edit button — go back to dashboard for now (uses the existing edit modal there)
+  document.getElementById('btn-edit-camp')?.addEventListener('click', () => {
+    window.location.href = 'index.html';
+  });
+
+  // Add session
+  document.getElementById('btn-add-session')?.addEventListener('click', () => {
+    openSessionModal();
+  });
+
+  // Session edit/delete
+  document.querySelectorAll('[data-ses-edit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.sesEdit);
+      openSessionModal(idx);
+    });
+  });
+  document.querySelectorAll('[data-ses-del]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const idx = parseInt(btn.dataset.sesDel);
+      const ok = confirm('Delete this session entry?');
+      if (!ok) return;
+      const camp = getCamp();
+      if (!camp) return;
+      const sessions = camp.sessions || [];
+      sessions.splice(idx, 1);
+      GCC.updateCampaign(campId, { sessions });
+      render();
+    });
+  });
+}
+
+// ── Session Modal ──
+const sesModal = document.getElementById('session-modal');
+let sesEditIdx = -1;
+
+function openSessionModal(editIdx) {
+  sesEditIdx = editIdx != null ? editIdx : -1;
+  const isEdit = sesEditIdx >= 0;
+  document.getElementById('session-modal-title').textContent = isEdit ? 'EDIT SESSION' : 'NEW SESSION';
+
+  if (isEdit) {
+    const camp = getCamp();
+    const s = camp?.sessions?.[sesEditIdx];
+    if (s) {
+      document.getElementById('sm-date').value = s.date || '';
+      document.getElementById('sm-title').value = s.title || '';
+      document.getElementById('sm-text').value = s.text || '';
+      document.getElementById('sm-xp').value = s.xp || '';
+    }
+  } else {
+    document.getElementById('sm-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('sm-title').value = '';
+    document.getElementById('sm-text').value = '';
+    document.getElementById('sm-xp').value = '';
+  }
+  sesModal.classList.add('open');
+}
+
+function closeSessionModal() {
+  sesModal.classList.remove('open');
+  sesEditIdx = -1;
+}
+
+document.getElementById('sm-save').addEventListener('click', () => {
+  const camp = getCamp();
+  if (!camp) return;
+  const sessions = camp.sessions || [];
+  const entry = {
+    date: document.getElementById('sm-date').value || '',
+    title: document.getElementById('sm-title').value.trim() || '',
+    text: document.getElementById('sm-text').value.trim() || '',
+    xp: parseInt(document.getElementById('sm-xp').value) || 0,
+  };
+  if (sesEditIdx >= 0 && sesEditIdx < sessions.length) {
+    sessions[sesEditIdx] = entry;
+  } else {
+    sessions.unshift(entry);
+  }
+  GCC.updateCampaign(campId, { sessions, session: sessions.length });
+  closeSessionModal();
+  render();
+});
+
+document.getElementById('sm-cancel').addEventListener('click', closeSessionModal);
+document.getElementById('session-modal-close').addEventListener('click', closeSessionModal);
+sesModal.addEventListener('click', e => { if (e.target === sesModal) closeSessionModal(); });
+
+// ── Init ──
+render();
+</script>
+</body>
+</html>

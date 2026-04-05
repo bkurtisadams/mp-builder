@@ -1,38 +1,14 @@
-// gcc-header.js v2.0.0 — 2026-04-04
+// gcc-header.js v2.1.0 — 2026-04-05
 // Shared site-wide header logic + theme system for all GCC pages
+// Requires gcc-data.js to be loaded first
 
 (function() {
   const ESC = s => { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
 
-  // ── System Registry ──
-  const SYSTEM_DEFS = [
-    { id: 'mp', name: 'Mighty Protectors', icon: '🛡', tools: [
-      { id: 'mp-char', name: 'Character Builder', href: 'character.html' },
-      { id: 'mp-veh', name: 'Vehicle Builder', href: 'vehicle.html' },
-      { id: 'mp-campaign', name: 'Campaign Manager', href: 'campaign.html' },
-      { id: 'mp-canvas', name: 'Canvas (Layout Editor)', href: null },
-    ]},
-    { id: 'faserip', name: 'FASERIP', icon: '⚡', tools: [
-      { id: 'fas-char', name: 'Character Sheet', href: 'faserip.html' },
-      { id: 'fas-table', name: 'Universal Table', href: 'faserip-table.html' },
-      { id: 'fas-combat', name: 'Combat Tracker', href: null },
-      { id: 'fas-karma', name: 'Karma Log', href: null },
-    ]},
-    { id: 'add1e', name: 'AD&D 1st Edition', icon: '🗡', tools: [
-      { id: 'add1-char', name: 'Character Sheet', href: null },
-      { id: 'add1-enc', name: 'Encounter Generator', href: null },
-      { id: 'add1-trs', name: 'Treasure Generator', href: null },
-      { id: 'add1-wild', name: 'Wilderness Generator', href: null },
-      { id: 'add1-dun', name: 'DMG Dungeon Builder', href: null },
-      { id: 'add1-voy', name: 'Voyage Simulator', href: null },
-    ]},
-    { id: 'add2e', name: 'AD&D 2nd Edition', icon: '📜', tools: [
-      { id: 'add2-char', name: 'Character Sheet', href: null },
-    ]},
-    { id: 'chainmail', name: 'Chainmail', icon: '⛓', tools: [
-      { id: 'chain-battle', name: 'Battle Simulator', href: null },
-    ]},
-  ];
+  // Pull system definitions from canonical source (gcc-data.js)
+  function getSystemDefs() {
+    return (typeof GCC !== 'undefined' && GCC.SYSTEM_DEFS) ? GCC.SYSTEM_DEFS : [];
+  }
 
   const SHARED_TOOLS = [
     { icon: '📅', name: 'Calendar & Time' },
@@ -73,7 +49,7 @@
 
     // Build tools dropdown
     let dd = '<div class="gcc-td-section"><div class="gcc-td-section-title">SYSTEM TOOLS</div>';
-    SYSTEM_DEFS.forEach(sys => {
+    getSystemDefs().forEach(sys => {
       dd += `<div class="gcc-td-sys-hdr"><span class="gcc-td-sys-icon">${sys.icon}</span> ${ESC(sys.name)}</div>`;
       sys.tools.forEach(t => {
         const isActive = t.href && t.href === currentPage;
