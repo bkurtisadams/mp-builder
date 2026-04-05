@@ -6,6 +6,7 @@
 <title>FASERIP — Character Sheet</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700;900&family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Cinzel:wght@500;700&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="gcc-header.css">
+<link rel="stylesheet" href="mp-dialog.css">
 <style>
 /* ── FASERIP Theme Vars ── */
 :root {
@@ -171,8 +172,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .diff-mastered{background:#e0e0ff;color:#334}
 
 /* Detail modal field grid */
-.detail-grid{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:6px 0}
-.detail-grid .dl{font-weight:700;font-size:10px;color:var(--soft);text-align:right;white-space:nowrap}
+
 .detail-grid .dv{font-size:11px}
 .feat-btn{
   padding:1px 4px;font-family:var(--fd);font-size:8px;font-weight:700;letter-spacing:.5px;
@@ -245,24 +245,10 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .cg-reroll-btn{padding:2px 8px;font-size:9px;font-family:var(--fb);font-weight:700;border:1px solid #999;background:#fff;cursor:pointer;border-radius:2px;color:#666}
 .cg-reroll-btn:hover{border-color:var(--accent);color:var(--accent)}
 
-/* ── Save/Load Modal ── */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center}
-.modal-overlay.open{display:flex}
-.modal{background:#fff;border:2px solid #000;border-radius:4px;padding:16px;max-width:400px;width:90%;max-height:80vh;overflow-y:auto}
-.modal-title{font-family:var(--fd);font-size:14px;font-weight:700;margin-bottom:8px}
-.modal-close{float:right;cursor:pointer;font-size:16px;border:none;background:none;color:#666}
-.modal-close:hover{color:#000}
-.save-list{list-style:none}
-.save-item{display:flex;align-items:center;justify-content:space-between;padding:4px;border-bottom:1px solid #eee;cursor:pointer}
-.save-item:hover{background:#f0f8ff}
-.save-item-name{font-weight:700;font-size:11px}
-.save-item-date{font-size:9px;color:#999}
-.save-item-del{color:#c00;cursor:pointer;font-size:10px;border:none;background:none}
-
 /* ── Print ── */
 @media print{
   .gcc-bar,.fas-hdr,.fas-ftr,.chargen-panel,.hdr-btn,
-  .list-add,.item-del,.item-info,.feat-btn,.modal-overlay,.bio-toggle{display:none!important}
+  .list-add,.item-del,.item-info,.feat-btn,.mp-modal-overlay,.bio-toggle{display:none!important}
   .sheet-wrap{padding:0}
   .sheet{border:none;max-width:100%;box-shadow:none}
   .si{border-bottom-color:#999!important}
@@ -314,6 +300,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
       <button class="hdr-btn" id="btn-chargen" title="Random Character Generator">Generate</button>
       <button class="hdr-btn" id="btn-save" title="Save Character">Save</button>
       <button class="hdr-btn" id="btn-load" title="Load Character">Load</button>
+      <button class="hdr-btn" id="btn-campaign" title="Add to or change campaign">Campaign</button>
       <button class="hdr-btn" id="btn-export" title="Export to JSON">Export</button>
       <button class="hdr-btn" id="btn-import" title="Import from JSON">Import</button>
       <button class="hdr-btn" id="btn-print" title="Print Sheet">Print</button>
@@ -571,26 +558,9 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 
 <div class="fas-ftr">FASERIP Character Sheet v1.0 &mdash; Graycloak&rsquo;s Campaign Corner &mdash; Data stored locally in your browser</div>
 
-<!-- Load/Save Modal -->
-<div class="modal-overlay" id="modal-overlay">
-  <div class="modal">
-    <button class="modal-close" id="modal-close">&times;</button>
-    <div class="modal-title" id="modal-title">Load Character</div>
-    <div id="modal-body"></div>
-  </div>
-</div>
-
-<!-- Detail Modal -->
-<div class="modal-overlay" id="detail-overlay">
-  <div class="modal" style="max-width:480px">
-    <button class="modal-close" id="detail-close">&times;</button>
-    <div class="modal-title" id="detail-title"></div>
-    <div id="detail-body" style="font-size:11px;line-height:1.5"></div>
-  </div>
-</div>
-
 <input type="file" id="file-import" accept=".json" style="display:none">
 
+<script src="mp-dialog.js"></script>
 <script src="gcc-header.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -816,8 +786,8 @@ function rollFeat(rankName, label){
   if(roll >= t.r){ color="Red"; colorHex="#cc1111"; }
   else if(roll >= t.y){ color="Yellow"; colorHex="#e0c800"; }
   else if(roll >= t.g){ color="Green"; colorHex="#22bb22"; }
-  const msg = `${label}: Roll ${roll} vs ${rankName} → ${color}`;
-  alert(msg);
+  const msg = `${label}: Roll ${roll} vs ${rankName} → <span style="color:${colorHex};font-weight:700">${color}</span>`;
+  MPDialog.alert('FEAT Result', msg);
 }
 
 // ── Movement calculation ──
@@ -828,16 +798,13 @@ function calcLeap(strRank){ return LEAP_AREAS[strRank]||0; }
 
 // ── Detail Modal ──
 function showDetail(title,fields){
-  const overlay=document.getElementById("detail-overlay");
-  document.getElementById("detail-title").textContent=title;
-  let html='<div class="detail-grid">';
+  let html='<div style="display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:11px">';
   for(const[label,val] of fields){
     if(val===undefined||val===null||val==="") continue;
-    html+='<span class="dl">'+label+':</span><span class="dv">'+val+'</span>';
+    html+='<span style="font-weight:700;color:#666">'+label+':</span><span>'+val+'</span>';
   }
   html+='</div>';
-  document.getElementById("detail-body").innerHTML=html;
-  overlay.classList.add("open");
+  MPDialog.alert(title, html);
 }
 
 function showPowerDetail(p){
@@ -1725,52 +1692,32 @@ function getSavedChars(){
 function saveChar(){
   const chars=getSavedChars();
   const name=CHAR.heroName||"";
-  if(!name.trim()){alert("Cannot save: Hero Name is empty.");return;}
+  if(!name.trim()){MPDialog.alert("Cannot Save","Hero Name is empty.");return;}
   const existing=chars.findIndex(c=>c.heroName===name);
   const entry={...CHAR, _saved:new Date().toISOString()};
   if(existing>=0) chars[existing]=entry; else chars.push(entry);
   try{
     localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));
   }catch(e){
-    alert("Save failed — browser storage is full.\nTry removing unused characters or clearing portrait data.");
+    MPDialog.alert("Save Failed","Browser storage is full.<br>Try removing unused characters or clearing portrait data.");
     return;
   }
   autosave();
-  alert(`Saved: ${name}`);
+  MPDialog.alert("Saved","Character saved: <b>"+name+"</b>");
 }
 
-function showLoadModal(){
+async function showLoadModal(){
   const chars=getSavedChars();
-  const overlay=document.getElementById("modal-overlay");
-  const body=document.getElementById("modal-body");
-  document.getElementById("modal-title").textContent="Load Character";
-  if(!chars.length){
-    body.innerHTML="<p style=\"color:#999;font-size:11px\">No saved characters.</p>";
-  } else {
-    body.innerHTML="<ul class=\"save-list\">" + chars.map((c,i)=>{
-      const d=c._saved?new Date(c._saved).toLocaleDateString():"";
-      return `<li class="save-item" data-idx="${i}"><div><span class="save-item-name">${c.heroName||"Unnamed"}</span><br><span class="save-item-date">${c.origin||""} &mdash; ${d}</span></div><button class="save-item-del" data-idx="${i}" title="Delete">&times;</button></li>`;
-    }).join("")+"</ul>";
-    body.querySelectorAll(".save-item").forEach(el=>{
-      el.addEventListener("click",e=>{
-        if(e.target.closest(".save-item-del")){
-          e.stopPropagation();
-          const idx=+e.target.closest(".save-item-del").dataset.idx;
-          if(!confirm("Delete "+( chars[idx].heroName||"this character")+"?")) return;
-          chars.splice(idx,1);
-          localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));
-          showLoadModal();
-          return;
-        }
-        const idx=+el.dataset.idx;
-        CHAR={...newChar(),...chars[idx]};
-        renderAll();
-        autosave();
-        overlay.classList.remove("open");
-      });
-    });
-  }
-  overlay.classList.add("open");
+  const items=chars.map(c=>({
+    name:c.heroName||'Unnamed',
+    sub:[c.origin,c._saved?new Date(c._saved).toLocaleDateString():''].filter(Boolean).join(' — '),
+    image:c.portraitData||null,
+  }));
+  const idx=await MPDialog.listPick('Load Character',items,{emptyText:'No saved characters.'});
+  if(idx==null||idx<0||idx>=chars.length) return;
+  CHAR={...newChar(),...chars[idx]};
+  renderAll();
+  autosave();
 }
 
 function exportChar(){
@@ -2030,13 +1977,13 @@ function importChar(file){
         renderAll();
         autosave();
         const itemCount=(data.items||[]).length;
-        const portraitNote = CHAR.portraitData ? '\nPortrait imported.' :
-          (CHAR.foundryImg ? '\nPortrait path found (not embedded) — click portrait to set manually.' : '');
-        alert(`Imported Foundry actor: ${data.name}\n${CHAR.powers.length} powers, ${CHAR.talents.length} talents, ${CHAR.contacts.length} contacts` +
-          (CHAR.equipment&&CHAR.equipment.length?`, ${CHAR.equipment.length} equipment`:"") +
-          (CHAR.stunts&&CHAR.stunts.length?`, ${CHAR.stunts.length} stunts`:"") +
-          (CHAR.headquarters&&CHAR.headquarters.length?`, ${CHAR.headquarters.length} HQ`:"") +
-          (CHAR.vehicles&&CHAR.vehicles.length?`, ${CHAR.vehicles.length} vehicles`:"") + portraitNote);
+        const portraitNote = CHAR.portraitData ? '<br>Portrait imported.' :
+          (CHAR.foundryImg ? '<br>Portrait path found (not embedded) — click portrait to set manually.' : '');
+        MPDialog.alert('Imported', 'Imported Foundry actor: <b>'+data.name+'</b><br>'+CHAR.powers.length+' powers, '+CHAR.talents.length+' talents, '+CHAR.contacts.length+' contacts' +
+          (CHAR.equipment&&CHAR.equipment.length?', '+CHAR.equipment.length+' equipment':'') +
+          (CHAR.stunts&&CHAR.stunts.length?', '+CHAR.stunts.length+' stunts':'') +
+          (CHAR.headquarters&&CHAR.headquarters.length?', '+CHAR.headquarters.length+' HQ':'') +
+          (CHAR.vehicles&&CHAR.vehicles.length?', '+CHAR.vehicles.length+' vehicles':'') + portraitNote);
       } else {
         CHAR={...newChar(),...data};
         // Compress portrait from native GCC import too
@@ -2046,7 +1993,7 @@ function importChar(file){
         renderAll();
         autosave();
       }
-    }catch(err){alert("Invalid JSON file: "+err.message);}
+    }catch(err){MPDialog.alert("Import Error","Invalid JSON file: "+err.message);}
   };
   reader.readAsText(file);
 }
@@ -2071,8 +2018,9 @@ document.addEventListener("DOMContentLoaded",()=>{
   bindAddButtons();
 
   // Header buttons
-  document.getElementById("btn-new").addEventListener("click",()=>{
-    if(confirm("Start a new character? Unsaved changes will be lost.")){
+  document.getElementById("btn-new").addEventListener("click",async ()=>{
+    const ok=await MPDialog.confirm("New Character","Start a new character? Unsaved changes will be lost.",{okText:"Clear",danger:true});
+    if(ok){
       CHAR=newChar(); renderAll(); autosave();
     }
   });
@@ -2086,16 +2034,29 @@ document.addEventListener("DOMContentLoaded",()=>{
   });
   document.getElementById("btn-print").addEventListener("click",()=>window.print());
 
-  // Modal close
-  document.getElementById("modal-close").addEventListener("click",()=>document.getElementById("modal-overlay").classList.remove("open"));
-  document.getElementById("modal-overlay").addEventListener("click",e=>{
-    if(e.target===e.currentTarget) e.currentTarget.classList.remove("open");
+  // Campaign — assign character to a campaign
+  document.getElementById("btn-campaign").addEventListener("click", async () => {
+    const camps = (function(){try{return JSON.parse(localStorage.getItem('gcc-campaigns'))||[]}catch(e){return[]}})();
+    if (!camps.length) { await MPDialog.alert('No Campaigns', 'No campaigns found. Create one on the Campaigns page first.'); return; }
+    const current = CHAR._campaign || null;
+    const items = camps.map(c => ({
+      label: c.name,
+      desc: c.id === current ? '(current)' : '',
+    }));
+    if (current) items.push({ label: 'Remove from campaign', desc: 'Unlink this character' });
+    const pick = await MPDialog.choose('Assign to Campaign', items, { intro: 'Select a campaign for this character:' });
+    if (pick == null) return;
+    if (current && pick === items.length - 1) {
+      delete CHAR._campaign;
+      autosave(); saveChar();
+      await MPDialog.alert('Removed', 'Character removed from campaign.');
+    } else {
+      CHAR._campaign = camps[pick].id;
+      autosave(); saveChar();
+      await MPDialog.alert('Assigned', 'Character assigned to <b>' + camps[pick].name + '</b>.');
+    }
   });
-  // Detail modal close
-  document.getElementById("detail-close").addEventListener("click",()=>document.getElementById("detail-overlay").classList.remove("open"));
-  document.getElementById("detail-overlay").addEventListener("click",e=>{
-    if(e.target===e.currentTarget) e.currentTarget.classList.remove("open");
-  });
+
 
   // Chargen
   const cgPanel=document.getElementById("chargen-panel");
