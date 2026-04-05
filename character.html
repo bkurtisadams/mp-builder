@@ -856,6 +856,22 @@ for (let i = 0; i < AB_COUNT; i++) {
   abArea.appendChild(ip);
 }
 
+function addAbilityRow() {
+  const idx = document.querySelectorAll('[data-ab][data-abf="cp"]').length;
+  const cp = document.createElement('div');
+  cp.className = 'ab-cell ab-cell-cp';
+  cp.innerHTML = `<input data-ab="${idx}" data-abf="cp">`;
+  const desc = document.createElement('div');
+  desc.className = 'ab-cell ab-cell-desc';
+  desc.innerHTML = `<input data-ab="${idx}" data-abf="desc">`;
+  const ip = document.createElement('div');
+  ip.className = 'ab-cell ab-cell-ip';
+  ip.innerHTML = `<input data-ab="${idx}" data-abf="ip">`;
+  abArea.appendChild(cp);
+  abArea.appendChild(desc);
+  abArea.appendChild(ip);
+}
+
 // Tag attack rows
 document.querySelectorAll('.atk-tbl tbody tr').forEach((tr, i) => {
   const fields = ['name','toHit','damage','dmgType','kb'];
@@ -889,10 +905,8 @@ function recalcDerived() {
   const bcTotal = st + en + ag + inVal + cl;
   const pl = MP.CG.POWER_LEVELS.find(p => p.id === document.getElementById('cg-power-level').value);
   let abCpTotal = 0;
-  for (let i = 0; i < AB_COUNT; i++) {
-    const cpEl = document.querySelector(`[data-ab="${i}"][data-abf="cp"]`);
-    if (cpEl) abCpTotal += parseFloat(cpEl.value) || 0;
-  }
+  const abRows = document.querySelectorAll('[data-ab][data-abf="cp"]');
+  abRows.forEach(cpEl => { abCpTotal += parseFloat(cpEl.value) || 0; });
   const sumEl = document.getElementById('cg-cp-summary');
   if (pl) {
     const baseCPs = pl.totalCPs;
@@ -910,9 +924,7 @@ function recalcDerived() {
     const setField = (f, v) => { const el = document.querySelector(`[data-field="${f}"]`); if (el) el.value = v; };
     setField('xpBase', baseCPs);
     const xpEarned = parseFloat(document.querySelector('[data-field="xpEarned"]')?.value) || 0;
-    const xpSpent = Math.max(0, totalSpent - baseCPs);
     const xpTotal = baseCPs + xpEarned;
-    setField('xpSpent', xpSpent);
     setField('xpTotal', xpTotal);
 
     // Caps (based on total CPs spent on BCs + abilities, matching Roll20 total_eps)
@@ -1167,7 +1179,8 @@ function gatherData() {
     d.stats[row.dataset.stat] = { cp: cpInput.value, score: scoreEl.value, save: saveEl.value };
   });
   d.abilities = [];
-  for (let i = 0; i < AB_COUNT; i++) {
+  const abCount = document.querySelectorAll('[data-ab][data-abf="cp"]').length;
+  for (let i = 0; i < abCount; i++) {
     const cp = document.querySelector(`[data-ab="${i}"][data-abf="cp"]`);
     const desc = document.querySelector(`[data-ab="${i}"][data-abf="desc"]`);
     const ip = document.querySelector(`[data-ab="${i}"][data-abf="ip"]`);
@@ -1204,6 +1217,9 @@ function populateData(d) {
     });
   }
   if (d.abilities) {
+    // Add extra ability rows if import has more than current DOM rows
+    const currentRows = document.querySelectorAll('[data-ab][data-abf="cp"]').length;
+    for (let i = currentRows; i < d.abilities.length; i++) addAbilityRow();
     d.abilities.forEach((ab, i) => {
       const cp = document.querySelector(`[data-ab="${i}"][data-abf="cp"]`);
       const desc = document.querySelector(`[data-ab="${i}"][data-abf="desc"]`);
@@ -1232,6 +1248,9 @@ function clearAll() {
     if (el.tagName === 'SELECT') { el.selectedIndex = 0; return; }
     el.value = '';
   });
+  // Trim extra ability rows back to default
+  const abCells = abArea.children;
+  while (abCells.length > AB_COUNT * 3) abArea.removeChild(abArea.lastChild);
 }
 
 // ── Slot management ──
