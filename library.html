@@ -87,54 +87,47 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .filter-tab:hover { color: var(--tx2) }
 .filter-tab.active { color: var(--tx); border-color: var(--brd-lt); background: var(--hover-bg) }
 
-/* ── Card Grid — 4 columns, narrow cards ── */
-.card-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px }
+/* ── Card Grid — 3 columns like DnD Beyond ── */
+.card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 720px }
 
-/* ── Entity Card ── */
-.lib-card { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 6px; overflow: hidden; transition: all 0.15s; box-shadow: var(--card-shadow); position: relative; display: flex; flex-direction: column }
-.lib-card:hover { border-color: var(--brd-lt); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15) }
+/* ── Entity Card — DnD Beyond style ── */
+.lib-card { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; position: relative; transition: border-color 0.15s }
+.lib-card:hover { border-color: var(--brd-lt) }
 
-/* System color strip */
-.lib-card-strip { position: absolute; top: 0; left: 0; width: 3px; height: 100%; z-index: 3 }
+/* Banner area — dark gradient, holds portrait + name */
+.lib-card-banner { position: relative; height: 58px; overflow: hidden }
+[data-gcc-theme="dark"] .lib-card-banner { background: linear-gradient(135deg, #1a2030 0%, #0e1218 100%) }
+[data-gcc-theme="light"] .lib-card-banner { background: linear-gradient(135deg, #2a3a4a 0%, #1a2a3a 100%) }
+.lib-card-banner::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.6) 100%); pointer-events: none }
 
-/* Header: name + origin on dark bar */
-.lib-card-header { padding: 6px 10px 4px 12px; position: relative; overflow: hidden }
-[data-gcc-theme="dark"] .lib-card-header { background: linear-gradient(135deg, #1a2030 0%, #10141a 100%) }
-[data-gcc-theme="light"] .lib-card-header { background: linear-gradient(135deg, #2a3a4a 0%, #1a2a3a 100%) }
-.lib-card-name { font-family: var(--fd); font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 0.5px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.lib-card-origin { font-size: 10px; color: rgba(255,255,255,0.6); font-family: var(--fm); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-
-/* Body: portrait + stats side by side */
-.lib-card-body { display: flex; align-items: flex-start; gap: 6px; padding: 6px 8px 6px 10px }
-
-/* Portrait thumbnail */
-.lib-card-portrait { width: 56px; height: 72px; flex-shrink: 0; overflow: hidden; background: var(--bg2); border-radius: 3px; border: 1px solid var(--brd) }
+/* Portrait — square with slight rounding */
+.lib-card-portrait { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 3px; overflow: hidden; border: 2px solid var(--brd-lt); background: var(--bg2); z-index: 2 }
 .lib-card-portrait img { width: 100%; height: 100%; object-fit: cover; display: block }
-.lib-card-portrait-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--tx3); opacity: 0.3 }
+.lib-card-portrait-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--tx3); opacity: 0.4 }
 
-/* Stats block — vertical list */
-.lib-card-stats { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0 }
-.lib-card-stat-row { display: flex; align-items: baseline; gap: 3px; font-family: var(--fm); font-size: 10px; line-height: 1.6; color: var(--tx) }
-.lib-card-stat-label { font-weight: 700; width: 10px; color: var(--tx2) }
-.lib-card-stat-val { white-space: nowrap }
+/* Name + sub overlaid on banner */
+.lib-card-text { position: absolute; left: 56px; right: 6px; bottom: 6px; z-index: 2 }
+.lib-card-name { font-family: var(--fd); font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 0.5px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 4px rgba(0,0,0,0.7) }
+.lib-card-sub { font-size: 9px; color: rgba(255,255,255,0.6); font-family: var(--fm); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 3px rgba(0,0,0,0.7) }
 
-/* Generic sub-info for non-FASERIP systems */
-.lib-card-sub { font-size: 10px; color: var(--tx2); font-family: var(--fm); line-height: 1.5; padding: 2px 0 }
-
-/* Info area: campaign + system badge */
-.lib-card-info { padding: 4px 10px; display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: 10px }
-.lib-card-campaign { color: var(--tx2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+/* Campaign row */
+.lib-card-camp-row { display: flex; align-items: center; padding: 3px 8px; gap: 4px; font-size: 9px; border-top: 1px solid var(--brd) }
+[data-gcc-theme="dark"] .lib-card-camp-row { background: #181c22 }
+[data-gcc-theme="light"] .lib-card-camp-row { background: #e8eaee }
+.lib-card-campaign { color: var(--tx2); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .lib-card-campaign a { color: var(--accent); text-decoration: none }
 .lib-card-campaign a:hover { text-decoration: underline }
-.lib-card-system { display: inline-block; font-family: var(--fsc); font-size: 7px; font-weight: 700; padding: 1px 5px; border-radius: 2px; letter-spacing: 1px; white-space: nowrap; flex-shrink: 0 }
+.lib-card-leave { color: var(--amber); font-size: 8px; font-weight: 700; letter-spacing: 0.3px; cursor: pointer; background: none; border: none; font-family: var(--fsc); white-space: nowrap }
+.lib-card-leave:hover { color: #e0b858 }
+.lib-card-no-camp { color: var(--tx3); font-style: italic }
 
 /* Action bar */
 .lib-card-actions { display: flex; border-top: 1px solid var(--brd); margin-top: auto }
-.lib-card-action { flex: 1; padding: 4px 0; font-size: 9px; font-family: var(--fsc); font-weight: 700; letter-spacing: 1px; border: none; background: transparent; cursor: pointer; color: var(--accent); text-align: center; text-decoration: none; transition: all 0.12s; border-right: 1px solid var(--brd) }
+.lib-card-action { flex: 1; padding: 4px 0; font-size: 9px; font-weight: 700; letter-spacing: 0.5px; border: none; background: transparent; cursor: pointer; text-align: center; text-decoration: none; border-right: 1px solid var(--brd); color: var(--tx2); transition: color 0.12s }
 .lib-card-action:last-child { border-right: none }
-.lib-card-action:hover { background: var(--hover-bg); color: var(--accent-lt) }
+.lib-card-action:hover { color: var(--tx); background: var(--hover-bg) }
 .lib-card-action.danger { color: var(--red) }
-.lib-card-action.danger:hover { color: var(--red); background: rgba(208,72,72,0.06) }
+.lib-card-action.danger:hover { color: #e06060 }
 
 /* ── Empty State ── */
 .lib-empty { text-align: center; padding: 40px 20px; color: var(--tx3); font-style: italic; font-size: 13px }
@@ -144,16 +137,15 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .ftr-inner { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px }
 
 /* ── Responsive ── */
-@media (max-width: 960px) {
-  .card-grid { grid-template-columns: repeat(3, 1fr) }
+@media (max-width: 800px) {
+  .card-grid { grid-template-columns: repeat(2, 1fr) }
 }
 @media (max-width: 700px) {
-  .card-grid { grid-template-columns: repeat(2, 1fr) }
   .page-title { font-size: 16px }
   .filter-bar { flex-direction: column }
   .filter-search { width: 100% }
 }
-@media (max-width: 420px) {
+@media (max-width: 500px) {
   .card-grid { grid-template-columns: 1fr }
 }
 </style>
@@ -253,26 +245,32 @@ function findCampaign(entity, campLookup) {
 // Resolve display data from a raw entity
 function resolveEntity(raw, systemId) {
   const isVeh = raw.type === 'mp-vehicle' || raw._toolId === 'mp-veh';
-  let name, sub, portrait, origin = '', faseripStats = null;
+  let name, sub, portrait, origin = '';
   if (isVeh) {
     name = raw.name || 'Unnamed Vehicle';
     portrait = raw.pictureData || raw._image || '';
-    const tc = raw._totalCost || '';
-    sub = [tc ? tc + ' CPs' : '', raw.model || ''].filter(Boolean).join(' · ');
+    const parts = ['Vehicle'];
+    const tc = raw._totalCost;
+    if (tc) parts.push(tc + ' CPs');
+    const hits = raw._hits; if (hits) parts.push('Hits:' + hits);
+    const pow = raw._power; if (pow) parts.push('Pow:' + pow);
+    const sp = raw._spaces; if (sp) parts.push('Spaces:' + sp);
+    sub = parts.join(' | ');
   } else if (systemId === 'faserip') {
     name = raw.heroName || raw.name || 'Unnamed';
     portrait = raw.portraitData || '';
     origin = raw.origin || '';
     const ab = raw.abilities || {};
-    const STAT_KEYS = ['fighting','agility','strength','endurance','reason','intuition','psyche'];
-    const STAT_LABELS = ['F','A','S','E','R','I','P'];
-    faseripStats = STAT_KEYS.map((k, i) => {
-      const a = ab[k] || {};
-      const abbr = (a.rank || 'Typical').substring(0, 2);
-      const val = a.value != null ? a.value : 6;
-      return { label: STAT_LABELS[i], abbr, val };
-    });
-    sub = '';
+    const h = (parseInt(ab.fighting?.value)||0) + (parseInt(ab.agility?.value)||0) + (parseInt(ab.strength?.value)||0) + (parseInt(ab.endurance?.value)||0);
+    const k = (parseInt(ab.reason?.value)||0) + (parseInt(ab.intuition?.value)||0) + (parseInt(ab.psyche?.value)||0);
+    const res = raw.resources?.rank || '';
+    const pop = raw.popularity?.rank || raw.popularity || '';
+    const parts = [origin];
+    if (h) parts.push('H:' + h);
+    if (k) parts.push('K:' + k);
+    if (res) parts.push('R:' + res.substring(0, 2));
+    if (pop) parts.push('P:' + (typeof pop === 'string' ? pop.substring(0, 2) : pop));
+    sub = parts.filter(Boolean).join(' | ');
   } else if (systemId === 'mp') {
     name = raw.name || 'Unnamed';
     portrait = raw._image || raw.portrait || '';
@@ -280,14 +278,19 @@ function resolveEntity(raw, systemId) {
     if (raw.stats) { for (const s of Object.values(raw.stats)) cp += parseFloat(s.cp) || 0; }
     if (raw.abilities) { for (const a of raw.abilities) cp += parseFloat(a.cp) || 0; }
     const species = raw.species || '';
-    const side = raw.side || '';
-    sub = [cp ? cp + ' CPs' : '', species, side].filter(Boolean).join(' | ');
+    const parts = [species];
+    if (cp) parts.push(cp + ' CPs');
+    const pow = raw.power; if (pow) parts.push('Pow:' + pow);
+    const hp = raw.hitPoints || raw.hp; if (hp) parts.push('HP:' + hp);
+    const orig = raw.origin || raw.originType || '';
+    if (orig) parts.push('Origin: ' + orig);
+    sub = parts.filter(Boolean).join(' | ');
   } else {
     name = raw.name || raw.heroName || 'Unnamed';
     portrait = raw._image || raw.portraitData || '';
     sub = raw.sub || raw.class || '';
   }
-  return { name, sub, portrait, isVeh, origin, faseripStats };
+  return { name, sub, portrait, isVeh };
 }
 
 // State
@@ -373,29 +376,14 @@ function render() {
       portraitHtml = `<div class="lib-card-portrait-empty">${icon}</div>`;
     }
 
-    // Stats block — system-specific
-    let statsHtml = '';
-    if (e.faseripStats) {
-      statsHtml = e.faseripStats.map(s =>
-        `<div class="lib-card-stat-row"><span class="lib-card-stat-label">${s.label}</span> <span class="lib-card-stat-val">${ESC(s.abbr)}(${s.val})</span></div>`
-      ).join('');
-    } else {
-      const subText = e.sub || (e.isVeh ? 'Vehicle' : '');
-      if (subText) statsHtml = `<div class="lib-card-sub">${ESC(subText)}</div>`;
-    }
-
-    // Origin / subtitle for header
-    const originText = e.origin || e.sub || (e.isVeh ? 'Vehicle' : '');
-
-    // Campaign link
-    let campHtml = '';
+    // Campaign row
+    let campRowHtml;
     if (e.camp) {
-      campHtml = `<span class="lib-card-campaign"><a href="index.html">${ESC(e.camp.name)}</a></span>`;
+      campRowHtml = `<span class="lib-card-campaign">Campaign: <a href="index.html">${ESC(e.camp.name)}</a></span>
+        <button class="lib-card-leave" data-leave-id="${ESC(e.raw._id || '')}" data-leave-camp="${ESC(e.camp.id || '')}">LEAVE CAMPAIGN</button>`;
+    } else {
+      campRowHtml = `<span class="lib-card-no-camp">No campaign</span>`;
     }
-
-    // System badge
-    const badgeStyle = `background:${sysColor}18;color:${sysColor};border:1px solid ${sysColor}30`;
-    const badgeHtml = `<span class="lib-card-system" style="${badgeStyle}">${ESC(sys.name || e.systemId)}</span>`;
 
     // Build edit link
     const tool = sys.tools?.find(t => t.charList === e.raw._listKey && t.href)
@@ -409,22 +397,22 @@ function render() {
     }
 
     return `<div class="lib-card">
-      <div class="lib-card-strip" style="background:${sysColor}"></div>
-      <div class="lib-card-header">
-        <div class="lib-card-name">${ESC(e.name)}</div>
-        <div class="lib-card-origin">${ESC(e.faseripStats ? originText : (e.sub || (e.isVeh ? 'Vehicle' : '')))}</div>
-      </div>
-      <div class="lib-card-body">
+      <div class="lib-card-banner">
         <div class="lib-card-portrait">${portraitHtml}</div>
-        <div class="lib-card-stats">${statsHtml}</div>
+        <div class="lib-card-text">
+          <div class="lib-card-name">${ESC(e.name)}</div>
+          <div class="lib-card-sub">${ESC(e.sub)}</div>
+        </div>
       </div>
-      <div class="lib-card-info">
-        ${campHtml || '<span></span>'}
-        ${badgeHtml}
+      <div class="lib-card-camp-row">
+        ${campRowHtml}
       </div>
       <div class="lib-card-actions">
+        <a class="lib-card-action" href="${ESC(editHref)}">VIEW</a>
         <a class="lib-card-action" href="${ESC(editHref)}">EDIT</a>
         <button class="lib-card-action danger" data-del-id="${ESC(e.raw._id || '')}" data-del-key="${ESC(e.raw._listKey || '')}" data-del-name="${ESC(e.name)}">DELETE</button>
+      </div>
+    </div>`;
       </div>
     </div>`;
   }).join('');
@@ -456,6 +444,20 @@ document.getElementById('search').addEventListener('input', e => {
     currentSearch = e.target.value.trim();
     render();
   }, 150);
+});
+
+// Leave campaign handler
+document.getElementById('card-grid').addEventListener('click', e => {
+  const btn = e.target.closest('.lib-card-leave');
+  if (!btn) return;
+  const charId = btn.dataset.leaveId;
+  const campId = btn.dataset.leaveCamp;
+  if (!charId || !campId) return;
+  const camp = GCC.getCampaign(campId);
+  if (!camp) return;
+  const chars = (camp.characters || []).filter(ch => ch._id !== charId);
+  GCC.updateCampaign(campId, { characters: chars, players: chars.length });
+  render();
 });
 
 // Delete handler
