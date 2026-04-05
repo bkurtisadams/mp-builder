@@ -56,6 +56,8 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .si-box:focus{border-color:var(--accent)}
 .lbl{font-weight:700;font-size:10px;white-space:nowrap}
 .si-calc{border:none;border-bottom:1.5px solid #000;background:#f8f8f0;font-family:var(--fb);font-size:11px;color:var(--val);font-weight:700;padding:0 2px;height:var(--cell-h);outline:none;text-align:center}
+.si-calc-sel{border:none;border-bottom:1.5px solid #000;background:#f8f8f0;font-family:var(--fb);font-size:11px;color:var(--val);font-weight:700;padding:0 2px;height:var(--cell-h);outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;border-radius:0}
+.si-calc-sel:focus{border-bottom-color:var(--accent)}
 
 /* ── Header Area: Portrait + Logo/Bio ── */
 .sheet-header{display:grid;grid-template-columns:130px 1fr;gap:10px;margin-bottom:8px}
@@ -108,12 +110,13 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .bio-history textarea:focus{border-color:var(--accent)}
 
 /* ── Movement Row ── */
-.movement-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:4px 0 0;margin-top:auto;border-top:1px solid #ddd}
+.movement-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:4px 0 0 4px;margin-top:auto;border-top:1px solid #ddd}
 .movement-item{display:flex;align-items:center;gap:2px}
 .movement-item .lbl{font-family:var(--fd);font-size:9px;font-weight:700;letter-spacing:.5px;cursor:pointer;min-width:auto}
 .movement-item .lbl:hover{color:var(--accent)}
 .movement-item input{width:32px;border:none;border-bottom:1px solid #999;background:transparent;text-align:center;font-family:var(--fb);font-size:11px;font-weight:700;outline:none;padding:0}
 .movement-item input:focus{border-bottom-color:var(--accent)}
+.movement-item input.si-calc{background:#f8f8f0;color:var(--val);border-bottom:1px solid #999}
 
 /* ── Abilities Tables ── */
 .abilities-wrap{display:flex;gap:12px;margin-bottom:8px;flex-wrap:wrap}
@@ -186,10 +189,13 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 
 /* ── Bottom Section: Talents / Karma / Contacts ── */
 .bottom-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;margin-top:8px}
-.karma-box{border:1.5px solid #000;padding:6px 8px;min-width:140px}
-.karma-label{font-family:var(--fd);font-size:11px;font-weight:700;text-align:center;letter-spacing:1px;margin-bottom:4px}
-.karma-input{width:100%;border:none;border-bottom:1px solid #999;background:transparent;font-family:var(--fb);font-size:12px;text-align:center;outline:none;padding:4px 0}
+.karma-wrap{display:flex;gap:6px;align-items:stretch}
+.karma-box{border:1.5px solid #000;padding:6px 8px;min-width:70px;flex:1;display:flex;flex-direction:column;align-items:center}
+.karma-label{font-family:var(--fd);font-size:9px;font-weight:700;text-align:center;letter-spacing:.5px;margin-bottom:3px;line-height:1.2}
+.karma-input{width:100%;border:none;border-bottom:1px solid #999;background:transparent;font-family:var(--fb);font-size:14px;font-weight:700;text-align:center;outline:none;padding:2px 0}
 .karma-input:focus{border-bottom-color:var(--accent)}
+.karma-pool-name{width:100%;margin-top:3px;font-size:9px;text-align:center;border:none;border-bottom:1px solid #ccc;background:transparent;font-family:var(--fb);outline:none;padding:1px 2px}
+.karma-pool-name:focus{border-bottom-color:var(--accent)}
 
 /* ── Limitation ── */
 .limitation-row{margin:6px 0;display:flex;align-items:baseline;gap:4px}
@@ -373,7 +379,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 
         <div class="bio-row">
           <span class="lbl">Origin</span>
-          <select class="si" data-field="origin" style="border-bottom:1.5px solid #000;height:var(--cell-h)">
+          <select class="si-calc-sel" data-field="origin" style="flex:1;height:var(--cell-h)">
             <option value=""></option>
             <option>Altered Human</option><option>Mutant</option><option>Hi-Tech</option>
             <option>Robot</option><option>Alien</option><option>Normal Human</option>
@@ -450,8 +456,8 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
       </table>
       <!-- Movement -->
       <div class="movement-row">
-        <div class="movement-item"><span class="lbl">RUN</span><input type="number" data-field="moveRun" placeholder="—"></div>
-        <div class="movement-item"><span class="lbl">LEAP</span><input type="number" data-field="moveLeap" placeholder="—"></div>
+        <div class="movement-item"><span class="lbl">RUN</span><input class="si-calc" type="number" data-field="moveRun" placeholder="—"></div>
+        <div class="movement-item"><span class="lbl">LEAP</span><input class="si-calc" type="number" data-field="moveLeap" placeholder="—"></div>
         <div class="movement-item"><span class="lbl">SWIM</span><input type="number" data-field="moveSwim" placeholder="—"></div>
         <div class="movement-item"><span class="lbl">FLY</span><input type="number" data-field="moveFly" placeholder="0"></div>
         <div class="movement-item"><span class="lbl">TELE</span><input type="number" data-field="moveTeleport" placeholder="0"></div>
@@ -513,16 +519,18 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
         <ul class="item-list" id="talents-list"></ul>
       </div>
 
-      <!-- Karma Boxes -->
+      <!-- Karma Boxes — side by side -->
       <div>
-        <div class="karma-box">
-          <div class="karma-label">Advancement Fund<br>Karma</div>
-          <input class="karma-input" data-field="advancementKarma" type="number" value="0">
-        </div>
-        <div class="karma-box" style="margin-top:6px">
-          <div class="karma-label">Karma Pool</div>
-          <input class="karma-input" data-field="karmaPool" type="number" value="0">
-          <input class="si" data-field="poolName" placeholder="Pool name" style="width:100%;margin-top:4px;font-size:10px;text-align:center">
+        <div class="karma-wrap">
+          <div class="karma-box">
+            <div class="karma-label">Advancement<br>Karma</div>
+            <input class="karma-input" data-field="advancementKarma" type="number" value="0">
+          </div>
+          <div class="karma-box">
+            <div class="karma-label">Karma<br>Pool</div>
+            <input class="karma-input" data-field="karmaPool" type="number" value="0">
+            <input class="karma-pool-name" data-field="poolName" placeholder="Pool name">
+          </div>
         </div>
       </div>
 
