@@ -289,5 +289,5 @@
 
 /* ── Print: hide site bar ── */
 @media print {
-  .gcc-bar, .gcc-tools-overlay { display: none !important; }
+  .gcc-bar, .gcc-tools-overlay, .gcc-mp-bar { display: none !important; }
 }
