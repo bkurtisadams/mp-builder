@@ -218,6 +218,33 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .chargen-origin-btns button:hover{border-color:var(--accent);background:#fff4e6}
 .chargen-origin-btns button.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
 
+/* ── Step-by-step chargen wizard ── */
+.cg-step{margin-top:8px}
+.cg-step-title{font-family:var(--fd);font-size:13px;font-weight:700;color:var(--accent);letter-spacing:1px;margin-bottom:4px}
+.cg-step-desc{font-size:10px;color:#555;margin-bottom:6px;line-height:1.35}
+.cg-roll-row{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11px;font-family:var(--fb)}
+.cg-roll-label{font-weight:700;min-width:20px;font-family:var(--fd);font-size:12px}
+.cg-roll-result{font-weight:700;color:var(--accent)}
+.cg-roll-rank{font-weight:700}
+.cg-mod-note{font-size:10px;color:#158015;font-style:italic;margin-left:4px}
+.cg-pick-grid{display:flex;flex-wrap:wrap;gap:3px;margin:4px 0}
+.cg-pick-btn{padding:3px 8px;font-size:9px;font-family:var(--fb);font-weight:700;border:1px solid #999;background:#f5f5f0;cursor:pointer;border-radius:2px}
+.cg-pick-btn:hover{border-color:var(--accent);background:#fff4e6}
+.cg-pick-btn.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cg-pick-btn.disabled{opacity:.35;pointer-events:none}
+.cg-pick-btn.star{border-color:#8b0000;color:#8b0000}
+.cg-pick-btn.star.selected{background:#8b0000;color:#fff}
+.cg-cat-hdr{font-family:var(--fd);font-size:10px;font-weight:700;color:#444;margin:6px 0 2px;letter-spacing:.5px}
+.cg-summary{font-size:10px;background:#f0f8ff;border:1px solid #b0d0e8;border-radius:3px;padding:6px 8px;margin:6px 0;line-height:1.4}
+.cg-summary strong{font-family:var(--fd);letter-spacing:.5px}
+.cg-next-btn{padding:5px 14px;font-family:var(--fd);font-size:11px;font-weight:700;border:2px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;letter-spacing:1px;border-radius:2px;margin-top:6px}
+.cg-next-btn:hover{background:#d06a10}
+.cg-next-btn:disabled{opacity:.4;cursor:default}
+.cg-next-btn.secondary{background:#fff;color:var(--accent)}
+.cg-next-btn.secondary:hover{background:var(--accent);color:#fff}
+.cg-reroll-btn{padding:2px 8px;font-size:9px;font-family:var(--fb);font-weight:700;border:1px solid #999;background:#fff;cursor:pointer;border-radius:2px;color:#666}
+.cg-reroll-btn:hover{border-color:var(--accent);color:var(--accent)}
+
 /* ── Save/Load Modal ── */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center}
 .modal-overlay.open{display:flex}
@@ -1180,6 +1207,376 @@ function setCollapseState(id,open){
 // ══════════════════════════════════════════════════════════════
 // CHARGEN
 // ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// STEP-BY-STEP CHARACTER GENERATION
+// ══════════════════════════════════════════════════════════════
+
+function stepByStep(){
+  const area=document.getElementById("cg-step-area");
+  const logEl=document.getElementById("cg-log");
+  logEl.style.display="none";
+  const log=[];
+  const L=m=>{log.push(m)};
+
+  // State
+  const S={origin:null,abs:{},health:0,karma:0,resRank:"Typical",pop:10,
+    pSlots:{initial:0,max:0},tSlots:{initial:0,max:0},cSlots:{initial:0,max:0},
+    powers:[],talents:[],contacts:[],raisedAbility:null};
+
+  step1_origin();
+
+  // ── STEP 1: Origin ──
+  function step1_origin(){
+    area.innerHTML=`
+      <div class="cg-step">
+        <div class="cg-step-title">STEP 1: ORIGIN</div>
+        <div class="cg-step-desc">Choose an origin or roll randomly.</div>
+        <div class="cg-pick-grid" id="cg-origin-pick">
+          <button class="cg-pick-btn" data-o="Altered Human">Altered Human</button>
+          <button class="cg-pick-btn" data-o="Mutant">Mutant</button>
+          <button class="cg-pick-btn" data-o="Hi-Tech">Hi-Tech</button>
+          <button class="cg-pick-btn" data-o="Robot">Robot</button>
+          <button class="cg-pick-btn" data-o="Alien">Alien</button>
+        </div>
+        <button class="cg-reroll-btn" id="cg-origin-roll">Roll Random</button>
+        <div id="cg-origin-note" style="font-size:10px;color:#555;margin-top:4px"></div>
+        <button class="cg-next-btn" id="cg-origin-next" disabled>NEXT →</button>
+      </div>`;
+    const btns=area.querySelectorAll("[data-o]");
+    btns.forEach(b=>b.addEventListener("click",()=>{
+      btns.forEach(x=>x.classList.remove("selected"));
+      b.classList.add("selected");
+      S.origin=b.dataset.o;
+      showOriginNote(S.origin);
+      area.querySelector("#cg-origin-next").disabled=false;
+    }));
+    area.querySelector("#cg-origin-roll").addEventListener("click",()=>{
+      const{roll,result}=rollOn(ORIGIN_TABLE);
+      S.origin=result.origin;
+      btns.forEach(x=>x.classList.toggle("selected",x.dataset.o===S.origin));
+      showOriginNote(S.origin,roll);
+      area.querySelector("#cg-origin-next").disabled=false;
+    });
+    area.querySelector("#cg-origin-next").addEventListener("click",()=>{
+      L(`Origin: ${S.origin}`);
+      step2_abilities();
+    });
+  }
+
+  function showOriginNote(o,roll){
+    const notes={
+      "Altered Human":"Roll on Column 1. May raise one primary ability by one rank.",
+      "Mutant":"Roll on Column 1. Endurance +1 rank. +1 Power. Resources -1 rank. Popularity starts at 0.",
+      "Hi-Tech":"Roll on Column 3. Reason +2 ranks. Resources start at Good. Must have 1 Contact and 1 scientific/professional Talent.",
+      "Robot":"Roll on Column 4. Popularity starts at 0. No Karma loss for killing robots.",
+      "Alien":"Roll on Column 5. -1 Power (min 2). Resources start at Poor. Max 1 initial Contact."
+    };
+    const el=document.getElementById("cg-origin-note");
+    el.textContent=(roll?`Roll: ${roll} → `:"") + (notes[o]||"");
+  }
+
+  // ── STEP 2: Primary Abilities ──
+  function step2_abilities(){
+    const col=getCol(S.origin);
+    for(const key of ABILITIES){
+      const{roll,result}=rollOn(col);
+      S.abs[key]={initialRoll:roll,initialRank:result.rank,rank:result.rank,value:getRankValue(result.rank)};
+    }
+    // Origin auto-mods
+    if(S.origin==="Mutant"){
+      S.abs.endurance.rank=shiftRank(S.abs.endurance.rank,1);
+      S.abs.endurance.value=getRankValue(S.abs.endurance.rank);
+    }
+    if(S.origin==="Hi-Tech"){
+      S.abs.reason.rank=shiftRank(S.abs.reason.rank,2);
+      S.abs.reason.value=getRankValue(S.abs.reason.rank);
+    }
+
+    renderStep2();
+  }
+
+  function renderStep2(){
+    let rows="";
+    for(const key of ABILITIES){
+      const a=S.abs[key];
+      let mod="";
+      if(S.origin==="Mutant"&&key==="endurance") mod='<span class="cg-mod-note">+1 rank (Mutant)</span>';
+      if(S.origin==="Hi-Tech"&&key==="reason") mod='<span class="cg-mod-note">+2 ranks (Hi-Tech)</span>';
+      if(S.raisedAbility===key) mod='<span class="cg-mod-note">+1 rank (chosen)</span>';
+      rows+=`<div class="cg-roll-row"><span class="cg-roll-label">${AB_LABELS[key]}</span>
+        <span>Roll <span class="cg-roll-result">${a.initialRoll}</span></span>
+        <span>→ <span class="cg-roll-rank">${a.rank}</span> (${a.value})</span>${mod}</div>`;
+    }
+
+    const needsRaise=S.origin==="Altered Human";
+    let raiseHtml="";
+    if(needsRaise){
+      raiseHtml=`<div class="cg-step-desc" style="margin-top:6px">Altered Human: Choose one ability to raise by one rank.</div>
+        <div class="cg-pick-grid" id="cg-raise-pick">
+        ${ABILITIES.map(k=>`<button class="cg-pick-btn${S.raisedAbility===k?" selected":""}" data-r="${k}">${AB_LABELS[k]} (${S.abs[k].rank}→${shiftRank(S.abs[k].rank,1)})</button>`).join("")}
+        </div>`;
+    }
+
+    area.innerHTML=`
+      <div class="cg-step">
+        <div class="cg-step-title">STEP 2: PRIMARY ABILITIES</div>
+        <div class="cg-step-desc">Rolled on ${S.origin==="Hi-Tech"?"Column 3":S.origin==="Robot"?"Column 4":S.origin==="Alien"?"Column 5":"Column 1"}.</div>
+        ${rows}
+        ${raiseHtml}
+        <button class="cg-reroll-btn" id="cg-ab-reroll" style="margin-top:6px">Reroll All</button>
+        <button class="cg-next-btn" id="cg-ab-next"${needsRaise&&!S.raisedAbility?" disabled":""}>NEXT →</button>
+      </div>`;
+
+    if(needsRaise){
+      area.querySelectorAll("[data-r]").forEach(b=>b.addEventListener("click",()=>{
+        // undo previous raise
+        if(S.raisedAbility){
+          const prev=S.raisedAbility;
+          S.abs[prev].rank=S.abs[prev].initialRank;
+          S.abs[prev].value=getRankValue(S.abs[prev].initialRank);
+        }
+        const k=b.dataset.r;
+        S.raisedAbility=k;
+        S.abs[k].rank=shiftRank(S.abs[k].initialRank,1);
+        S.abs[k].value=getRankValue(S.abs[k].rank);
+        renderStep2();
+      }));
+    }
+    area.querySelector("#cg-ab-reroll").addEventListener("click",()=>{
+      S.raisedAbility=null;
+      const col=getCol(S.origin);
+      for(const key of ABILITIES){
+        const{roll,result}=rollOn(col);
+        S.abs[key]={initialRoll:roll,initialRank:result.rank,rank:result.rank,value:getRankValue(result.rank)};
+      }
+      if(S.origin==="Mutant"){S.abs.endurance.rank=shiftRank(S.abs.endurance.rank,1);S.abs.endurance.value=getRankValue(S.abs.endurance.rank);}
+      if(S.origin==="Hi-Tech"){S.abs.reason.rank=shiftRank(S.abs.reason.rank,2);S.abs.reason.value=getRankValue(S.abs.reason.rank);}
+      renderStep2();
+    });
+    area.querySelector("#cg-ab-next").addEventListener("click",()=>{
+      for(const k of ABILITIES) L(`${AB_LABELS[k]}: Roll ${S.abs[k].initialRoll} → ${S.abs[k].rank} (${S.abs[k].value})`);
+      if(S.raisedAbility) L(`Altered Human: Raised ${S.raisedAbility} to ${S.abs[S.raisedAbility].rank}`);
+      step3_secondary();
+    });
+  }
+
+  // ── STEP 3: Secondary Abilities ──
+  function step3_secondary(){
+    S.health=S.abs.fighting.value+S.abs.agility.value+S.abs.strength.value+S.abs.endurance.value;
+    S.karma=S.abs.reason.value+S.abs.intuition.value+S.abs.psyche.value;
+
+    S.resRank=S.origin==="Alien"?"Poor":S.origin==="Hi-Tech"?"Good":"Typical";
+    const{roll:mRoll,result:mRes}=rollOn(ABILITY_MOD);
+    S.resRank=shiftRank(S.resRank,mRes.mod);
+    if(S.origin==="Mutant") S.resRank=shiftRank(S.resRank,-1);
+
+    S.pop=10;
+    if(S.origin==="Mutant"||S.origin==="Robot") S.pop=0;
+
+    L(`Health: ${S.health}  Karma: ${S.karma}`);
+    L(`Resources: ${S.resRank} (mod roll ${mRoll})`);
+    L(`Popularity: ${S.pop}`);
+
+    area.innerHTML=`
+      <div class="cg-step">
+        <div class="cg-step-title">STEP 3: SECONDARY ABILITIES</div>
+        <div class="cg-summary">
+          <strong>Health:</strong> ${S.health} (F+A+S+E)<br>
+          <strong>Karma:</strong> ${S.karma} (R+I+P)<br>
+          <strong>Resources:</strong> ${S.resRank} (roll ${mRoll}, mod ${mRes.mod>=0?"+":""}${mRes.mod})${S.origin==="Mutant"?" -1 rank (Mutant)":""}${S.origin==="Hi-Tech"?" (started at Good)":""}${S.origin==="Alien"?" (started at Poor)":""}<br>
+          <strong>Popularity:</strong> ${S.pop}${S.origin==="Mutant"||S.origin==="Robot"?" (0 for "+S.origin+")":""}
+        </div>
+        <button class="cg-next-btn" id="cg-sec-next">NEXT →</button>
+      </div>`;
+    area.querySelector("#cg-sec-next").addEventListener("click",step4_powerSlots);
+  }
+
+  // ── STEP 4: Power/Talent/Contact Slots ──
+  function step4_powerSlots(){
+    const{result:pR}=rollOn(POWERS_TBL);
+    const{result:tR}=rollOn(TALENTS_TBL);
+    const{result:cR}=rollOn(CONTACTS_TBL);
+    S.pSlots={initial:pR.initial,max:pR.max};
+    S.tSlots={initial:tR.initial,max:tR.max};
+    S.cSlots={initial:cR.initial,max:cR.max};
+    if(S.origin==="Mutant") S.pSlots.initial=Math.min(S.pSlots.initial+1,S.pSlots.max);
+    if(S.origin==="Alien") S.pSlots.initial=Math.max(2,S.pSlots.initial-1);
+    if(S.origin==="Hi-Tech"&&S.cSlots.initial<1) S.cSlots.initial=1;
+    if(S.origin==="Alien") S.cSlots.initial=Math.min(S.cSlots.initial,1);
+
+    L(`Powers: ${S.pSlots.initial}/${S.pSlots.max}  Talents: ${S.tSlots.initial}/${S.tSlots.max}  Contacts: ${S.cSlots.initial}/${S.cSlots.max}`);
+
+    area.innerHTML=`
+      <div class="cg-step">
+        <div class="cg-step-title">STEP 4: SLOTS</div>
+        <div class="cg-summary">
+          <strong>Powers:</strong> ${S.pSlots.initial} initial / ${S.pSlots.max} max${S.origin==="Mutant"?" (+1 Mutant)":""}${S.origin==="Alien"?" (-1 Alien)":""}<br>
+          <strong>Talents:</strong> ${S.tSlots.initial} initial / ${S.tSlots.max} max<br>
+          <strong>Contacts:</strong> ${S.cSlots.initial} initial / ${S.cSlots.max} max${S.origin==="Hi-Tech"?" (min 1 Hi-Tech)":""}${S.origin==="Alien"?" (max 1 Alien)":""}
+        </div>
+        <div class="cg-step-desc">You may purchase additional slots by reducing Resources (-2 ranks per Power, -1 per Talent/Contact).</div>
+        <button class="cg-next-btn" id="cg-slots-next">CHOOSE POWERS →</button>
+      </div>`;
+    area.querySelector("#cg-slots-next").addEventListener("click",()=>{S.powers=[];step5_pickPower(0);});
+  }
+
+  // ── STEP 5: Pick Powers one at a time ──
+  function step5_pickPower(idx){
+    if(idx>=S.pSlots.initial){step6_pickTalents();return;}
+
+    const{result:catRes}=rollOn(POWER_CATS);
+    const catName=catRes.cat;
+    const{roll:rkRoll,result:rkRes}=rollOn(COL4);
+    const pRank=rkRes.rank;
+
+    area.innerHTML=`
+      <div class="cg-step">
+        <div class="cg-step-title">STEP 5: POWER ${idx+1} OF ${S.pSlots.initial}</div>
+        <div class="cg-step-desc">Category rolled: <strong>${catName}</strong>. Power rank: <strong>${pRank}</strong> (roll ${rkRoll}). Choose a power from this category.</div>
+        <div class="cg-pick-grid" id="cg-power-pick"></div>
+        <button class="cg-reroll-btn" id="cg-power-recat">Reroll Category</button>
+      </div>`;
+
+    renderPowerPicks(catName, pRank, rkRoll, idx);
+
+    area.querySelector("#cg-power-recat").addEventListener("click",()=>{
+      step5_pickPower(idx);
+    });
+  }
+
+  function renderPowerPicks(catName, pRank, rkRoll, idx){
+    const grid=area.querySelector("#cg-power-pick");
+    const pList=POWER_LISTS[catName]||[];
+    const usedSlots=S.powers.reduce((n,p)=>n+(p.name.endsWith("*")?2:1),0);
+    const slotsLeft=S.pSlots.initial-usedSlots;
+
+    grid.innerHTML=pList.map(p=>{
+      const isStar=p.endsWith("*");
+      const already=S.powers.some(x=>x.name===p);
+      const canPick=!already&&(!isStar||slotsLeft>=2);
+      return `<button class="cg-pick-btn${isStar?" star":""}${!canPick?" disabled":""}" data-pw="${p}">${p}</button>`;
+    }).join("");
+
+    grid.querySelectorAll(".cg-pick-btn:not(.disabled)").forEach(b=>b.addEventListener("click",()=>{
+      const name=b.dataset.pw;
+      const isStar=name.endsWith("*");
+      S.powers.push({name,rank:pRank,value:getRankValue(pRank),category:catName});
+      L(`Power ${idx+1}: ${name} — ${pRank} (${catName})`);
+      const nextIdx=idx+(isStar?2:1);
+      step5_pickPower(nextIdx);
+    }));
+  }
+
+  // ── STEP 6: Pick Talents ──
+  function step6_pickTalents(){
+    S.talents=[];
+    step6_pickOneTalent(0);
+  }
+
+  function step6_pickOneTalent(idx){
+    if(idx>=S.tSlots.initial){step7_pickContacts();return;}
+
+    const{result:tcRes}=rollOn(TALENT_CATS);
+    const catName=tcRes.cat;
+
+    area.innerHTML=`
+      <div class="cg-step">
+        <div class="cg-step-title">STEP 6: TALENT ${idx+1} OF ${S.tSlots.initial}</div>
+        <div class="cg-step-desc">Category rolled: <strong>${catName}</strong>. Choose a talent.</div>
+        <div class="cg-pick-grid" id="cg-talent-pick"></div>
+        <button class="cg-reroll-btn" id="cg-talent-recat">Reroll Category</button>
+      </div>`;
+
+    const grid=area.querySelector("#cg-talent-pick");
+    const tList=TALENT_LISTS[catName]||[];
+    grid.innerHTML=tList.map(t=>{
+      const isStar=t.endsWith("*");
+      const already=S.talents.some(x=>x.name===t);
+      return `<button class="cg-pick-btn${isStar?" star":""}${already?" disabled":""}" data-tl="${t}">${t}</button>`;
+    }).join("");
+
+    grid.querySelectorAll(".cg-pick-btn:not(.disabled)").forEach(b=>b.addEventListener("click",()=>{
+      S.talents.push({name:b.dataset.tl});
+      L(`Talent ${idx+1}: ${b.dataset.tl} (${catName})`);
+      step6_pickOneTalent(idx+1);
+    }));
+
+    area.querySelector("#cg-talent-recat").addEventListener("click",()=>{step6_pickOneTalent(idx);});
+  }
+
+  // ── STEP 7: Pick Contacts ──
+  function step7_pickContacts(){
+    S.contacts=[];
+    step7_pickOneContact(0);
+  }
+
+  function step7_pickOneContact(idx){
+    if(idx>=S.cSlots.initial){step8_finish();return;}
+
+    area.innerHTML=`
+      <div class="cg-step">
+        <div class="cg-step-title">STEP 7: CONTACT ${idx+1} OF ${S.cSlots.initial}</div>
+        <div class="cg-step-desc">Choose a contact type.</div>
+        <div class="cg-pick-grid" id="cg-contact-pick"></div>
+      </div>`;
+
+    const grid=area.querySelector("#cg-contact-pick");
+    grid.innerHTML=CONTACT_TYPES.map(c=>{
+      const already=S.contacts.some(x=>x.name===c);
+      return `<button class="cg-pick-btn${already?" disabled":""}" data-ct="${c}">${c}</button>`;
+    }).join("");
+
+    grid.querySelectorAll(".cg-pick-btn:not(.disabled)").forEach(b=>b.addEventListener("click",()=>{
+      S.contacts.push({name:b.dataset.ct});
+      L(`Contact ${idx+1}: ${b.dataset.ct}`);
+      step7_pickOneContact(idx+1);
+    }));
+  }
+
+  // ── STEP 8: Finish ──
+  function step8_finish(){
+    area.innerHTML=`
+      <div class="cg-step">
+        <div class="cg-step-title">COMPLETE</div>
+        <div class="cg-summary">
+          <strong>Origin:</strong> ${S.origin}<br>
+          <strong>F:</strong> ${S.abs.fighting.rank} (${S.abs.fighting.value})
+          <strong>A:</strong> ${S.abs.agility.rank} (${S.abs.agility.value})
+          <strong>S:</strong> ${S.abs.strength.rank} (${S.abs.strength.value})
+          <strong>E:</strong> ${S.abs.endurance.rank} (${S.abs.endurance.value})<br>
+          <strong>R:</strong> ${S.abs.reason.rank} (${S.abs.reason.value})
+          <strong>I:</strong> ${S.abs.intuition.rank} (${S.abs.intuition.value})
+          <strong>P:</strong> ${S.abs.psyche.rank} (${S.abs.psyche.value})<br>
+          <strong>Health:</strong> ${S.health} <strong>Karma:</strong> ${S.karma} <strong>Resources:</strong> ${S.resRank} <strong>Pop:</strong> ${S.pop}<br>
+          <strong>Powers:</strong> ${S.powers.map(p=>p.name+" ("+p.rank+")").join(", ")||"None"}<br>
+          <strong>Talents:</strong> ${S.talents.map(t=>t.name).join(", ")||"None"}<br>
+          <strong>Contacts:</strong> ${S.contacts.map(c=>c.name).join(", ")||"None"}
+        </div>
+        <button class="cg-next-btn" id="cg-apply">APPLY TO SHEET</button>
+        <button class="cg-next-btn secondary" id="cg-restart" style="margin-left:6px">START OVER</button>
+      </div>`;
+
+    area.querySelector("#cg-apply").addEventListener("click",()=>{
+      CHAR=newChar();
+      CHAR.origin=S.origin;
+      CHAR.abilities=S.abs;
+      CHAR.health=S.health;CHAR.healthMax=S.health;
+      CHAR.karma=S.karma;CHAR.karmaMax=S.karma;
+      CHAR.resourcesRank=S.resRank;CHAR.resourcesValue=getRankValue(S.resRank);
+      CHAR.popularityHero=S.pop;CHAR.popularitySecret=0;
+      CHAR.powers=S.powers;CHAR.talents=S.talents;CHAR.contacts=S.contacts;
+      CHAR.chargen={origin:S.origin,method:"step-by-step",date:new Date().toISOString()};
+      renderAll();autosave();
+      area.innerHTML="";
+      logEl.style.display="block";
+      logEl.textContent=log.join("\n");
+    });
+    area.querySelector("#cg-restart").addEventListener("click",()=>{
+      step1_origin();
+    });
+  }
+}
+
 function quickRandom(){
   const log=[];
   const L=m=>{log.push(m)};
@@ -1706,7 +2103,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   document.getElementById("cg-close").addEventListener("click",()=>cgPanel.classList.remove("open"));
   document.getElementById("cg-quick").addEventListener("click",quickRandom);
   document.getElementById("cg-step").addEventListener("click",()=>{
-    quickRandom();
+    stepByStep();
   });
 
   // Bio toggle
