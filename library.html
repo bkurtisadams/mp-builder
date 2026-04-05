@@ -87,41 +87,50 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .filter-tab:hover { color: var(--tx2) }
 .filter-tab.active { color: var(--tx); border-color: var(--brd-lt); background: var(--hover-bg) }
 
-/* ── Card Grid — 3 columns like DnD Beyond ── */
-.card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px }
+/* ── Card Grid — 4 columns, narrow cards ── */
+.card-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px }
 
-/* ── Entity Card — DnD Beyond compact style ── */
+/* ── Entity Card ── */
 .lib-card { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 6px; overflow: hidden; transition: all 0.15s; box-shadow: var(--card-shadow); position: relative; display: flex; flex-direction: column }
 .lib-card:hover { border-color: var(--brd-lt); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15) }
-
-/* Top section: portrait + dark bar with name/stats */
-.lib-card-top { display: flex; align-items: stretch; min-height: 64px }
-
-/* Portrait thumbnail */
-.lib-card-portrait { width: 64px; min-height: 64px; flex-shrink: 0; overflow: hidden; background: var(--bg2) }
-.lib-card-portrait img { width: 100%; height: 100%; object-fit: cover; display: block }
-.lib-card-portrait-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 22px; color: var(--tx3); opacity: 0.3 }
-
-/* Dark bar with name overlay — gradient from portrait to right */
-.lib-card-dark-bar { flex: 1; min-width: 0; padding: 8px 12px; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden }
-[data-gcc-theme="dark"] .lib-card-dark-bar { background: linear-gradient(135deg, #1a2030 0%, #10141a 100%) }
-[data-gcc-theme="light"] .lib-card-dark-bar { background: linear-gradient(135deg, #2a3a4a 0%, #1a2a3a 100%) }
-.lib-card-name { font-family: var(--fd); font-size: 14px; font-weight: 700; color: #fff; letter-spacing: 0.5px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.lib-card-sub { font-size: 10px; color: rgba(255,255,255,0.6); font-family: var(--fm); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 
 /* System color strip */
 .lib-card-strip { position: absolute; top: 0; left: 0; width: 3px; height: 100%; z-index: 3 }
 
-/* Info area below dark bar */
-.lib-card-info { padding: 5px 10px; display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 11px }
+/* Header: name + origin on dark bar */
+.lib-card-header { padding: 6px 10px 4px 12px; position: relative; overflow: hidden }
+[data-gcc-theme="dark"] .lib-card-header { background: linear-gradient(135deg, #1a2030 0%, #10141a 100%) }
+[data-gcc-theme="light"] .lib-card-header { background: linear-gradient(135deg, #2a3a4a 0%, #1a2a3a 100%) }
+.lib-card-name { font-family: var(--fd); font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 0.5px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.lib-card-origin { font-size: 10px; color: rgba(255,255,255,0.6); font-family: var(--fm); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+
+/* Body: portrait + stats side by side */
+.lib-card-body { display: flex; align-items: flex-start; gap: 6px; padding: 6px 8px 6px 10px }
+
+/* Portrait thumbnail */
+.lib-card-portrait { width: 56px; height: 72px; flex-shrink: 0; overflow: hidden; background: var(--bg2); border-radius: 3px; border: 1px solid var(--brd) }
+.lib-card-portrait img { width: 100%; height: 100%; object-fit: cover; display: block }
+.lib-card-portrait-empty { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--tx3); opacity: 0.3 }
+
+/* Stats block — vertical list */
+.lib-card-stats { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0 }
+.lib-card-stat-row { display: flex; align-items: baseline; gap: 3px; font-family: var(--fm); font-size: 10px; line-height: 1.6; color: var(--tx) }
+.lib-card-stat-label { font-weight: 700; width: 10px; color: var(--tx2) }
+.lib-card-stat-val { white-space: nowrap }
+
+/* Generic sub-info for non-FASERIP systems */
+.lib-card-sub { font-size: 10px; color: var(--tx2); font-family: var(--fm); line-height: 1.5; padding: 2px 0 }
+
+/* Info area: campaign + system badge */
+.lib-card-info { padding: 4px 10px; display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: 10px }
 .lib-card-campaign { color: var(--tx2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .lib-card-campaign a { color: var(--accent); text-decoration: none }
 .lib-card-campaign a:hover { text-decoration: underline }
-.lib-card-system { display: inline-block; font-family: var(--fsc); font-size: 8px; font-weight: 700; padding: 1px 6px; border-radius: 2px; letter-spacing: 1px; white-space: nowrap; flex-shrink: 0 }
+.lib-card-system { display: inline-block; font-family: var(--fsc); font-size: 7px; font-weight: 700; padding: 1px 5px; border-radius: 2px; letter-spacing: 1px; white-space: nowrap; flex-shrink: 0 }
 
 /* Action bar */
 .lib-card-actions { display: flex; border-top: 1px solid var(--brd); margin-top: auto }
-.lib-card-action { flex: 1; padding: 5px 0; font-size: 10px; font-family: var(--fsc); font-weight: 700; letter-spacing: 1px; border: none; background: transparent; cursor: pointer; color: var(--accent); text-align: center; text-decoration: none; transition: all 0.12s; border-right: 1px solid var(--brd) }
+.lib-card-action { flex: 1; padding: 4px 0; font-size: 9px; font-family: var(--fsc); font-weight: 700; letter-spacing: 1px; border: none; background: transparent; cursor: pointer; color: var(--accent); text-align: center; text-decoration: none; transition: all 0.12s; border-right: 1px solid var(--brd) }
 .lib-card-action:last-child { border-right: none }
 .lib-card-action:hover { background: var(--hover-bg); color: var(--accent-lt) }
 .lib-card-action.danger { color: var(--red) }
@@ -135,15 +144,16 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .ftr-inner { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px }
 
 /* ── Responsive ── */
-@media (max-width: 900px) {
-  .card-grid { grid-template-columns: repeat(2, 1fr) }
+@media (max-width: 960px) {
+  .card-grid { grid-template-columns: repeat(3, 1fr) }
 }
 @media (max-width: 700px) {
+  .card-grid { grid-template-columns: repeat(2, 1fr) }
   .page-title { font-size: 16px }
   .filter-bar { flex-direction: column }
   .filter-search { width: 100% }
 }
-@media (max-width: 480px) {
+@media (max-width: 420px) {
   .card-grid { grid-template-columns: 1fr }
 }
 </style>
@@ -243,7 +253,7 @@ function findCampaign(entity, campLookup) {
 // Resolve display data from a raw entity
 function resolveEntity(raw, systemId) {
   const isVeh = raw.type === 'mp-vehicle' || raw._toolId === 'mp-veh';
-  let name, sub, portrait;
+  let name, sub, portrait, origin = '', faseripStats = null;
   if (isVeh) {
     name = raw.name || 'Unnamed Vehicle';
     portrait = raw.pictureData || raw._image || '';
@@ -252,10 +262,17 @@ function resolveEntity(raw, systemId) {
   } else if (systemId === 'faserip') {
     name = raw.heroName || raw.name || 'Unnamed';
     portrait = raw.portraitData || '';
+    origin = raw.origin || '';
     const ab = raw.abilities || {};
-    const ranks = ['fighting','agility','strength','endurance','reason','intuition','psyche']
-      .map(k => ab[k] ? ab[k].rank?.substring(0,2) || 'TY' : 'TY').join('-');
-    sub = [raw.origin || '', ranks].filter(Boolean).join(' · ');
+    const STAT_KEYS = ['fighting','agility','strength','endurance','reason','intuition','psyche'];
+    const STAT_LABELS = ['F','A','S','E','R','I','P'];
+    faseripStats = STAT_KEYS.map((k, i) => {
+      const a = ab[k] || {};
+      const abbr = (a.rank || 'Typical').substring(0, 2);
+      const val = a.value != null ? a.value : 6;
+      return { label: STAT_LABELS[i], abbr, val };
+    });
+    sub = '';
   } else if (systemId === 'mp') {
     name = raw.name || 'Unnamed';
     portrait = raw._image || raw.portrait || '';
@@ -270,7 +287,7 @@ function resolveEntity(raw, systemId) {
     portrait = raw._image || raw.portraitData || '';
     sub = raw.sub || raw.class || '';
   }
-  return { name, sub, portrait, isVeh };
+  return { name, sub, portrait, isVeh, origin, faseripStats };
 }
 
 // State
@@ -356,13 +373,24 @@ function render() {
       portraitHtml = `<div class="lib-card-portrait-empty">${icon}</div>`;
     }
 
-    // Sub line
-    const subText = e.sub || (e.isVeh ? 'Vehicle' : '');
+    // Stats block — system-specific
+    let statsHtml = '';
+    if (e.faseripStats) {
+      statsHtml = e.faseripStats.map(s =>
+        `<div class="lib-card-stat-row"><span class="lib-card-stat-label">${s.label}</span> <span class="lib-card-stat-val">${ESC(s.abbr)}(${s.val})</span></div>`
+      ).join('');
+    } else {
+      const subText = e.sub || (e.isVeh ? 'Vehicle' : '');
+      if (subText) statsHtml = `<div class="lib-card-sub">${ESC(subText)}</div>`;
+    }
+
+    // Origin / subtitle for header
+    const originText = e.origin || e.sub || (e.isVeh ? 'Vehicle' : '');
 
     // Campaign link
     let campHtml = '';
     if (e.camp) {
-      campHtml = `<span class="lib-card-campaign">Campaign: <a href="index.html">${ESC(e.camp.name)}</a></span>`;
+      campHtml = `<span class="lib-card-campaign"><a href="index.html">${ESC(e.camp.name)}</a></span>`;
     }
 
     // System badge
@@ -382,12 +410,13 @@ function render() {
 
     return `<div class="lib-card">
       <div class="lib-card-strip" style="background:${sysColor}"></div>
-      <div class="lib-card-top">
+      <div class="lib-card-header">
+        <div class="lib-card-name">${ESC(e.name)}</div>
+        <div class="lib-card-origin">${ESC(e.faseripStats ? originText : (e.sub || (e.isVeh ? 'Vehicle' : '')))}</div>
+      </div>
+      <div class="lib-card-body">
         <div class="lib-card-portrait">${portraitHtml}</div>
-        <div class="lib-card-dark-bar">
-          <div class="lib-card-name">${ESC(e.name)}</div>
-          <div class="lib-card-sub">${ESC(subText)}</div>
-        </div>
+        <div class="lib-card-stats">${statsHtml}</div>
       </div>
       <div class="lib-card-info">
         ${campHtml || '<span></span>'}
