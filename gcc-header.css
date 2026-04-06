@@ -94,22 +94,22 @@
   object-fit: cover;
   flex-shrink: 0;
 }
-.gcc-title-wrap { display: flex; flex-direction: column; }
+.gcc-title-wrap { display: flex; flex-direction: column; line-height: 1.1; }
 .gcc-title {
   font-family: 'Cinzel', serif;
   font-size: 14px;
   font-weight: 700;
   color: var(--gcc-bar-tx);
   letter-spacing: 2px;
-  line-height: 1.2;
+  line-height: 1.1;
   transition: color 0.15s;
 }
 .gcc-subtitle {
-  font-family: 'Alegreya SC', serif;
-  font-size: 8px;
+  font-family: 'Cinzel', serif;
+  font-size: 9px;
+  font-weight: 700;
   color: var(--gcc-bar-tx2);
-  letter-spacing: 3px;
-  margin-top: 1px;
+  letter-spacing: 2.5px;
 }
 .gcc-nav {
   display: flex;
@@ -280,7 +280,7 @@
 /* ── Responsive ── */
 @media (max-width: 600px) {
   .gcc-title { font-size: 11px; letter-spacing: 1px; }
-  .gcc-subtitle { font-size: 7px; letter-spacing: 2px; }
+  .gcc-subtitle { font-size: 7px; letter-spacing: 1.5px; }
   .gcc-nav-btn { padding: 3px 7px; font-size: 9px; }
   .gcc-tools-dd { width: 260px; right: -8px; }
   .gcc-mp-logo-sub { font-size: 8px; }
