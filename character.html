@@ -339,6 +339,10 @@ body.view-mode .gcc-mp-btn-view-edit{display:inline-block}
   <div class="cp-strip" id="cp-strip">
     <div class="cp-item"><span class="cp-lbl">Base CPs:</span> <span class="cp-val" id="cp-base">—</span></div>
     <span class="cp-sep">|</span>
+    <div class="cp-item" id="cp-xp-wrap" style="background:#e1f5ee;padding:1px 6px;border-radius:3px;border:1px solid #9fe1cb;display:none"><span class="cp-lbl" style="color:#0f6e56">XP Spent:</span> <span class="cp-val" style="color:#085041" id="cp-xp">0</span></div>
+    <span class="cp-sep" id="cp-xp-sep" style="display:none">|</span>
+    <div class="cp-item" id="cp-budget-wrap" style="background:#e6f1fb;padding:1px 6px;border-radius:3px;border:1px solid #b5d4f4;display:none"><span class="cp-lbl" style="color:#185fa5">Budget:</span> <span class="cp-val" style="color:#0c447c" id="cp-budget">0</span></div>
+    <span class="cp-sep" id="cp-budget-sep" style="display:none">|</span>
     <div class="cp-item"><span class="cp-lbl">BC:</span> <span class="cp-val" id="cp-bc">0</span></div>
     <span class="cp-sep">|</span>
     <div class="cp-item"><span class="cp-lbl">Ability:</span> <span class="cp-val" id="cp-ab">0</span></div>
@@ -693,11 +697,21 @@ function recalcDerived() {
   abRows.forEach(cpEl => { abCpTotal += parseFloat(cpEl.value) || 0; });
   const sumEl = document.getElementById('cg-cp-summary');
   if (baseCPs > 0) {
+    const xpSpent = parseFloat(document.querySelector('[data-field="xpSpent"]')?.value) || 0;
+    const budget = baseCPs + xpSpent;
     const totalSpent = bcTotal + abCpTotal;
-    const remain = baseCPs - totalSpent;
+    const remain = budget - totalSpent;
     const bcBudget = pl && pl.totalCPs === baseCPs ? pl.bcPoints : '—';
-    sumEl.textContent = `${totalSpent} / ${baseCPs} CPs`;
+    sumEl.textContent = `${totalSpent} / ${budget} CPs`;
     document.getElementById('cp-base').textContent = baseCPs;
+    // Show XP Spent + Budget fields only when xpSpent > 0
+    const showXp = xpSpent > 0;
+    document.getElementById('cp-xp-wrap').style.display = showXp ? '' : 'none';
+    document.getElementById('cp-xp-sep').style.display = showXp ? '' : 'none';
+    document.getElementById('cp-budget-wrap').style.display = showXp ? '' : 'none';
+    document.getElementById('cp-budget-sep').style.display = showXp ? '' : 'none';
+    document.getElementById('cp-xp').textContent = '+' + xpSpent;
+    document.getElementById('cp-budget').textContent = budget;
     document.getElementById('cp-bc').textContent = bcTotal + (bcBudget !== '—' ? ' / ' + bcBudget : '');
     document.getElementById('cp-ab').textContent = abCpTotal;
     document.getElementById('cp-spent').textContent = totalSpent;
@@ -707,7 +721,6 @@ function recalcDerived() {
     // Experience
     const setField = (f, v) => { const el = document.querySelector(`[data-field="${f}"]`); if (el) el.value = v; };
     setField('xpBase', baseCPs);
-    const xpSpent = parseFloat(document.querySelector('[data-field="xpSpent"]')?.value) || 0;
     const xpTotal = baseCPs + xpSpent;
     setField('xpTotal', xpTotal);
 
