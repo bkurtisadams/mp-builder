@@ -164,6 +164,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 
 .cc-char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--brd) }
 .cc-char-card { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; position: relative; box-shadow: var(--card-shadow) }
+.cc-char-card:hover { border-color: var(--brd-lt); background: rgba(96,160,208,0.08) }
 .cc-char-card-top { display: flex; align-items: flex-start; gap: 7px }
 .cc-char-info { flex: 1; min-width: 0 }
 .cc-char-name { font-weight: 700; font-size: 12px }
