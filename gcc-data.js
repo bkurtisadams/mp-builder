@@ -75,44 +75,16 @@ const GCC = (function() {
         { id: 'add1-voy', name: 'Voyage Simulator', href: null },
       ]
     },
-    {
-      id: 'add2e',
-      name: 'AD&D 2nd Edition',
-      icon: '📜',
-      color: '#508a7a',
-      tools: [
-        { id: 'add2-char', name: 'Character Sheet', href: null },
-      ]
-    },
-    {
-      id: 'chainmail',
-      name: 'Chainmail',
-      icon: '⚔',
-      color: '#7a5a8a',
-      tools: [
-        { id: 'cm-mass', name: 'Mass Combat Tracker', href: null },
-        { id: 'cm-unit', name: 'Unit Builder', href: null },
-      ]
-    },
-    {
-      id: 'vnv',
-      name: 'Villains & Vigilantes',
-      icon: '💥',
-      color: '#9a6a30',
-      tools: [
-        { id: 'vnv-char', name: 'Character Sheet', href: null },
-      ]
-    },
+
+
+
   ];
 
   // ── System-specific labels ──
   const TEAM_LABELS = {
     faserip: 'Team',
     mp: 'Team',
-    vnv: 'Team',
     add1e: 'Party',
-    add2e: 'Party',
-    chainmail: 'Army',
   };
   function teamLabel(systemId) {
     return TEAM_LABELS[systemId] || 'Party';

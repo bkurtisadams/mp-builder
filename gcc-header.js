@@ -13,11 +13,6 @@
   const SHARED_TOOLS = [
     { icon: '🏰', name: 'Campaigns', href: 'index.html' },
     { icon: '📚', name: 'Library', href: 'library.html' },
-    { icon: '📅', name: 'Calendar & Time' },
-    { icon: '🌦', name: 'Greyhawk Weather' },
-    { icon: '🎲', name: 'Dice Roller' },
-    { icon: '🖥', name: 'VTT Connections' },
-    { icon: '💾', name: 'Export / Import' },
   ];
 
   // ── Theme ──
