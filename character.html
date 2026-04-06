@@ -707,8 +707,8 @@ function recalcDerived() {
     // Experience
     const setField = (f, v) => { const el = document.querySelector(`[data-field="${f}"]`); if (el) el.value = v; };
     setField('xpBase', baseCPs);
-    const xpEarned = parseFloat(document.querySelector('[data-field="xpEarned"]')?.value) || 0;
-    const xpTotal = baseCPs + xpEarned;
+    const xpSpent = parseFloat(document.querySelector('[data-field="xpSpent"]')?.value) || 0;
+    const xpTotal = baseCPs + xpSpent;
     setField('xpTotal', xpTotal);
 
     // Caps (based on total CPs spent on BCs + abilities, matching Roll20 total_eps)
