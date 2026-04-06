@@ -894,6 +894,8 @@ document.getElementById('btn-roll-all').addEventListener('click', async () => {
   const plVal = document.getElementById('cg-power-level').value;
   clearAll();
   document.getElementById('cg-power-level').value = plVal;
+  const plObj = MP.CG.POWER_LEVELS.find(p => p.id === plVal);
+  if (plObj) document.getElementById('cg-base-cps').value = plObj.totalCPs;
   const pl = document.getElementById('cg-power-level').value;
   const ch = MP.CG.rollCharacter(pl);
 
@@ -1002,14 +1004,11 @@ function populateData(d) {
     if (d[el.dataset.field] != null) el.value = d[el.dataset.field];
   });
   if (d.powerLevel) document.getElementById('cg-power-level').value = d.powerLevel;
-  // Set CP box: prefer xpBase from import, fall back to power level
+  // Set CP box from power level; fall back to xpBase for imports without powerLevel
   const cpBox = document.getElementById('cg-base-cps');
-  if (d.xpBase) {
-    cpBox.value = d.xpBase;
-  } else {
-    const pl = MP.CG.POWER_LEVELS.find(p => p.id === document.getElementById('cg-power-level').value);
-    if (pl) cpBox.value = pl.totalCPs;
-  }
+  const pl = MP.CG.POWER_LEVELS.find(p => p.id === document.getElementById('cg-power-level').value);
+  if (pl) cpBox.value = pl.totalCPs;
+  if (!d.powerLevel && d.xpBase) cpBox.value = d.xpBase;
   if (d.stats) {
     document.querySelectorAll('.stat-row[data-stat]').forEach(row => {
       const s = d.stats[row.dataset.stat];
