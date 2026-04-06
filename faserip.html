@@ -256,6 +256,17 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .cg-reroll-btn{padding:2px 8px;font-size:9px;font-family:var(--fb);font-weight:700;border:1px solid #999;background:#fff;cursor:pointer;border-radius:2px;color:#666}
 .cg-reroll-btn:hover{border-color:var(--accent);color:var(--accent)}
 
+/* ── View Mode ── */
+body.view-mode .fas-hdr-btns .hdr-btn:not(.hdr-btn-view-edit){ display:none }
+body.view-mode .chargen-panel{ display:none!important }
+body.view-mode .list-add,body.view-mode .item-del,body.view-mode .item-info,body.view-mode .feat-btn,body.view-mode .bio-toggle{ display:none!important }
+body.view-mode input,body.view-mode select,body.view-mode textarea{ pointer-events:none!important; user-select:text!important; -webkit-user-select:text!important; opacity:1!important }
+body.view-mode input:focus,body.view-mode select:focus,body.view-mode textarea:focus{ outline:none!important; border-color:inherit!important }
+.view-badge{display:none;font-family:var(--fd);font-size:9px;letter-spacing:2px;color:#5ac8e8;border:1px solid #5ac8e866;padding:2px 8px;border-radius:2px;margin-right:6px;pointer-events:none}
+body.view-mode .view-badge{display:inline-block}
+.hdr-btn-view-edit{display:none}
+body.view-mode .hdr-btn-view-edit{display:inline-block}
+
 /* ── Print ── */
 @media print{
   .gcc-bar,.fas-hdr,.fas-ftr,.chargen-panel,.hdr-btn,
@@ -307,6 +318,8 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
       </div>
     </div>
     <div class="fas-hdr-btns">
+      <span class="view-badge">VIEW MODE</span>
+      <button class="hdr-btn hdr-btn-view-edit" id="btn-view-edit" title="Switch to Edit Mode">Edit</button>
       <button class="hdr-btn" id="btn-new" title="New Character">New</button>
       <button class="hdr-btn" id="btn-chargen" title="Random Character Generator">Generate</button>
       <button class="hdr-btn" id="btn-save" title="Save Character">Save</button>
@@ -2151,6 +2164,15 @@ document.addEventListener("DOMContentLoaded",()=>{
   // Set current page in GCC header
   if(window.GCC_HEADER && window.GCC_HEADER.setCurrentPage){
     window.GCC_HEADER.setCurrentPage("fas-char");
+  }
+
+  // View mode
+  if(new URLSearchParams(window.location.search).get('mode')==='view'){
+    document.body.classList.add('view-mode');
+    document.title='FASERIP — View Character';
+    document.getElementById('btn-view-edit').addEventListener('click',()=>{
+      const u=new URL(window.location); u.searchParams.delete('mode'); window.location=u;
+    });
   }
 });
 </script>

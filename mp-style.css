@@ -378,3 +378,16 @@ body { min-height: 100%; background: var(--bg); color: var(--tx); font-family: v
   /* Page setup */
   @page { size: letter portrait; margin: 0.4in }
 }
+
+/* ── View Mode ── */
+body.view-mode .gcc-mp-btns .gcc-mp-btn:not(.gcc-mp-btn-view-edit){ display:none }
+body.view-mode .gcc-mp-template{ display:none }
+body.view-mode .vs-sys-del,body.view-mode .vs-sys-ins,body.view-mode .vs-sys-edit,body.view-mode .vs-sys-grip,body.view-mode .vs-sys-add-row{ display:none!important }
+body.view-mode .vs-picture-controls{ display:none!important }
+body.view-mode .vs-layout-toolbar{ display:none!important }
+body.view-mode input,body.view-mode select,body.view-mode textarea{ pointer-events:none!important; user-select:text!important; -webkit-user-select:text!important; opacity:1!important }
+body.view-mode input:focus,body.view-mode select:focus,body.view-mode textarea:focus{ outline:none!important; border-color:inherit!important }
+.view-badge{display:none;font-family:'Bitter',serif;font-size:9px;font-weight:700;letter-spacing:2px;color:#8be9fd;border:1px solid #8be9fd66;padding:2px 8px;border-radius:2px;margin-right:6px;pointer-events:none}
+body.view-mode .view-badge{display:inline-block}
+.gcc-mp-btn-view-edit{display:none}
+body.view-mode .gcc-mp-btn-view-edit{display:inline-block}

@@ -448,7 +448,8 @@ function render() {
           ? 'id=' + encodeURIComponent(resolved._id || ch._id)
           : 'char=' + encodeURIComponent(resolved.name);
         const href = charTool.href + (charTool.href.includes('?') ? '&' : '?') + linkParam;
-        nameHtml = `<a href="${ESC(href)}">${ESC(resolved.name)}</a>`;
+        const viewHref = href + '&mode=view';
+        nameHtml = `<a href="${ESC(viewHref)}">${ESC(resolved.name)}</a> <a href="${ESC(href)}" style="font-size:9px;color:var(--tx3);text-decoration:none" title="Edit">✎</a>`;
       } else {
         nameHtml = ESC(resolved.name);
       }
@@ -480,7 +481,7 @@ function render() {
         : `<div class="entity-portrait-ph" style="border-radius:4px">🚗</div>`;
       const sub = [v.model, v._totalCost != null ? v._totalCost + ' CPs' : ''].filter(Boolean).join(' · ');
       const nameHtml = vehTool.href
-        ? `<a href="${ESC(vehTool.href)}">${ESC(v.name || 'Unnamed')}</a>`
+        ? `<a href="${ESC(vehTool.href)}?mode=view">${ESC(v.name || 'Unnamed')}</a> <a href="${ESC(vehTool.href)}" style="font-size:9px;color:var(--tx3);text-decoration:none" title="Edit">✎</a>`
         : ESC(v.name || 'Unnamed');
       vehHtml += `<div class="entity-card"><div class="entity-pip" style="background:${col}"></div>${portraitHtml}<div class="entity-info"><div class="entity-name">${nameHtml}</div><div class="entity-sub">${ESC(sub)}</div>${v.operator ? '<div class="entity-player">' + ESC(v.operator) + '</div>' : ''}</div></div>`;
     });

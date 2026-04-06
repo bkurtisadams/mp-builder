@@ -765,7 +765,8 @@ function renderCampaigns() {
           ? 'id=' + encodeURIComponent(resolved._id || ch._id)
           : 'char=' + encodeURIComponent(resolved.name);
         const href = charTool.href + (charTool.href.includes('?')?'&':'?') + linkParam;
-        nameHtml = `<a class="cc-char-name cc-char-link" href="${ESC(href)}">${ESC(resolved.name)}</a>`;
+        const viewHref = href + '&mode=view';
+        nameHtml = `<a class="cc-char-name cc-char-link" href="${ESC(viewHref)}">${ESC(resolved.name)}</a>`;
       } else {
         nameHtml = `<span class="cc-char-name">${ESC(resolved.name)}</span>`;
       }

@@ -389,11 +389,13 @@ function render() {
     const tool = sys.tools?.find(t => t.charList === e.raw._listKey && t.href)
       || sys.tools?.find(t => t.charList && t.href);
     let editHref = '#';
+    let viewHref = '#';
     if (tool) {
       const linkParam = e.raw._id
         ? 'id=' + encodeURIComponent(e.raw._id)
         : (e.isVeh ? '' : 'char=' + encodeURIComponent(e.name));
       editHref = tool.href + (linkParam ? (tool.href.includes('?') ? '&' : '?') + linkParam : '');
+      viewHref = editHref + (editHref.includes('?') ? '&' : '?') + 'mode=view';
     }
 
     return `<div class="lib-card">
@@ -408,6 +410,7 @@ function render() {
         ${campRowHtml}
       </div>
       <div class="lib-card-actions">
+        <a class="lib-card-action" href="${ESC(viewHref)}">VIEW</a>
         <a class="lib-card-action" href="${ESC(editHref)}">EDIT</a>
         <button class="lib-card-action danger" data-del-id="${ESC(e.raw._id || '')}" data-del-key="${ESC(e.raw._listKey || '')}" data-del-name="${ESC(e.name)}">DELETE</button>
       </div>

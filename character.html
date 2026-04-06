@@ -202,6 +202,18 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
 .stat-row .si-calc { width: 100%; text-align: center; background: #f8f8f0 }
 
 /* Print — fit entire sheet on one Letter page */
+/* ── View Mode ── */
+body.view-mode .gcc-mp-btns .gcc-mp-btn:not(.gcc-mp-btn-view-edit){ display:none }
+body.view-mode .cg-toolbar{ display:none!important }
+body.view-mode .cp-strip{ display:none!important }
+body.view-mode .list-add,body.view-mode .item-del,body.view-mode .btn-roll,body.view-mode .portrait-del{ display:none!important }
+body.view-mode input,body.view-mode select,body.view-mode textarea{ pointer-events:none!important; user-select:text!important; -webkit-user-select:text!important; opacity:1!important }
+body.view-mode input:focus,body.view-mode select:focus,body.view-mode textarea:focus{ outline:none!important; border-color:inherit!important }
+.view-badge{display:none;font-family:var(--fb);font-size:9px;font-weight:700;letter-spacing:2px;color:#8be9fd;border:1px solid #8be9fd66;padding:2px 8px;border-radius:2px;margin-right:6px;pointer-events:none}
+body.view-mode .view-badge{display:inline-block}
+.gcc-mp-btn-view-edit{display:none}
+body.view-mode .gcc-mp-btn-view-edit{display:inline-block}
+
 @media print {
   .mp-hdr, .mp-ftr, .gcc-mp-bar, .cg-toolbar { display: none !important }
   a[href="index.html"] { display: none !important }
@@ -286,6 +298,8 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
       <span class="gcc-mp-logo-sub">CHARACTER BUILDER</span>
     </div>
     <div class="gcc-mp-btns">
+      <span class="view-badge">VIEW MODE</span>
+      <button class="gcc-mp-btn gcc-mp-btn-view-edit" id="btn-view-edit" title="Switch to Edit Mode">Edit</button>
       <button class="gcc-mp-btn" id="btn-new">New</button>
       <button class="gcc-mp-btn" id="btn-save">Save</button>
       <button class="gcc-mp-btn" id="btn-load">Load</button>
@@ -1342,6 +1356,15 @@ if (new URLSearchParams(window.location.search).get('r20') === '1') {
   localStorage.setItem(STORE_KEY, JSON.stringify(data));
   localStorage.setItem('mp-char-edit-idx', idx);
 })();
+
+// View mode
+if(new URLSearchParams(window.location.search).get('mode')==='view'){
+  document.body.classList.add('view-mode');
+  document.title='Mighty Protectors — View Character';
+  document.getElementById('btn-view-edit').addEventListener('click',()=>{
+    const u=new URL(window.location); u.searchParams.delete('mode'); window.location=u;
+  });
+}
 </script>
 
 </body>
