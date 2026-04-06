@@ -45,14 +45,22 @@ let editor = null;
       sys.cells = (ts.cells || []).map(c => ({gx:c.gx, gy:c.gy, label:c.label}));
     }
     syncFormFromVeh();
+    // Treat template selection as a new vehicle — don't overwrite existing slot
+    localStorage.removeItem(LS_KEY);
+    localStorage.setItem('mp-veh-edit-idx', '-1');
+    _vehCampaign = null;
+    _fileHandle = null;
     updateAll();
-    sel.value = "";
   });
 })();
 
 // ---- Sync form fields from vehicle state ----
 function syncFormFromVeh() {
   document.getElementById("vs-name").value = veh.name;
+  // Sync template dropdown — match by name
+  const tplSel = document.getElementById("sel-template");
+  const tplIdx = MP.TEMPLATES.findIndex(t => t.name === veh.name);
+  tplSel.value = tplIdx >= 0 ? tplIdx : "";
   document.getElementById("vs-model").value = veh.model;
   document.getElementById("vs-operator").value = veh.operator;
   document.getElementById("vs-basic-cost").value = veh.basicCost;
