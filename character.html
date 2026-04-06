@@ -919,6 +919,9 @@ document.getElementById('btn-roll-all').addEventListener('click', async () => {
   // Side
   document.querySelector('[data-field="side"]').value = 'Good';
 
+  // Culture — from birthplace roll, default Modern
+  document.querySelector('[data-field="culture"]').value = ch.birthplace.culture || 'Modern';
+
   // Age, Gender, Weight
   const age = MP.CG.rollAge();
   document.querySelector('[data-field="age"]').value = age;

@@ -94,53 +94,53 @@ MP.CG.KNOWN_REGIONS = [
 ];
 
 MP.CG.LOST_REGIONS = [
-  { min: 1,  max: 15, label: 'The Secret Land' },
-  { min: 16, max: 30, label: 'Atlantis' },
-  { min: 31, max: 40, label: 'Haven' },
-  { min: 41, max: 55, label: 'Lemuria' },
-  { min: 56, max: 75, label: 'Subternia' },
-  { min: 76, max: 80, label: 'The Enclave' },
-  { min: 81, max: 100,label: 'Other' },
+  { min: 1,  max: 15, label: 'The Secret Land', culture: 'Primitive' },
+  { min: 16, max: 30, label: 'Atlantis', culture: 'Primitive' },
+  { min: 31, max: 40, label: 'Haven', culture: 'High Tech' },
+  { min: 41, max: 55, label: 'Lemuria', culture: 'High Tech' },
+  { min: 56, max: 75, label: 'Subternia', culture: 'Primitive' },
+  { min: 76, max: 80, label: 'The Enclave', cultureTable: [{max:20,culture:'Fantasy'},{max:40,culture:'Primitive'},{max:50,culture:'Mixed'},{max:90,culture:'Modern'},{max:100,culture:'High Tech'}] },
+  { min: 81, max: 100,label: 'Other', culture: 'Modern' },
 ];
 
 MP.CG.TIME_PERIODS = [
-  { min: 1,  max: 5,  label: 'Primordial' },
-  { min: 6,  max: 10, label: 'Age of Dinosaurs' },
-  { min: 11, max: 15, label: 'Stone Age' },
-  { min: 16, max: 20, label: 'Age of Legends' },
-  { min: 21, max: 25, label: 'Ancient' },
-  { min: 26, max: 30, label: 'Classical' },
-  { min: 31, max: 35, label: 'Dark Ages' },
-  { min: 36, max: 40, label: 'Renaissance' },
-  { min: 41, max: 45, label: 'Victorian' },
-  { min: 46, max: 50, label: 'Industrial' },
-  { min: 51, max: 60, label: 'Modern' },
-  { min: 61, max: 70, label: 'Near Future' },
-  { min: 71, max: 85, label: 'Far Future' },
-  { min: 86, max: 100,label: 'Extreme Future' },
+  { min: 1,  max: 5,  label: 'Primordial', cultureTable: [{max:34,culture:'High Tech'},{max:67,culture:'Mixed'},{max:100,culture:'Primitive'}] },
+  { min: 6,  max: 10, label: 'Age of Dinosaurs', cultureTable: [{max:34,culture:'High Tech'},{max:67,culture:'Mixed'},{max:100,culture:'Primitive'}] },
+  { min: 11, max: 15, label: 'Stone Age', culture: 'Primitive' },
+  { min: 16, max: 20, label: 'Age of Legends', cultureTable: [{max:33,culture:'Primitive'},{max:66,culture:'Fantasy'},{max:100,culture:'Mixed'}] },
+  { min: 21, max: 25, label: 'Ancient', cultureTable: [{max:50,culture:'Primitive'},{max:100,culture:'Fantasy'}] },
+  { min: 26, max: 30, label: 'Classical', cultureTable: [{max:50,culture:'Primitive'},{max:100,culture:'Fantasy'}] },
+  { min: 31, max: 35, label: 'Dark Ages', cultureTable: [{max:50,culture:'Primitive'},{max:100,culture:'Fantasy'}] },
+  { min: 36, max: 40, label: 'Renaissance', cultureTable: [{max:20,culture:'Fantasy'},{max:100,culture:'Modern'}] },
+  { min: 41, max: 45, label: 'Victorian', culture: 'Modern' },
+  { min: 46, max: 50, label: 'Industrial', culture: 'Modern' },
+  { min: 51, max: 60, label: 'Modern', culture: 'Modern' },
+  { min: 61, max: 70, label: 'Near Future', culture: 'High Tech' },
+  { min: 71, max: 85, label: 'Far Future', cultureTable: [{max:80,culture:'High Tech'},{max:95,culture:'Modern'},{max:100,culture:'Primitive'}] },
+  { min: 86, max: 100,label: 'Extreme Future', cultureTable: [{max:80,culture:'High Tech'},{max:95,culture:'Modern'},{max:100,culture:'Primitive'}] },
 ];
 
 MP.CG.OTHER_WORLDS = [
-  { min: 1,  max: 10, label: 'The Core' },
-  { min: 11, max: 25, label: 'The Psynax Empire' },
-  { min: 26, max: 40, label: 'The Technocracy' },
-  { min: 41, max: 60, label: 'The Spherical Confederation' },
-  { min: 61, max: 70, label: 'Darkworld' },
-  { min: 71, max: 75, label: 'Factorum' },
-  { min: 76, max: 80, label: 'Frankenstein Galaxy' },
-  { min: 81, max: 85, label: 'Chronangeles' },
-  { min: 86, max: 90, label: 'Omnopolis' },
-  { min: 91, max: 100,label: 'Other' },
+  { min: 1,  max: 10, label: 'The Core', cultureTable: [{max:80,culture:'High Tech'},{max:95,culture:'Modern'},{max:100,culture:'Primitive'}] },
+  { min: 11, max: 25, label: 'The Psynax Empire', culture: 'High Tech' },
+  { min: 26, max: 40, label: 'The Technocracy', culture: 'High Tech' },
+  { min: 41, max: 60, label: 'The Spherical Confederation', culture: 'High Tech' },
+  { min: 61, max: 70, label: 'Darkworld', culture: 'Mixed' },
+  { min: 71, max: 75, label: 'Factorum', culture: 'Mixed' },
+  { min: 76, max: 80, label: 'Frankenstein Galaxy', culture: 'High Tech' },
+  { min: 81, max: 85, label: 'Chronangeles', culture: 'Mixed' },
+  { min: 86, max: 90, label: 'Omnopolis', culture: 'Mixed' },
+  { min: 91, max: 100,label: 'Other', culture: 'Modern' },
 ];
 
 MP.CG.OTHER_DIMENSIONS = [
-  { min: 1,  max: 5,  label: 'The Interdimensional Library' },
-  { min: 6,  max: 25, label: 'Mythical Realm' },
-  { min: 26, max: 45, label: 'Alternate Earth' },
-  { min: 46, max: 60, label: 'Internet/Virtual Reality' },
-  { min: 61, max: 70, label: 'The Abomination Realm' },
-  { min: 71, max: 90, label: 'Fictional World' },
-  { min: 91, max: 100,label: 'Other' },
+  { min: 1,  max: 5,  label: 'The Interdimensional Library', culture: 'Mixed' },
+  { min: 6,  max: 25, label: 'Mythical Realm', culture: 'Fantasy' },
+  { min: 26, max: 45, label: 'Alternate Earth', culture: 'Modern' },
+  { min: 46, max: 60, label: 'Internet/Virtual Reality', culture: 'High Tech' },
+  { min: 61, max: 70, label: 'The Abomination Realm', culture: 'Fantasy' },
+  { min: 71, max: 90, label: 'Fictional World', culture: 'Mixed' },
+  { min: 91, max: 100,label: 'Other', culture: 'Modern' },
 ];
 
 // ── Species (d100) ──
@@ -305,10 +305,24 @@ MP.CG.rollOnTable = function(table) {
   return { roll, entry: table[table.length - 1] };
 };
 
+// ── Resolve culture from a sub-table entry ──
+MP.CG.resolveCulture = function(entry) {
+  if (!entry) return 'Modern';
+  if (entry.culture) return entry.culture;
+  if (entry.cultureTable) {
+    const roll = MP.CG.d(100);
+    for (const row of entry.cultureTable) {
+      if (roll <= row.max) return row.culture;
+    }
+    return entry.cultureTable[entry.cultureTable.length - 1].culture;
+  }
+  return 'Modern';
+};
+
 // ── Random Birthplace ──
 MP.CG.rollBirthplace = function() {
   const result = MP.CG.rollOnTable(MP.CG.PLACE_OF_BIRTH);
-  const out = { placeRoll: result.roll, place: result.entry.label, detail: null, detailRoll: null };
+  const out = { placeRoll: result.roll, place: result.entry.label, detail: null, detailRoll: null, culture: 'Modern' };
   if (result.entry.subTable) {
     const subTableMap = {
       knownRegions: MP.CG.KNOWN_REGIONS,
@@ -320,6 +334,7 @@ MP.CG.rollBirthplace = function() {
     const sub = MP.CG.rollOnTable(subTableMap[result.entry.subTable]);
     out.detail = sub.entry.label;
     out.detailRoll = sub.roll;
+    out.culture = MP.CG.resolveCulture(sub.entry);
   }
   return out;
 };
