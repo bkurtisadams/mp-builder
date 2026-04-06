@@ -168,7 +168,11 @@ MP.CG.ORIGIN_TYPES = [
 
 // ── Wealth Ability ──
 MP.CG.WEALTH = [
-  { cp: 0,    income: 0,              roll: null,       label: 'Average' },
+  { cp: -10,  income: 0,              roll: 'd2-1',    label: 'Destitute' },
+  { cp: -7.5, income: 2500,           roll: 'd1',      label: 'Poor' },
+  { cp: -5,   income: 10000,          roll: 'd2',      label: 'Impoverished' },
+  { cp: -2.5, income: 20000,          roll: 'd3',      label: 'Low Income' },
+  { cp: 0,    income: 40000,          roll: 'd4',       label: 'Average' },
   { cp: 2.5,  income: 80000,          roll: 'd6',       label: 'Comfortable' },
   { cp: 5,    income: 160000,         roll: 'd6+1',     label: 'Comfortable+' },
   { cp: 7.5,  income: 320000,         roll: 'd8+1',     label: 'Well Off' },
