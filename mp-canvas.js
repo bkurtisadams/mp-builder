@@ -295,6 +295,8 @@ class FloorPlanEditor {
         this.selectedCell = null;
         this._cellDrag = null;
       }
+      // Blur any focused input so keyboard Delete reaches the canvas handler
+      if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
       this.draw();
       if (this.onUpdate) this.onUpdate();
     }
