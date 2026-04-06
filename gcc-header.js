@@ -11,8 +11,8 @@
   }
 
   const SHARED_TOOLS = [
-    { icon: '🏰', name: 'Campaigns', href: 'index.html' },
-    { icon: '📚', name: 'Library', href: 'library.html' },
+    { icon: '⚑', name: 'Campaigns', href: 'index.html' },
+    { icon: '🕮', name: 'Library', href: 'library.html' },
   ];
 
   // ── Theme ──
