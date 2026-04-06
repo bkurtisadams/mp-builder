@@ -155,26 +155,18 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-detail-value { color: var(--tx2) }
 .cc-pitch { grid-column: 1 / -1; font-size: 12px; color: var(--tx2); font-style: italic; padding: 4px 0 4px; line-height: 1.35 }
 
-.cc-grid { display: grid; grid-template-columns: 170px 1fr 1fr; gap: 14px; align-items: start }
 .cc-col-title { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 1.5px; margin-bottom: 6px }
 
-.cc-tool-list { list-style: none }
-.cc-tool-list li { padding: 3px 0 }
-.cc-tool-link { font-size: 12px; color: var(--tx2); text-decoration: none; cursor: pointer; transition: color 0.1s; display: flex; align-items: center; gap: 6px }
-.cc-tool-link:hover { color: var(--accent) }
-.cc-tool-link.disabled { color: var(--tx3); cursor: default }
-.cc-tool-link.disabled:hover { color: var(--tx3) }
-.cc-tool-link .bullet { color: var(--accent-dim); font-size: 6px }
-.cc-vtt { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--brd) }
-.cc-vtt-link { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-family: var(--fb); font-weight: 700; color: var(--blue); text-decoration: none; padding: 3px 10px; border: 1px solid rgba(48,80,138,0.2); border-radius: 3px; transition: all 0.12s; cursor: pointer }
-.cc-vtt-link:hover { background: rgba(48,80,138,0.06); border-color: rgba(48,80,138,0.35) }
+.cc-desc-section { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--brd) }
+.cc-desc-area { width: 100%; min-height: 48px; padding: 8px 10px; font-family: var(--fb); font-size: 12px; color: var(--tx2); background: var(--bg-card); border: 1px solid var(--brd); border-radius: 3px; resize: vertical; line-height: 1.4 }
+.cc-desc-area:focus { outline: none; border-color: var(--accent-dim) }
+.cc-desc-area::placeholder { color: var(--tx3) }
 
-.cc-char-list { list-style: none }
-.cc-char-item { display: flex; align-items: flex-start; gap: 7px; padding: 6px 0; border-bottom: 1px solid var(--brd); font-size: 12px }
-.cc-char-item:last-child { border-bottom: none }
-.cc-char-pip { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; margin-top: 6px }
+.cc-char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--brd) }
+.cc-char-card { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; position: relative; box-shadow: var(--card-shadow) }
+.cc-char-card-top { display: flex; align-items: flex-start; gap: 7px }
 .cc-char-info { flex: 1; min-width: 0 }
-.cc-char-name { font-weight: 700 }
+.cc-char-name { font-weight: 700; font-size: 12px }
 .cc-char-link { text-decoration: none; color: inherit }
 .cc-char-link:hover { color: var(--accent); text-decoration: underline }
 .cc-char-player { font-size: 10px; color: var(--tx3); margin-left: 4px }
@@ -183,22 +175,19 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-char-stats span { margin-right: 5px; white-space: nowrap }
 .cc-char-derived { font-size: 9px; font-weight: 700; color: var(--tx2); margin-top: 1px }
 .cc-char-derived span { margin-right: 6px; white-space: nowrap }
-.cc-char-rm { background: none; border: none; color: var(--tx3); cursor: pointer; font-size: 10px; padding: 0 2px; opacity: 0; transition: opacity 0.1s; flex-shrink: 0; margin-top: 4px }
-.cc-char-item:hover .cc-char-rm { opacity: 1 }
-.cc-char-rm:hover { color: var(--red) }
+.cc-char-pip { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; margin-top: 6px }
 .cc-char-portrait { width: 28px; height: 28px; border-radius: 3px; object-fit: contain; flex-shrink: 0; border: 1px solid var(--brd) }
+.cc-char-leave { background: none; border: 1px solid var(--brd); border-radius: 2px; color: var(--tx3); cursor: pointer; font-size: 9px; font-family: var(--fb); font-weight: 700; padding: 2px 8px; align-self: flex-end; transition: all 0.12s }
+.cc-char-leave:hover { color: var(--red); border-color: var(--red) }
+.cc-char-empty { font-size: 11px; color: var(--tx3); font-style: italic; grid-column: 1 / -1 }
 
-.cc-log-title { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 1.5px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between }
-.cc-log-new { font-family: var(--fb); font-size: 10px; color: var(--accent-dim); cursor: pointer; letter-spacing: 0; font-weight: 700 }
-.cc-log-new:hover { color: var(--accent) }
-.cc-log-list { list-style: none }
-.cc-log-item { padding: 3px 0; border-bottom: 1px solid var(--brd) }
-.cc-log-item:last-child { border-bottom: none }
-.cc-log-item:hover { color: var(--accent) }
-.cc-log-date { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 0.5px }
-.cc-log-text { font-size: 11px; color: var(--tx2); margin-top: 1px; line-height: 1.3 }
-.cc-log-title-text { font-weight: 700; color: var(--tx) }
-.cc-log-xp { font-family: var(--fm); font-size: 9px; color: var(--accent); margin-left: 6px }
+.cc-notes-section { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--brd) }
+.cc-notes-area { width: 100%; min-height: 48px; padding: 8px 10px; font-family: var(--fb); font-size: 12px; color: var(--tx2); background: var(--bg-card); border: 1px solid var(--brd); border-radius: 3px; resize: vertical; line-height: 1.4 }
+.cc-notes-area:focus { outline: none; border-color: var(--accent-dim) }
+.cc-notes-area::placeholder { color: var(--tx3) }
+
+.cc-sessions-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; font-size: 11px; font-family: var(--fb); font-weight: 700; color: var(--accent); background: transparent; border: 1px solid var(--accent-dim); border-radius: 3px; cursor: pointer; transition: all 0.15s; text-decoration: none; margin-bottom: 14px }
+.cc-sessions-btn:hover { border-color: var(--accent); color: var(--accent-lt); background: var(--hover-bg) }
 
 .cc-bottom { display: flex; gap: 6px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--brd); align-items: center }
 .cc-btn { padding: 4px 12px; font-size: 10px; font-family: var(--fb); font-weight: 700; border-radius: 2px; cursor: pointer; transition: all 0.12s; border: 1px solid var(--brd); background: transparent; color: var(--tx2) }
@@ -344,6 +333,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   .campaign-card.open { grid-column: 1 }
   .main { padding: 10px 10px 30px }
   .cc-grid { grid-template-columns: 1fr; gap: 12px }
+  .cc-char-grid { grid-template-columns: 1fr; }
   .cc-details { grid-template-columns: 1fr }
   .jb-card { width: 180px }
   .modal { max-width: 100% }
@@ -453,6 +443,9 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
         </div>
         <div class="mf-row">
           <div class="mf-field"><label class="mf-label">PITCH</label><input class="mf-input" id="ef-pitch" placeholder="One-line description"></div>
+        </div>
+        <div class="mf-row">
+          <div class="mf-field"><label class="mf-label">DESCRIPTION</label><textarea class="mf-textarea" id="ef-description" rows="3" placeholder="Campaign premise, current arc, setting details..."></textarea></div>
         </div>
       </fieldset>
 
@@ -730,7 +723,6 @@ function renderCampaigns() {
 
   grid.innerHTML = camps.map(c => {
     const sys = GCC.SYSTEM_DEFS.find(s => s.id === c.system) || {};
-    const tools = sys.tools || [];
     const status = c.status || 'active';
     const nextStr = formatDateTime(c.nextSession);
     const gml = c.gmTitle || 'GM';
@@ -748,7 +740,6 @@ function renderCampaigns() {
 
     const charsHtml = (c.characters||[]).map((ch,i) => {
       const col = PIP_COLORS[i % PIP_COLORS.length];
-      // Resolve live data from saved character — prefer _id, fall back to name
       let resolved = ch;
       const refKey = ch.storageKey || ch.listKey || resolved.storageKey || resolved.listKey || '';
       if (refKey) {
@@ -769,7 +760,6 @@ function renderCampaigns() {
       const charTool = charSys?.tools.find(t => t.charList === effectiveKey && t.href)
         || charSys?.tools.find(t => t.charList && t.href);
       if(charTool && resolved.name){
-        // Prefer ?id= link if we have one, fall back to ?char=
         const linkParam = (resolved._id || ch._id)
           ? 'id=' + encodeURIComponent(resolved._id || ch._id)
           : 'char=' + encodeURIComponent(resolved.name);
@@ -779,21 +769,10 @@ function renderCampaigns() {
         nameHtml = `<span class="cc-char-name">${ESC(resolved.name)}</span>`;
       }
       const rmId = resolved._id || ch._id || '';
-      return `<li class="cc-char-item">${portraitHtml}<div class="cc-char-info">${nameHtml}${resolved.player ? '<span class="cc-char-player">('+ESC(resolved.player)+')</span>' : ''}<div class="cc-char-sub">${ESC(resolved.sub||'')}</div>${resolved.statsHtml||''}</div><button class="cc-char-rm" data-rm-camp="${ESC(c.id)}" data-rm-char="${ESC(resolved.name)}" data-rm-id="${ESC(rmId)}" title="Remove from team">✕</button></li>`;
+      return `<div class="cc-char-card"><div class="cc-char-card-top">${portraitHtml}<div class="cc-char-info">${nameHtml}${resolved.player ? '<span class="cc-char-player">('+ESC(resolved.player)+')</span>' : ''}<div class="cc-char-sub">${ESC(resolved.sub||'')}</div>${resolved.statsHtml||''}</div></div><button class="cc-char-leave" data-rm-camp="${ESC(c.id)}" data-rm-char="${ESC(resolved.name)}" data-rm-id="${ESC(rmId)}">Leave</button></div>`;
     }).join('');
 
-    const sessHtml = (c.sessions||[]).slice(0,4).map(s => {
-      const title = s.title ? '<span class="cc-log-title-text">' + ESC(s.title) + '</span> — ' : '';
-      const xp = s.xp ? '<span class="cc-log-xp">+' + s.xp + ' XP</span>' : '';
-      return `<li class="cc-log-item"><div class="cc-log-date">${formatDate(s.date)} ${xp}</div><div class="cc-log-text">${title}${ESC(s.text||'')}</div></li>`;
-    }).join('');
-
-    const toolsHtml = tools.map(t => {
-      const cls = t.href ? 'cc-tool-link' : 'cc-tool-link disabled';
-      return `<li><a class="${cls}"${t.href?' href="'+ESC(t.href)+'"':''}><span class="bullet">◆</span> ${ESC(t.name)}</a></li>`;
-    }).join('');
-
-    const vttHtml = c.vttLabel ? `<div class="cc-vtt"><a class="cc-vtt-link" href="${ESC(c.vttUrl||'#')}" target="_blank"><span style="font-size:11px">▶</span> ${ESC(c.vttLabel)} — ${ESC(c.name)}</a></div>` : '';
+    const vttHtml = c.vttLabel ? `<div style="margin-bottom:10px"><a class="cc-sessions-btn" href="${ESC(c.vttUrl||'#')}" target="_blank" style="color:var(--blue);border-color:rgba(48,80,138,0.3)"><span style="font-size:11px">▶</span> ${ESC(c.vttLabel)} — ${ESC(c.name)}</a></div>` : '';
 
     const dr = (l,v) => v ? `<div class="cc-detail-row"><span class="cc-detail-label">${l}</span><span class="cc-detail-value">${ESC(v)}</span></div>` : '';
 
@@ -837,21 +816,20 @@ function renderCampaigns() {
           ${dr('HOUSE RULES',c.houseRules)}
           ${dr('STARTED',formatDateYear(c.startDate||c.created))}
         </div>
-        <div class="cc-grid">
-          <div>
-            <div class="cc-col-title">TOOLS</div>
-            <ul class="cc-tool-list">${toolsHtml}</ul>
-            ${vttHtml}
-          </div>
-          <div>
-            <div class="cc-col-title">${ESC(GCC.teamLabel(c.system).toUpperCase())}</div>
-            <ul class="cc-char-list">${charsHtml||'<li style="font-size:11px;color:var(--tx3);font-style:italic">No characters yet</li>'}</ul>
-          </div>
-          <div>
-            <div class="cc-log-title">SESSIONS <span class="cc-log-new" data-camp-id="${ESC(c.id)}">+ New</span></div>
-            <ul class="cc-log-list">${sessHtml||'<li style="font-size:11px;color:var(--tx3);font-style:italic">No sessions logged</li>'}</ul>
-          </div>
+        <div class="cc-desc-section">
+          <div class="cc-col-title">DESCRIPTION</div>
+          <textarea class="cc-desc-area" data-desc-camp="${ESC(c.id)}" placeholder="Campaign premise, current arc, setting details...">${ESC(c.description||'')}</textarea>
         </div>
+        <div class="cc-col-title">${ESC(GCC.teamLabel(c.system).toUpperCase())}</div>
+        <div class="cc-char-grid">
+          ${charsHtml||'<div class="cc-char-empty">No characters yet</div>'}
+        </div>
+        <div class="cc-notes-section">
+          <div class="cc-col-title">DM NOTES</div>
+          <textarea class="cc-notes-area" data-notes-camp="${ESC(c.id)}" placeholder="Private notes, reminders, plot hooks...">${ESC(c.notes||'')}</textarea>
+        </div>
+        <a class="cc-sessions-btn" href="campaign-detail.html?id=${ESC(c.id)}&tab=sessions">Sessions ▶</a>
+        ${vttHtml}
         <div class="cc-bottom">
           <button class="cc-btn" data-action="edit-camp" data-camp-id="${ESC(c.id)}">Edit</button>
           <button class="cc-btn" data-action="edit-chars" data-camp-id="${ESC(c.id)}">Edit ${ESC(GCC.teamLabel(c.system))}</button>
@@ -932,6 +910,7 @@ function openEditModal(campId) {
   document.getElementById('ef-world').value = camp.world || '';
   document.getElementById('ef-genre').value = camp.genre || '';
   document.getElementById('ef-pitch').value = camp.pitch || '';
+  document.getElementById('ef-description').value = camp.description || '';
   document.getElementById('ef-gm').value = camp.gm || '';
   document.getElementById('ef-gmTitle').value = camp.gmTitle || 'GM';
   document.getElementById('ef-players').value = camp.players || 0;
@@ -1016,6 +995,7 @@ document.getElementById('ef-save').addEventListener('click', () => {
     world: document.getElementById('ef-world').value.trim(),
     genre: document.getElementById('ef-genre').value.trim(),
     pitch: document.getElementById('ef-pitch').value.trim(),
+    description: document.getElementById('ef-description').value.trim(),
     gm: document.getElementById('ef-gm').value.trim(),
     gmTitle: document.getElementById('ef-gmTitle').value,
     players: parseInt(document.getElementById('ef-players').value) || 0,
@@ -1069,14 +1049,14 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
     openSessionModal(newSess.dataset.campId);
     return;
   }
-  // Remove character from team
-  const rmChar = e.target.closest('.cc-char-rm');
-  if (rmChar) {
+  // Leave campaign (remove character)
+  const leaveBtn = e.target.closest('.cc-char-leave');
+  if (leaveBtn) {
     e.stopPropagation();
-    const campId = rmChar.dataset.rmCamp;
-    const charName = rmChar.dataset.rmChar;
-    const rmId = rmChar.dataset.rmId;
-    if (!confirm('Remove "' + charName + '" from this team?')) return;
+    const campId = leaveBtn.dataset.rmCamp;
+    const charName = leaveBtn.dataset.rmChar;
+    const rmId = leaveBtn.dataset.rmId;
+    if (!confirm('Remove "' + charName + '" from this campaign?')) return;
     const camp = GCC.getCampaign(campId);
     if (!camp) return;
     const chars = (camp.characters || []).filter(ch =>
@@ -1088,6 +1068,14 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
     if (card) card.classList.add('open');
     return;
   }
+});
+
+// Auto-save description and notes
+document.getElementById('campaign-grid').addEventListener('input', e => {
+  const descArea = e.target.closest('[data-desc-camp]');
+  if (descArea) { GCC.updateCampaign(descArea.dataset.descCamp, { description: descArea.value }); }
+  const notesArea = e.target.closest('[data-notes-camp]');
+  if (notesArea) { GCC.updateCampaign(notesArea.dataset.notesCamp, { notes: notesArea.value }); }
 });
 
 document.getElementById('btn-new-campaign').addEventListener('click', () => {
