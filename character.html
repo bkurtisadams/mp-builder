@@ -119,11 +119,11 @@ body { min-height: 100vh; background: var(--bg); color: var(--tx); font-family: 
 .ab-cell input:focus { border-bottom: 1px solid var(--accent) }
 
 /* Bottom: Stats left, Combat right */
-.bottom { display: grid; grid-template-columns: 195px 1fr; gap: 0 12px; margin-top: 4px; align-items: start }
+.bottom { display: grid; grid-template-columns: 230px 1fr; gap: 0 12px; margin-top: 4px; align-items: start }
 
 /* Stats block */
-.stats-hdr { display: grid; grid-template-columns: 42px 30px 52px 40px; gap: 0; font-weight: 700; font-size: 8px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 1px }
-.stat-row { display: grid; grid-template-columns: 42px 30px 52px 40px; gap: 0; align-items: center; height: 26px; border-bottom: 1px solid #ddd }
+.stats-hdr { display: grid; grid-template-columns: 42px 30px 36px 52px 40px; gap: 0; font-weight: 700; font-size: 8px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 1px }
+.stat-row { display: grid; grid-template-columns: 42px 30px 36px 52px 40px; gap: 0; align-items: center; height: 26px; border-bottom: 1px solid #ddd }
 .stat-row .s-label { font-weight: 700; font-size: 13px; text-align: center }
 .stat-row input { width: 100%; text-align: center; border: none; border-bottom: 1px solid #bbb; background: transparent; font-family: var(--fb); font-size: 10px; height: 20px; outline: none }
 .stat-row input:focus { border-bottom-color: var(--accent) }
@@ -439,12 +439,12 @@ body.view-mode .gcc-mp-btn-view-edit{display:inline-block}
 
     <!-- LEFT: Basic Characteristics + Experience -->
     <div>
-      <div class="stats-hdr"><span>CPs</span><span></span><span>SCORE</span><span>SAVE</span></div>
-      <div class="stat-row" data-stat="st"><div><input class="stat-cp" type="number"></div><div class="s-label">ST</div><div><input class="si-calc stat-score" readonly></div><div><input class="si-calc stat-save" readonly></div></div>
-      <div class="stat-row" data-stat="en"><div><input class="stat-cp" type="number"></div><div class="s-label">EN</div><div><input class="si-calc stat-score" readonly></div><div><input class="si-calc stat-save" readonly></div></div>
-      <div class="stat-row" data-stat="ag"><div><input class="stat-cp" type="number"></div><div class="s-label">AG</div><div><input class="si-calc stat-score" readonly></div><div><input class="si-calc stat-save" readonly></div></div>
-      <div class="stat-row" data-stat="in"><div><input class="stat-cp" type="number"></div><div class="s-label">IN</div><div><input class="si-calc stat-score" readonly></div><div><input class="si-calc stat-save" readonly></div></div>
-      <div class="stat-row" data-stat="cl"><div><input class="stat-cp" type="number"></div><div class="s-label">CL</div><div><input class="si-calc stat-score" readonly></div><div><input class="si-calc stat-save" readonly></div></div>
+      <div class="stats-hdr"><span>CPs</span><span></span><span>Mod</span><span>SCORE</span><span>SAVE</span></div>
+      <div class="stat-row" data-stat="st"><div><input class="stat-cp" type="number"></div><div class="s-label">ST</div><div><input class="stat-mod" type="number"></div><div><input class="si-calc stat-score" readonly></div><div><input class="si-calc stat-save" readonly></div></div>
+      <div class="stat-row" data-stat="en"><div><input class="stat-cp" type="number"></div><div class="s-label">EN</div><div><input class="stat-mod" type="number"></div><div><input class="si-calc stat-score" readonly></div><div><input class="si-calc stat-save" readonly></div></div>
+      <div class="stat-row" data-stat="ag"><div><input class="stat-cp" type="number"></div><div class="s-label">AG</div><div><input class="stat-mod" type="number"></div><div><input class="si-calc stat-score" readonly></div><div><input class="si-calc stat-save" readonly></div></div>
+      <div class="stat-row" data-stat="in"><div><input class="stat-cp" type="number"></div><div class="s-label">IN</div><div><input class="stat-mod" type="number"></div><div><input class="si-calc stat-score" readonly></div><div><input class="si-calc stat-save" readonly></div></div>
+      <div class="stat-row" data-stat="cl"><div><input class="stat-cp" type="number"></div><div class="s-label">CL</div><div><input class="stat-mod" type="number"></div><div><input class="si-calc stat-score" readonly></div><div><input class="si-calc stat-save" readonly></div></div>
 
       <div class="xp-block">
         <div class="xp-row">
@@ -505,8 +505,8 @@ body.view-mode .gcc-mp-btn-view-edit{display:inline-block}
             <span>Mental</span>
           </div>
           <div class="def-box-row">
-            <input class="si-box" data-field="defPhysical" readonly style="background:#f8f8f0;color:#b03000">
-            <input class="si-box" data-field="defMental" readonly style="background:#f8f8f0;color:#b03000">
+            <input class="si-box" data-field="defPhysical" style="background:#f8f8f0;color:#b03000">
+            <input class="si-box" data-field="defMental" style="background:#f8f8f0;color:#b03000">
           </div>
         </div>
       </div>
@@ -601,6 +601,7 @@ const STATS = ['st','en','ag','in','cl'];
   // Culture
   const selCu = document.querySelector('[data-field="culture"]');
   MP.CG.CULTURES.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; selCu.appendChild(o); });
+  selCu.value = 'Modern';
 
   // Origin Type
   const selOr = document.getElementById('sel-origin');
@@ -613,7 +614,7 @@ const STATS = ['st','en','ag','in','cl'];
     if (w.cp === 0) return; // already have "Average" as default
     const o = document.createElement('option');
     o.value = w.cp;
-    o.textContent = `(${w.cp} CPs) ${MP.CG.formatCurrency(w.income)}/yr`;
+    o.textContent = `(${w.cp} CPs) ${w.roll} — ${MP.CG.formatCurrency(w.income)}/yr`;
     selW.appendChild(o);
   });
 })();
@@ -666,11 +667,13 @@ function recalcDerived() {
   const bcs = {};
   document.querySelectorAll('.stat-row[data-stat]').forEach(row => {
     const cpInput = row.querySelector('.stat-cp');
+    const modInput = row.querySelector('.stat-mod');
     const scoreEl = row.querySelector('.stat-score');
     const saveEl = row.querySelector('.stat-save');
     const cpVal = parseInt(cpInput.value) || 0;
-    // In MP, BC score = CPs spent (1 CP = 1 BC point)
-    const score = cpVal;
+    const modVal = parseInt(modInput.value) || 0;
+    // In MP, BC score = CPs spent + mod
+    const score = cpVal + modVal;
     bcs[row.dataset.stat] = score;
     scoreEl.value = score || '';
     // Lookup save from BC table
@@ -747,6 +750,9 @@ function recalcDerived() {
 
 // Recalc whenever a stat CP or ability CP changes
 document.querySelectorAll('.stat-cp').forEach(inp => {
+  inp.addEventListener('input', recalcDerived);
+});
+document.querySelectorAll('.stat-mod').forEach(inp => {
   inp.addEventListener('input', recalcDerived);
 });
 // Also recalc on ability CP changes
@@ -968,9 +974,10 @@ function gatherData() {
   d.stats = {};
   document.querySelectorAll('.stat-row[data-stat]').forEach(row => {
     const cpInput = row.querySelector('.stat-cp');
+    const modInput = row.querySelector('.stat-mod');
     const scoreEl = row.querySelector('.stat-score');
     const saveEl = row.querySelector('.stat-save');
-    d.stats[row.dataset.stat] = { cp: cpInput.value, score: scoreEl.value, save: saveEl.value };
+    d.stats[row.dataset.stat] = { cp: cpInput.value, mod: modInput.value, score: scoreEl.value, save: saveEl.value };
   });
   d.abilities = [];
   const abCount = document.querySelectorAll('[data-ab][data-abf="cp"]').length;
@@ -1014,6 +1021,7 @@ function populateData(d) {
       const s = d.stats[row.dataset.stat];
       if (!s) return;
       row.querySelector('.stat-cp').value = s.cp || '';
+      row.querySelector('.stat-mod').value = s.mod || '';
     });
   }
   if (d.abilities) {
