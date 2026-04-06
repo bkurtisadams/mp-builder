@@ -839,6 +839,15 @@ function renderCampaigns() {
       </div>
     </div>`;
   }).join('');
+
+  // Restore persisted open card
+  try {
+    const openId = localStorage.getItem('gcc-open-card');
+    if (openId) {
+      const card = grid.querySelector(`[data-camp-id="${openId}"]`);
+      if (card) card.classList.add('open');
+    }
+  } catch(e) {}
 }
 
 // ── Activity ──
@@ -1029,6 +1038,12 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
     const card = summary.closest('.campaign-card');
     document.querySelectorAll('.campaign-card.open').forEach(c => { if (c !== card) c.classList.remove('open'); });
     card.classList.toggle('open');
+    const campId = card.dataset.campId;
+    if (card.classList.contains('open')) {
+      try { localStorage.setItem('gcc-open-card', campId); } catch(e) {}
+    } else {
+      try { localStorage.removeItem('gcc-open-card'); } catch(e) {}
+    }
     return;
   }
   const editBtn = e.target.closest('[data-action="edit-camp"]');
@@ -1063,9 +1078,8 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
       rmId ? ch._id !== rmId : ch.name !== charName
     );
     GCC.updateCampaign(campId, { characters: chars, players: chars.length });
+    try { localStorage.setItem('gcc-open-card', campId); } catch(e) {}
     renderCampaigns();
-    const card = document.querySelector(`[data-camp-id="${campId}"]`);
-    if (card) card.classList.add('open');
     return;
   }
 });
@@ -1337,9 +1351,8 @@ document.getElementById('sm-save').addEventListener('click', () => {
   const label = title || text || ('Session ' + camp.session);
   GCC.logActivity({ campaign: sesCampId, system: camp.system, text: camp.name + ' — ' + label });
   closeSessionModal();
+  try { localStorage.setItem('gcc-open-card', sesCampId); } catch(e) {}
   renderCampaigns(); renderActivity();
-  const card = document.querySelector(`[data-camp-id="${sesCampId}"]`);
-  if (card) card.classList.add('open');
 });
 document.getElementById('sm-cancel').addEventListener('click', closeSessionModal);
 document.getElementById('session-modal-close').addEventListener('click', closeSessionModal);
