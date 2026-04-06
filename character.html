@@ -614,9 +614,9 @@ const STATS = ['st','en','ag','in','cl'];
     const o = document.createElement('option');
     o.value = w.cp;
     o.textContent = `(${w.cp} CPs) ${w.roll} — ${MP.CG.formatCurrency(w.income)}/yr`;
-    if (w.cp === 0) o.selected = true;
     selW.appendChild(o);
   });
+  selW.value = '0';
 })();
 
 // ── Build Ability Rows ──
@@ -1065,6 +1065,9 @@ function clearAll() {
   // Reset CP box from dropdown default
   const pl = MP.CG.POWER_LEVELS.find(p => p.id === document.getElementById('cg-power-level').value);
   if (pl) document.getElementById('cg-base-cps').value = pl.totalCPs;
+  // Reset defaults
+  document.getElementById('sel-wealth').value = '0';
+  document.querySelector('[data-field="culture"]').value = 'Modern';
 }
 
 // ── Slot management ──
