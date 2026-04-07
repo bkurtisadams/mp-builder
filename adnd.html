@@ -429,19 +429,18 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 <tbody id="weapon-list"></tbody>
 </table>
 
-<!-- WEAPONLESS COMBAT + BOTTOM in two-column layout -->
+<!-- WEAPONLESS COMBAT (full width) -->
+<div style="margin-bottom:4px">
+  <div class="wlc-title">Weaponless Combat:</div>
+  <div class="wlc-sub">Attack Adj.—Damage Adj.—Defense Adj.</div>
+  <div style="margin-bottom:1px"><div style="display:flex;gap:2px;align-items:baseline"><input class="fi" data-field="pummelAtk" style="max-width:50px"><span>-</span><input class="fi" data-field="pummelDam" style="max-width:50px"><span>-</span><input class="fi" data-field="pummelDef" style="max-width:50px"></div><div class="lb">Pummeling</div></div>
+  <div style="margin-bottom:1px"><div style="display:flex;gap:2px;align-items:baseline"><input class="fi" data-field="grappleAtk" style="max-width:50px"><span>-</span><input class="fi" data-field="grappleDam" style="max-width:50px"><span>-</span><input class="fi" data-field="grappleDef" style="max-width:50px"></div><div class="lb">Grappling</div></div>
+  <div style="margin-bottom:1px"><div style="display:flex;gap:2px;align-items:baseline"><input class="fi" data-field="overbearAtk" style="max-width:50px"><span>-</span><input class="fi" data-field="overbearDam" style="max-width:50px"><span>-</span><input class="fi" data-field="overbearDef" style="max-width:50px"></div><div class="lb">Overbearing</div></div>
+</div>
+
+<!-- BOTTOM two-column: left = morale/patron/status, right = spells/turning -->
 <div class="bot-grid">
 <div>
-  <!-- Weaponless Combat -->
-  <div style="margin-bottom:4px">
-    <div class="wlc-title">Weaponless Combat:</div>
-    <div class="wlc-sub">Attack Adj.—Damage Adj.—Defense Adj.</div>
-    <div style="margin-bottom:1px"><div style="display:flex;gap:2px;align-items:baseline"><input class="fi" data-field="pummelAtk" style="max-width:50px"><span>-</span><input class="fi" data-field="pummelDam" style="max-width:50px"><span>-</span><input class="fi" data-field="pummelDef" style="max-width:50px"></div><div class="lb">Pummeling</div></div>
-    <div style="margin-bottom:1px"><div style="display:flex;gap:2px;align-items:baseline"><input class="fi" data-field="grappleAtk" style="max-width:50px"><span>-</span><input class="fi" data-field="grappleDam" style="max-width:50px"><span>-</span><input class="fi" data-field="grappleDef" style="max-width:50px"></div><div class="lb">Grappling</div></div>
-    <div style="margin-bottom:1px"><div style="display:flex;gap:2px;align-items:baseline"><input class="fi" data-field="overbearAtk" style="max-width:50px"><span>-</span><input class="fi" data-field="overbearDam" style="max-width:50px"><span>-</span><input class="fi" data-field="overbearDef" style="max-width:50px"></div><div class="lb">Overbearing</div></div>
-  </div>
-
-  <!-- Morale / # Attacks -->
   <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:3px">
     <div class="move-field" style="flex:0"><input class="fi" data-field="morale" style="width:60px"><span class="lb">Morale Modifier</span></div>
     <div class="row" style="margin-bottom:0"><span class="lb"># Attacks:</span><input class="fi" data-field="numAttacks" style="max-width:40px"></div>
