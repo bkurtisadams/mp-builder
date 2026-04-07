@@ -429,48 +429,87 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 <tbody id="weapon-list"></tbody>
 </table>
 
-<!-- WEAPONLESS COMBAT -->
-<div style="margin-bottom:4px">
-  <div class="wlc-title">Weaponless Combat:</div>
-  <div class="wlc-sub">Attack Adj.—Damage Adj.—Defense Adj.</div>
-  <div class="wlc-row"><span class="lb" style="min-width:80px">Pummeling</span><input class="fi" data-field="pummeling" style="max-width:160px"></div>
-  <div class="wlc-row"><span class="lb" style="min-width:80px">Grappling</span><input class="fi" data-field="grappling" style="max-width:160px"></div>
-  <div class="wlc-row"><span class="lb" style="min-width:80px">Overbearing</span><input class="fi" data-field="overbearing" style="max-width:160px"></div>
-</div>
-
-<!-- BOTTOM -->
+<!-- WEAPONLESS COMBAT + BOTTOM in two-column layout -->
 <div class="bot-grid">
 <div>
-  <div class="row"><span class="lb"># Attacks:</span><input class="fi" data-field="numAttacks" style="max-width:50px"><span class="lb" style="margin-left:8px">Morale Modifier</span><input class="fi" data-field="morale" style="max-width:34px"></div>
-  <div class="row"><span class="lb">Tithings %</span><input class="fi" data-field="tithings" style="max-width:28px"><span class="lb" style="margin-left:6px">Alignment</span><input class="fi" data-field="palAlignment" style="max-width:80px"></div>
+  <!-- Weaponless Combat -->
+  <div style="margin-bottom:4px">
+    <div class="wlc-title">Weaponless Combat:</div>
+    <div class="wlc-sub">Attack Adj.—Damage Adj.—Defense Adj.</div>
+    <div style="margin-bottom:1px"><div style="display:flex;gap:2px;align-items:baseline"><input class="fi" data-field="pummelAtk" style="max-width:50px"><span>-</span><input class="fi" data-field="pummelDam" style="max-width:50px"><span>-</span><input class="fi" data-field="pummelDef" style="max-width:50px"></div><div class="lb">Pummeling</div></div>
+    <div style="margin-bottom:1px"><div style="display:flex;gap:2px;align-items:baseline"><input class="fi" data-field="grappleAtk" style="max-width:50px"><span>-</span><input class="fi" data-field="grappleDam" style="max-width:50px"><span>-</span><input class="fi" data-field="grappleDef" style="max-width:50px"></div><div class="lb">Grappling</div></div>
+    <div style="margin-bottom:1px"><div style="display:flex;gap:2px;align-items:baseline"><input class="fi" data-field="overbearAtk" style="max-width:50px"><span>-</span><input class="fi" data-field="overbearDam" style="max-width:50px"><span>-</span><input class="fi" data-field="overbearDef" style="max-width:50px"></div><div class="lb">Overbearing</div></div>
+  </div>
+
+  <!-- Morale / # Attacks -->
+  <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:3px">
+    <div class="move-field" style="flex:0"><input class="fi" data-field="morale" style="width:60px"><span class="lb">Morale Modifier</span></div>
+    <div class="row" style="margin-bottom:0"><span class="lb"># Attacks:</span><input class="fi" data-field="numAttacks" style="max-width:40px"></div>
+  </div>
+
+  <!-- Patron / Lady -->
   <div class="row"><span class="lb">Patron:</span><input class="fi" data-field="patron"></div>
   <div class="row"><span class="lb">Lady:</span><input class="fi" data-field="lady"></div>
-  <div class="row"><span class="lb">Mount:</span><input class="fi" data-field="mount"></div>
-  <div class="lb" style="margin-top:3px">Status:</div>
-  <table class="h-tbl"><thead><tr><th>#</th><th>Name</th><th>HD</th><th>AC</th><th>H.P.</th><th>#AT</th><th>Damage</th><th style="width:16px"><button class="add-sm" id="add-hench">+</button></th></tr></thead><tbody id="hench-list"></tbody></table>
+
+  <!-- Tithings / Alignment / Mount -->
+  <div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:3px">
+    <div class="move-field" style="flex:0"><input class="fi" data-field="tithings" style="width:30px"><span class="lb">Tithings %</span></div>
+    <div class="row" style="margin-bottom:0"><span class="lb">Alignment</span><input class="fi" data-field="palAlignment" style="max-width:80px"></div>
+    <div class="row" style="margin-bottom:0"><span class="lb">Mount:</span><input class="fi" data-field="mount"></div>
+  </div>
+
+  <!-- Status + henchmen table -->
+  <div style="display:flex;align-items:flex-start;gap:4px;margin-bottom:3px">
+    <div><div class="bx" data-field="statusBox" style="width:22px;height:22px"></div><div class="lb" style="font-size:7px">Status</div></div>
+    <table class="h-tbl" style="flex:1"><thead><tr><th>#</th><th>Name</th><th>HD</th><th>AC</th><th>H.P.</th><th>#AT</th><th>Damage</th><th style="width:16px"><button class="add-sm" id="add-hench">+</button></th></tr></thead><tbody id="hench-list"></tbody></table>
+  </div>
+
+  <!-- Magic Components -->
+  <div class="row"><span class="lb">Magic Components:</span><input class="fi" data-field="magicComponents"></div>
+  <div class="row"><input class="fi" data-field="magicComponents2"><input class="fi" data-field="magicComponents3" style="margin-left:4px"></div>
+
+  <!-- Special Abilities -->
+  <div style="margin-top:3px"><span class="lb">Special Abilities:</span> <button class="add-btn" id="add-ability">+ Add</button></div>
+  <div class="prof-inline" id="ability-list"></div>
 </div>
+
 <div>
+  <!-- Spells (class-conditional) -->
   <div class="cls-sec" id="section-spells">
-    <div class="row"><span class="lb">Spells Known</span><input class="fi" data-field="spellsKnown" style="flex:0 0 30px;text-align:center"><span class="lb" style="margin-left:6px">Memorized per Level:</span></div>
+    <div class="row"><span class="lb">Spells Known</span><input class="fi" data-field="spellsKnown" style="flex:0 0 30px;text-align:center"></div>
+    <div class="lb" style="margin-bottom:2px">Spells Memorized per Level:</div>
     <div class="sp-grid">
-      <div class="sp-hdr"><div>1st</div><div>2nd</div><div>3rd</div><div>4th</div><div>5th</div><div>6th</div></div>
+      <div class="sp-hdr"><div>1st</div><div>2nd</div><div>3rd</div><div>4th/1st</div><div>2nd</div><div>—</div></div>
       <div class="sp-cells"><input data-field="spellSlot1" type="number"><input data-field="spellSlot2" type="number"><input data-field="spellSlot3" type="number"><input data-field="spellSlot4" type="number"><input data-field="spellSlot5" type="number"><input data-field="spellSlot6" type="number"></div>
     </div>
     <div style="margin-top:2px"><span class="lb">Spell List</span> <button class="add-btn" id="add-spell">+ Spell</button></div>
     <div id="spell-list" style="column-count:2;column-gap:8px"></div>
   </div>
-  <div class="row"><span class="lb">Magic Components:</span><input class="fi" data-field="magicComponents"></div>
-  <div style="margin-top:2px"><span class="lb">Special Abilities:</span> <button class="add-btn" id="add-ability">+ Add</button></div>
-  <div class="prof-inline" id="ability-list"></div>
+
+  <!-- Turning Undead (class-conditional) — labels below lines -->
   <div class="cls-sec" id="section-turning">
-    <div class="lb" style="margin-top:4px">Turning Undead:</div>
-    <table class="tu-tbl">
-      <tr><th>Skel.</th><th>Zombie</th><th>Ghoul</th><th>Shadow</th><th>Wight</th><th>Ghast</th><th>Wraith</th></tr>
-      <tr><td><input data-field="turnSkeleton"></td><td><input data-field="turnZombie"></td><td><input data-field="turnGhoul"></td><td><input data-field="turnShadow"></td><td><input data-field="turnWight"></td><td><input data-field="turnGhast"></td><td><input data-field="turnWraith"></td></tr>
-      <tr><th>Mummy</th><th>Spectre</th><th>Vampire</th><th>Ghost</th><th>Lich</th><th>Special</th><th></th></tr>
-      <tr><td><input data-field="turnMummy"></td><td><input data-field="turnSpectre"></td><td><input data-field="turnVampire"></td><td><input data-field="turnGhost"></td><td><input data-field="turnLich"></td><td><input data-field="turnSpecial"></td><td></td></tr>
-    </table>
+    <div class="lb" style="margin-top:4px;margin-bottom:2px">Turning Undead:</div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:0 4px">
+      <div class="move-field"><input class="fi" data-field="turnSkeleton" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Skeleton</span></div>
+      <div class="move-field"><input class="fi" data-field="turnZombie" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Zombie</span></div>
+      <div class="move-field"><input class="fi" data-field="turnGhoul" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Ghoul</span></div>
+      <div class="move-field"><input class="fi" data-field="turnShadow" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Shadow</span></div>
+      <div class="move-field"><input class="fi" data-field="turnWight" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Wight</span></div>
+      <div class="move-field"><input class="fi" data-field="turnGhast" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Ghast</span></div>
+      <div class="move-field"><input class="fi" data-field="turnWraith" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Wraith</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:0 4px;margin-top:2px">
+      <div class="move-field"><input class="fi" data-field="turnMummy" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Mummy</span></div>
+      <div class="move-field"><input class="fi" data-field="turnSpectre" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Spectre</span></div>
+      <div class="move-field"><input class="fi" data-field="turnVampire" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Vampire</span></div>
+      <div class="move-field"><input class="fi" data-field="turnGhost" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Ghost</span></div>
+      <div class="move-field"><input class="fi" data-field="turnLich" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Lich</span></div>
+      <div class="move-field"><input class="fi" data-field="turnSpecial" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Special</span></div>
+      <div></div>
+    </div>
   </div>
+
+  <!-- Thief Skills (class-conditional) -->
   <div class="cls-sec" id="section-thief">
     <div class="lb" style="margin-top:4px">Thief Abilities:</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px">
