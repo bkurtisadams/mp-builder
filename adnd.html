@@ -82,7 +82,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .move-field .lb{margin-top:1px}
 
 /* ── Abilities ── */
-.ab-wrap{display:grid;grid-template-columns:1fr 280px;gap:0 8px;margin-bottom:4px}
+.ab-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:0 8px;margin-bottom:4px}
 .ab-section .ab-head{font-size:14px;font-family:var(--fh);font-weight:700;letter-spacing:1px;margin-bottom:2px}
 .ab-row{display:flex;align-items:stretch;gap:0;margin-bottom:0}
 .ab-score-box{width:26px;height:26px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -98,11 +98,11 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .ab-name{font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:0 0 2px 56px}
 
 /* ── Right Column ── */
-.right-col{display:flex;flex-direction:column;gap:3px}
+.right-col{display:flex;flex-direction:column;gap:3px;min-width:0;overflow:hidden}
 .sa-title{font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;text-align:center;letter-spacing:.5px}
 .sa-grid{border:1px solid var(--ink);margin-bottom:2px}
-.sa-hdr{display:grid;grid-template-columns:30px 1fr 30px 1fr;font-family:var(--fh);font-size:7px;font-weight:700;text-align:center;border-bottom:1px solid var(--ink);padding:2px 0;text-transform:uppercase}
-.sa-row{display:grid;grid-template-columns:30px 1fr 30px 1fr;border-bottom:1px solid #ccc}
+.sa-hdr{display:grid;grid-template-columns:24px 1fr 24px 1fr;font-family:var(--fh);font-size:7px;font-weight:700;text-align:center;border-bottom:1px solid var(--ink);padding:2px 0;text-transform:uppercase}
+.sa-row{display:grid;grid-template-columns:24px 1fr 24px 1fr;border-bottom:1px solid #ccc}
 .sa-row:last-child{border-bottom:none}
 .sa-row input{border:none;background:transparent;font-family:var(--fb);font-size:10px;outline:none;padding:0 2px;height:16px}
 .saves-block{margin-bottom:3px}
@@ -368,9 +368,9 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 
 <!-- RIGHT COLUMN: two sub-columns — info left, saves right -->
 <div class="right-col">
-  <div style="display:grid;grid-template-columns:1fr auto;gap:4px 8px">
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 6px;overflow:hidden">
     <!-- Left sub: SA grid, resistances, detection, languages, psionics -->
-    <div>
+    <div style="min-width:0;overflow:hidden">
       <div class="sa-title">Saving Throw Adjustments:</div>
       <div class="sa-grid">
         <div class="sa-hdr"><div>+/−</div><div>Condition</div><div>+/−</div><div>Condition</div></div>
