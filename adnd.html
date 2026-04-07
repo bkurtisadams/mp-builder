@@ -230,20 +230,16 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 <!-- ═══════ TOP BANNER ═══════ -->
 <div class="top-ban">
   <div class="left">
-    <div class="top-field"><span class="lb" style="font-size:8px">Player Name</span><div style="border-bottom:1px solid var(--ink);height:1px;margin-top:12px"></div></div>
-    <div class="top-field" style="margin-top:4px"><input class="fi" data-field="playerName" style="width:100%"></div>
-    <div class="top-field"><span class="lb" style="font-size:8px">Date Character Began</span></div>
-    <div class="top-field"><input class="fi" data-field="dateBegan" style="width:100%"></div>
+    <div class="row"><span class="lb" style="font-size:8px">Player Name</span><input class="fi" data-field="playerName"></div>
+    <div class="row"><span class="lb" style="font-size:8px">Date Character Began</span><input class="fi" data-field="dateBegan"></div>
   </div>
   <div class="center">
     <div style="font-family:var(--fd);font-size:28px;letter-spacing:3px;line-height:1">Advanced D&D<span style="font-family:var(--fh);font-size:8px;vertical-align:super;letter-spacing:0"> TM</span></div>
     <div style="font-family:var(--fb);font-style:italic;font-size:13px;letter-spacing:1px">Player Character Record</div>
   </div>
   <div class="right">
-    <div class="top-field" style="text-align:right"><span class="lb" style="font-size:8px">Campaign</span></div>
-    <div class="top-field"><input class="fi" data-field="campaign" style="width:100%"></div>
-    <div class="top-field" style="text-align:right"><span class="lb" style="font-size:8px">#</span></div>
-    <div class="top-field"><input class="fi" data-field="campaignNum" style="width:60px;margin-left:auto;display:block"></div>
+    <div class="row" style="justify-content:flex-end"><span class="lb" style="font-size:8px">Campaign</span><input class="fi" data-field="campaign" style="max-width:120px"></div>
+    <div class="row" style="justify-content:flex-end"><span class="lb" style="font-size:8px">#</span><input class="fi" data-field="campaignNum" style="max-width:50px"></div>
   </div>
 </div>
 
@@ -251,8 +247,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 <div class="name-sketch">
   <div class="name-col">
     <input type="file" id="portrait-input" accept="image/*" hidden>
-    <div class="lb" style="font-size:8px;margin-bottom:4px">Character Name</div>
-    <div class="row"><input class="fi" data-field="characterName" style="font-size:13px;height:20px;font-weight:700"></div>
+    <div class="row" style="margin-bottom:4px"><span class="lb" style="font-size:9px">Character Name</span><input class="fi" data-field="characterName" style="font-size:13px;height:20px;font-weight:700"></div>
     <div class="pair"><div class="row"><span class="lb">Class:</span><input class="fi" data-field="characterClass"></div><div class="row"><span class="lb">Level:</span><input class="fi" data-field="level" style="max-width:60px"></div></div>
     <div class="pair"><div class="row"><span class="lb">Race:</span><input class="fi" data-field="race"></div><div class="row"><span class="lb">Alignment:</span><input class="fi" data-field="alignment"></div></div>
     <div class="pair"><div class="row"><span class="lb">Patron Deity:</span><input class="fi" data-field="deity"></div><div class="row"><span class="lb">Religion:</span><input class="fi" data-field="religion"></div></div>
