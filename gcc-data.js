@@ -32,6 +32,7 @@ const GCC = (function() {
     mpCampSel: 'mp-campaign-sel',
     // System char lists
     faseripChars: 'gcc-faserip-chars',
+    add1eChars: 'gcc-add1e-chars',
   };
 
   // ── System Registry ──
@@ -67,7 +68,7 @@ const GCC = (function() {
       icon: '🗡',
       color: '#5a8a30',
       tools: [
-        { id: 'add1-char', name: 'Character Sheet', href: null },
+        { id: 'add1-char', name: 'Character Sheet', href: 'adnd.html' },
         { id: 'add1-enc', name: 'Encounter Generator', href: null },
         { id: 'add1-trs', name: 'Treasure Generator', href: null },
         { id: 'add1-wild', name: 'Wilderness Generator', href: null },
