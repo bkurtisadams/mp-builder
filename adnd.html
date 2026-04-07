@@ -73,6 +73,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .sketch-col{display:flex;flex-direction:column;align-items:center}
 .sketch-box{width:140px;height:140px;border:2px solid var(--ink);background:var(--paper-lt);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
 .sketch-box img{width:100%;height:100%;object-fit:contain}
+.sketch-box:hover .name-box-del{opacity:1}
 
 /* ── Movement ── */
 .move-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 12px;padding:4px 0;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);margin-bottom:6px}
@@ -249,10 +250,6 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 <!-- ═══════ NAME + SKETCH ═══════ -->
 <div class="name-sketch">
   <div class="name-col">
-    <div class="name-box" id="portrait-box" title="Click to upload portrait">
-      <span id="portrait-ph" style="color:var(--ink-lt);font-size:9px">Click to add portrait</span>
-      <button class="name-box-del" id="portrait-del">×</button>
-    </div>
     <input type="file" id="portrait-input" accept="image/*" hidden>
     <div class="lb" style="font-size:8px;margin-bottom:4px">Character Name</div>
     <div class="row"><input class="fi" data-field="characterName" style="font-size:13px;height:20px;font-weight:700"></div>
@@ -263,8 +260,9 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
   </div>
   <div class="sketch-col">
     <div class="lb" style="font-size:8px;margin-bottom:2px">Character Sketch</div>
-    <div class="sketch-box" id="sketch-box" title="Click to upload sketch">
-      <span id="sketch-ph" style="color:var(--ink-lt);font-size:9px">Click to upload</span>
+    <div class="sketch-box" id="portrait-box" title="Click to upload sketch">
+      <span id="portrait-ph" style="color:var(--ink-lt);font-size:9px">Click to upload</span>
+      <button class="name-box-del" id="portrait-del" style="position:absolute;top:2px;right:2px;width:14px;height:14px;border:none;cursor:pointer;background:rgba(0,0,0,.4);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .12s">×</button>
     </div>
   </div>
 </div>
@@ -368,27 +366,33 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 <div class="ab-name">Charisma</div>
 </div><!-- ab-section -->
 
-<!-- RIGHT COLUMN -->
+<!-- RIGHT COLUMN: two sub-columns — info left, saves right -->
 <div class="right-col">
-  <div class="sa-title">Saving Throw Adjustments:</div>
-  <div class="sa-grid">
-    <div class="sa-hdr"><div>+/−</div><div>Condition</div><div>+/−</div><div>Condition</div></div>
-    <div class="sa-row"><input data-field="saveAdj1v"><input data-field="saveAdj1c"><input data-field="saveAdj2v"><input data-field="saveAdj2c"></div>
-    <div class="sa-row"><input data-field="saveAdj3v"><input data-field="saveAdj3c"><input data-field="saveAdj4v"><input data-field="saveAdj4c"></div>
-    <div class="sa-row"><input data-field="saveAdj5v"><input data-field="saveAdj5c"><input data-field="saveAdj6v"><input data-field="saveAdj6c"></div>
+  <div style="display:grid;grid-template-columns:1fr auto;gap:4px 8px">
+    <!-- Left sub: SA grid, resistances, detection, languages, psionics -->
+    <div>
+      <div class="sa-title">Saving Throw Adjustments:</div>
+      <div class="sa-grid">
+        <div class="sa-hdr"><div>+/−</div><div>Condition</div><div>+/−</div><div>Condition</div></div>
+        <div class="sa-row"><input data-field="saveAdj1v"><input data-field="saveAdj1c"><input data-field="saveAdj2v"><input data-field="saveAdj2c"></div>
+        <div class="sa-row"><input data-field="saveAdj3v"><input data-field="saveAdj3c"><input data-field="saveAdj4v"><input data-field="saveAdj4c"></div>
+        <div class="sa-row"><input data-field="saveAdj5v"><input data-field="saveAdj5c"><input data-field="saveAdj6v"><input data-field="saveAdj6c"></div>
+      </div>
+      <div class="row"><span class="lb">Resistances:</span><input class="fi" data-field="resistances"></div>
+      <div class="row"><span class="lb">Detection:</span><input class="fi" data-field="detection"></div>
+      <div class="row"><span class="lb">Languages:</span><input class="fi" data-field="languages"></div>
+      <div class="row"><span class="lb">Psionics:</span><input class="fi" data-field="psionics"></div>
+    </div>
+    <!-- Right sub: Saving Throws with stacked labels -->
+    <div class="saves-block">
+      <div class="saves-title">Saving<br>Throws:</div>
+      <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Paralyzation/<br>Poison—</span><input class="fi" data-field="savePPD" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
+      <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Petrification/<br>Polymorph—</span><input class="fi" data-field="savePP" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
+      <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Rod, Staff<br>or Wand—</span><input class="fi" data-field="saveRSW" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
+      <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Breath<br>Weapon—</span><input class="fi" data-field="saveBW" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
+      <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal">Spells—</span><input class="fi" data-field="saveSpell" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
+    </div>
   </div>
-  <div class="saves-block">
-    <div class="saves-title">Saving Throws:</div>
-    <div class="save-line"><span class="lb">Paralyzation/Poison—</span><input class="fi" data-field="savePPD" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-    <div class="save-line"><span class="lb">Petrification/Polymorph—</span><input class="fi" data-field="savePP" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-    <div class="save-line"><span class="lb">Rod, Staff or Wand—</span><input class="fi" data-field="saveRSW" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-    <div class="save-line"><span class="lb">Breath Weapon—</span><input class="fi" data-field="saveBW" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-    <div class="save-line"><span class="lb">Spells—</span><input class="fi" data-field="saveSpell" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-  </div>
-  <div class="row"><span class="lb">Resistances:</span><input class="fi" data-field="resistances"></div>
-  <div class="row"><span class="lb">Detection:</span><input class="fi" data-field="detection"></div>
-  <div class="row"><span class="lb">Languages:</span><input class="fi" data-field="languages"></div>
-  <div class="row"><span class="lb">Psionics:</span><input class="fi" data-field="psionics"></div>
   <div style="margin-top:3px">
     <div class="row"><span class="lb">Weapons of Proficiency:</span><span class="lb" style="margin-left:auto">Number</span><input class="fi" data-field="profNumber" style="flex:0 0 24px;text-align:center;min-width:24px"><span class="lb" style="margin-left:6px">Non-Prof. Penalty</span><input class="fi" data-field="nonProfPenalty" style="flex:0 0 24px;text-align:center;min-width:24px"></div>
     <div class="prof-inline" id="prof-list"></div>
