@@ -46,6 +46,10 @@ const GCCSync = (function() {
   function isSyncKey(key) { return ALL_SYNC_KEYS.indexOf(key) !== -1; }
   function isListKey(key) { return LIST_KEYS.indexOf(key) !== -1; }
 
+  // Portrait fields that may contain large base64 strings
+  const PORTRAIT_FIELDS = ['portraitData', '_image', 'portrait'];
+  const PORTRAIT_SENTINEL = '__portrait_too_large__';
+
   // ── Load Firestore SDK ──
   function loadScript(url) {
     return new Promise((resolve, reject) => {
@@ -154,12 +158,30 @@ const GCCSync = (function() {
     }
 
     // Save each entity individually
+    const MAX_DOC_BYTES = 900000; // stay under Firestore 1MB limit
+
     let saved = 0;
     for (const item of items) {
       const ref = listItemDocRef(listKey, item._id);
       if (!ref) continue;
       try {
-        await ref.set({ json: JSON.stringify(item), _updated: now });
+        let jsonStr = JSON.stringify(item);
+        // If over size limit, strip portrait data and retry
+        if (jsonStr.length > MAX_DOC_BYTES) {
+          const slim = Object.assign({}, item);
+          let stripped = false;
+          PORTRAIT_FIELDS.forEach(field => {
+            if (slim[field] && typeof slim[field] === 'string' && slim[field].length > 1000) {
+              slim[field] = PORTRAIT_SENTINEL;
+              stripped = true;
+            }
+          });
+          if (stripped) {
+            jsonStr = JSON.stringify(slim);
+            console.warn('[GCCSync] stripped portrait from', item.heroName || item.name || item._id, '(' + listKey + ') — too large for cloud sync');
+          }
+        }
+        await ref.set({ json: jsonStr, _updated: now });
         saved++;
       } catch(e) {
         console.warn('[GCCSync] list item save failed:', listKey, item._id, e);
@@ -250,7 +272,7 @@ const GCCSync = (function() {
   // ── Upload & Pull ──
   // ══════════════════════════════════════
 
-  const SYNC_FORMAT_VERSION = 3; // v1=raw objects, v2=JSON strings, v3=per-entity split
+  const SYNC_FORMAT_VERSION = 4; // v1=raw, v2=JSON strings, v3=per-entity, v4=portrait stripping
 
   async function uploadLocalData() {
     if (!_db || !_uid) return;
@@ -282,6 +304,30 @@ const GCCSync = (function() {
     try { localStorage.setItem(flagKey, String(SYNC_FORMAT_VERSION)); } catch(e) {}
   }
 
+  // Restore local portraits that were stripped during cloud save
+  function mergeLocalPortraits(listKey, cloudItems) {
+    let localRaw;
+    try { localRaw = localStorage.getItem(listKey); } catch(e) { return cloudItems; }
+    if (!localRaw) return cloudItems;
+    let localItems;
+    try { localItems = JSON.parse(localRaw); } catch(e) { return cloudItems; }
+    if (!Array.isArray(localItems)) return cloudItems;
+
+    const localById = {};
+    localItems.forEach(it => { if (it._id) localById[it._id] = it; });
+
+    cloudItems.forEach(item => {
+      const local = localById[item._id];
+      if (!local) return;
+      PORTRAIT_FIELDS.forEach(field => {
+        if (item[field] === PORTRAIT_SENTINEL && local[field] && local[field] !== PORTRAIT_SENTINEL) {
+          item[field] = local[field];
+        }
+      });
+    });
+    return cloudItems;
+  }
+
   async function pullCloudData() {
     if (!_db || !_uid) return;
     console.log('[GCCSync] Pulling cloud data to local cache...');
@@ -290,6 +336,10 @@ const GCCSync = (function() {
       try {
         const val = await cloudLoad(key);
         if (val !== undefined) {
+          // For entity lists, restore any portraits that were stripped
+          if (isListKey(key) && Array.isArray(val)) {
+            mergeLocalPortraits(key, val);
+          }
           localStorage.setItem(key, JSON.stringify(val));
           count++;
         }
