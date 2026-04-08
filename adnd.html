@@ -222,6 +222,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
     <button class="hdr-btn" id="btn-delete">DELETE</button>
     <button class="hdr-btn" id="btn-export">EXPORT</button>
     <button class="hdr-btn" id="btn-import">IMPORT</button>
+    <button class="hdr-btn" id="btn-import-ars" style="border-color:#d4a843;color:#d4a843">IMPORT ARS</button>
   </div>
 </div></div>
 
@@ -696,12 +697,140 @@ function deleteChar(){if(!CHAR._id){MPDialog.alert('Delete','Not saved yet.');re
 function exportChar(){collectFields();const b=new Blob([JSON.stringify(CHAR,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=(CHAR.characterName||'char').replace(/[^a-zA-Z0-9]/g,'_')+'.json';a.click();}
 function importChar(){const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{CHAR=JSON.parse(ev.target.result);populateAll();autosave();MPDialog.alert('Imported','"'+(CHAR.characterName||'Unnamed')+'" loaded.');}catch(err){MPDialog.alert('Error','Invalid JSON.');}};r.readAsText(f);};inp.click();}
 
+function importARS(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='.json';
+  inp.onchange=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      try{
+        const ars=JSON.parse(ev.target.result);
+        if(!ars.system||!ars.type){MPDialog.alert('Error','Not a valid ARS actor export.');return;}
+        CHAR=mapARS(ars);
+        populateAll();autosave();
+        MPDialog.alert('ARS Import','"'+(CHAR.characterName||'Unnamed')+'" imported from ARS/Foundry.');
+      }catch(err){MPDialog.alert('Error','Failed: '+err.message);}
+    };r.readAsText(f);
+  };inp.click();
+}
+
+function mapARS(ars){
+  const s=ars.system,d=s.details||{},a=s.abilities||{},sv=s.saves||{},at=s.attributes||{};
+  const items=ars.items||[];
+  const c={};
+  // Name
+  c.characterName=ars.name||'';
+  // Race from item
+  const raceItem=items.find(i=>i.type==='race');
+  c.race=raceItem?raceItem.name:'';
+  // Class/Level from class items
+  const classItems=items.filter(i=>i.type==='class');
+  if(classItems.length){
+    // Parse level from system.rank.levels or classname field
+    const parts=[];
+    classItems.forEach(ci=>{
+      const cn=ci.name||'';
+      // Try to find level — ARS computes at runtime, but classname on actor may have it
+      parts.push(cn);
+    });
+    c.characterClass=parts.join('/');
+    // classname at actor level has "Fighter 9" format when populated at runtime
+    const cn=s.classname||'';
+    if(cn){
+      c.characterClass=cn.replace(/\s*\d+/g,'').trim();
+      const lvls=cn.match(/\d+/g);
+      if(lvls)c.level=lvls.join('/');
+    }else{
+      // no classname — leave class names, level unknown
+      c.level='';
+    }
+  }
+  // Alignment
+  const alMap={lg:'Lawful Good',ln:'Lawful Neutral',le:'Lawful Evil',ng:'Neutral Good',n:'True Neutral',tn:'True Neutral',ne:'Neutral Evil',cg:'Chaotic Good',cn:'Chaotic Neutral',ce:'Chaotic Evil'};
+  c.alignment=alMap[(d.alignment||'').toLowerCase()]||d.alignment||'';
+  c.deity=d.deity||'';
+  // Abilities
+  c.str=a.str?a.str.value:'';c.strPct=a.str&&a.str.percent?a.str.percent:'';
+  c.int=a.int?a.int.value:'';c.wis=a.wis?a.wis.value:'';
+  c.dex=a.dex?a.dex.value:'';c.con=a.con?a.con.value:'';
+  c.cha=a.cha?a.cha.value:'';
+  // Saves — AD&D sheet uses 5 saves, ARS has 10 granular
+  c.savePPD=sv.paralyzation?sv.paralyzation.value:'';
+  c.savePP=sv.petrification?sv.petrification.value:'';
+  c.saveRSW=sv.rod?sv.rod.value:'';
+  c.saveBW=sv.breath?sv.breath.value:'';
+  c.saveSpell=sv.spell?sv.spell.value:'';
+  // HP
+  c.hpMax=at.hp?at.hp.max:'';c.hpCurrent=at.hp?at.hp.value:'';
+  // AC — ARS export only has attributes.ac.value=10 (base), real AC computed at runtime
+  // We'll leave AC empty for user to fill, or set base
+  c.acBase=at.ac?at.ac.value:'';
+  // Movement
+  c.moveBase=at.movement?at.movement.value:'';
+  // XP
+  c.xpCombat=d.xp||'';c.xpTotal=d.xp||'';
+  // Details
+  c.age=d.age||'';c.sex=d.sex||'';c.height=d.height||'';c.weight=d.weight||'';
+  // Weapons from equipped weapon items (skip Brawl/Grapple/Overbear)
+  const skipWeapons=['Brawl','Grapple','Overbear'];
+  const weaponItems=items.filter(i=>i.type==='weapon'&&!skipWeapons.includes(i.name));
+  c.weapons=weaponItems.map(w=>{
+    const ws=w.system||{};
+    const dmgAction=(ws.actions||[]).find(a=>a.type==='damage');
+    return{name:w.name,dmg:dmgAction?dmgAction.formula:'',speed:'',magAdj:ws.attributes&&ws.attributes.magic?'+':'',range:'',ac10:'',ac9:'',ac8:'',ac7:'',ac6:'',ac5:'',ac4:'',ac3:'',ac2:''};
+  });
+  // Inventory — non-weapon, non-spell, non-race, non-class, non-skill, non-ability, non-proficiency items
+  const skipTypes=['weapon','spell','race','class','skill','ability','proficiency'];
+  const invItems=items.filter(i=>!skipTypes.includes(i.type));
+  c.items=invItems.map(i=>{
+    const is=i.system||{};
+    return{name:i.name,location:is.location?is.location.state:'',qty:is.quantity||1,weight:is.weight||'',notes:is.attributes&&is.attributes.magic?'magical':''};
+  });
+  // Magic items
+  c.magicItems=items.filter(i=>{
+    const is=i.system||{};
+    return is.attributes&&is.attributes.magic&&i.type!=='spell';
+  }).map(i=>{
+    const is=i.system||{};
+    return{name:i.name,charges:is.charges&&is.charges.max?is.charges.value+'/'+is.charges.max:'',properties:''};
+  });
+  // Spells from spell items (deduplicated by name+level)
+  const spellItems=items.filter(i=>i.type==='spell');
+  const seen={};
+  c.spells=[];
+  spellItems.forEach(sp=>{
+    const key=sp.name+'|'+(sp.system?sp.system.level:'');
+    if(!seen[key]){seen[key]=true;c.spells.push({level:sp.system?String(sp.system.level):'',name:sp.name});}
+  });
+  c.spells.sort((a,b)=>(+a.level)-(+b.level)||a.name.localeCompare(b.name));
+  // Thief skills from skill items
+  const thiefMap={'Pick Pockets':'thiefPP','Hide in Shadows':'thiefHIS','Open Locks':'thiefOL','Open Locks/Disarm Traps':'thiefOL','Hear Noise':'thiefHN','Find Traps':'thiefFRT','Find/Remove Traps':'thiefFRT','Climb Walls':'thiefCW','Move Silently':'thiefMS','Read Languages':'thiefRL'};
+  items.filter(i=>i.type==='skill').forEach(sk=>{
+    const field=thiefMap[sk.name];
+    if(field)c[field]='*';
+  });
+  // Languages from ability items
+  const langs=items.filter(i=>i.type==='ability'&&i.name.startsWith('Language')).map(i=>i.name.replace('Language (','').replace(')',''));
+  if(langs.length)c.languages=langs.join(', ');
+  // Biography → notes
+  if(d.biography&&d.biography.value){
+    c.notes=d.biography.value.replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim().substring(0,2000);
+  }
+  // Patron
+  c.patron=d.patron||'';
+  // Mark source
+  c._arsImport=true;
+  c._arsActorId=ars._id||'';
+  return c;
+}
+
 document.getElementById('btn-new').addEventListener('click',newChar);
 document.getElementById('btn-save').addEventListener('click',saveChar);
 document.getElementById('btn-load').addEventListener('click',loadChar);
 document.getElementById('btn-delete').addEventListener('click',deleteChar);
 document.getElementById('btn-export').addEventListener('click',exportChar);
 document.getElementById('btn-import').addEventListener('click',importChar);
+document.getElementById('btn-import-ars').addEventListener('click',importARS);
 
 // Class detection
 const classField=document.querySelector('[data-field="characterClass"]');
