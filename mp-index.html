@@ -521,6 +521,7 @@ body {
 <script src="gcc-header.js"></script>
 <script src="gcc-firebase-config.js"></script>
 <script src="gcc-auth.js"></script>
+<script src="gcc-sync.js"></script>
 <script>
 // ── Storage keys ──
 const CHARS_KEY = GCC.KEYS.mpChars;
@@ -924,7 +925,9 @@ document.getElementById('sort-vehs').addEventListener('change', applyFilters);
 
 renderAll();
 
-// ── Click handling ──
+window.addEventListener('gcc-sync-ready', () => { renderAll(); });
+
+
 document.addEventListener('click', (e) => {
   // Image actions
   const imgBtn = e.target.closest('[data-action="img-upload"]');

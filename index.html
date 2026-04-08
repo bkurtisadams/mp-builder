@@ -601,6 +601,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 <script src="gcc-header.js"></script>
 <script src="gcc-firebase-config.js"></script>
 <script src="gcc-auth.js"></script>
+<script src="gcc-sync.js"></script>
 <script>
 // ── Init ──
 GCC.init();
@@ -1365,6 +1366,11 @@ sesModal.addEventListener('click', (e) => { if (e.target === sesModal) closeSess
 
 // ── Render ──
 renderJumpback(); renderCampaigns(); renderActivity();
+
+// Re-render when cloud data arrives via sync
+window.addEventListener('gcc-sync-ready', () => {
+  renderJumpback(); renderCampaigns(); renderActivity();
+});
 </script>
 </body>
 </html>

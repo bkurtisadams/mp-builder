@@ -134,6 +134,8 @@ const GCCAuth = (function() {
           `</button>` +
           `<div class="gcc-auth-dd" id="gcc-auth-dd">` +
             `<div class="gcc-auth-dd-email">${ESC(_user.email)}</div>` +
+            `<div class="gcc-auth-dd-sync" id="gcc-auth-sync-status">Sync: connecting…</div>` +
+            `<button class="gcc-auth-dd-item" id="gcc-auth-sync-btn">⟳ Sync Now</button>` +
             `<button class="gcc-auth-dd-item" id="gcc-auth-profile">Edit Profile</button>` +
             `<button class="gcc-auth-dd-item" id="gcc-auth-signout">Sign Out</button>` +
           `</div>` +
@@ -171,6 +173,38 @@ const GCCAuth = (function() {
       dd.classList.remove('open');
       showModal('profile');
     });
+
+    // Sync button
+    const btnSync = document.getElementById('gcc-auth-sync-btn');
+    if (btnSync) btnSync.addEventListener('click', async () => {
+      const status = document.getElementById('gcc-auth-sync-status');
+      if (status) status.textContent = 'Sync: pushing…';
+      btnSync.disabled = true;
+      try {
+        if (typeof GCCSync !== 'undefined') {
+          await GCCSync.syncNow();
+          if (status) status.textContent = 'Sync: up to date ✓';
+        }
+      } catch(e) {
+        if (status) status.textContent = 'Sync: error';
+      }
+      btnSync.disabled = false;
+    });
+
+    // Listen for sync ready
+    window.addEventListener('gcc-sync-ready', () => {
+      const status = document.getElementById('gcc-auth-sync-status');
+      if (status) status.textContent = 'Sync: active ✓';
+    });
+    window.addEventListener('gcc-sync-offline', () => {
+      const status = document.getElementById('gcc-auth-sync-status');
+      if (status) status.textContent = 'Sync: offline';
+    });
+    // If sync already active
+    if (typeof GCCSync !== 'undefined' && GCCSync.isActive()) {
+      const status = document.getElementById('gcc-auth-sync-status');
+      if (status) status.textContent = 'Sync: active ✓';
+    }
   }
 
   // ── Auth Modal ──

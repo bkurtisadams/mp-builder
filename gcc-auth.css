@@ -70,6 +70,15 @@
   margin-bottom: 4px;
   word-break: break-all;
 }
+.gcc-auth-dd-sync {
+  padding: 4px 14px 6px;
+  font-family: 'Alegreya', serif;
+  font-size: 10px;
+  color: var(--gcc-dd-tx2);
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--gcc-dd-sep);
+  margin-bottom: 4px;
+}
 .gcc-auth-dd-item {
   display: block;
   width: 100%;

@@ -271,6 +271,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 <script src="gcc-header.js"></script>
 <script src="gcc-firebase-config.js"></script>
 <script src="gcc-auth.js"></script>
+<script src="gcc-sync.js"></script>
 <script>
 GCC.init();
 
@@ -672,6 +673,8 @@ sesModal.addEventListener('click', e => { if (e.target === sesModal) closeSessio
 
 // ── Init ──
 render();
+
+window.addEventListener('gcc-sync-ready', () => { render(); });
 </script>
 </body>
 </html>
