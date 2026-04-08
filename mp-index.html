@@ -6,6 +6,7 @@
 <title>Mighty Protectors — Builder</title>
 <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Bitter:wght@400;700&family=Cinzel:wght@500;700&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="gcc-header.css">
+<link rel="stylesheet" href="gcc-auth.css">
 <style>
 /* ── Palette from cover art + logo ── */
 :root {
@@ -392,7 +393,6 @@ body {
 <div id="gcc-bar" class="gcc-bar">
   <div class="gcc-bar-in">
     <a href="index.html" class="gcc-brand" title="Back to Dashboard">
-      <img src="graycloak-icon-t64.png" alt="" class="gcc-brand-icon">
       <div class="gcc-title-wrap">
         <div class="gcc-title">GRAYCLOAK'S</div>
         <div class="gcc-subtitle">CAMPAIGN CORNER</div>
@@ -403,6 +403,7 @@ body {
         <button class="gcc-nav-btn" id="gcc-btn-tools">🎲 Tools ▾</button>
         <div class="gcc-tools-dd" id="gcc-tools-dd"></div>
       </div>
+      <span id="gcc-auth-slot"></span>
       <button class="gcc-nav-btn" id="gcc-btn-theme" title="Toggle light/dark"><span id="gcc-theme-icon">◑</span></button>
     </div>
   </div>
@@ -518,6 +519,8 @@ body {
 
 <script src="gcc-data.js"></script>
 <script src="gcc-header.js"></script>
+<script src="gcc-firebase-config.js"></script>
+<script src="gcc-auth.js"></script>
 <script>
 // ── Storage keys ──
 const CHARS_KEY = GCC.KEYS.mpChars;

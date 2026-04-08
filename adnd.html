@@ -6,6 +6,7 @@
 <title>AD&D 1st Edition — Character Record</title>
 <link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&family=Oswald:wght@400;600;700&family=Bitter:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="gcc-header.css">
+<link rel="stylesheet" href="gcc-auth.css">
 <link rel="stylesheet" href="mp-dialog.css">
 <style>
 :root {
@@ -195,7 +196,6 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 <div id="gcc-bar" class="gcc-bar">
   <div class="gcc-bar-in">
     <a href="index.html" class="gcc-brand" title="Back to Dashboard">
-      <img src="graycloak-icon-t64.png" alt="" class="gcc-brand-icon">
       <div class="gcc-title-wrap">
         <div class="gcc-title">GRAYCLOAK'S</div>
         <div class="gcc-subtitle">CAMPAIGN CORNER</div>
@@ -206,6 +206,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
         <button class="gcc-nav-btn" id="gcc-btn-tools">🎲 Tools ▾</button>
         <div class="gcc-tools-dd" id="gcc-tools-dd"></div>
       </div>
+      <span id="gcc-auth-slot"></span>
       <button class="gcc-nav-btn" id="gcc-btn-theme" title="Toggle light/dark"><span id="gcc-theme-icon">◑</span></button>
     </div>
   </div>
@@ -592,6 +593,8 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 
 <script src="gcc-data.js"></script>
 <script src="gcc-header.js"></script>
+<script src="gcc-firebase-config.js"></script>
+<script src="gcc-auth.js"></script>
 <script src="mp-dialog.js"></script>
 <script>
 const STORAGE_KEY=GCC.KEYS.add1eChars;
