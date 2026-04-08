@@ -9,7 +9,7 @@
 //   - localStorage always kept as cache/offline fallback
 //
 // Firestore structure:
-//   users/{uid}/data/{storageKey} → { value: <the JSON data> }
+//   users/{uid}/data/{storageKey} → { json: <JSON string>, _updated: <ISO date> }
 
 const GCCSync = (function() {
 
@@ -75,7 +75,15 @@ const GCCSync = (function() {
     try {
       const snap = await ref.get();
       if (snap.exists) {
-        return snap.data().value;
+        const data = snap.data();
+        // New format: stored as JSON string
+        if (data.json !== undefined) {
+          return JSON.parse(data.json);
+        }
+        // Legacy format: stored as raw value (from before this fix)
+        if (data.value !== undefined) {
+          return data.value;
+        }
       }
       return undefined;
     } catch(e) {
@@ -88,7 +96,8 @@ const GCCSync = (function() {
     const ref = docRef(key);
     if (!ref) return;
     try {
-      await ref.set({ value: val, _updated: new Date().toISOString() });
+      // Store as JSON string to avoid Firestore nested object/array depth limits
+      await ref.set({ json: JSON.stringify(val), _updated: new Date().toISOString() });
     } catch(e) {
       console.warn('[GCCSync] cloudSave failed for', key, e);
     }
@@ -105,26 +114,28 @@ const GCCSync = (function() {
   }
 
   // ── First-time upload: push localStorage → Firestore ──
+  const SYNC_FORMAT_VERSION = 2; // bump to force re-upload (v1=raw objects, v2=JSON strings)
+
   async function uploadLocalData() {
     if (!_db || !_uid) return;
     const flagKey = 'gcc-sync-uploaded-' + _uid;
     try {
-      if (localStorage.getItem(flagKey)) return;
+      const stored = localStorage.getItem(flagKey);
+      if (stored) {
+        const ver = parseInt(stored, 10);
+        if (ver >= SYNC_FORMAT_VERSION) return;
+      }
     } catch(e) {}
 
-    console.log('[GCCSync] First sign-in — uploading local data to cloud...');
+    console.log('[GCCSync] Uploading local data to cloud (format v' + SYNC_FORMAT_VERSION + ')...');
     let count = 0;
     for (const key of SYNC_KEYS) {
       try {
         const raw = localStorage.getItem(key);
         if (raw !== null) {
           const val = JSON.parse(raw);
-          // Only upload if cloud doesn't already have data for this key
-          const existing = await cloudLoad(key);
-          if (existing === undefined) {
-            await cloudSave(key, val);
-            count++;
-          }
+          await cloudSave(key, val);
+          count++;
         }
       } catch(e) {
         console.warn('[GCCSync] upload skip for', key, e);
@@ -132,7 +143,7 @@ const GCCSync = (function() {
     }
     console.log('[GCCSync] Uploaded', count, 'keys to cloud');
 
-    try { localStorage.setItem(flagKey, new Date().toISOString()); } catch(e) {}
+    try { localStorage.setItem(flagKey, String(SYNC_FORMAT_VERSION)); } catch(e) {}
   }
 
   // ── Pull cloud → localStorage (runs on sign-in after upload) ──
