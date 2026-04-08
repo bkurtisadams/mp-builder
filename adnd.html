@@ -374,9 +374,9 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
         <div class="sa-row"><input data-field="saveAdj3v"><input data-field="saveAdj3c"><input data-field="saveAdj4v"><input data-field="saveAdj4c"></div>
         <div class="sa-row"><input data-field="saveAdj5v"><input data-field="saveAdj5c"><input data-field="saveAdj6v"><input data-field="saveAdj6c"></div>
       </div>
-      <div class="row"><span class="lb">Resistances:</span><input class="fi" data-field="resistances"></div>
-      <div class="row"><span class="lb">Detection:</span><input class="fi" data-field="detection"></div>
+      <div class="pair"><div class="row"><span class="lb">Resistances:</span><input class="fi" data-field="resistances"></div><div class="row"><span class="lb">Detection:</span><input class="fi" data-field="detection"></div></div>
       <div class="row"><span class="lb">Languages:</span><input class="fi" data-field="languages"></div>
+      <div class="row"><span class="lb">Languages:</span><input class="fi" data-field="languages2"></div>
       <div class="row"><span class="lb">Psionics:</span><input class="fi" data-field="psionics"></div>
     </div>
     <!-- Right sub: Saving Throws with stacked labels -->
@@ -483,7 +483,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
       <div class="sp-cells"><input data-field="spellSlot1" type="number"><input data-field="spellSlot2" type="number"><input data-field="spellSlot3" type="number"><input data-field="spellSlot4" type="number"><input data-field="spellSlot5" type="number"><input data-field="spellSlot6" type="number"></div>
     </div>
     <div style="margin-top:2px"><span class="lb">Spell List</span> <button class="add-btn" id="add-spell">+ Spell</button></div>
-    <div id="spell-list" style="column-count:2;column-gap:8px"></div>
+    <div id="spell-list" style="column-count:2;column-gap:8px;max-height:260px;overflow-y:auto"></div>
   </div>
 
   <!-- Turning Undead (class-conditional) — labels below lines -->
@@ -718,110 +718,113 @@ function mapARS(ars){
   const s=ars.system,d=s.details||{},a=s.abilities||{},sv=s.saves||{},at=s.attributes||{};
   const items=ars.items||[];
   const c={};
-  // Name
   c.characterName=ars.name||'';
-  // Race from item
   const raceItem=items.find(i=>i.type==='race');
   c.race=raceItem?raceItem.name:'';
-  // Class/Level from class items
   const classItems=items.filter(i=>i.type==='class');
   if(classItems.length){
-    // Parse level from system.rank.levels or classname field
-    const parts=[];
-    classItems.forEach(ci=>{
-      const cn=ci.name||'';
-      // Try to find level — ARS computes at runtime, but classname on actor may have it
-      parts.push(cn);
-    });
-    c.characterClass=parts.join('/');
-    // classname at actor level has "Fighter 9" format when populated at runtime
+    c.characterClass=classItems.map(ci=>ci.name||'').join('/');
     const cn=s.classname||'';
-    if(cn){
-      c.characterClass=cn.replace(/\s*\d+/g,'').trim();
-      const lvls=cn.match(/\d+/g);
-      if(lvls)c.level=lvls.join('/');
-    }else{
-      // no classname — leave class names, level unknown
-      c.level='';
-    }
+    if(cn){c.characterClass=cn.replace(/\s*\d+/g,'').trim();const lvls=cn.match(/\d+/g);if(lvls)c.level=lvls.join('/');}
+    else c.level='';
   }
-  // Alignment
   const alMap={lg:'Lawful Good',ln:'Lawful Neutral',le:'Lawful Evil',ng:'Neutral Good',n:'True Neutral',tn:'True Neutral',ne:'Neutral Evil',cg:'Chaotic Good',cn:'Chaotic Neutral',ce:'Chaotic Evil'};
   c.alignment=alMap[(d.alignment||'').toLowerCase()]||d.alignment||'';
   c.deity=d.deity||'';
-  // Abilities
-  c.str=a.str?a.str.value:'';c.strPct=a.str&&a.str.percent?a.str.percent:'';
-  c.int=a.int?a.int.value:'';c.wis=a.wis?a.wis.value:'';
-  c.dex=a.dex?a.dex.value:'';c.con=a.con?a.con.value:'';
-  c.cha=a.cha?a.cha.value:'';
-  // Saves — AD&D sheet uses 5 saves, ARS has 10 granular
+  // Abilities + PHB sub-fields
+  const strV=a.str?a.str.value:0,strP=a.str?a.str.percent||0:0;
+  c.str=strV||'';c.strPct=strP||'';
+  const sL=_strTbl(strV,strP);c.strHitAdj=sL[0];c.strDamAdj=sL[1];c.strOpenDoors=sL[2];c.strBendBars=sL[3];
+  const intV=a.int?a.int.value:0;c.int=intV||'';
+  const iL=_intTbl(intV);c.intAddLang=iL[0];c.intKnowSpell=iL[1];c.intMinSpells=iL[2];c.intMaxSpells=iL[3];
+  const wisV=a.wis?a.wis.value:0;c.wis=wisV||'';
+  const wL=_wisTbl(wisV);c.wisMagAtkAdj=wL[0];c.wisSpellBonus=wL[1];c.wisSpellFail=wL[2];
+  const dexV=a.dex?a.dex.value:0;c.dex=dexV||'';
+  const dL=_dexTbl(dexV);c.dexReactAdj=dL[0];c.dexMissileAdj=dL[1];c.dexDefAdj=dL[2];
+  const conV=a.con?a.con.value:0;c.con=conV||'';
+  const cL=_conTbl(conV);c.conHpAdj=cL[0];c.conSysShock=cL[1];c.conResSurv=cL[2];
+  const chaV=a.cha?a.cha.value:0;c.cha=chaV||'';
+  const chL=_chaTbl(chaV);c.chaMaxHench=chL[0];c.chaLoyalty=chL[1];c.chaReactAdj=chL[2];
+  // Saves
   c.savePPD=sv.paralyzation?sv.paralyzation.value:'';
   c.savePP=sv.petrification?sv.petrification.value:'';
   c.saveRSW=sv.rod?sv.rod.value:'';
   c.saveBW=sv.breath?sv.breath.value:'';
   c.saveSpell=sv.spell?sv.spell.value:'';
-  // HP
+  // HP, AC, Movement
   c.hpMax=at.hp?at.hp.max:'';c.hpCurrent=at.hp?at.hp.value:'';
-  // AC — ARS export only has attributes.ac.value=10 (base), real AC computed at runtime
-  // We'll leave AC empty for user to fill, or set base
   c.acBase=at.ac?at.ac.value:'';
-  // Movement
-  c.moveBase=at.movement?at.movement.value:'';
-  // XP
+  const moveAb=items.find(i=>i.type==='ability'&&i.name.startsWith('Base Movement'));
+  c.moveBase=moveAb?(moveAb.name.match(/\d+/)||[''])[0]:(at.movement&&at.movement.value?at.movement.value:'');
   c.xpCombat=d.xp||'';c.xpTotal=d.xp||'';
-  // Details
   c.age=d.age||'';c.sex=d.sex||'';c.height=d.height||'';c.weight=d.weight||'';
-  // Weapons from equipped weapon items (skip Brawl/Grapple/Overbear)
-  const skipWeapons=['Brawl','Grapple','Overbear'];
-  const weaponItems=items.filter(i=>i.type==='weapon'&&!skipWeapons.includes(i.name));
-  c.weapons=weaponItems.map(w=>{
-    const ws=w.system||{};
-    const dmgAction=(ws.actions||[]).find(a=>a.type==='damage');
-    return{name:w.name,dmg:dmgAction?dmgAction.formula:'',speed:'',magAdj:ws.attributes&&ws.attributes.magic?'+':'',range:'',ac10:'',ac9:'',ac8:'',ac7:'',ac6:'',ac5:'',ac4:'',ac3:'',ac2:''};
+  // Weapons
+  const skipW=['Brawl','Grapple','Overbear'];
+  c.weapons=items.filter(i=>i.type==='weapon'&&!skipW.includes(i.name)).map(w=>{
+    const ws=w.system||{},da=(ws.actions||[]).find(a=>a.type==='damage');
+    return{name:w.name,dmg:da?da.formula:'',speed:'',magAdj:ws.attributes&&ws.attributes.magic?'+':'',range:'',ac10:'',ac9:'',ac8:'',ac7:'',ac6:'',ac5:'',ac4:'',ac3:'',ac2:''};
   });
-  // Inventory — non-weapon, non-spell, non-race, non-class, non-skill, non-ability, non-proficiency items
-  const skipTypes=['weapon','spell','race','class','skill','ability','proficiency'];
-  const invItems=items.filter(i=>!skipTypes.includes(i.type));
-  c.items=invItems.map(i=>{
+  // Inventory
+  const skipT=['weapon','spell','race','class','skill','ability','proficiency'];
+  c.items=items.filter(i=>!skipT.includes(i.type)).map(i=>{
     const is=i.system||{};
     return{name:i.name,location:is.location?is.location.state:'',qty:is.quantity||1,weight:is.weight||'',notes:is.attributes&&is.attributes.magic?'magical':''};
   });
   // Magic items
-  c.magicItems=items.filter(i=>{
-    const is=i.system||{};
-    return is.attributes&&is.attributes.magic&&i.type!=='spell';
-  }).map(i=>{
+  c.magicItems=items.filter(i=>(i.system||{}).attributes&&(i.system||{}).attributes.magic&&i.type!=='spell').map(i=>{
     const is=i.system||{};
     return{name:i.name,charges:is.charges&&is.charges.max?is.charges.value+'/'+is.charges.max:'',properties:''};
   });
-  // Spells from spell items (deduplicated by name+level)
-  const spellItems=items.filter(i=>i.type==='spell');
-  const seen={};
-  c.spells=[];
-  spellItems.forEach(sp=>{
+  // Spells (deduplicated)
+  const seen={};c.spells=[];
+  items.filter(i=>i.type==='spell').forEach(sp=>{
     const key=sp.name+'|'+(sp.system?sp.system.level:'');
     if(!seen[key]){seen[key]=true;c.spells.push({level:sp.system?String(sp.system.level):'',name:sp.name});}
   });
   c.spells.sort((a,b)=>(+a.level)-(+b.level)||a.name.localeCompare(b.name));
-  // Thief skills from skill items
-  const thiefMap={'Pick Pockets':'thiefPP','Hide in Shadows':'thiefHIS','Open Locks':'thiefOL','Open Locks/Disarm Traps':'thiefOL','Hear Noise':'thiefHN','Find Traps':'thiefFRT','Find/Remove Traps':'thiefFRT','Climb Walls':'thiefCW','Move Silently':'thiefMS','Read Languages':'thiefRL'};
-  items.filter(i=>i.type==='skill').forEach(sk=>{
-    const field=thiefMap[sk.name];
-    if(field)c[field]='*';
-  });
-  // Languages from ability items
+  // Spell slots
+  const si=s.spellInfo||{},slots=si.slots||{};
+  const arcS=(slots.arcane||{}).value||{},divS=(slots.divine||{}).value||{};
+  for(let i=1;i<=6;i++)c['spellSlot'+i]=(+(arcS[String(i)]||0)+ +(divS[String(i)]||0))||'';
+  c.spellsKnown=c.spells.length||'';
+  // Thief skills
+  const tMap={'Pick Pockets':'thiefPP','Hide in Shadows':'thiefHIS','Open Locks':'thiefOL','Open Locks/Disarm Traps':'thiefOL','Hear Noise':'thiefHN','Find Traps':'thiefFRT','Find/Remove Traps':'thiefFRT','Climb Walls':'thiefCW','Move Silently':'thiefMS','Read Languages':'thiefRL'};
+  items.filter(i=>i.type==='skill').forEach(sk=>{if(tMap[sk.name])c[tMap[sk.name]]='—';});
+  // Languages
   const langs=items.filter(i=>i.type==='ability'&&i.name.startsWith('Language')).map(i=>i.name.replace('Language (','').replace(')',''));
-  if(langs.length)c.languages=langs.join(', ');
-  // Biography → notes
-  if(d.biography&&d.biography.value){
-    c.notes=d.biography.value.replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim().substring(0,2000);
-  }
-  // Patron
+  if(langs.length){const j=langs.join(', ');if(j.length>60){const m=Math.ceil(langs.length/2);c.languages=langs.slice(0,m).join(', ');c.languages2=langs.slice(m).join(', ');}else c.languages=j;}
+  // Bio
+  if(d.biography&&d.biography.value)c.notes=d.biography.value.replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim().substring(0,2000);
   c.patron=d.patron||'';
-  // Mark source
-  c._arsImport=true;
-  c._arsActorId=ars._id||'';
+  c._arsImport=true;c._arsActorId=ars._id||'';
   return c;
+}
+// PHB Ability Tables (compact: arrays = [field1,field2,...])
+function _strTbl(v,p){
+  const t=[[0,0,'',''],[-3,-1,'1','0%'],[-3,-1,'1','0%'],[-3,-1,'1','0%'],[-2,-1,'1','0%'],[-2,-1,'1','0%'],[-1,0,'1','0%'],[-1,0,'1','0%'],[0,0,'1-2','1%'],[0,0,'1-2','1%'],[0,0,'1-2','2%'],[0,0,'1-2','2%'],[0,0,'1-2','4%'],[0,0,'1-2','4%'],[0,0,'1-2','7%'],[0,0,'1-2','7%'],[0,+1,'1-3','10%'],[+1,+1,'1-3','13%'],[+1,+2,'1-3','16%']];
+  if(v===18&&p){const n=+p;if(n>=100)return[+3,+6,'1-5(2)','40%'];if(n>=91)return[+2,+4,'1-4(1)','35%'];if(n>=76)return[+2,+3,'1-4','30%'];if(n>=51)return[+2,+3,'1-4','25%'];return[+1,+3,'1-3','20%'];}
+  if(v>18)return[+3,+6,'1-5(2)','40%'];
+  return t[v]||t[0];
+}
+function _intTbl(v){
+  const t={3:[0,'35%',2,4],8:[1,'40%',3,5],9:[1,'45%',4,6],10:[2,'50%',5,7],12:[3,'55%',5,7],13:[3,'55%',6,9],14:[4,'60%',6,9],15:[4,'65%',7,11],16:[5,'70%',8,12],17:[6,'75%',9,14],18:[7,'85%',11,18],19:[8,'95%',14,'All']};
+  if(v<=7)return t[3];if(v===11)return t[10];return t[v]||t[10];
+}
+function _wisTbl(v){
+  const t={3:[-3,'—','—'],4:[-2,'—','—'],5:[-1,'—','—'],6:[-1,'—','—'],7:[-1,'—','—'],8:[0,'—','—'],9:[0,'0','20%'],10:[0,'0','15%'],11:[0,'0','10%'],12:[0,'0','5%'],13:[0,'1st','0%'],14:[0,'1st','0%'],15:[+1,'2nd','0%'],16:[+2,'2nd','0%'],17:[+3,'3rd','0%'],18:[+4,'4th','0%'],19:[+4,'1st,3rd','0%']};
+  return t[Math.min(v,19)]||t[9];
+}
+function _dexTbl(v){
+  const t={3:[-3,-3,+4],4:[-2,-2,+3],5:[-1,-1,+2],6:[0,0,+1],7:[0,0,0],15:[0,0,-1],16:[+1,+1,-2],17:[+2,+2,-3],18:[+3,+3,-4],19:[+3,+3,-4]};
+  if(v>=7&&v<=14)return[0,0,0];return t[Math.min(v,19)]||[0,0,0];
+}
+function _conTbl(v){
+  const t={3:[-2,'35%','40%'],4:[-1,'40%','45%'],5:[-1,'45%','50%'],6:[-1,'50%','55%'],7:[0,'55%','60%'],8:[0,'60%','65%'],9:[0,'65%','70%'],10:[0,'70%','75%'],11:[0,'75%','80%'],12:[0,'80%','85%'],13:[0,'85%','90%'],14:[0,'88%','92%'],15:[+1,'91%','94%'],16:[+2,'95%','96%'],17:['+2(+3)','97%','98%'],18:['+2(+4)','99%','100%'],19:['+2(+5)','99%','100%']};
+  return t[Math.min(v,19)]||t[9];
+}
+function _chaTbl(v){
+  const t={3:[1,'-30%','-25%'],4:[1,'-25%','-20%'],5:[2,'-20%','-15%'],6:[2,'-15%','-10%'],7:[3,'-10%','-5%'],8:[3,'-5%','0'],9:[4,'0','0'],10:[4,'0','0'],11:[4,'0','0'],12:[5,'0','0'],13:[5,'0','+5%'],14:[6,'+5%','+10%'],15:[7,'+15%','+15%'],16:[8,'+20%','+25%'],17:[10,'+30%','+30%'],18:[15,'+40%','+35%'],19:[20,'+50%','+40%']};
+  return t[Math.min(v,19)]||t[9];
 }
 
 document.getElementById('btn-new').addEventListener('click',newChar);
