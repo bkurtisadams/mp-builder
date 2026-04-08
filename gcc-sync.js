@@ -1,15 +1,19 @@
-// gcc-sync.js v1.0.0 — 2026-04-08
+// gcc-sync.js v2.0.0 — 2026-04-08
 // Firestore sync layer for Graycloak's Campaign Corner
 // Requires: gcc-data.js, gcc-auth.js, gcc-firebase-config.js
 //
 // Strategy:
 //   - When signed out: localStorage only (no change from before)
-//   - On first sign-in: upload localStorage data to Firestore (one-time)
-//   - When signed in: load() reads from Firestore, save() writes to both
-//   - localStorage always kept as cache/offline fallback
+//   - On sign-in: upload localStorage → Firestore, then pull Firestore → localStorage
+//   - When signed in: save() writes to both, load() reads from localStorage (hydrated from cloud)
 //
 // Firestore structure:
-//   users/{uid}/data/{storageKey} → { json: <JSON string>, _updated: <ISO date> }
+//   Simple keys (campaigns, activity, etc):
+//     users/{uid}/data/{key} → { json: <string>, _updated: <ISO> }
+//   Entity list keys (character/vehicle lists):
+//     users/{uid}/lists/{listKey}/items/{entityId} → { json: <string>, _updated: <ISO> }
+//     users/{uid}/lists/{listKey} → { ids: [...], _updated: <ISO> }  (ordering manifest)
+//   Entity lists are split so each character is its own document (avoids 1MB limit).
 
 const GCCSync = (function() {
 
@@ -21,22 +25,26 @@ const GCCSync = (function() {
   let _ready = false;
   let _readyCallbacks = [];
 
-  // Keys we sync to Firestore (skip transient/migration flags)
-  const SYNC_KEYS = [
+  // ── Key classification ──
+  const SIMPLE_KEYS = [
     'gcc-campaigns',
     'gcc-activity',
     'gcc-jumpback',
     'gcc-vtts',
     'gcc-settings',
+  ];
+
+  const LIST_KEYS = [
     'mp-char-list',
     'mp-veh-list',
     'gcc-faserip-chars',
     'gcc-add1e-chars',
   ];
 
-  function isSyncKey(key) {
-    return SYNC_KEYS.indexOf(key) !== -1;
-  }
+  const ALL_SYNC_KEYS = SIMPLE_KEYS.concat(LIST_KEYS);
+
+  function isSyncKey(key) { return ALL_SYNC_KEYS.indexOf(key) !== -1; }
+  function isListKey(key) { return LIST_KEYS.indexOf(key) !== -1; }
 
   // ── Load Firestore SDK ──
   function loadScript(url) {
@@ -62,59 +70,187 @@ const GCCSync = (function() {
     }
   }
 
-  // ── Firestore document path for a key ──
-  function docRef(key) {
+  // ── Firestore references ──
+  function userRef() {
     if (!_db || !_uid) return null;
-    return _db.collection('users').doc(_uid).collection('data').doc(key);
+    return _db.collection('users').doc(_uid);
   }
 
-  // ── Cloud read/write ──
-  async function cloudLoad(key) {
-    const ref = docRef(key);
+  function simpleDocRef(key) {
+    const u = userRef();
+    return u ? u.collection('data').doc(key) : null;
+  }
+
+  function listDocRef(listKey) {
+    const u = userRef();
+    return u ? u.collection('lists').doc(listKey) : null;
+  }
+
+  function listItemDocRef(listKey, entityId) {
+    const lr = listDocRef(listKey);
+    return lr ? lr.collection('items').doc(entityId) : null;
+  }
+
+  // ══════════════════════════════════════
+  // ── Simple key cloud ops ──
+  // ══════════════════════════════════════
+
+  async function cloudLoadSimple(key) {
+    const ref = simpleDocRef(key);
     if (!ref) return undefined;
     try {
       const snap = await ref.get();
       if (snap.exists) {
         const data = snap.data();
-        // New format: stored as JSON string
-        if (data.json !== undefined) {
-          return JSON.parse(data.json);
-        }
-        // Legacy format: stored as raw value (from before this fix)
-        if (data.value !== undefined) {
-          return data.value;
-        }
+        if (data.json !== undefined) return JSON.parse(data.json);
+        if (data.value !== undefined) return data.value; // legacy v1 format
       }
       return undefined;
     } catch(e) {
-      console.warn('[GCCSync] cloudLoad failed for', key, e);
+      console.warn('[GCCSync] cloudLoadSimple failed for', key, e);
       return undefined;
     }
   }
 
-  async function cloudSave(key, val) {
-    const ref = docRef(key);
+  async function cloudSaveSimple(key, val) {
+    const ref = simpleDocRef(key);
     if (!ref) return;
     try {
-      // Store as JSON string to avoid Firestore nested object/array depth limits
       await ref.set({ json: JSON.stringify(val), _updated: new Date().toISOString() });
     } catch(e) {
-      console.warn('[GCCSync] cloudSave failed for', key, e);
+      console.warn('[GCCSync] cloudSaveSimple failed for', key, e);
     }
   }
 
-  async function cloudDelete(key) {
-    const ref = docRef(key);
-    if (!ref) return;
+  // ══════════════════════════════════════
+  // ── Entity list cloud ops ──
+  // ══════════════════════════════════════
+
+  function ensureItemId(item) {
+    if (!item._id) {
+      item._id = (typeof GCC !== 'undefined' && GCC.genId)
+        ? GCC.genId('ent')
+        : 'ent_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    }
+    return item._id;
+  }
+
+  async function cloudSaveList(listKey, items) {
+    if (!_db || !_uid || !items) return;
+    const now = new Date().toISOString();
+
+    // Ensure every item has an _id
+    items.forEach(item => ensureItemId(item));
+    const ids = items.map(it => it._id);
+
+    // Save ordering manifest
+    const metaRef = listDocRef(listKey);
+    if (!metaRef) return;
     try {
-      await ref.delete();
+      await metaRef.set({ ids: ids, _updated: now });
     } catch(e) {
-      console.warn('[GCCSync] cloudDelete failed for', key, e);
+      console.warn('[GCCSync] list meta save failed:', listKey, e);
+      return;
+    }
+
+    // Save each entity individually
+    let saved = 0;
+    for (const item of items) {
+      const ref = listItemDocRef(listKey, item._id);
+      if (!ref) continue;
+      try {
+        await ref.set({ json: JSON.stringify(item), _updated: now });
+        saved++;
+      } catch(e) {
+        console.warn('[GCCSync] list item save failed:', listKey, item._id, e);
+      }
+    }
+
+    // Delete orphaned items no longer in the list
+    try {
+      const allSnap = await metaRef.collection('items').get();
+      const deleteOps = [];
+      allSnap.forEach(doc => {
+        if (ids.indexOf(doc.id) === -1) {
+          deleteOps.push(doc.ref.delete());
+        }
+      });
+      if (deleteOps.length > 0) {
+        await Promise.all(deleteOps);
+        console.log('[GCCSync] cleaned', deleteOps.length, 'orphaned items from', listKey);
+      }
+    } catch(e) {
+      console.warn('[GCCSync] orphan cleanup failed for', listKey, e);
+    }
+
+    console.log('[GCCSync] saved', saved, 'items to', listKey);
+  }
+
+  async function cloudLoadList(listKey) {
+    if (!_db || !_uid) return undefined;
+
+    const metaRef = listDocRef(listKey);
+    if (!metaRef) return undefined;
+
+    try {
+      const metaSnap = await metaRef.get();
+      if (!metaSnap.exists) return undefined;
+      const meta = metaSnap.data();
+      const ids = meta.ids || [];
+      if (ids.length === 0) return [];
+
+      // Read all items in the subcollection
+      const itemsSnap = await metaRef.collection('items').get();
+      const byId = {};
+      itemsSnap.forEach(doc => {
+        const data = doc.data();
+        if (data.json !== undefined) {
+          try { byId[doc.id] = JSON.parse(data.json); } catch(e) {}
+        }
+      });
+
+      // Rebuild in manifest order
+      const result = [];
+      ids.forEach(id => {
+        if (byId[id]) result.push(byId[id]);
+      });
+      // Include any items present but not in manifest (safety)
+      Object.keys(byId).forEach(id => {
+        if (ids.indexOf(id) === -1) result.push(byId[id]);
+      });
+
+      return result;
+    } catch(e) {
+      console.warn('[GCCSync] cloudLoadList failed for', listKey, e);
+      return undefined;
     }
   }
 
-  // ── First-time upload: push localStorage → Firestore ──
-  const SYNC_FORMAT_VERSION = 2; // bump to force re-upload (v1=raw objects, v2=JSON strings)
+  // ══════════════════════════════════════
+  // ── Unified cloud read/write ──
+  // ══════════════════════════════════════
+
+  async function cloudSave(key, val) {
+    if (isListKey(key)) {
+      await cloudSaveList(key, val);
+    } else {
+      await cloudSaveSimple(key, val);
+    }
+  }
+
+  async function cloudLoad(key) {
+    if (isListKey(key)) {
+      return await cloudLoadList(key);
+    } else {
+      return await cloudLoadSimple(key);
+    }
+  }
+
+  // ══════════════════════════════════════
+  // ── Upload & Pull ──
+  // ══════════════════════════════════════
+
+  const SYNC_FORMAT_VERSION = 3; // v1=raw objects, v2=JSON strings, v3=per-entity split
 
   async function uploadLocalData() {
     if (!_db || !_uid) return;
@@ -129,7 +265,7 @@ const GCCSync = (function() {
 
     console.log('[GCCSync] Uploading local data to cloud (format v' + SYNC_FORMAT_VERSION + ')...');
     let count = 0;
-    for (const key of SYNC_KEYS) {
+    for (const key of ALL_SYNC_KEYS) {
       try {
         const raw = localStorage.getItem(key);
         if (raw !== null) {
@@ -146,12 +282,11 @@ const GCCSync = (function() {
     try { localStorage.setItem(flagKey, String(SYNC_FORMAT_VERSION)); } catch(e) {}
   }
 
-  // ── Pull cloud → localStorage (runs on sign-in after upload) ──
   async function pullCloudData() {
     if (!_db || !_uid) return;
     console.log('[GCCSync] Pulling cloud data to local cache...');
     let count = 0;
-    for (const key of SYNC_KEYS) {
+    for (const key of ALL_SYNC_KEYS) {
       try {
         const val = await cloudLoad(key);
         if (val !== undefined) {
@@ -165,19 +300,20 @@ const GCCSync = (function() {
     console.log('[GCCSync] Pulled', count, 'keys from cloud');
   }
 
-  // ── Patch GCC.save / GCC.load to sync ──
-  // We store references to the original functions and replace them
+  // ══════════════════════════════════════
+  // ── Patch GCC.save / GCC.load ──
+  // ══════════════════════════════════════
+
   let _origSave = null;
   let _origLoad = null;
 
   function patchGCC() {
     if (typeof GCC === 'undefined') return;
-    if (_origSave) return; // already patched
+    if (_origSave) return;
 
     _origSave = GCC.save;
     _origLoad = GCC.load;
 
-    // Replace save: always write to localStorage, also write to Firestore if signed in
     GCC.save = function(key, val) {
       _origSave(key, val);
       if (_uid && _db && isSyncKey(key)) {
@@ -185,20 +321,17 @@ const GCCSync = (function() {
       }
     };
 
-    // Replace load: if signed in and sync key, return cached localStorage
-    // (which was pulled from cloud on sign-in). This keeps load() synchronous.
-    // The cloud data was already pulled into localStorage during pullCloudData().
     GCC.load = function(key) {
       return _origLoad(key);
     };
 
-    // Also patch saveCampaigns which calls save internally
-    // (No extra patch needed — saveCampaigns calls GCC.save which is now patched)
-
     console.log('[GCCSync] GCC data layer patched for cloud sync');
   }
 
+  // ══════════════════════════════════════
   // ── Auth state handler ──
+  // ══════════════════════════════════════
+
   async function onAuthChange(user) {
     if (user) {
       _uid = user.uid;
@@ -209,19 +342,15 @@ const GCCSync = (function() {
       _ready = true;
       _readyCallbacks.forEach(fn => { try { fn(); } catch(e) {} });
       _readyCallbacks = [];
-      // Dispatch event so pages can refresh their UI with cloud data
       window.dispatchEvent(new CustomEvent('gcc-sync-ready'));
       console.log('[GCCSync] Sync active for user:', user.email);
     } else {
       _uid = null;
       _ready = false;
-      // Signed out — continue using localStorage only (GCC.save/load still patched but
-      // the _uid check prevents cloud writes)
       window.dispatchEvent(new CustomEvent('gcc-sync-offline'));
     }
   }
 
-  // ── Wait for sync to be ready ──
   function onReady(fn) {
     if (_ready) { fn(); return; }
     _readyCallbacks.push(fn);
@@ -231,12 +360,11 @@ const GCCSync = (function() {
     return _ready && !!_uid && !!_db;
   }
 
-  // ── Manual sync trigger (for UI "Sync Now" button later) ──
+  // ── Manual sync ──
   async function syncNow() {
     if (!_uid || !_db) return { ok: false, reason: 'Not signed in' };
-    // Push all sync keys to cloud
     let pushed = 0;
-    for (const key of SYNC_KEYS) {
+    for (const key of ALL_SYNC_KEYS) {
       try {
         const raw = localStorage.getItem(key);
         if (raw !== null) {
@@ -248,26 +376,23 @@ const GCCSync = (function() {
     return { ok: true, pushed };
   }
 
-  // ── Manual pull trigger ──
   async function pullNow() {
     if (!_uid || !_db) return { ok: false, reason: 'Not signed in' };
     await pullCloudData();
     return { ok: true };
   }
 
-  // ── Init: listen for auth changes ──
+  // ── Init ──
   function init() {
     if (typeof GCCAuth !== 'undefined' && GCCAuth.onAuthChange) {
       GCCAuth.onAuthChange(onAuthChange);
     } else {
-      // Fallback: wait for auth to be available
       const check = setInterval(() => {
         if (typeof GCCAuth !== 'undefined' && GCCAuth.onAuthChange) {
           clearInterval(check);
           GCCAuth.onAuthChange(onAuthChange);
         }
       }, 100);
-      // Give up after 10 seconds
       setTimeout(() => clearInterval(check), 10000);
     }
   }
@@ -283,7 +408,7 @@ const GCCSync = (function() {
     onReady,
     syncNow,
     pullNow,
-    SYNC_KEYS,
+    SYNC_KEYS: ALL_SYNC_KEYS,
   };
 
 })();

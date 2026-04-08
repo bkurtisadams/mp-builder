@@ -1,24 +1,23 @@
-// Firestore Security Rules for GCC
-// ──────────────────────────────────
+// Firestore Security Rules for GCC v2
 // Go to Firebase Console → Firestore → Rules tab
-// Replace the default rules with the content below (without this comment header)
-//
-// These rules ensure:
-//   - Each user can only read/write their own data
-//   - Unauthenticated users cannot access any data
-//   - Data is scoped to users/{uid}/data/{key}
+// Replace existing rules with everything below this comment header
 
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // User's synced data: only the owning user can read/write
+    // User's simple synced data: users/{uid}/data/{key}
     match /users/{userId}/data/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Deny everything else by default
+    // User's entity lists: users/{uid}/lists/{listKey} and .../items/{entityId}
+    match /users/{userId}/lists/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Deny everything else
     match /{document=**} {
       allow read, write: if false;
     }
