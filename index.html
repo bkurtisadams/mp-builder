@@ -1273,11 +1273,11 @@ function renderCharsPicker() {
 
   // Delete saved character permanently
   picker.querySelectorAll('.cp-del-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
+    btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const idx = parseInt(btn.dataset.cpDel);
       const sc = saved[idx];
-      const ok = await MPDialog.confirm('Delete Character', 'Permanently delete <b>' + ESC(sc.name) + '</b>? This cannot be undone.', { okText: 'Delete', cancelText: 'Cancel', danger: true });
+      const ok = confirm('Permanently delete "' + sc.name + '"? This cannot be undone.');
       if (!ok) return;
       const storageKey = sc.storageKey;
       if (!storageKey) return;
