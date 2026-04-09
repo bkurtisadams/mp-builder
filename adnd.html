@@ -162,6 +162,14 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .spell-list{column-count:3;column-gap:10px}
 .cls-sec{display:none}.cls-sec.visible{display:block}
 .thief-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2px 6px}
+.thief-grid .lb-sm{cursor:pointer}
+.thief-grid .lb-sm:hover{color:var(--accent)}
+.thief-callout{display:none;grid-column:1/-1;background:var(--paper-lt);border:1.5px solid var(--accent);border-left:4px solid var(--accent);padding:6px 8px;margin:2px 0 4px;font-family:var(--fb);font-size:9px;line-height:1.4;color:var(--ink-md);position:relative}
+.thief-callout.open{display:block}
+.thief-callout-title{font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);margin-bottom:2px}
+.thief-callout-close{position:absolute;top:3px;right:5px;border:none;background:none;font-size:11px;color:var(--ink-lt);cursor:pointer;padding:0 2px}
+.thief-callout-close:hover{color:var(--accent)}
+.thief-callout-breakdown{font-family:var(--fh);font-size:8px;color:var(--ink-lt);margin-top:4px;border-top:1px solid var(--paper-dk);padding-top:3px}
 .turn-tbl td input{font-size:9px}
 .wealth-grid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 6px;margin-bottom:4px;align-items:baseline}
 /* Encumbrance box */
@@ -426,14 +434,15 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
   <div class="full cls-sec" id="section-thief">
     <div class="sec" style="margin-top:2px">Thief Abilities</div>
     <div class="thief-grid">
-      <div class="row"><span class="lb-sm" style="min-width:80px">Pick Pockets</span><input class="fi" data-field="thiefPP" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:80px">Open Locks</span><input class="fi" data-field="thiefOL" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:80px">Find/Rem. Traps</span><input class="fi" data-field="thiefFRT" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:80px">Move Silently</span><input class="fi" data-field="thiefMS" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:80px">Hide in Shadows</span><input class="fi" data-field="thiefHIS" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:80px">Hear Noise</span><input class="fi" data-field="thiefHN" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:80px">Climb Walls</span><input class="fi" data-field="thiefCW" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:80px">Read Languages</span><input class="fi" data-field="thiefRL" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px" data-skill="PP">Pick Pockets</span><input class="fi" data-field="thiefPP" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px" data-skill="OL">Open Locks</span><input class="fi" data-field="thiefOL" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px" data-skill="FRT">Find/Rem. Traps</span><input class="fi" data-field="thiefFRT" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px" data-skill="MS">Move Silently</span><input class="fi" data-field="thiefMS" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px" data-skill="HIS">Hide in Shadows</span><input class="fi" data-field="thiefHIS" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px" data-skill="HN">Hear Noise</span><input class="fi" data-field="thiefHN" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px" data-skill="CW">Climb Walls</span><input class="fi" data-field="thiefCW" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px" data-skill="RL">Read Languages</span><input class="fi" data-field="thiefRL" style="flex:0 0 34px;text-align:center"></div>
+      <div class="thief-callout" id="thief-callout"><div class="thief-callout-title" id="tc-title"></div><button class="thief-callout-close" id="tc-close">×</button><div id="tc-body"></div><div class="thief-callout-breakdown" id="tc-breakdown"></div></div>
     </div>
   </div>
 
@@ -1237,12 +1246,63 @@ function calcThiefSkills(){
   const raceKey=(CHAR.race||'').toLowerCase().trim();
   const raceAdj=_thiefRace[raceKey]||[0,0,0,0,0,0,0,0];
   _thiefSkillKeys.forEach((k,i)=>{
-    let val=base[i]+(i<5?dexAdj[i]:0)+raceAdj[i];
+    const b=base[i],r=raceAdj[i],d=i<5?dexAdj[i]:0;
+    let val=b+d+r;
     if(i===5)val=Math.max(val,1);
     const display=val%1!==0?val.toFixed(1)+'%':val+'%';
     _setField(k,display);
+    _thiefBreakdown[k]={base:b,race:r,dex:d,total:val};
   });
 }
+const _thiefBreakdown={};
+
+const _thiefSkillDesc={
+  PP:{name:'Picking Pockets',text:'Roll d% ≤ adjusted score to lift an item unnoticed. Failure: attempt fails. Rolling 21%+ above the target means the victim notices. Victim reduces chance by −5% per level above 3rd.'},
+  OL:{name:'Opening Locks',text:'One attempt per lock. Failure means the lock is beyond the thief\u2019s skill until gaining a new level. Success opens the lock.'},
+  FRT:{name:'Finding/Removing Traps',text:'Roll separately to find, then to remove. One try per thief per trap. Failure means the trap cannot be found or disarmed by that thief until a new level. Success deactivates the trap.'},
+  MS:{name:'Moving Silently',text:'Attempted each time the thief moves. Can approach creatures to increase surprise chances or set up a backstab. Failure means movement was not silent. Success means movement was silent.'},
+  HIS:{name:'Hiding in Shadows',text:'Cannot be attempted under direct observation. Success makes the thief virtually invisible until he or she moves. Detect invisibility or true seeing will reveal a hidden thief.'},
+  HN:{name:'Hearing Noise',text:'Listen intently through a portal. The thief and companions must be quiet. Requires 1 full minute (1 melee round). May be repeated. Sleeping creatures and undead make no discernible sound.'},
+  CW:{name:'Climbing Walls',text:'Check made at the midpoint of the climb. Failure means the thief has slipped and fallen, taking falling damage. A third d10 may be required in some cases.'},
+  RL:{name:'Reading Languages',text:'One attempt per language. Failure means the language is not understood and cannot be retried until gaining a new level. Available from 4th level.'}
+};
+const _thiefFieldToSkill={thiefPP:'PP',thiefOL:'OL',thiefFRT:'FRT',thiefMS:'MS',thiefHIS:'HIS',thiefHN:'HN',thiefCW:'CW',thiefRL:'RL'};
+
+(function(){
+  const callout=document.getElementById('thief-callout');
+  const tcTitle=document.getElementById('tc-title');
+  const tcBody=document.getElementById('tc-body');
+  const tcBreak=document.getElementById('tc-breakdown');
+  let openSkill=null;
+  function showCallout(sk,labelEl){
+    const desc=_thiefSkillDesc[sk];if(!desc)return;
+    const fieldKey=Object.keys(_thiefFieldToSkill).find(k=>_thiefFieldToSkill[k]===sk);
+    const bd=_thiefBreakdown[fieldKey];
+    tcTitle.textContent=desc.name;
+    tcBody.textContent=desc.text;
+    if(bd){
+      const parts=['Base '+bd.base];
+      if(bd.race)parts.push('Race '+(bd.race>0?'+':'')+bd.race);
+      if(bd.dex)parts.push('Dex '+(bd.dex>0?'+':'')+bd.dex);
+      parts.push('= '+bd.total+(bd.total%1!==0?'':'')+'%');
+      tcBreak.textContent=parts.join(' \u2022 ');
+      tcBreak.style.display='';
+    } else { tcBreak.style.display='none'; }
+    const row=labelEl.closest('.row');
+    if(row&&row.nextSibling)row.parentNode.insertBefore(callout,row.nextSibling);
+    callout.classList.add('open');
+    openSkill=sk;
+  }
+  function hideCallout(){callout.classList.remove('open');openSkill=null;}
+  document.querySelectorAll('.thief-grid [data-skill]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const sk=el.dataset.skill;
+      if(openSkill===sk){hideCallout();return;}
+      showCallout(sk,el);
+    });
+  });
+  document.getElementById('tc-close').addEventListener('click',hideCallout);
+})();
 
 function populateAll(){
   populateFields();updateClassSections();showPortrait();renderWeapons();calcAbilitySubs();calcThiefSkills();
