@@ -1138,15 +1138,16 @@ document.getElementById('btn-import-ars').addEventListener('click',importARS);
 
 // Class detection
 const classField=document.querySelector('[data-field="characterClass"]');
-classField.addEventListener('change',()=>{CHAR.characterClass=classField.value;updateClassSections();autosave();});
-classField.addEventListener('input',()=>{CHAR.characterClass=classField.value;updateClassSections();});
+classField.addEventListener('change',()=>{CHAR.characterClass=classField.value;updateClassSections();calcThiefSkills();autosave();});
+classField.addEventListener('input',()=>{CHAR.characterClass=classField.value;updateClassSections();calcThiefSkills();});
 
 // Wire all fields
 const _encFields=new Set(['wealthCP','wealthSP','wealthEP','wealthGP','wealthPP','strAdj','moveBase']);
 const _abilityFields=new Set(['str','strPct','weight','int','wis','dex','con','cha']);
+const _thiefFields=new Set(['dex','race','level']);
 document.querySelectorAll('[data-field]').forEach(el=>{
   const ev=el.tagName==='TEXTAREA'?'input':'change';
-  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_abilityFields.has(el.dataset.field))calcAbilitySubs();autosave();});
+  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_abilityFields.has(el.dataset.field))calcAbilitySubs();if(_thiefFields.has(el.dataset.field))calcThiefSkills();autosave();});
 });
 
 function _setField(f,v){CHAR[f]=v;const el=document.querySelector('[data-field="'+f+'"]');if(el)el.value=v;}
@@ -1183,8 +1184,68 @@ function calcAbilitySubs(){
   calcWeight();
 }
 
+// PHB Thief base skills by level [PP,OL,FRT,MS,HIS,HN,CW,RL]
+const _thiefBase=[
+  null,
+  [30,25,20,15,10,10,85,0],
+  [35,29,25,21,15,10,86,0],
+  [40,33,30,27,20,15,87,0],
+  [45,37,35,33,25,15,88,20],
+  [50,42,40,40,31,20,90,25],
+  [55,47,45,47,37,20,92,30],
+  [60,52,50,55,43,25,94,35],
+  [65,57,55,62,49,25,96,40],
+  [70,62,60,70,56,30,98,45],
+  [80,67,65,78,63,30,99,50],
+  [90,72,70,86,70,35,99.1,55],
+  [100,77,75,94,77,35,99.2,60],
+  [105,82,80,99,85,40,99.3,65],
+  [110,87,85,99,93,40,99.4,70],
+  [115,92,90,99,99,50,99.5,75],
+  [125,97,95,99,99,50,99.6,80],
+  [125,99,99,99,99,55,99.7,80]
+];
+// PHB Dex Table II thief adjustments [PP,OL,FRT,MS,HIS] (9-18), DD&G 19-25
+const _thiefDex={
+  9:[-15,-10,-10,-20,-10],10:[-10,-5,-10,-15,-5],11:[-5,0,-5,-10,0],
+  12:[0,0,0,-5,0],13:[0,0,0,0,0],14:[0,0,0,0,0],
+  15:[0,0,0,0,0],16:[0,5,0,0,0],17:[5,10,0,5,5],18:[10,15,5,10,10],
+  19:[15,20,10,12,12],20:[20,25,15,15,15],21:[25,30,20,18,18],
+  22:[30,35,25,20,20],23:[35,40,30,23,23],24:[40,45,35,25,25],
+  25:[45,50,40,30,30]
+};
+// PHB Racial adjustments [PP,OL,FRT,MS,HIS,HN,CW,RL]
+const _thiefRace={
+  'dwarf':[0,10,15,0,0,0,-10,-5],
+  'elf':[5,-5,0,5,10,5,0,0],
+  'gnome':[0,5,10,5,5,10,-15,0],
+  'half-elf':[10,0,0,0,5,0,0,0],
+  'halfling':[5,5,5,10,15,5,-15,-5],
+  'half-orc':[-5,5,5,0,0,5,5,-10]
+};
+const _thiefSkillKeys=['thiefPP','thiefOL','thiefFRT','thiefMS','thiefHIS','thiefHN','thiefCW','thiefRL'];
+
+function calcThiefSkills(){
+  const cls=(CHAR.characterClass||'').toLowerCase();
+  const isThief=cls.includes('thief')||cls.includes('assassin')||cls.includes('monk')||cls.includes('bard')||cls.includes('/');
+  if(!isThief)return;
+  const lvl=Math.max(1,Math.min(17,+(CHAR.level||0)));
+  if(!lvl)return;
+  const base=_thiefBase[lvl]||_thiefBase[1];
+  const dv=+(CHAR.dex||0);
+  const dexAdj=_thiefDex[Math.max(9,Math.min(25,dv))]||[0,0,0,0,0];
+  const raceKey=(CHAR.race||'').toLowerCase().trim();
+  const raceAdj=_thiefRace[raceKey]||[0,0,0,0,0,0,0,0];
+  _thiefSkillKeys.forEach((k,i)=>{
+    let val=base[i]+(i<5?dexAdj[i]:0)+raceAdj[i];
+    if(i===5)val=Math.max(val,1);
+    const display=val%1!==0?val.toFixed(1)+'%':val+'%';
+    _setField(k,display);
+  });
+}
+
 function populateAll(){
-  populateFields();updateClassSections();showPortrait();renderWeapons();calcAbilitySubs();
+  populateFields();updateClassSections();showPortrait();renderWeapons();calcAbilitySubs();calcThiefSkills();
   renderInlineList('proficiencies','prof-list','add-prof');
   renderInlineList('abilities','ability-list','add-ability');
   renderTableRows('items','item-list','add-item',[{key:'name'},{key:'location'},{key:'qty',center:true},{key:'weight',center:true},{key:'notes'}]);
