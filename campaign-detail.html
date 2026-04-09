@@ -135,8 +135,8 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .entity-portrait-ph { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; border: 1px solid var(--brd); background: var(--bg2); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--tx3) }
 .entity-info { flex: 1; min-width: 0 }
 .entity-name { font-family: var(--fd); font-size: 13px; font-weight: 700; color: var(--tx); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.entity-name a { color: inherit; text-decoration: none }
-.entity-name a:hover { color: var(--accent) }
+.entity-name a { color: var(--accent); text-decoration: none }
+.entity-name a:hover { color: var(--accent-lt); text-decoration: underline }
 .entity-sub { font-size: 11px; color: var(--tx2); font-family: var(--fm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .entity-player { font-size: 10px; color: var(--tx3); font-style: italic }
 .entity-stats { font-family: var(--fm); font-size: 9px; color: var(--tx2); margin-top: 2px; display: flex; gap: 2px; flex-wrap: wrap }
