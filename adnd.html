@@ -188,6 +188,8 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .desc-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:2px 8px;margin-bottom:4px}
 .notes-area{width:100%;border:1px solid var(--ink);background:var(--paper-lt);font-family:var(--fb);font-size:10px;padding:4px;resize:vertical;min-height:48px;outline:none;color:var(--ink)}
 .notes-area:focus{border-color:var(--accent)}
+.xp-bonus-badge{display:none;font-family:var(--fh);font-size:7px;font-weight:700;color:#fff;background:#5b7a3a;border-radius:2px;padding:1px 3px;letter-spacing:.3px;white-space:nowrap;flex-shrink:0}
+.xp-bonus-badge.visible{display:inline}
 @media print{
   .gcc-bar,.adnd-hdr,.adnd-ftr,.name-box-del,.add-btn,.add-sm,.del-btn,.pg-tabs{display:none!important}
   .sheet{border:none;max-width:100%}
@@ -511,9 +513,9 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 
 <div class="sec">Experience</div>
 <div id="xp-row" style="display:flex;gap:6px;margin-bottom:4px;flex-wrap:wrap">
-  <div class="xp-slot" id="xp-slot-0" style="display:flex;align-items:baseline;gap:4px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-0">XP Total:</span><input class="fi xp-total" data-field="xpTotal" style="flex:0 0 70px;font-weight:700;text-align:center" type="number"><span class="lb" style="margin-left:4px">Next:</span><input class="fi xp-next" data-field="xpNextLevel" style="flex:0 0 60px;text-align:center" type="number"></div>
-  <div class="xp-slot" id="xp-slot-1" style="display:none;align-items:baseline;gap:4px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-1">XP:</span><input class="fi xp-total" data-field="xpTotal2" style="flex:0 0 70px;font-weight:700;text-align:center" type="number"><span class="lb" style="margin-left:4px">Next:</span><input class="fi xp-next" data-field="xpNextLevel2" style="flex:0 0 60px;text-align:center" type="number"></div>
-  <div class="xp-slot" id="xp-slot-2" style="display:none;align-items:baseline;gap:4px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-2">XP:</span><input class="fi xp-total" data-field="xpTotal3" style="flex:0 0 70px;font-weight:700;text-align:center" type="number"><span class="lb" style="margin-left:4px">Next:</span><input class="fi xp-next" data-field="xpNextLevel3" style="flex:0 0 60px;text-align:center" type="number"></div>
+  <div class="xp-slot" id="xp-slot-0" style="display:flex;align-items:baseline;gap:4px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-0">XP Total:</span><input class="fi xp-total" data-field="xpTotal" style="flex:0 0 70px;font-weight:700;text-align:center" type="number"><span class="xp-bonus-badge" id="xp-bonus-0"></span><span class="lb" style="margin-left:4px">Next:</span><input class="fi xp-next" data-field="xpNextLevel" style="flex:0 0 60px;text-align:center" type="number"></div>
+  <div class="xp-slot" id="xp-slot-1" style="display:none;align-items:baseline;gap:4px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-1">XP:</span><input class="fi xp-total" data-field="xpTotal2" style="flex:0 0 70px;font-weight:700;text-align:center" type="number"><span class="xp-bonus-badge" id="xp-bonus-1"></span><span class="lb" style="margin-left:4px">Next:</span><input class="fi xp-next" data-field="xpNextLevel2" style="flex:0 0 60px;text-align:center" type="number"></div>
+  <div class="xp-slot" id="xp-slot-2" style="display:none;align-items:baseline;gap:4px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-2">XP:</span><input class="fi xp-total" data-field="xpTotal3" style="flex:0 0 70px;font-weight:700;text-align:center" type="number"><span class="xp-bonus-badge" id="xp-bonus-2"></span><span class="lb" style="margin-left:4px">Next:</span><input class="fi xp-next" data-field="xpNextLevel3" style="flex:0 0 60px;text-align:center" type="number"></div>
 </div>
 
 <!-- ═══ DESCRIPTION ═══ -->
@@ -625,6 +627,13 @@ function updateXPSlots(){
     document.getElementById('xp-cls-0').textContent='XP Total:';
     slot1.style.display='none';
     slot2.style.display='none';
+  }
+  const bonusKeys=['xpBonus','xpBonus2','xpBonus3'];
+  for(let i=0;i<3;i++){
+    const badge=document.getElementById('xp-bonus-'+i);
+    const val=+(CHAR[bonusKeys[i]]||0);
+    if(val){badge.textContent='+'+val+'%';badge.classList.add('visible');}
+    else{badge.textContent='';badge.classList.remove('visible');}
   }
 }
 
@@ -994,9 +1003,11 @@ function mapARS(ars){
   if(rawMove&&+rawMove>=30)rawMove=String(Math.round(+rawMove/10));
   c.moveBase=rawMove;
   c.xpTotal=d.xp||'';
+  c.xpBonus=(classItems[0]&&(classItems[0].system||{}).xpbonus)||'';
   if(classItems.length>1){
     const xpFields=['xpTotal','xpTotal2','xpTotal3'];
-    classItems.forEach((ci,i)=>{if(i<3){const cx=(ci.system||{}).details||{};c[xpFields[i]]=cx.xp||'';}});
+    const bonusFields=['xpBonus','xpBonus2','xpBonus3'];
+    classItems.forEach((ci,i)=>{if(i<3){c[xpFields[i]]=(ci.system||{}).xp||'';c[bonusFields[i]]=(ci.system||{}).xpbonus||'';}});
   }
   c.age=d.age||'';
   // Clean sex to single letter, strip units from height/weight
