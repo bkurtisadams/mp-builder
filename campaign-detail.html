@@ -818,20 +818,7 @@ sesModal.addEventListener('click', e => { if (e.target === sesModal) closeSessio
 // ── Init ──
 render();
 
-window.addEventListener('gcc-sync-ready', () => {
-  console.log('[RENDER] gcc-sync-ready fired, chars in LS:', (JSON.parse(localStorage.getItem('gcc-faserip-chars'))||[]).length);
-  const camps = JSON.parse(localStorage.getItem('gcc-campaigns'))||[];
-  const c = camps.find(c => c.system === 'faserip');
-  if (c) {
-    const saved = JSON.parse(localStorage.getItem('gcc-faserip-chars'))||[];
-    (c.characters||[]).forEach(ch => {
-      let f = ch._id ? saved.find(s => s._id === ch._id) : null;
-      if (!f && ch.name) f = saved.find(s => (s.heroName || s.name) === ch.name);
-      console.log('[RENDER]', ch.name, f ? 'FOUND' : 'MISS', 'id:', ch._id);
-    });
-  }
-  render();
-});
+window.addEventListener('gcc-sync-ready', () => { render(); });
 </script>
 </body>
 </html>

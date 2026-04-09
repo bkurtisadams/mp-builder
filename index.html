@@ -676,19 +676,21 @@ document.getElementById('jumpback-row').addEventListener('click', (e) => {
 function _resolveChar(savedChar, systemId, storageKey) {
   let name = '', sub = '', player = '', portrait = '', statsHtml = '';
   if (systemId === 'faserip') {
+    const RANK_ABBR = { Feeble:'Fb', Poor:'Pr', Typical:'Ty', Good:'Gd', Excellent:'Ex', Remarkable:'Rm', Incredible:'In', Amazing:'Am', Monstrous:'Mn', Unearthly:'Un', 'Shift-X':'ShX', 'Shift-Y':'ShY', 'Shift-Z':'ShZ', 'Class 1000':'C1k', 'Class 3000':'C3k', 'Class 5000':'C5k', Beyond:'Bey' };
     name = savedChar.heroName || savedChar.name || 'Unnamed';
     player = savedChar.playerName || '';
     portrait = savedChar.portraitData || '';
     sub = savedChar.origin || '';
     const ab = savedChar.abilities || {};
     const ranks = ['fighting','agility','strength','endurance','reason','intuition','psyche']
-      .map(k => { const a = ab[k]; return a ? `<span>${k.substring(0,1).toUpperCase()}\u2009${ESC(a.rank||'TY')}</span>` : ''; })
+      .map(k => { const a = ab[k]; if (!a) return ''; const abbr = RANK_ABBR[a.rank] || a.rank || '??'; const val = a.value != null ? a.value : ''; return `<span>${k.substring(0,1).toUpperCase()}\u2009(${ESC(abbr)}\u2009${val})</span>`; })
       .filter(Boolean);
     if (ranks.length) statsHtml += `<div class="cc-char-stats">${ranks.join('')}</div>`;
     const derived = [];
-    if (savedChar.health) derived.push('Health ' + savedChar.health);
-    if (savedChar.karma) derived.push('Karma ' + savedChar.karma);
-    if (savedChar.resourcesRank) derived.push('Res: ' + savedChar.resourcesRank);
+    if (savedChar.health) derived.push('Health\u2009' + savedChar.health);
+    if (savedChar.karma) derived.push('Karma\u2009' + savedChar.karma);
+    if (savedChar.resourcesRank) derived.push('Resources:\u2009' + (RANK_ABBR[savedChar.resourcesRank] || savedChar.resourcesRank));
+    if (savedChar.popularityHero != null) derived.push('Popularity:\u2009' + savedChar.popularityHero);
     if (derived.length) statsHtml += `<div class="cc-char-derived">${derived.map(d=>'<span>'+ESC(d)+'</span>').join('')}</div>`;
   } else if (systemId === 'mp') {
     name = savedChar.name || 'Unnamed';
@@ -765,10 +767,12 @@ function renderCampaigns() {
       if (refKey) {
         try {
           const saved = JSON.parse(localStorage.getItem(refKey)) || [];
-          const found = ch._id
-            ? saved.find(s => s._id === ch._id)
-            : (ch.name ? saved.find(s => (s.heroName || s.name) === ch.name) : null);
-          if (found) resolved = _resolveChar(found, c.system, refKey);
+          let found = ch._id ? saved.find(s => s._id === ch._id) : null;
+          if (!found && ch.name) found = saved.find(s => (s.heroName || s.name) === ch.name);
+          if (found) {
+            if (ch._id && found._id && ch._id !== found._id) ch._id = found._id;
+            resolved = _resolveChar(found, c.system, refKey);
+          }
         } catch(e) {}
       }
       const portraitHtml = resolved.portrait
