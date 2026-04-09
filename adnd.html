@@ -1143,28 +1143,48 @@ classField.addEventListener('input',()=>{CHAR.characterClass=classField.value;up
 
 // Wire all fields
 const _encFields=new Set(['wealthCP','wealthSP','wealthEP','wealthGP','wealthPP','strAdj','moveBase']);
-const _strFields=new Set(['str','strPct','weight']);
+const _abilityFields=new Set(['str','strPct','weight','int','wis','dex','con','cha']);
 document.querySelectorAll('[data-field]').forEach(el=>{
   const ev=el.tagName==='TEXTAREA'?'input':'change';
-  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_strFields.has(el.dataset.field))calcStrSubs();autosave();});
+  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_abilityFields.has(el.dataset.field))calcAbilitySubs();autosave();});
 });
 
-function calcStrSubs(){
-  const v=+(CHAR.str||0),p=CHAR.strPct||0;
-  const sL=_strTbl(v,p);
-  const fields={strHitAdj:0,strDamAdj:1,strOpenDoors:2,strBendBars:3,strWtAllow:4};
-  Object.entries(fields).forEach(([f,i])=>{CHAR[f]=sL[i];const el=document.querySelector('[data-field="'+f+'"]');if(el)el.value=sL[i];});
+function _setField(f,v){CHAR[f]=v;const el=document.querySelector('[data-field="'+f+'"]');if(el)el.value=v;}
+
+function calcAbilitySubs(){
+  // Strength
+  const sv=+(CHAR.str||0),sp=CHAR.strPct||0;
+  const sL=_strTbl(sv,sp);
+  _setField('strHitAdj',sL[0]);_setField('strDamAdj',sL[1]);_setField('strOpenDoors',sL[2]);_setField('strBendBars',sL[3]);_setField('strWtAllow',sL[4]);
   const bw=parseFloat(CHAR.weight)||0;
-  CHAR.strLift=_strLift(v,p,bw);
-  const lEl=document.querySelector('[data-field="strLift"]');if(lEl)lEl.value=CHAR.strLift||'';
-  // Update strAdj for encumbrance from weight allowance
+  _setField('strLift',_strLift(sv,sp,bw));
   const wtA=sL[4]||0;const adjVal=wtA>0?'+'+wtA:wtA<0?String(wtA):'0';
   CHAR.strAdj=adjVal;const saEl=document.querySelector('[data-field="strAdj"]');if(saEl)saEl.value=adjVal;
+  // Intelligence
+  const iv=+(CHAR.int||0);
+  const iL=_intTbl(iv);
+  _setField('intAddLang',iL[0]);_setField('intKnowSpell',iL[1]);_setField('intMinSpells',iL[2]);_setField('intMaxSpells',iL[3]);
+  // Wisdom
+  const wv=+(CHAR.wis||0);
+  const wL=_wisTbl(wv);
+  _setField('wisMagAtkAdj',wL[0]);_setField('wisSpellBonus',wL[1]);_setField('wisSpellFail',wL[2]);
+  // Dexterity
+  const dv=+(CHAR.dex||0);
+  const dL=_dexTbl(dv);
+  _setField('dexReactAdj',dL[0]);_setField('dexMissileAdj',dL[1]);_setField('dexDefAdj',dL[2]);
+  // Constitution
+  const cv=+(CHAR.con||0);
+  const cL=_conTbl(cv);
+  _setField('conHpAdj',cL[0]);_setField('conSysShock',cL[1]);_setField('conResSurv',cL[2]);
+  // Charisma
+  const chv=+(CHAR.cha||0);
+  const chL=_chaTbl(chv);
+  _setField('chaMaxHench',chL[0]);_setField('chaLoyalty',chL[1]);_setField('chaReactAdj',chL[2]);
   calcWeight();
 }
 
 function populateAll(){
-  populateFields();updateClassSections();showPortrait();renderWeapons();calcStrSubs();
+  populateFields();updateClassSections();showPortrait();renderWeapons();calcAbilitySubs();
   renderInlineList('proficiencies','prof-list','add-prof');
   renderInlineList('abilities','ability-list','add-ability');
   renderTableRows('items','item-list','add-item',[{key:'name'},{key:'location'},{key:'qty',center:true},{key:'weight',center:true},{key:'notes'}]);
