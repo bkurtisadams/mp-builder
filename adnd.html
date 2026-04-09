@@ -246,6 +246,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
   <div class="bio-field"><span class="lb">Deity:</span><input class="fi" data-field="deity"></div>
   <div class="bio-field"><span class="lb">Origin:</span><input class="fi" data-field="origin"></div>
   <div class="bio-field"><span class="lb">Move Base:</span><input class="fi" data-field="moveBase"></div>
+  <div class="bio-field"><span class="lb">Move Adj.:</span><input class="fi" data-field="moveAdj" readonly></div>
   <div class="bio-field"><span class="lb">Vision:</span><input class="fi" data-field="vision"></div>
   <div class="bio-field"><span class="lb">Listening:</span><input class="fi" data-field="listening"></div>
   <div class="bio-field"><span class="lb">Secondary Skill:</span><input class="fi" data-field="secondarySkill"></div>
@@ -461,13 +462,13 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
     <div class="lb" style="font-size:9px;color:var(--ink);align-self:center">Encumbrance:</div>
     <div class="enc-fc"><input class="fi" data-field="strAdj" style="width:40px"><div class="lb">Str. Adj.</div></div>
     <div class="lb" style="font-size:8px;align-self:center">Load vs. Move Rate:</div>
-    <div class="enc-fc"><input class="fi" data-field="loadNormal" style="width:36px"><div class="lb">Normal=1</div></div>
+    <div class="enc-fc"><input class="fi" data-field="loadNormal" style="width:56px" readonly><div class="lb">Normal=1</div></div>
     <span class="load-sep">—</span>
-    <div class="enc-fc"><input class="fi" data-field="loadHeavy" style="width:36px"><div class="lb">Heavy=¾</div></div>
+    <div class="enc-fc"><input class="fi" data-field="loadHeavy" style="width:56px" readonly><div class="lb">Heavy=¾</div></div>
     <span class="load-sep">—</span>
-    <div class="enc-fc"><input class="fi" data-field="loadLoaded" style="width:36px"><div class="lb">Loaded=½</div></div>
+    <div class="enc-fc"><input class="fi" data-field="loadLoaded" style="width:56px" readonly><div class="lb">Loaded=½</div></div>
     <span class="load-sep">—</span>
-    <div class="enc-fc"><input class="fi" data-field="loadMax" style="width:36px"><div class="lb">Max=¼</div></div>
+    <div class="enc-fc"><input class="fi" data-field="loadMax" style="width:56px" readonly><div class="lb">Max=¼</div></div>
     <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
       <span class="lb" style="font-size:9px">Total Weight Carried</span>
       <div class="bx" style="width:56px;height:22px;font-size:13px"><input data-field="totalWeight" id="total-weight" readonly style="border:none;background:transparent;font-family:var(--fb);font-size:13px;font-weight:700;text-align:center;width:100%;outline:none;padding:0"></div>
@@ -788,7 +789,44 @@ document.getElementById('add-spell').addEventListener('click',()=>{
   if(!CHAR.spells)CHAR.spells=[];CHAR.spells.push({level:lvl,name:''});renderSpells();autosave();
 });
 
-function calcWeight(){const items=CHAR.items||[];let t=0;items.forEach(it=>{t+=(parseFloat(it.weight)||0)*(parseInt(it.qty)||1);});document.getElementById('total-weight').value=t||'';CHAR.totalWeight=t;}
+function calcWeight(){
+  // Item weight
+  const items=CHAR.items||[];let itemWt=0;
+  items.forEach(it=>{itemWt+=(parseFloat(it.weight)||0)*(parseInt(it.qty)||1);});
+  // Coin weight (10 coins = 1 lb)
+  const coinWt=((+(CHAR.wealthCP||0))+(+(CHAR.wealthSP||0))+(+(CHAR.wealthEP||0))+(+(CHAR.wealthGP||0))+(+(CHAR.wealthPP||0)))/10;
+  const totalWt=Math.round((itemWt+coinWt)*10)/10;
+  document.getElementById('total-weight').value=totalWt||'';
+  CHAR.totalWeight=totalWt;
+  // PHB Encumbrance thresholds (base: 35/70/105/150 lbs)
+  // Str bonus from strOpenDoors or manual strAdj field modifies thresholds
+  // Positive str adj increases capacity, negative decreases
+  const strAdj=+(CHAR.strAdj||0);
+  const adj=strAdj*10; // each +1 str adj ≈ +10 lbs per bracket
+  const thresholds=[35+adj, 70+adj, 105+adj, 150+adj];
+  // Movement rates based on base move (default 12")
+  const base=+(CHAR.moveBase||12);
+  const rates=[base, Math.floor(base*3/4), Math.floor(base/2), Math.floor(base/4)];
+  // Fill the load fields
+  const lN=document.querySelector('[data-field="loadNormal"]');
+  const lH=document.querySelector('[data-field="loadHeavy"]');
+  const lL=document.querySelector('[data-field="loadLoaded"]');
+  const lM=document.querySelector('[data-field="loadMax"]');
+  if(lN)lN.value=thresholds[0]+'# / '+rates[0]+'"';
+  if(lH)lH.value=thresholds[1]+'# / '+rates[1]+'"';
+  if(lL)lL.value=thresholds[2]+'# / '+rates[2]+'"';
+  if(lM)lM.value=thresholds[3]+'# / '+rates[3]+'"';
+  CHAR.loadNormal=lN?lN.value:'';CHAR.loadHeavy=lH?lH.value:'';
+  CHAR.loadLoaded=lL?lL.value:'';CHAR.loadMax=lM?lM.value:'';
+  // Determine current bracket and effective move
+  let bracket='Normal',effMove=rates[0];
+  if(totalWt>thresholds[2]){bracket='Encumbered';effMove=rates[3];}
+  else if(totalWt>thresholds[1]){bracket='Very Heavy';effMove=rates[2];}
+  else if(totalWt>thresholds[0]){bracket='Heavy';effMove=rates[1];}
+  // Update move adjusted field if it exists
+  const moveAdj=document.querySelector('[data-field="moveAdj"]');
+  if(moveAdj){moveAdj.value=effMove+'" ('+bracket+')';CHAR.moveAdj=moveAdj.value;}
+}
 function calcXP(){const t=parseFloat(CHAR.xpTotal)||0;document.getElementById('xp-total').value=t||'';CHAR.xpTotal=t;}
 
 // Portrait (name box)
@@ -1030,9 +1068,10 @@ classField.addEventListener('change',()=>{CHAR.characterClass=classField.value;u
 classField.addEventListener('input',()=>{CHAR.characterClass=classField.value;updateClassSections();});
 
 // Wire all fields
+const _encFields=new Set(['wealthCP','wealthSP','wealthEP','wealthGP','wealthPP','strAdj','moveBase']);
 document.querySelectorAll('[data-field]').forEach(el=>{
   const ev=el.tagName==='TEXTAREA'?'input':'change';
-  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;autosave();});
+  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();autosave();});
 });
 
 function populateAll(){
