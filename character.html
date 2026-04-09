@@ -1118,6 +1118,7 @@ function saveToSlot() {
       localStorage.setItem('mp-char-edit-idx', list.length - 1);
     }
     localStorage.setItem(CHARS_LIST_KEY, JSON.stringify(list));
+    if(typeof GCCSync!=='undefined' && GCCSync.notifySync) GCCSync.notifySync(CHARS_LIST_KEY);
   } catch(e) {}
 }
 
@@ -1159,6 +1160,7 @@ document.getElementById('btn-delete').addEventListener('click', async () => {
   if (!ok) return;
   list.splice(idx, 1);
   localStorage.setItem(CHARS_LIST_KEY, JSON.stringify(list));
+  if(typeof GCCSync!=='undefined' && GCCSync.notifySync) GCCSync.notifySync(CHARS_LIST_KEY);
   clearAll();
   recalcDerived();
   localStorage.removeItem(STORE_KEY);

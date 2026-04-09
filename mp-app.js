@@ -1206,6 +1206,7 @@ document.getElementById("btn-delete").addEventListener("click", async () => {
   if (!ok) return;
   list.splice(idx, 1);
   localStorage.setItem(VEHS_LIST_KEY, JSON.stringify(list));
+  if(typeof GCCSync!=='undefined' && GCCSync.notifySync) GCCSync.notifySync(VEHS_LIST_KEY);
   veh.fromJSON({ type: "mp-vehicle", name: "", basicCost: 15, systems: [] });
   syncFormFromVeh();
   updateAll();
@@ -1382,6 +1383,7 @@ function autoSave() {
         localStorage.setItem('mp-veh-edit-idx', list.length - 1);
       }
       localStorage.setItem(VEHS_LIST_KEY, JSON.stringify(list));
+      if(typeof GCCSync!=='undefined' && GCCSync.notifySync) GCCSync.notifySync(VEHS_LIST_KEY);
     } catch (e) { /* quota exceeded or private browsing */ }
   }, 300);
 }

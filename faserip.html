@@ -1720,6 +1720,7 @@ function saveChar(){
     MPDialog.alert("Save Failed","Browser storage is full.<br>Try removing unused characters or clearing portrait data.");
     return;
   }
+  if(typeof GCCSync!=='undefined' && GCCSync.notifySync) GCCSync.notifySync(STORAGE_KEY);
   autosave();
   MPDialog.alert("Saved","Character saved: <b>"+name+"</b>");
 }
@@ -2062,6 +2063,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     if(idx>=0){
       chars.splice(idx,1);
       localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));
+      if(typeof GCCSync!=='undefined' && GCCSync.notifySync) GCCSync.notifySync(STORAGE_KEY);
     }
     CHAR=newChar(); renderAll(); autosave();
     MPDialog.alert("Deleted","Character deleted.");

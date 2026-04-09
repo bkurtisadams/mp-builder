@@ -479,6 +479,7 @@ document.getElementById('card-grid').addEventListener('click', async e => {
     if (idx >= 0) {
       list.splice(idx, 1);
       localStorage.setItem(key, JSON.stringify(list));
+      if(typeof GCCSync!=='undefined' && GCCSync.notifySync) GCCSync.notifySync(key);
       render();
     }
   } catch(e) {}

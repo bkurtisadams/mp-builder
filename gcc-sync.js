@@ -1,4 +1,6 @@
-// gcc-sync.js v2.0.0 — 2026-04-08
+// gcc-sync.js v2.1.0 — 2026-04-08
+// v2.1.0: Fix sync race condition — save queue prevents pull from stomping in-flight saves;
+//         notifySync() bridge for pages that write localStorage directly.
 // Firestore sync layer for Graycloak's Campaign Corner
 // Requires: gcc-data.js, gcc-auth.js, gcc-firebase-config.js
 //
@@ -357,6 +359,24 @@ const GCCSync = (function() {
   let _origSave = null;
   let _origLoad = null;
 
+  // ── Save queue: track in-flight cloud saves ──
+  // Prevents pullCloudData from stomping saves that haven't landed yet.
+  let _pendingSaves = [];
+
+  function trackSave(promise) {
+    _pendingSaves.push(promise);
+    promise.finally(() => {
+      _pendingSaves = _pendingSaves.filter(p => p !== promise);
+    });
+    return promise;
+  }
+
+  async function flushPendingSaves() {
+    if (_pendingSaves.length === 0) return;
+    console.log('[GCCSync] flushing', _pendingSaves.length, 'pending save(s) before pull...');
+    await Promise.allSettled(_pendingSaves);
+  }
+
   function patchGCC() {
     if (typeof GCC === 'undefined') return;
     if (_origSave) return;
@@ -367,7 +387,9 @@ const GCCSync = (function() {
     GCC.save = function(key, val) {
       _origSave(key, val);
       if (_uid && _db && isSyncKey(key)) {
-        cloudSave(key, val).catch(e => console.warn('[GCCSync] background save failed:', key, e));
+        trackSave(
+          cloudSave(key, val).catch(e => console.warn('[GCCSync] background save failed:', key, e))
+        );
       }
     };
 
@@ -376,6 +398,23 @@ const GCCSync = (function() {
     };
 
     console.log('[GCCSync] GCC data layer patched for cloud sync');
+  }
+
+  // ── notifySync: bridge for pages that write localStorage directly ──
+  // Call after a direct localStorage.setItem() on a synced key.
+  // Reads the current localStorage value and pushes it to the cloud.
+  function notifySync(key) {
+    if (!_uid || !_db || !isSyncKey(key)) return;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw === null) return;
+      const val = JSON.parse(raw);
+      trackSave(
+        cloudSave(key, val).catch(e => console.warn('[GCCSync] notifySync failed:', key, e))
+      );
+    } catch(e) {
+      console.warn('[GCCSync] notifySync parse error:', key, e);
+    }
   }
 
   // ══════════════════════════════════════
@@ -388,6 +427,7 @@ const GCCSync = (function() {
       await initFirestore();
       patchGCC();
       await uploadLocalData();
+      await flushPendingSaves();
       await pullCloudData();
       _ready = true;
       _readyCallbacks.forEach(fn => { try { fn(); } catch(e) {} });
@@ -428,6 +468,7 @@ const GCCSync = (function() {
 
   async function pullNow() {
     if (!_uid || !_db) return { ok: false, reason: 'Not signed in' };
+    await flushPendingSaves();
     await pullCloudData();
     return { ok: true };
   }
@@ -458,6 +499,7 @@ const GCCSync = (function() {
     onReady,
     syncNow,
     pullNow,
+    notifySync,
     SYNC_KEYS: ALL_SYNC_KEYS,
   };
 
