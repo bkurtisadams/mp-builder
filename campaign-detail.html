@@ -141,6 +141,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .entity-player { font-size: 10px; color: var(--tx3); font-style: italic }
 .entity-stats { font-family: var(--fm); font-size: 9px; color: var(--tx2); margin-top: 2px; display: flex; gap: 2px; flex-wrap: wrap }
 .entity-stats span { white-space: nowrap; margin-right: 4px }
+.entity-stats .ab { color: var(--accent); font-weight: 700 }
 .entity-derived { font-size: 10px; font-weight: 700; color: var(--tx2); margin-top: 1px; display: flex; gap: 2px; flex-wrap: wrap }
 .entity-derived span { white-space: nowrap; margin-right: 6px }
 .entity-pip { position: absolute; top: 0; left: 0; bottom: 0; width: 3px; border-radius: 4px 0 0 4px }
@@ -331,22 +332,16 @@ function resolveChar(savedChar, systemId, storageKey) {
     portrait = savedChar.portraitData || '';
     const ab = savedChar.abilities || {};
     sub = savedChar.origin || '';
-    // Build FASERIP stat line: F (Am 50) A (Rm 30) ...
-    const lines = ['fighting','agility','strength','endurance','reason','intuition','psyche']
-      .map(k => {
-        const a = ab[k];
-        if (!a) return '';
-        const label = k.substring(0,1).toUpperCase();
-        const abbr = RANK_ABBR[a.rank] || a.rank || '??';
-        const val = a.value != null ? a.value : '';
-        return `<span>${label}\u2009(${ESC(abbr)}\u2009${val})</span>`;
-      }).filter(Boolean);
-    if (lines.length) statsHtml += `<div class="entity-stats">${lines.join('')}</div>`;
+    const abKeys = ['fighting','agility','strength','endurance','reason','intuition','psyche'];
+    const abSpan = k => { const a = ab[k]; if (!a) return ''; return `<span class="ab">${k.substring(0,1).toUpperCase()}</span>\u2009${a.value != null ? a.value : ''}`; };
+    const fase = abKeys.slice(0,4).map(abSpan).filter(Boolean).join(' ');
+    const rip = abKeys.slice(4).map(abSpan).filter(Boolean).join(' ');
+    if (fase || rip) statsHtml += `<div class="entity-stats">${fase}${rip ? '<br>' + rip : ''}</div>`;
     const derived = [];
-    if (savedChar.health) derived.push(`<span>Health\u2009${savedChar.health}</span>`);
-    if (savedChar.karma) derived.push(`<span>Karma\u2009${savedChar.karma}</span>`);
-    if (savedChar.resourcesRank) derived.push(`<span>Resources:\u2009${ESC(RANK_ABBR[savedChar.resourcesRank] || savedChar.resourcesRank)}</span>`);
-    if (savedChar.popularityHero != null) derived.push(`<span>Popularity:\u2009${savedChar.popularityHero}</span>`);
+    if (savedChar.health) derived.push(`<span>H\u2009${savedChar.health}</span>`);
+    if (savedChar.karma) derived.push(`<span>K\u2009${savedChar.karma}</span>`);
+    if (savedChar.resourcesRank) derived.push(`<span>Res\u2009${ESC(RANK_ABBR[savedChar.resourcesRank] || savedChar.resourcesRank)}</span>`);
+    if (savedChar.popularityHero != null) derived.push(`<span>Pop\u2009${savedChar.popularityHero}</span>`);
     if (derived.length) statsHtml += `<div class="entity-derived">${derived.join('')}</div>`;
   } else if (systemId === 'mp') {
     name = savedChar.name || 'Unnamed';
