@@ -1144,10 +1144,17 @@ function openCharsModal(campId) {
   document.getElementById('cf-camp-id').value = campId;
   document.getElementById('chars-modal-title').textContent = 'EDIT ' + GCC.teamLabel(charsCampSystem).toUpperCase();
 
-  // Build selected set from current campaign characters (by _id, fallback to name)
+  // Build selected set from current campaign characters
+  // Resolve against saved chars to handle stale _ids from previous imports
   charsSelected = new Set();
+  const _savedForSelect = _getSavedCharsForSystem(charsCampSystem);
   (camp.characters || []).forEach(ch => {
-    charsSelected.add(ch._id || ch.name);
+    // Try matching by _id first
+    let match = _savedForSelect.find(sc => sc._id && sc._id === ch._id);
+    // Fallback: match by name
+    if (!match && ch.name) match = _savedForSelect.find(sc => sc.name === ch.name);
+    // Use the saved char's _id if found, otherwise keep the ref's key for orphan display
+    charsSelected.add(match ? (match._id || match.name) : (ch._id || ch.name));
   });
 
   renderCharsPicker();
@@ -1259,7 +1266,7 @@ function renderCharsPicker() {
 document.getElementById('cf-save').addEventListener('click', () => {
   const saved = _getSavedCharsForSystem(charsCampSystem);
   const characters = saved
-    .filter(sc => charsSelected.has(sc._id || sc.name))
+    .filter(sc => charsSelected.has(sc._id) || charsSelected.has(sc.name))
     .map(sc => ({ name: sc.name, storageKey: sc.storageKey, _id: sc._id || '' }));
   GCC.updateCampaign(charsCampId, { characters, players: characters.length });
   closeCharsModal();
