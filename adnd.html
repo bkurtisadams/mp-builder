@@ -519,9 +519,9 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 </div>
 
 <!-- ═══ DESCRIPTION ═══ -->
-<!-- Header row: Description: Age— [box] Apparent Age / Unnatural Aging / Color of: Hair / Eyes -->
-<div style="display:flex;align-items:center;gap:4px;margin:6px 0 2px;min-width:0">
-  <span style="font-family:var(--fh);font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;flex-shrink:0">Description:</span>
+<div class="sec">Description</div>
+<!-- Age row -->
+<div style="display:flex;align-items:center;gap:4px;margin:0 0 2px;min-width:0">
   <span class="lb" style="font-size:9px;flex-shrink:0">Age—</span>
   <div style="display:flex;align-items:center;justify-content:center;border:2px solid var(--ink);border-radius:4px;width:40px;height:24px;flex-shrink:0"><input data-field="age" style="border:none;background:transparent;font-family:var(--fb);font-size:13px;font-weight:700;text-align:center;width:100%;outline:none;padding:0"></div>
   <div class="fc" style="flex:1;min-width:0"><input class="fi" data-field="apparentAge" style="text-align:center"><div class="lb">Apparent Age</div></div>
@@ -561,16 +561,16 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 </div>
 
 <!-- ═══ COMPATRIOTS ═══ -->
-<div style="display:flex;align-items:baseline;gap:8px;margin:4px 0 2px">
-  <span style="font-family:var(--fh);font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase">Compatriots:</span>
-  <span class="lb" style="font-size:8px;font-style:italic">Followers/Hirelings—Associates/Relatives</span>
+<div class="sec" style="display:flex;align-items:baseline;gap:8px">
+  <span>Compatriots</span>
+  <span class="lb" style="font-size:8px;font-style:italic;font-weight:400;letter-spacing:0;text-transform:none">Followers/Hirelings—Associates/Relatives</span>
   <button class="add-sm" id="add-assoc" title="Add" style="margin-left:auto">+</button>
 </div>
 <table class="h-tbl"><thead><tr><th style="width:3%">#</th><th style="width:17%">Name</th><th style="width:11%">Class</th><th style="width:6%">Level</th><th style="width:8%">Race</th><th style="width:16%">Notes</th><th style="width:3%">#</th><th style="width:17%">Name</th><th style="width:11%">Class</th><th style="width:6%">Level</th><th style="width:8%">Race</th><th style="width:16%">Notes</th></tr></thead><tbody id="assoc-list"></tbody></table>
 
 <!-- ═══ LOCALES FREQUENTED / RESIDENCE ═══ -->
-<div style="font-family:var(--fh);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;border-bottom:1.5px solid var(--ink);margin:4px 0 3px;padding-bottom:1px;display:flex;align-items:baseline;gap:8px">
-  Locales Frequented / Residence:
+<div class="sec" style="display:flex;align-items:baseline;gap:8px">
+  <span>Locales Frequented / Residence</span>
   <button class="add-sm" id="add-locale" title="Add" style="margin-left:auto">+</button>
 </div>
 <table class="inv-tbl"><thead><tr><th style="width:20%">Location</th><th style="width:20%">Time/Condition</th><th style="width:20%">Details</th><th style="width:20%">Location</th><th style="width:20%">Time/Condition</th><th style="width:20%">Details</th></tr></thead><tbody id="locale-list"></tbody></table>
