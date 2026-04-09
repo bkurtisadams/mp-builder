@@ -1024,8 +1024,8 @@ function mapARS(ars){
     fillWeaponPHB(wObj);
     c.weapons.push(wObj);
   });
-  // Inventory
-  const skipT=['weapon','spell','race','class','skill','ability','proficiency'];
+  // Inventory (exclude currency, weapons, spells, class, race, skill, ability, proficiency)
+  const skipT=['weapon','spell','race','class','skill','ability','proficiency','currency'];
   c.items=items.filter(i=>!skipT.includes(i.type)).map(i=>{
     const is=i.system||{};
     return{name:i.name,location:is.location?is.location.state:'',qty:is.quantity||1,weight:is.weight||'',notes:is.attributes&&is.attributes.magic?'magical':''};
@@ -1035,6 +1035,41 @@ function mapARS(ars){
     const is=i.system||{};
     return{name:i.name,charges:is.charges&&is.charges.max?is.charges.value+'/'+is.charges.max:'',properties:''};
   });
+  // Coins — type='currency', denomination from cost.currency
+  const coinMap={cp:'wealthCP',sp:'wealthSP',ep:'wealthEP',gp:'wealthGP',pp:'wealthPP'};
+  items.filter(i=>i.type==='currency').forEach(ci=>{
+    const is=ci.system||{};
+    const denom=(is.cost&&is.cost.currency)||'';
+    const field=coinMap[denom];
+    if(field)c[field]=(+(c[field]||0))+(+(is.quantity||0));
+  });
+  // Provisions — details.provisions has food/water item IDs
+  const prov=d.provisions||{};
+  if(prov.food){
+    const foodItem=items.find(i=>i._id===prov.food);
+    if(foodItem)c.provFoodSupply=(foodItem.system||{}).quantity||'';
+  }
+  if(prov.water){
+    const waterItem=items.find(i=>i._id===prov.water);
+    if(waterItem)c.provWaterSupply=(waterItem.system||{}).quantity||'';
+  }
+  // Gems & Jewelry — non-magical items with high value, gem/jewel name patterns
+  const gemPatterns=/gem|jewel|ruby|sapphire|diamond|emerald|pearl|opal|topaz|garnet|amethyst|amber|jade|coral|agate|turquoise|aquamarine|alexandrite|jacinth|spinel|tourmaline|zircon|azurite|quartz|obsidian|onyx|carnelian|citrine|jasper|moonstone|peridot|star rose/i;
+  const gems=items.filter(i=>{
+    if(i.type==='currency'||i.type==='spell'||i.type==='class'||i.type==='race')return false;
+    const is=i.system||{};
+    if(is.attributes&&is.attributes.magic)return false;
+    return gemPatterns.test(i.name);
+  });
+  if(gems.length){
+    c.wealthGems=gems.length;
+    c.gemDetails=gems.map(g=>{
+      const is=g.system||{};
+      const qty=is.quantity||1;
+      const val=is.cost&&is.cost.value?is.cost.value+'gp':'';
+      return(qty>1?qty+'x ':'')+g.name+(val?' ('+val+' ea.)':'');
+    }).join(', ');
+  }
   // Spells (deduplicated)
   const seen={};c.spells=[];
   items.filter(i=>i.type==='spell').forEach(sp=>{
