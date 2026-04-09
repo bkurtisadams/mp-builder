@@ -289,6 +289,21 @@ function resolveEntity(raw, systemId) {
     const orig = raw.origin || raw.originType || '';
     if (orig) parts.push('Origin: ' + orig);
     sub = parts.filter(Boolean).join(' | ');
+  } else if (systemId === 'add1e') {
+    name = raw.characterName || raw.name || 'Unnamed';
+    portrait = raw.portrait || '';
+    const cls = raw.characterClass || '';
+    const lvl = raw.level || '';
+    const race = raw.race || '';
+    const parts = [];
+    if (race) parts.push(race);
+    if (cls && lvl) parts.push(cls + ' ' + lvl);
+    else if (cls) parts.push(cls);
+    const hp = raw.hpCurrent || raw.hpMax;
+    if (hp) parts.push('HP:' + hp + (raw.hpMax ? '/' + raw.hpMax : ''));
+    const ac = raw.ac;
+    if (ac !== undefined && ac !== '') parts.push('AC:' + ac);
+    sub = parts.filter(Boolean).join(' | ');
   } else {
     name = raw.name || raw.heroName || 'Unnamed';
     portrait = raw._image || raw.portraitData || '';

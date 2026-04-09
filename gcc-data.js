@@ -68,7 +68,7 @@ const GCC = (function() {
       icon: '🗡',
       color: '#5a8a30',
       tools: [
-        { id: 'add1-char', name: 'Character Sheet', href: 'adnd.html' },
+        { id: 'add1-char', name: 'Character Sheet', href: 'adnd.html', charList: 'gcc-add1e-chars' },
         { id: 'add1-enc', name: 'Encounter Generator', href: null },
         { id: 'add1-trs', name: 'Treasure Generator', href: null },
         { id: 'add1-wild', name: 'Wilderness Generator', href: null },

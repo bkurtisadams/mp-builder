@@ -365,11 +365,29 @@ function resolveChar(savedChar, systemId, storageKey) {
     if (savedChar.hitPts) derived.push(`<span>HP ${ESC(savedChar.hitPts)}</span>`);
     if (savedChar.initiative) derived.push(`<span>Init ${ESC(savedChar.initiative)}</span>`);
     if (derived.length) statsHtml += `<div class="entity-derived">${derived.join('')}</div>`;
-  } else {
-    name = savedChar.name || savedChar.heroName || 'Unnamed';
+  } else if (systemId === 'add1e') {
+    name = savedChar.characterName || savedChar.name || 'Unnamed';
     player = savedChar.player || savedChar.playerName || '';
-    sub = savedChar.sub || savedChar.class || '';
-  }
+    portrait = savedChar.portrait || '';
+    const cls = savedChar.characterClass || '';
+    const lvl = savedChar.level || '';
+    const race = savedChar.race || '';
+    sub = [race, cls && lvl ? cls + ' ' + lvl : cls].filter(Boolean).join(' · ');
+    const statLine = [];
+    if (savedChar.str) statLine.push(`<span>S\u2009${ESC(String(savedChar.str))}${savedChar.strPct ? '/' + ESC(String(savedChar.strPct)) : ''}</span>`);
+    if (savedChar.int) statLine.push(`<span>I\u2009${ESC(String(savedChar.int))}</span>`);
+    if (savedChar.wis) statLine.push(`<span>W\u2009${ESC(String(savedChar.wis))}</span>`);
+    if (savedChar.dex) statLine.push(`<span>D\u2009${ESC(String(savedChar.dex))}</span>`);
+    if (savedChar.con) statLine.push(`<span>C\u2009${ESC(String(savedChar.con))}</span>`);
+    if (savedChar.cha) statLine.push(`<span>Ch\u2009${ESC(String(savedChar.cha))}</span>`);
+    if (statLine.length) statsHtml += `<div class="entity-stats">${statLine.join('')}</div>`;
+    const derived = [];
+    if (savedChar.ac !== undefined && savedChar.ac !== '') derived.push(`<span>AC\u2009${ESC(String(savedChar.ac))}</span>`);
+    const hp = savedChar.hpCurrent || savedChar.hpMax;
+    if (hp) derived.push(`<span>HP\u2009${ESC(String(hp))}${savedChar.hpMax ? '/' + ESC(String(savedChar.hpMax)) : ''}</span>`);
+    if (savedChar.xpTotal) derived.push(`<span>XP\u2009${ESC(String(savedChar.xpTotal))}</span>`);
+    if (derived.length) statsHtml += `<div class="entity-derived">${derived.join('')}</div>`;
+  } else {
   return { name, player, sub, portrait, statsHtml, _id: savedChar._id || '', storageKey: storageKey || '' };
 }
 
