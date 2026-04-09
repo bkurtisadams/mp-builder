@@ -104,6 +104,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 /* Field cell: value on top, label below */
 .fc{display:flex;flex-direction:column;align-items:center;min-width:0;overflow:hidden}
 .fc .lb{margin-top:1px;text-align:center;line-height:1}
+.fc .fi{width:100%;flex:none}
 /* Horizontal field row */
 .fr{display:flex;gap:4px;align-items:flex-start;margin-bottom:3px;min-width:0}
 .fr>.fc{flex:1;min-width:0}
@@ -975,7 +976,12 @@ function mapARS(ars){
   const moveAb=items.find(i=>i.type==='ability'&&i.name.startsWith('Base Movement'));
   c.moveBase=moveAb?(moveAb.name.match(/\d+/)||[''])[0]:(at.movement&&at.movement.value?at.movement.value:'');
   c.xpTotal=d.xp||'';
-  c.age=d.age||'';c.sex=d.sex||'';c.height=d.height||'';c.weight=d.weight||'';
+  c.age=d.age||'';
+  // Clean sex to single letter, strip units from height/weight
+  const rawSex=(d.sex||'').trim();
+  c.sex=rawSex?rawSex.substring(0,1).toUpperCase():'';
+  c.height=(d.height||'').replace(/\s*(inches|in|feet|ft)\s*/gi,'').trim();
+  c.weight=(d.weight||'').replace(/\s*(pounds|lbs?|#)\s*/gi,'').trim();
   // Weapons
   const skipW=['Brawl','Grapple','Overbear'];
   const skipAttr=['ammunition','noDrop'];
