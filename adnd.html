@@ -281,7 +281,9 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
         </div>
         <div class="pair"><div class="row"><span class="lb">Resistances:</span><input class="fi" data-field="resistances"></div><div class="row"><span class="lb">Detection:</span><input class="fi" data-field="detection"></div></div>
         <div class="row"><span class="lb">Languages:</span><input class="fi" data-field="languages"></div>
-        <div class="row"><span class="lb">Languages:</span><input class="fi" data-field="languages2"></div>
+        <div class="row"><span class="lb" style="visibility:hidden">Languages:</span><input class="fi" data-field="languages2"></div>
+        <div class="row"><span class="lb" style="visibility:hidden">Languages:</span><input class="fi" data-field="languages3"></div>
+        <div class="row"><span class="lb" style="visibility:hidden">Languages:</span><input class="fi" data-field="languages4"></div>
       </div>
       <div class="saves-block" style="min-width:110px">
         <div class="saves-title">Saving<br>Throws:</div>
@@ -1078,7 +1080,7 @@ function mapARS(ars){
   });
   // Languages
   const langs=items.filter(i=>i.type==='ability'&&i.name.startsWith('Language')).map(i=>i.name.replace('Language (','').replace(')',''));
-  if(langs.length){const j=langs.join(', ');if(j.length>60){const m=Math.ceil(langs.length/2);c.languages=langs.slice(0,m).join(', ');c.languages2=langs.slice(m).join(', ');}else c.languages=j;}
+  if(langs.length){const j=langs.join(', ');if(j.length>180){const q=Math.ceil(langs.length/4);c.languages=langs.slice(0,q).join(', ');c.languages2=langs.slice(q,q*2).join(', ');c.languages3=langs.slice(q*2,q*3).join(', ');c.languages4=langs.slice(q*3).join(', ');}else if(j.length>120){const t=Math.ceil(langs.length/3);c.languages=langs.slice(0,t).join(', ');c.languages2=langs.slice(t,t*2).join(', ');c.languages3=langs.slice(t*2).join(', ');}else if(j.length>60){const m=Math.ceil(langs.length/2);c.languages=langs.slice(0,m).join(', ');c.languages2=langs.slice(m).join(', ');}else c.languages=j;}
   // Bio
   if(d.biography&&d.biography.value)c.notes=d.biography.value.replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim().substring(0,2000);
   c.patron=d.patron||'';
