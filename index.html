@@ -163,7 +163,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-desc-area:focus { outline: none; border-color: var(--accent-dim) }
 .cc-desc-area::placeholder { color: var(--tx3) }
 
-.cc-char-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--brd) }
+.cc-char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--brd) }
 .cc-char-card { background: var(--bg-card); border: 1px solid var(--brd); border-radius: 4px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; position: relative; box-shadow: var(--card-shadow); min-width: 0; overflow: hidden }
 .cc-char-card:hover { border-color: var(--brd-lt); background: rgba(96,160,208,0.08) }
 .cc-char-card-top { display: flex; align-items: flex-start; gap: 7px }
@@ -335,7 +335,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   .campaign-card.open { grid-column: 1 }
   .main { padding: 10px 10px 30px }
   .cc-grid { grid-template-columns: 1fr; gap: 12px }
-  .cc-char-grid { grid-template-columns: 1fr; }
+  .cc-char-grid { grid-template-columns: repeat(2, 1fr); }
   .cc-details { grid-template-columns: 1fr }
   .jb-card { width: 180px }
   .modal { max-width: 100% }
@@ -345,6 +345,9 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   .dice-tray { right: 10px; bottom: 70px; width: 240px }
   .dice-fab { bottom: 14px; right: 14px; width: 42px; height: 42px; font-size: 18px }
   .chars-item { flex-wrap: wrap }
+}
+@media (max-width: 420px) {
+  .cc-char-grid { grid-template-columns: 1fr }
 }
 /* ── Invite Banner ── */
 .invite-banner { max-width: 960px; margin: 12px auto; padding: 16px 20px; background: var(--card-bg); border: 1px solid var(--brd); border-radius: 6px; text-align: center }
