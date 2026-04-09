@@ -1257,8 +1257,22 @@ function populateAll(){
 
 (function(){
   const p=new URLSearchParams(window.location.search);const id=p.get('id');
-  if(id){const ch=getAllChars().find(c=>c._id===id);if(ch)CHAR=JSON.parse(JSON.stringify(ch));}
-  else{const a=loadAutosave();if(a)CHAR=a;}
+  if(id){
+    const ch=getAllChars().find(c=>c._id===id);
+    if(ch)CHAR=JSON.parse(JSON.stringify(ch));
+    console.log('[INIT] Loaded by id=',id,'CHAR.characterName=',CHAR.characterName);
+  } else {
+    const a=loadAutosave();
+    console.log('[INIT] Autosave loaded:',a?a.characterName:'(none)','_id:',a?a._id:'(none)');
+    if(a&&a._id){
+      const fresh=getAllChars().find(c=>c._id===a._id);
+      console.log('[INIT] Fresh from saved chars:',fresh?fresh.characterName:'(not found)');
+      CHAR=fresh?JSON.parse(JSON.stringify(fresh)):a;
+    } else if(a){
+      CHAR=a;
+    }
+    console.log('[INIT] Final CHAR.characterName=',CHAR.characterName,'keys:',Object.keys(CHAR).length);
+  }
   populateAll();
 })();
 </script>
