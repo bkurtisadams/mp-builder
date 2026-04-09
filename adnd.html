@@ -261,7 +261,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 
   <div>
     <div class="ab-head">ABILITIES:</div>
-    <div class="ab-row"><div class="ab-score-box"><input data-field="str"></div><div class="ab-letter">S</div><div class="ab-fields-strip"><div class="ab-cell"><div class="ab-cell-label">%</div><div class="ab-cell-val"><input data-field="strPct"></div></div><div class="ab-cell"><div class="ab-cell-label">Hit Adj.</div><div class="ab-cell-val"><input data-field="strHitAdj"></div></div><div class="ab-cell"><div class="ab-cell-label">Dam Adj.</div><div class="ab-cell-val"><input data-field="strDamAdj"></div></div><div class="ab-cell"><div class="ab-cell-label">Open Doors</div><div class="ab-cell-val"><input data-field="strOpenDoors"></div></div><div class="ab-cell"><div class="ab-cell-label">Bend Bars</div><div class="ab-cell-val"><input data-field="strBendBars"></div></div></div></div><div class="ab-name">Strength</div>
+    <div class="ab-row"><div class="ab-score-box"><input data-field="str"></div><div class="ab-letter">S</div><div class="ab-fields-strip"><div class="ab-cell"><div class="ab-cell-label">%</div><div class="ab-cell-val"><input data-field="strPct"></div></div><div class="ab-cell"><div class="ab-cell-label">Hit Adj.</div><div class="ab-cell-val"><input data-field="strHitAdj"></div></div><div class="ab-cell"><div class="ab-cell-label">Dam Adj.</div><div class="ab-cell-val"><input data-field="strDamAdj"></div></div><div class="ab-cell"><div class="ab-cell-label">Wt. Allow.</div><div class="ab-cell-val"><input data-field="strWtAllow"></div></div><div class="ab-cell"><div class="ab-cell-label">Lift</div><div class="ab-cell-val"><input data-field="strLift"></div></div><div class="ab-cell"><div class="ab-cell-label">Open Doors</div><div class="ab-cell-val"><input data-field="strOpenDoors"></div></div><div class="ab-cell"><div class="ab-cell-label">Bend Bars</div><div class="ab-cell-val"><input data-field="strBendBars"></div></div></div></div><div class="ab-name">Strength</div>
     <div class="ab-row"><div class="ab-score-box"><input data-field="int"></div><div class="ab-letter">I</div><div class="ab-fields-strip"><div class="ab-cell"><div class="ab-cell-label">Add. Lang.</div><div class="ab-cell-val"><input data-field="intAddLang"></div></div><div class="ab-cell"><div class="ab-cell-label">% Know</div><div class="ab-cell-val"><input data-field="intKnowSpell"></div></div><div class="ab-cell"><div class="ab-cell-label">Min. #</div><div class="ab-cell-val"><input data-field="intMinSpells"></div></div><div class="ab-cell"><div class="ab-cell-label">Max. #</div><div class="ab-cell-val"><input data-field="intMaxSpells"></div></div></div></div><div class="ab-name">Intelligence</div>
     <div class="ab-row"><div class="ab-score-box"><input data-field="wis"></div><div class="ab-letter">W</div><div class="ab-fields-strip"><div class="ab-cell"><div class="ab-cell-label">Mag. Atk. Adj.</div><div class="ab-cell-val"><input data-field="wisMagAtkAdj"></div></div><div class="ab-cell"><div class="ab-cell-label">Spell Bonus</div><div class="ab-cell-val"><input data-field="wisSpellBonus"></div></div><div class="ab-cell"><div class="ab-cell-label">% Spell Fail</div><div class="ab-cell-val"><input data-field="wisSpellFail"></div></div></div></div><div class="ab-name">Wisdom</div>
     <div class="ab-row"><div class="ab-score-box"><input data-field="dex"></div><div class="ab-letter">D</div><div class="ab-fields-strip"><div class="ab-cell"><div class="ab-cell-label">React. Adj.</div><div class="ab-cell-val"><input data-field="dexReactAdj"></div></div><div class="ab-cell"><div class="ab-cell-label">Missile Adj.</div><div class="ab-cell-val"><input data-field="dexMissileAdj"></div></div><div class="ab-cell"><div class="ab-cell-label">Defense Adj.</div><div class="ab-cell-val"><input data-field="dexDefAdj"></div></div></div></div><div class="ab-name">Dexterity</div>
@@ -815,9 +815,9 @@ function calcWeight(){
   document.getElementById('total-weight').value=totalCn||'';
   CHAR.totalWeight=totalCn;
   // PHB Encumbrance thresholds in cn (350/700/1050/1500 cn = 35/70/105/150 lbs)
+  // strAdj is the Weight Allowance from PHB Str Table II (e.g. +350, -150)
   const strAdj=+(CHAR.strAdj||0);
-  const adj=strAdj*100; // each ±1 str adj = ±100 cn per bracket
-  const thresholds=[350+adj, 700+adj, 1050+adj, 1500+adj];
+  const thresholds=[350+strAdj, 700+strAdj, 1050+strAdj, 1500+strAdj];
   // Movement rates: base move in 1e scale (12", 9", 6", 3")
   // ARS may store in feet (120=12"), normalize if ≥30
   let base=+(CHAR.moveBase||12);
@@ -902,7 +902,8 @@ function mapARS(ars){
   // Abilities + PHB sub-fields
   const strV=a.str?a.str.value:0,strP=a.str?a.str.percent||0:0;
   c.str=strV||'';c.strPct=strP||'';
-  const sL=_strTbl(strV,strP);c.strHitAdj=sL[0];c.strDamAdj=sL[1];c.strOpenDoors=sL[2];c.strBendBars=sL[3];
+  const sL=_strTbl(strV,strP);c.strHitAdj=sL[0];c.strDamAdj=sL[1];c.strOpenDoors=sL[2];c.strBendBars=sL[3];c.strWtAllow=sL[4];
+  const bw=parseFloat(d.weight)||0;c.strLift=_strLift(strV,strP,bw);
   const intV=a.int?a.int.value:0;c.int=intV||'';
   const iL=_intTbl(intV);c.intAddLang=iL[0];c.intKnowSpell=iL[1];c.intMinSpells=iL[2];c.intMaxSpells=iL[3];
   const wisV=a.wis?a.wis.value:0;c.wis=wisV||'';
@@ -1086,10 +1087,22 @@ function mapARS(ars){
 }
 // PHB Ability Tables (compact: arrays = [field1,field2,...])
 function _strTbl(v,p){
-  const t=[[0,0,'',''],[-3,-1,'1','0%'],[-3,-1,'1','0%'],[-3,-1,'1','0%'],[-2,-1,'1','0%'],[-2,-1,'1','0%'],[-1,0,'1','0%'],[-1,0,'1','0%'],[0,0,'1-2','1%'],[0,0,'1-2','1%'],[0,0,'1-2','2%'],[0,0,'1-2','2%'],[0,0,'1-2','4%'],[0,0,'1-2','4%'],[0,0,'1-2','7%'],[0,0,'1-2','7%'],[0,+1,'1-3','10%'],[+1,+1,'1-3','13%'],[+1,+2,'1-3','16%']];
-  if(v===18&&p){const n=+p;if(n>=100)return[+3,+6,'1-5(2)','40%'];if(n>=91)return[+2,+4,'1-4(1)','35%'];if(n>=76)return[+2,+3,'1-4','30%'];if(n>=51)return[+2,+3,'1-4','25%'];return[+1,+3,'1-3','20%'];}
-  if(v>18)return[+3,+6,'1-5(2)','40%'];
+  const t=[[0,0,'','',0],[-3,-1,'1','0%',-350],[-3,-1,'1','0%',-350],[-3,-1,'1','0%',-350],[-2,-1,'1','0%',-250],[-2,-1,'1','0%',-250],[-1,0,'1','0%',-150],[-1,0,'1','0%',-150],[0,0,'1-2','1%',0],[0,0,'1-2','1%',0],[0,0,'1-2','2%',0],[0,0,'1-2','2%',0],[0,0,'1-2','4%',+100],[0,0,'1-2','4%',+100],[0,0,'1-2','7%',+200],[0,0,'1-2','7%',+200],[0,+1,'1-3','10%',+350],[+1,+1,'1-3','13%',+500],[+1,+2,'1-3','16%',+750]];
+  if(v===18&&p){const n=+p;if(n>=100)return[+3,+6,'1-5(2)','40%',+3000];if(n>=91)return[+2,+5,'1-4(1)','35%',+2000];if(n>=76)return[+2,+4,'1-4','30%',+1500];if(n>=51)return[+2,+3,'1-4','25%',+1250];return[+1,+3,'1-3','20%',+1000];}
+  if(v>18)return[+3,+6,'1-5(2)','40%',+3000];
   return t[v]||t[0];
+}
+function _strLift(v,p,bodyWt){
+  const base=Math.max(v*10, bodyWt||0);
+  if(v<18)return base;
+  if(!p||v>18)return base;
+  const n=+p;
+  let bonus=0;
+  if(n>=100){bonus=50+160+80;}
+  else if(n>=91){bonus=50+160+((n-90)*8);}
+  else if(n>=51){bonus=50+((n-50)*4);}
+  else{bonus=n;}
+  return base+bonus;
 }
 function _intTbl(v){
   const t={3:[0,'35%',2,4],8:[1,'40%',3,5],9:[1,'45%',4,6],10:[2,'50%',5,7],12:[3,'55%',5,7],13:[3,'55%',6,9],14:[4,'60%',6,9],15:[4,'65%',7,11],16:[5,'70%',8,12],17:[6,'75%',9,14],18:[7,'85%',11,18],19:[8,'95%',14,'All']};
@@ -1127,13 +1140,28 @@ classField.addEventListener('input',()=>{CHAR.characterClass=classField.value;up
 
 // Wire all fields
 const _encFields=new Set(['wealthCP','wealthSP','wealthEP','wealthGP','wealthPP','strAdj','moveBase']);
+const _strFields=new Set(['str','strPct','weight']);
 document.querySelectorAll('[data-field]').forEach(el=>{
   const ev=el.tagName==='TEXTAREA'?'input':'change';
-  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();autosave();});
+  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_strFields.has(el.dataset.field))calcStrSubs();autosave();});
 });
 
+function calcStrSubs(){
+  const v=+(CHAR.str||0),p=CHAR.strPct||0;
+  const sL=_strTbl(v,p);
+  const fields={strHitAdj:0,strDamAdj:1,strOpenDoors:2,strBendBars:3,strWtAllow:4};
+  Object.entries(fields).forEach(([f,i])=>{CHAR[f]=sL[i];const el=document.querySelector('[data-field="'+f+'"]');if(el)el.value=sL[i];});
+  const bw=parseFloat(CHAR.weight)||0;
+  CHAR.strLift=_strLift(v,p,bw);
+  const lEl=document.querySelector('[data-field="strLift"]');if(lEl)lEl.value=CHAR.strLift||'';
+  // Update strAdj for encumbrance from weight allowance
+  const wtA=sL[4]||0;const adjVal=wtA>0?'+'+wtA:wtA<0?String(wtA):'0';
+  CHAR.strAdj=adjVal;const saEl=document.querySelector('[data-field="strAdj"]');if(saEl)saEl.value=adjVal;
+  calcWeight();
+}
+
 function populateAll(){
-  populateFields();updateClassSections();showPortrait();renderWeapons();
+  populateFields();updateClassSections();showPortrait();renderWeapons();calcStrSubs();
   renderInlineList('proficiencies','prof-list','add-prof');
   renderInlineList('abilities','ability-list','add-ability');
   renderTableRows('items','item-list','add-item',[{key:'name'},{key:'location'},{key:'qty',center:true},{key:'weight',center:true},{key:'notes'}]);
