@@ -90,10 +90,10 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .player-field .lbl{font-size:9px}
 
 /* ── Bio Grid (inside header-right) ── */
-.bio-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px 10px}
-.bio-row{display:flex;align-items:baseline;gap:3px}
+.bio-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px 10px;min-width:0}
+.bio-row{display:flex;align-items:baseline;gap:3px;min-width:0}
 .bio-row .lbl{min-width:44px;text-align:right}
-.bio-row .si{flex:1}
+.bio-row .si{flex:1;min-width:0}
 .bio-full{grid-column:1/-1}
 .id-checks{display:flex;gap:6px;align-items:center;font-size:9px;font-weight:700}
 .id-checks label{display:flex;align-items:center;gap:2px;cursor:pointer}
