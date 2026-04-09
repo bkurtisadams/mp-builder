@@ -730,6 +730,10 @@ function _resolveChar(savedChar, systemId, storageKey) {
     if (hp) derived.push('HP\u2009' + hp + (savedChar.hpMax ? '/' + savedChar.hpMax : ''));
     if (derived.length) statsHtml += `<div class="cc-char-derived">${derived.map(d=>'<span>'+ESC(d)+'</span>').join('')}</div>`;
   } else {
+    name = savedChar.name || savedChar.heroName || 'Unnamed';
+    player = savedChar.player || savedChar.playerName || '';
+    sub = savedChar.sub || savedChar.class || '';
+  }
   return { name, player, sub, portrait, statsHtml, _id: savedChar._id || '', storageKey: storageKey || savedChar.storageKey || savedChar.listKey || '' };
 }
 
