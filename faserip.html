@@ -154,7 +154,7 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .item-row{display:grid;align-items:center;gap:3px;padding:1px 0;border-bottom:1px dotted #ccc}
 .item-row.power-row{grid-template-columns:auto 80px 40px 1fr auto auto}
 .item-name-cell{display:flex;align-items:center;gap:2px;min-width:0}
-.item-name-cell .si{flex:1;min-width:0}
+.item-name-cell .si{flex:1;min-width:0;width:100%}
 .item-row.talent-row{grid-template-columns:auto 1fr auto auto}
 .item-row.contact-row{grid-template-columns:auto 1fr auto auto}
 .item-row .si{font-size:11px;height:20px}
@@ -266,6 +266,8 @@ body.view-mode input:focus,body.view-mode select:focus,body.view-mode textarea:f
 .view-badge{display:none;font-family:var(--fd);font-size:9px;letter-spacing:2px;color:#5ac8e8;border:1px solid #5ac8e866;padding:2px 8px;border-radius:2px;margin-right:6px;pointer-events:none}
 body.view-mode .view-badge{display:inline-block}
 body.view-mode .sheet-wrap{overflow:visible;flex:none}
+body.view-mode .item-row .si{width:100%}
+body.view-mode .item-row input.si{overflow:visible;text-overflow:unset}
 .hdr-btn-view-edit{display:none}
 body.view-mode .hdr-btn-view-edit{display:inline-block}
 
