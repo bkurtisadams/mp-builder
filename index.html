@@ -1144,8 +1144,11 @@ function openCharsModal(campId) {
   document.getElementById('cf-camp-id').value = campId;
   document.getElementById('chars-modal-title').textContent = 'EDIT ' + GCC.teamLabel(charsCampSystem).toUpperCase();
 
-  // Build selected set from current campaign characters
-  charsSelected = new Set((camp.characters || []).map(ch => ch.name));
+  // Build selected set from current campaign characters (by _id, fallback to name)
+  charsSelected = new Set();
+  (camp.characters || []).forEach(ch => {
+    charsSelected.add(ch._id || ch.name);
+  });
 
   renderCharsPicker();
   charsModal.classList.add('open');
@@ -1158,11 +1161,22 @@ function renderCharsPicker() {
   const info = document.getElementById('chars-picker-info');
   const saved = _getSavedCharsForSystem(charsCampSystem);
   const camp = GCC.getCampaign(charsCampId);
-  const teamNames = (camp?.characters || []).map(ch => ch.name);
-  const savedNames = new Set(saved.map(sc => sc.name));
+  const teamRefs = camp?.characters || [];
 
-  // Find orphans — team members with no matching saved character
-  const orphans = teamNames.filter(n => !savedNames.has(n));
+  // Build lookup of saved chars by _id and name
+  const savedById = {};
+  const savedByName = {};
+  saved.forEach(sc => {
+    if (sc._id) savedById[sc._id] = sc;
+    if (sc.name) savedByName[sc.name] = sc;
+  });
+
+  // Find orphans — team refs with no matching saved character
+  const orphans = teamRefs.filter(ref => {
+    if (ref._id && savedById[ref._id]) return false;
+    if (ref.name && savedByName[ref.name]) return false;
+    return true;
+  });
 
   if (!saved.length && !orphans.length) {
     info.textContent = 'No saved characters for this system. Create and save characters in the character sheet first.';
@@ -1176,12 +1190,13 @@ function renderCharsPicker() {
   // Render orphaned team members first with remove button
   if (orphans.length) {
     html += '<div style="font-size:9px;color:var(--tx3);letter-spacing:1px;margin:6px 0 4px;font-family:var(--fsc)">UNRESOLVED (no saved data found)</div>';
-    orphans.forEach(name => {
-      html += `<div class="chars-picker-item orphan" data-orphan-name="${ESC(name)}">
+    orphans.forEach(ref => {
+      const refName = ref.name || 'Unknown';
+      html += `<div class="chars-picker-item orphan" data-orphan-id="${ESC(ref._id || '')}" data-orphan-name="${ESC(refName)}">
         <div class="chars-picker-check" style="border-color:var(--red);color:var(--red)">✕</div>
         <div class="cp-portrait-ph">?</div>
         <div class="cp-info">
-          <div class="cp-name">${ESC(name)}</div>
+          <div class="cp-name">${ESC(refName)}</div>
           <div class="cp-sub" style="color:var(--red)">Click to remove from team</div>
         </div>
       </div>`;
@@ -1190,7 +1205,8 @@ function renderCharsPicker() {
 
   // Render saved characters with toggle
   html += saved.map((sc, i) => {
-    const sel = charsSelected.has(sc.name);
+    const key = sc._id || sc.name;
+    const sel = charsSelected.has(key);
     const portraitHtml = sc.portrait
       ? `<img class="cp-portrait" src="${sc.portrait}" alt="">`
       : `<div class="cp-portrait-ph">?</div>`;
@@ -1212,10 +1228,11 @@ function renderCharsPicker() {
     el.addEventListener('click', () => {
       const idx = parseInt(el.dataset.cpIdx);
       const sc = saved[idx];
-      if (charsSelected.has(sc.name)) {
-        charsSelected.delete(sc.name);
+      const key = sc._id || sc.name;
+      if (charsSelected.has(key)) {
+        charsSelected.delete(key);
       } else {
-        charsSelected.add(sc.name);
+        charsSelected.add(key);
       }
       renderCharsPicker();
     });
@@ -1224,12 +1241,15 @@ function renderCharsPicker() {
   // Remove orphan on click
   picker.querySelectorAll('.chars-picker-item.orphan').forEach(el => {
     el.addEventListener('click', () => {
-      const name = el.dataset.orphanName;
+      const orphanId = el.dataset.orphanId;
+      const orphanName = el.dataset.orphanName;
       const camp = GCC.getCampaign(charsCampId);
       if (!camp) return;
-      const chars = (camp.characters || []).filter(ch => ch.name !== name);
+      const chars = (camp.characters || []).filter(ch =>
+        orphanId ? ch._id !== orphanId : ch.name !== orphanName
+      );
       GCC.updateCampaign(charsCampId, { characters: chars, players: chars.length });
-      charsSelected.delete(name);
+      charsSelected.delete(orphanId || orphanName);
       renderCharsPicker();
     });
   });
@@ -1239,7 +1259,7 @@ function renderCharsPicker() {
 document.getElementById('cf-save').addEventListener('click', () => {
   const saved = _getSavedCharsForSystem(charsCampSystem);
   const characters = saved
-    .filter(sc => charsSelected.has(sc.name))
+    .filter(sc => charsSelected.has(sc._id || sc.name))
     .map(sc => ({ name: sc.name, storageKey: sc.storageKey, _id: sc._id || '' }));
   GCC.updateCampaign(charsCampId, { characters, players: characters.length });
   closeCharsModal();
