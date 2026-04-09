@@ -19,72 +19,61 @@
   --bg:#d6eaf8;--bg2:#c4dff0;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 input[type=number]{-moz-appearance:textfield}
 html{min-height:100%;background:var(--bg)}
 body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb);font-size:11px;display:flex;flex-direction:column}
-
-/* ── Toolbar ── */
 .adnd-hdr{background:var(--gcc-mp-bg,#1a2a3a);border-bottom:3px solid #d4a843;padding:0 12px;flex-shrink:0}
-.adnd-hdr-in{max-width:720px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;min-height:40px;gap:8px;flex-wrap:wrap;padding:4px 0}
+.adnd-hdr-in{max-width:740px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;min-height:40px;gap:8px;flex-wrap:wrap;padding:4px 0}
 .adnd-logo-title{font-family:var(--fh);font-size:18px;color:#fff;letter-spacing:2px}
 .adnd-logo-sub{font-family:var(--fb);font-size:9px;color:#e8cc7a;letter-spacing:1px}
 .adnd-hdr-btns{display:flex;gap:3px;align-items:center;flex-wrap:wrap}
 .hdr-btn{padding:3px 7px;font-size:9px;background:#2a3a4a;border:1px solid #4a6a7a;color:#ccc;border-radius:2px;cursor:pointer;font-family:var(--fb);font-weight:700}
 .hdr-btn:hover{border-color:#d4a843;background:#3a4a5a}
 .adnd-ftr{font-size:8px;color:#3a5a70;text-align:center;padding:6px;background:var(--bg2);border-top:1px solid #8ab4d0}
-
-/* ── Sheet ── */
 .sheet-wrap{flex:1;overflow-y:auto;overflow-x:auto;padding:10px}
-.sheet{width:100%;max-width:720px;min-width:360px;margin:0 auto;background:var(--paper);border:2px solid var(--ink);padding:10px 12px 8px;position:relative}
-
-/* ── Shared ── */
-.ul{border-bottom:1px solid var(--ink);flex:1;min-width:20px;height:1px;align-self:flex-end;margin-bottom:2px}
-.bx{border:1px solid var(--ink);background:transparent;font-family:var(--fb);font-size:11px;font-weight:700;text-align:center;outline:none;height:18px;width:28px;padding:0}
-.bx:focus{border-color:var(--accent)}
-.bx-lg{height:22px;width:34px;font-size:13px;border-width:2px}
+.sheet{width:100%;max-width:740px;min-width:360px;margin:0 auto;background:var(--paper);border:2px solid var(--ink);padding:10px 14px 8px;position:relative}
 .fi{border:none;border-bottom:1px solid var(--ink);background:transparent;font-family:var(--fb);font-size:11px;color:var(--ink);padding:0 2px;height:18px;outline:none;flex:1;min-width:20px}
 .fi:focus{border-bottom-color:var(--accent)}
 .lb{font-family:var(--fh);font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
 .lb-sm{font-family:var(--fh);font-weight:700;font-size:8px;text-transform:uppercase;letter-spacing:.2px;white-space:nowrap}
+.sec{font-family:var(--fh);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;border-bottom:1.5px solid var(--ink);margin:6px 0 3px;padding-bottom:1px}
+.bx{border:1px solid var(--ink);background:transparent;font-family:var(--fb);font-size:11px;font-weight:700;text-align:center;outline:none;height:18px;width:28px;padding:0}
+.bx:focus{border-color:var(--accent)}
+.bx-lg{height:22px;width:34px;font-size:13px;border-width:2px}
 .row{display:flex;align-items:baseline;gap:4px;margin-bottom:3px}
 .pair{display:flex;gap:12px;margin-bottom:3px}
 .pair .row{flex:1;margin-bottom:0}
-.sec{font-family:var(--fh);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;border-bottom:1.5px solid var(--ink);margin:6px 0 3px;padding-bottom:1px}
 .add-btn{font-family:var(--fb);font-size:9px;cursor:pointer;border:1px solid #999;background:var(--paper-dk);color:var(--ink-md);padding:1px 6px;height:18px;font-weight:700}
 .add-btn:hover{border-color:var(--accent);color:var(--accent)}
 .add-sm{border:none;background:none;color:var(--accent);font-weight:700;font-size:12px;cursor:pointer;line-height:1}
 .del-btn{border:none;background:none;color:var(--accent);font-size:9px;cursor:pointer;padding:0 2px}
-
-/* ── Top Banner ── */
 .top-ban{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--ink);padding-bottom:4px;margin-bottom:6px}
-.top-ban .left,.top-ban .right{width:180px}
+.top-ban .left,.top-ban .right{width:190px}
 .top-ban .center{text-align:center;flex:1}
 .top-ban .right{text-align:right}
-.top-field{margin-bottom:2px}
-.top-field .lb{display:block;font-size:8px;margin-bottom:0}
-
-/* ── Name + Sketch ── */
-.name-sketch{display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:6px;overflow:hidden}
-.name-col{min-width:0;display:flex;flex-direction:column;gap:0}
-.name-box{border:2px solid var(--ink);padding:6px;margin-bottom:1px;min-height:44px;position:relative;cursor:pointer;background:var(--paper-lt)}
-.name-box img{width:100%;height:100%;object-fit:contain;position:absolute;top:0;left:0}
-.name-box-del{position:absolute;top:2px;right:2px;width:14px;height:14px;border:none;cursor:pointer;background:rgba(0,0,0,.4);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .12s}
-.name-box:hover .name-box-del{opacity:1}
-.sketch-col{display:flex;flex-direction:column;align-items:center}
-.sketch-box{width:140px;height:140px;border:2px solid var(--ink);background:var(--paper-lt);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+.bio-grid{display:grid;grid-template-columns:1fr 1fr 1fr 150px;gap:2px 8px;margin-bottom:6px;align-items:start}
+.bio-grid .portrait-area{grid-column:4;grid-row:1/7;display:flex;flex-direction:column;align-items:center}
+.bio-field{display:flex;align-items:baseline;gap:3px}
+.bio-field .lb{flex-shrink:0}
+.bio-field .fi{flex:1;min-width:0}
+.bio-span2{grid-column:span 2}
+.bio-span3{grid-column:span 3}
+.sketch-box{width:140px;height:160px;border:2px solid var(--ink);background:var(--paper-lt);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden}
 .sketch-box img{width:100%;height:100%;object-fit:contain}
 .sketch-box:hover .name-box-del{opacity:1}
-
-/* ── Movement ── */
-.move-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 12px;padding:4px 0;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);margin-bottom:6px}
-.move-field{display:flex;flex-direction:column;align-items:flex-start}
-.move-field .ul{width:100%;margin-bottom:0}
-.move-field .lb{margin-top:1px}
-
-/* ── Abilities ── */
-.ab-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:0 8px;margin-bottom:4px}
-.ab-section .ab-head{font-size:14px;font-family:var(--fh);font-weight:700;letter-spacing:1px;margin-bottom:2px}
+.name-box-del{position:absolute;top:2px;right:2px;width:14px;height:14px;border:none;cursor:pointer;background:rgba(0,0,0,.4);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .12s}
+.prof-inline{margin:2px 0}
+.prof-row{display:inline-flex;align-items:center;gap:1px;margin-right:6px;margin-bottom:2px}
+.prof-row input{width:100px}
+.pg-tabs{display:flex;gap:0;margin-bottom:0}
+.pg-tab{font-family:var(--fh);font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:4px 12px;cursor:pointer;border:1px solid var(--ink);border-bottom:none;background:var(--paper-dk);color:var(--ink-md);margin-right:-1px}
+.pg-tab.active{background:var(--paper);color:var(--ink);border-bottom:1px solid var(--paper);position:relative;z-index:1}
+.pg-tab:hover:not(.active){background:var(--paper-lt)}
+.pg-page{display:none;border-top:1px solid var(--ink);padding-top:6px}.pg-page.active{display:block}
+.p1-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
+.p1-grid .full{grid-column:1/-1}
+.ab-head{font-size:14px;font-family:var(--fh);font-weight:700;letter-spacing:1px;margin-bottom:2px}
 .ab-row{display:flex;align-items:stretch;gap:0;margin-bottom:0}
 .ab-score-box{width:26px;height:26px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ab-score-box input{width:100%;height:100%;border:none;background:transparent;text-align:center;font-family:var(--fb);font-size:12px;font-weight:700;outline:none}
@@ -97,123 +86,60 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .ab-cell-val input{width:100%;height:100%;min-height:14px;border:none;background:transparent;text-align:center;font-family:var(--fb);font-size:10px;font-weight:700;outline:none}
 .ab-cell-val input:focus{background:var(--paper-lt)}
 .ab-name{font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:0 0 2px 56px}
-
-/* ── Right Column ── */
-.right-col{display:flex;flex-direction:column;gap:3px;min-width:0;overflow:hidden}
+.saves-block{padding-top:4px}
+.saves-title{font-family:var(--fh);font-size:10px;font-weight:700;text-align:right;text-transform:uppercase;margin-bottom:2px}
+.save-line{display:flex;align-items:baseline;gap:4px;margin-bottom:2px;justify-content:flex-end}
+.save-line .lb{font-size:9px;text-align:right;flex:1}
+.save-line .fi{flex:0 0 28px;text-align:center;min-width:28px}
 .sa-title{font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;text-align:center;letter-spacing:.5px}
 .sa-grid{border:1px solid var(--ink);margin-bottom:2px}
 .sa-hdr{display:grid;grid-template-columns:24px 1fr 24px 1fr;font-family:var(--fh);font-size:7px;font-weight:700;text-align:center;border-bottom:1px solid var(--ink);padding:2px 0;text-transform:uppercase}
 .sa-row{display:grid;grid-template-columns:24px 1fr 24px 1fr;border-bottom:1px solid #ccc}
 .sa-row:last-child{border-bottom:none}
 .sa-row input{border:none;background:transparent;font-family:var(--fb);font-size:10px;outline:none;padding:0 2px;height:16px}
-.saves-block{margin-bottom:3px}
-.saves-title{font-family:var(--fh);font-size:10px;font-weight:700;text-align:right;text-transform:uppercase;margin-bottom:2px}
-.save-line{display:flex;align-items:baseline;gap:4px;margin-bottom:2px;justify-content:flex-end}
-.save-line .lb{font-size:9px;text-align:right;flex:1}
-.save-line .fi{flex:0 0 28px;text-align:center;min-width:28px}
-
-/* ── *COMBAT* ── */
 .combat-ban{font-family:var(--fh);font-size:14px;font-weight:700;text-align:center;letter-spacing:4px;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);padding:3px 0;margin:6px 0;background:var(--paper-dk)}
-.combat-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;margin-bottom:4px}
 .ca-box{border:1px solid var(--ink);padding:4px 6px;margin-bottom:3px}
 .ca-box-title{font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:2px}
-
-/* ── Weapons Table ── */
-.w-tbl{width:100%;border-collapse:collapse;margin-bottom:4px}
-.w-tbl th{font-family:var(--fh);font-size:7px;font-weight:700;text-transform:uppercase;text-align:center;padding:2px;border:1px solid var(--ink);background:var(--paper-dk);white-space:nowrap}
-.w-tbl td{border:1px solid var(--ink);padding:0}
-.w-tbl td input{width:100%;height:18px;border:none;background:transparent;text-align:center;font-family:var(--fb);font-size:10px;outline:none;padding:0}
-.w-tbl td input.w-name{text-align:left;padding-left:3px}
-.w-tbl td input:focus{background:var(--paper-lt)}
-
-/* ── Henchmen / Assoc Table ── */
-.h-tbl{width:100%;border-collapse:collapse;margin-bottom:3px}
-.h-tbl th{font-family:var(--fh);font-size:7px;font-weight:700;text-transform:uppercase;text-align:center;padding:2px;border:1px solid var(--ink);background:var(--paper-dk)}
-.h-tbl td{border:1px solid var(--ink);padding:0}
-.h-tbl td input{width:100%;height:16px;border:none;background:transparent;font-family:var(--fb);font-size:10px;outline:none;padding:0 2px;text-align:center}
-.h-tbl td input:focus{background:var(--paper-lt)}
-
-/* ── Turning Undead ── */
-.tu-tbl{border-collapse:collapse;width:100%}
-.tu-tbl th{font-family:var(--fh);font-size:7px;font-weight:700;text-transform:uppercase;text-align:center;padding:2px;border:1px solid var(--ink);background:var(--paper-dk)}
-.tu-tbl td{border:1px solid var(--ink);padding:0}
-.tu-tbl td input{width:100%;height:16px;border:none;background:transparent;text-align:center;font-family:var(--fb);font-size:9px;outline:none}
-
-/* ── Spells grid ── */
+.w-tbl,.wlc-tbl,.turn-tbl,.inv-tbl,.h-tbl{width:100%;border-collapse:collapse;margin-bottom:4px}
+.w-tbl th,.wlc-tbl th,.turn-tbl th,.inv-tbl th,.h-tbl th{font-family:var(--fh);font-size:7px;font-weight:700;text-transform:uppercase;text-align:center;padding:2px;border:1px solid var(--ink);background:var(--paper-dk);white-space:nowrap}
+.w-tbl td,.wlc-tbl td,.turn-tbl td{border:1px solid var(--ink);padding:0}
+.w-tbl td input,.wlc-tbl td input,.turn-tbl td input{width:100%;height:18px;border:none;background:transparent;text-align:center;font-family:var(--fb);font-size:10px;outline:none;padding:0}
+.w-tbl td input.w-name,.wlc-tbl td:first-child input{text-align:left;padding-left:3px}
+.w-tbl td input:focus,.wlc-tbl td input:focus,.turn-tbl td input:focus{background:var(--paper-lt)}
+.inv-tbl td,.h-tbl td{border:1px solid var(--ink);padding:0}
+.inv-tbl td input,.h-tbl td input{width:100%;height:18px;border:none;background:transparent;font-family:var(--fb);font-size:10px;outline:none;padding:0 3px}
+.inv-tbl td input:focus,.h-tbl td input:focus{background:var(--paper-lt)}
 .sp-grid{border:1px solid var(--ink);margin-bottom:2px}
-.sp-hdr{display:grid;grid-template-columns:repeat(6,1fr);font-family:var(--fh);font-size:8px;font-weight:700;text-align:center;border-bottom:1px solid var(--ink)}
+.sp-hdr{display:grid;grid-template-columns:repeat(9,1fr);font-family:var(--fh);font-size:8px;font-weight:700;text-align:center;border-bottom:1px solid var(--ink)}
 .sp-hdr div{border-right:1px solid var(--ink);padding:2px}.sp-hdr div:last-child{border-right:none}
-.sp-cells{display:grid;grid-template-columns:repeat(6,1fr)}
+.sp-cells{display:grid;grid-template-columns:repeat(9,1fr)}
 .sp-cells input{border:none;border-right:1px solid var(--ink);background:transparent;text-align:center;font-family:var(--fb);font-size:10px;height:18px;outline:none}
 .sp-cells input:last-child{border-right:none}
-
-/* ── Inline prof list ── */
-.prof-inline{margin:2px 0}
-.prof-row{display:inline-flex;align-items:center;gap:1px;margin-right:6px;margin-bottom:2px}
-.prof-row input{width:100px}
-
-/* ── Class sections ── */
+.spell-list{column-count:3;column-gap:10px}
 .cls-sec{display:none}.cls-sec.visible{display:block}
-
-/* ── Page tabs ── */
-.pg-tabs{display:flex;gap:0;margin-bottom:4px}
-.pg-tab{font-family:var(--fh);font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:4px 12px;cursor:pointer;border:1px solid var(--ink);border-bottom:none;background:var(--paper-dk);color:var(--ink-md);margin-right:-1px}
-.pg-tab.active{background:var(--paper);color:var(--ink);border-bottom:1px solid var(--paper);position:relative;z-index:1}
-.pg-tab:hover:not(.active){background:var(--paper-lt)}
-.pg-page{display:none;border-top:1px solid var(--ink);padding-top:6px}.pg-page.active{display:block}
-
-/* ── Page 2 ── */
-.inv-tbl{width:100%;border-collapse:collapse;margin-bottom:4px}
-.inv-tbl th{font-family:var(--fh);font-size:7px;font-weight:700;text-transform:uppercase;text-align:center;padding:2px;border:1px solid var(--ink);background:var(--paper-dk)}
-.inv-tbl td{border:1px solid var(--ink);padding:0}
-.inv-tbl td input{width:100%;height:18px;border:none;background:transparent;font-family:var(--fb);font-size:10px;outline:none;padding:0 3px}
-.inv-tbl td input:focus{background:var(--paper-lt)}
+.thief-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2px 6px}
+.turn-tbl td input{font-size:9px}
 .wealth-grid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 6px;margin-bottom:4px;align-items:baseline}
-.desc-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2px 8px;margin-bottom:4px}
+.desc-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:2px 8px;margin-bottom:4px}
 .notes-area{width:100%;border:1px solid var(--ink);background:var(--paper-lt);font-family:var(--fb);font-size:10px;padding:4px;resize:vertical;min-height:48px;outline:none;color:var(--ink)}
 .notes-area:focus{border-color:var(--accent)}
-
-/* ── Weaponless ── */
-.wlc-title{font-family:var(--fh);font-size:10px;font-weight:700;text-decoration:underline;margin-bottom:1px}
-.wlc-sub{font-family:var(--fh);font-size:7px;font-weight:700;text-transform:uppercase;margin-bottom:3px}
-.wlc-row{display:flex;align-items:baseline;gap:4px;margin-bottom:2px}
-.wlc-row .lb{font-weight:700;min-width:80px}
-
-/* ── Bottom grid ── */
-.bot-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
-
 @media print{
   .gcc-bar,.adnd-hdr,.adnd-ftr,.name-box-del,.add-btn,.add-sm,.del-btn,.pg-tabs{display:none!important}
   .sheet{border:none;max-width:100%}
   .pg-page{display:block!important;page-break-before:always}
   .pg-page:first-of-type{page-break-before:auto}
+  .cls-sec{display:block!important}
 }
 </style>
 </head>
 <body>
 
-<!-- GCC bar -->
-<div id="gcc-bar" class="gcc-bar">
-  <div class="gcc-bar-in">
-    <a href="index.html" class="gcc-brand" title="Back to Dashboard">
-      <div class="gcc-title-wrap">
-        <div class="gcc-title">GRAYCLOAK'S</div>
-        <div class="gcc-subtitle">CAMPAIGN CORNER</div>
-      </div>
-    </a>
-    <div class="gcc-nav">
-      <div class="gcc-tools-wrap">
-        <button class="gcc-nav-btn" id="gcc-btn-tools">🎲 Tools ▾</button>
-        <div class="gcc-tools-dd" id="gcc-tools-dd"></div>
-      </div>
-      <span id="gcc-auth-slot"></span>
-      <button class="gcc-nav-btn" id="gcc-btn-theme" title="Toggle light/dark"><span id="gcc-theme-icon">◑</span></button>
-    </div>
-  </div>
-</div>
+<div id="gcc-bar" class="gcc-bar"><div class="gcc-bar-in">
+  <a href="index.html" class="gcc-brand" title="Back to Dashboard"><div class="gcc-title-wrap"><div class="gcc-title">GRAYCLOAK'S</div><div class="gcc-subtitle">CAMPAIGN CORNER</div></div></a>
+  <div class="gcc-nav"><div class="gcc-tools-wrap"><button class="gcc-nav-btn" id="gcc-btn-tools">🎲 Tools ▾</button><div class="gcc-tools-dd" id="gcc-tools-dd"></div></div><span id="gcc-auth-slot"></span><button class="gcc-nav-btn" id="gcc-btn-theme" title="Toggle light/dark"><span id="gcc-theme-icon">◑</span></button></div>
+</div></div>
 <div class="gcc-tools-overlay" id="gcc-tools-overlay"></div>
 
-<!-- Toolbar -->
 <div class="adnd-hdr"><div class="adnd-hdr-in">
   <div><div class="adnd-logo-title">AD&D 1ST EDITION</div><div class="adnd-logo-sub">Character Record</div></div>
   <div class="adnd-hdr-btns">
@@ -229,307 +155,174 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 
 <div class="sheet-wrap"><div class="sheet">
 
-<!-- ═══════ TOP BANNER ═══════ -->
 <div class="top-ban">
   <div class="left">
     <div class="row"><span class="lb" style="font-size:8px">Player Name</span><input class="fi" data-field="playerName"></div>
-    <div class="row"><span class="lb" style="font-size:8px">Date Character Began</span><input class="fi" data-field="dateBegan"></div>
+    <div class="row"><span class="lb" style="font-size:8px">Date Began</span><input class="fi" data-field="dateBegan"></div>
   </div>
   <div class="center">
     <div style="font-family:var(--fd);font-size:28px;letter-spacing:3px;line-height:1">Advanced D&D<span style="font-family:var(--fh);font-size:8px;vertical-align:super;letter-spacing:0"> TM</span></div>
     <div style="font-family:var(--fb);font-style:italic;font-size:13px;letter-spacing:1px">Player Character Record</div>
   </div>
   <div class="right">
-    <div class="row" style="justify-content:flex-end"><span class="lb" style="font-size:8px">Campaign</span><input class="fi" data-field="campaign" style="max-width:120px"></div>
-    <div class="row" style="justify-content:flex-end"><span class="lb" style="font-size:8px">#</span><input class="fi" data-field="campaignNum" style="max-width:50px"></div>
+    <div class="row" style="justify-content:flex-end"><span class="lb" style="font-size:8px">Campaign</span><input class="fi" data-field="campaign" style="max-width:120px;text-align:right"></div>
+    <div class="row" style="justify-content:flex-end"><span class="lb" style="font-size:8px">DM</span><input class="fi" data-field="dm" style="max-width:120px;text-align:right"></div>
   </div>
 </div>
 
-<!-- ═══════ NAME + SKETCH ═══════ -->
-<div class="name-sketch">
-  <div class="name-col">
-    <input type="file" id="portrait-input" accept="image/*" hidden>
-    <div class="row" style="margin-bottom:4px"><span class="lb" style="font-size:9px">Character Name</span><input class="fi" data-field="characterName" style="font-size:13px;height:20px;font-weight:700"></div>
-    <div class="pair"><div class="row"><span class="lb">Class:</span><input class="fi" data-field="characterClass"></div><div class="row"><span class="lb">Level:</span><input class="fi" data-field="level" style="max-width:60px"></div></div>
-    <div class="pair"><div class="row"><span class="lb">Race:</span><input class="fi" data-field="race"></div><div class="row"><span class="lb">Alignment:</span><input class="fi" data-field="alignment"></div></div>
-    <div class="pair"><div class="row"><span class="lb">Patron Deity:</span><input class="fi" data-field="deity"></div><div class="row"><span class="lb">Religion:</span><input class="fi" data-field="religion"></div></div>
-    <div class="row"><span class="lb">Place of Origin:</span><input class="fi" data-field="origin"></div>
-  </div>
-  <div class="sketch-col">
+<div class="bio-grid">
+  <div class="portrait-area">
     <div class="lb" style="font-size:8px;margin-bottom:2px">Character Sketch</div>
+    <input type="file" id="portrait-input" accept="image/*" hidden>
     <div class="sketch-box" id="portrait-box" title="Click to upload sketch">
       <span id="portrait-ph" style="color:var(--ink-lt);font-size:9px">Click to upload</span>
-      <button class="name-box-del" id="portrait-del" style="position:absolute;top:2px;right:2px;width:14px;height:14px;border:none;cursor:pointer;background:rgba(0,0,0,.4);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .12s">×</button>
+      <button class="name-box-del" id="portrait-del">×</button>
     </div>
   </div>
+  <div class="bio-span3 bio-field"><span class="lb" style="font-size:9px">Character Name</span><input class="fi" data-field="characterName" style="font-size:13px;height:20px;font-weight:700"></div>
+  <div class="bio-field"><span class="lb">Class:</span><input class="fi" data-field="characterClass"></div>
+  <div class="bio-field"><span class="lb">Level:</span><input class="fi" data-field="level"></div>
+  <div class="bio-field"><span class="lb">Race:</span><input class="fi" data-field="race"></div>
+  <div class="bio-field"><span class="lb">Alignment:</span><input class="fi" data-field="alignment"></div>
+  <div class="bio-field"><span class="lb">Deity:</span><input class="fi" data-field="deity"></div>
+  <div class="bio-field"><span class="lb">Origin:</span><input class="fi" data-field="origin"></div>
+  <div class="bio-field"><span class="lb">Move Base:</span><input class="fi" data-field="moveBase"></div>
+  <div class="bio-field"><span class="lb">Vision:</span><input class="fi" data-field="vision"></div>
+  <div class="bio-field"><span class="lb">Listening:</span><input class="fi" data-field="listening"></div>
+  <div class="bio-field"><span class="lb">Secondary Skill:</span><input class="fi" data-field="secondarySkill"></div>
+  <div class="bio-field"><span class="lb">Secondary Skill:</span><input class="fi" data-field="secondarySkill2"></div>
+  <div class="bio-field"><span class="lb">Heir / Will:</span><input class="fi" data-field="heirWill"></div>
+  <div class="bio-span3"><div><span class="lb">Special Abilities:</span> <button class="add-btn" id="add-ability">+ Add</button></div><div class="prof-inline" id="ability-list"></div></div>
 </div>
 
-<!-- ═══════ MOVEMENT ═══════ -->
-<div class="move-grid">
-  <div class="move-field"><input class="fi" data-field="moveBase" style="width:100%"><span class="lb">Move Base</span></div>
-  <div class="move-field"><input class="fi" data-field="moveConcealed" style="width:100%"><span class="lb">Concealed</span></div>
-  <div class="move-field"><input class="fi" data-field="moveClimbing" style="width:100%"><span class="lb">Climbing</span></div>
-  <div class="move-field"><input class="fi" data-field="secondarySkill" style="width:100%"><span class="lb">Secondary Skill</span></div>
-  <div class="move-field"><input class="fi" data-field="vision" style="width:100%"><span class="lb">Vision</span></div>
-  <div class="move-field"><input class="fi" data-field="listening" style="width:100%"><span class="lb">Listening</span></div>
-</div>
-
-<!-- ═══════ PAGE TABS ═══════ -->
 <div class="pg-tabs">
   <div class="pg-tab active" data-page="page1">Page 1 — Stats & Combat</div>
   <div class="pg-tab" data-page="page2">Page 2 — Inventory & Personal</div>
 </div>
 
-<!-- ═══════ PAGE 1 ═══════ -->
 <div class="pg-page active" id="page1">
+<div class="p1-grid">
 
-<div class="ab-wrap">
-<div class="ab-section">
-<div class="ab-head">ABILITIES:</div>
-
-<!-- STR -->
-<div class="ab-row">
-  <div class="ab-score-box"><input data-field="str"></div>
-  <div class="ab-letter">S</div>
-  <div class="ab-fields-strip">
-    <div class="ab-cell"><div class="ab-cell-label">%</div><div class="ab-cell-val"><input data-field="strPct"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">Hit Adj.</div><div class="ab-cell-val"><input data-field="strHitAdj"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">Dam Adj.</div><div class="ab-cell-val"><input data-field="strDamAdj"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">Open Doors</div><div class="ab-cell-val"><input data-field="strOpenDoors"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">Bend Bars</div><div class="ab-cell-val"><input data-field="strBendBars"></div></div>
+  <div>
+    <div class="ab-head">ABILITIES:</div>
+    <div class="ab-row"><div class="ab-score-box"><input data-field="str"></div><div class="ab-letter">S</div><div class="ab-fields-strip"><div class="ab-cell"><div class="ab-cell-label">%</div><div class="ab-cell-val"><input data-field="strPct"></div></div><div class="ab-cell"><div class="ab-cell-label">Hit Adj.</div><div class="ab-cell-val"><input data-field="strHitAdj"></div></div><div class="ab-cell"><div class="ab-cell-label">Dam Adj.</div><div class="ab-cell-val"><input data-field="strDamAdj"></div></div><div class="ab-cell"><div class="ab-cell-label">Open Doors</div><div class="ab-cell-val"><input data-field="strOpenDoors"></div></div><div class="ab-cell"><div class="ab-cell-label">Bend Bars</div><div class="ab-cell-val"><input data-field="strBendBars"></div></div></div></div><div class="ab-name">Strength</div>
+    <div class="ab-row"><div class="ab-score-box"><input data-field="int"></div><div class="ab-letter">I</div><div class="ab-fields-strip"><div class="ab-cell"><div class="ab-cell-label">Add. Lang.</div><div class="ab-cell-val"><input data-field="intAddLang"></div></div><div class="ab-cell"><div class="ab-cell-label">% Know</div><div class="ab-cell-val"><input data-field="intKnowSpell"></div></div><div class="ab-cell"><div class="ab-cell-label">Min. #</div><div class="ab-cell-val"><input data-field="intMinSpells"></div></div><div class="ab-cell"><div class="ab-cell-label">Max. #</div><div class="ab-cell-val"><input data-field="intMaxSpells"></div></div></div></div><div class="ab-name">Intelligence</div>
+    <div class="ab-row"><div class="ab-score-box"><input data-field="wis"></div><div class="ab-letter">W</div><div class="ab-fields-strip"><div class="ab-cell"><div class="ab-cell-label">Mag. Atk. Adj.</div><div class="ab-cell-val"><input data-field="wisMagAtkAdj"></div></div><div class="ab-cell"><div class="ab-cell-label">Spell Bonus</div><div class="ab-cell-val"><input data-field="wisSpellBonus"></div></div><div class="ab-cell"><div class="ab-cell-label">% Spell Fail</div><div class="ab-cell-val"><input data-field="wisSpellFail"></div></div></div></div><div class="ab-name">Wisdom</div>
+    <div class="ab-row"><div class="ab-score-box"><input data-field="dex"></div><div class="ab-letter">D</div><div class="ab-fields-strip"><div class="ab-cell"><div class="ab-cell-label">React. Adj.</div><div class="ab-cell-val"><input data-field="dexReactAdj"></div></div><div class="ab-cell"><div class="ab-cell-label">Missile Adj.</div><div class="ab-cell-val"><input data-field="dexMissileAdj"></div></div><div class="ab-cell"><div class="ab-cell-label">Defense Adj.</div><div class="ab-cell-val"><input data-field="dexDefAdj"></div></div></div></div><div class="ab-name">Dexterity</div>
+    <div class="ab-row"><div class="ab-score-box"><input data-field="con"></div><div class="ab-letter">C</div><div class="ab-fields-strip"><div class="ab-cell"><div class="ab-cell-label">HP Adj.</div><div class="ab-cell-val"><input data-field="conHpAdj"></div></div><div class="ab-cell"><div class="ab-cell-label">Sys. Shock</div><div class="ab-cell-val"><input data-field="conSysShock"></div></div><div class="ab-cell"><div class="ab-cell-label">Res. Surv.</div><div class="ab-cell-val"><input data-field="conResSurv"></div></div></div></div><div class="ab-name">Constitution</div>
+    <div class="ab-row"><div class="ab-score-box"><input data-field="cha"></div><div class="ab-letter">CH</div><div class="ab-fields-strip"><div class="ab-cell"><div class="ab-cell-label">Max. Hench.</div><div class="ab-cell-val"><input data-field="chaMaxHench"></div></div><div class="ab-cell"><div class="ab-cell-label">Loyalty</div><div class="ab-cell-val"><input data-field="chaLoyalty"></div></div><div class="ab-cell"><div class="ab-cell-label">React. Adj.</div><div class="ab-cell-val"><input data-field="chaReactAdj"></div></div></div></div><div class="ab-name">Charisma</div>
   </div>
-</div>
-<div class="ab-name">Strength</div>
 
-<!-- INT -->
-<div class="ab-row">
-  <div class="ab-score-box"><input data-field="int"></div>
-  <div class="ab-letter">I</div>
-  <div class="ab-fields-strip">
-    <div class="ab-cell"><div class="ab-cell-label">Add. Lang.</div><div class="ab-cell-val"><input data-field="intAddLang"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">% Know Spell</div><div class="ab-cell-val"><input data-field="intKnowSpell"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">Min. # Spells</div><div class="ab-cell-val"><input data-field="intMinSpells"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">Max. # Spells</div><div class="ab-cell-val"><input data-field="intMaxSpells"></div></div>
-  </div>
-</div>
-<div class="ab-name">Intelligence</div>
-
-<!-- WIS -->
-<div class="ab-row">
-  <div class="ab-score-box"><input data-field="wis"></div>
-  <div class="ab-letter">W</div>
-  <div class="ab-fields-strip">
-    <div class="ab-cell"><div class="ab-cell-label">Magical Atk. Adj.</div><div class="ab-cell-val"><input data-field="wisMagAtkAdj"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">Spell Bonus</div><div class="ab-cell-val"><input data-field="wisSpellBonus"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">% Spell Failure</div><div class="ab-cell-val"><input data-field="wisSpellFail"></div></div>
-  </div>
-</div>
-<div class="ab-name">Wisdom</div>
-
-<!-- DEX -->
-<div class="ab-row">
-  <div class="ab-score-box"><input data-field="dex"></div>
-  <div class="ab-letter">D</div>
-  <div class="ab-fields-strip">
-    <div class="ab-cell"><div class="ab-cell-label">Reaction Adj.</div><div class="ab-cell-val"><input data-field="dexReactAdj"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">Missile Adj.</div><div class="ab-cell-val"><input data-field="dexMissileAdj"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">Defense Adj.</div><div class="ab-cell-val"><input data-field="dexDefAdj"></div></div>
-  </div>
-</div>
-<div class="ab-name">Dexterity</div>
-
-<!-- CON -->
-<div class="ab-row">
-  <div class="ab-score-box"><input data-field="con"></div>
-  <div class="ab-letter">C</div>
-  <div class="ab-fields-strip">
-    <div class="ab-cell"><div class="ab-cell-label">Hit Point Adj.</div><div class="ab-cell-val"><input data-field="conHpAdj"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">System Shock</div><div class="ab-cell-val"><input data-field="conSysShock"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">Resurrect. Survival</div><div class="ab-cell-val"><input data-field="conResSurv"></div></div>
-  </div>
-</div>
-<div class="ab-name">Constitution</div>
-
-<!-- CHA -->
-<div class="ab-row">
-  <div class="ab-score-box"><input data-field="cha"></div>
-  <div class="ab-letter">CH</div>
-  <div class="ab-fields-strip">
-    <div class="ab-cell"><div class="ab-cell-label">Max. # Henchmen</div><div class="ab-cell-val"><input data-field="chaMaxHench"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">Loyalty Base</div><div class="ab-cell-val"><input data-field="chaLoyalty"></div></div>
-    <div class="ab-cell"><div class="ab-cell-label">Reaction Adj.</div><div class="ab-cell-val"><input data-field="chaReactAdj"></div></div>
-  </div>
-</div>
-<div class="ab-name">Charisma</div>
-</div><!-- ab-section -->
-
-<!-- RIGHT COLUMN: two sub-columns — info left, saves right -->
-<div class="right-col">
-  <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 6px;overflow:hidden">
-    <!-- Left sub: SA grid, resistances, detection, languages, psionics -->
-    <div style="min-width:0;overflow:hidden">
-      <div class="sa-title">Saving Throw Adjustments:</div>
-      <div class="sa-grid">
-        <div class="sa-hdr"><div>+/−</div><div>Condition</div><div>+/−</div><div>Condition</div></div>
-        <div class="sa-row"><input data-field="saveAdj1v"><input data-field="saveAdj1c"><input data-field="saveAdj2v"><input data-field="saveAdj2c"></div>
-        <div class="sa-row"><input data-field="saveAdj3v"><input data-field="saveAdj3c"><input data-field="saveAdj4v"><input data-field="saveAdj4c"></div>
-        <div class="sa-row"><input data-field="saveAdj5v"><input data-field="saveAdj5c"><input data-field="saveAdj6v"><input data-field="saveAdj6c"></div>
+  <div>
+    <div style="display:flex;gap:6px">
+      <div style="flex:1;min-width:0">
+        <div class="sa-title">Saving Throw Adjustments:</div>
+        <div class="sa-grid">
+          <div class="sa-hdr"><div>+/−</div><div>Condition</div><div>+/−</div><div>Condition</div></div>
+          <div class="sa-row"><input data-field="saveAdj1v"><input data-field="saveAdj1c"><input data-field="saveAdj2v"><input data-field="saveAdj2c"></div>
+          <div class="sa-row"><input data-field="saveAdj3v"><input data-field="saveAdj3c"><input data-field="saveAdj4v"><input data-field="saveAdj4c"></div>
+          <div class="sa-row"><input data-field="saveAdj5v"><input data-field="saveAdj5c"><input data-field="saveAdj6v"><input data-field="saveAdj6c"></div>
+        </div>
+        <div class="pair"><div class="row"><span class="lb">Resistances:</span><input class="fi" data-field="resistances"></div><div class="row"><span class="lb">Detection:</span><input class="fi" data-field="detection"></div></div>
+        <div class="row"><span class="lb">Languages:</span><input class="fi" data-field="languages"></div>
+        <div class="row"><span class="lb">Languages:</span><input class="fi" data-field="languages2"></div>
       </div>
-      <div class="pair"><div class="row"><span class="lb">Resistances:</span><input class="fi" data-field="resistances"></div><div class="row"><span class="lb">Detection:</span><input class="fi" data-field="detection"></div></div>
-      <div class="row"><span class="lb">Languages:</span><input class="fi" data-field="languages"></div>
-      <div class="row"><span class="lb">Languages:</span><input class="fi" data-field="languages2"></div>
-      <div class="row"><span class="lb">Psionics:</span><input class="fi" data-field="psionics"></div>
+      <div class="saves-block" style="min-width:110px">
+        <div class="saves-title">Saving<br>Throws:</div>
+        <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Paralyzation/<br>Poison—</span><input class="fi" data-field="savePPD" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
+        <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Petrification/<br>Polymorph—</span><input class="fi" data-field="savePP" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
+        <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Rod, Staff<br>or Wand—</span><input class="fi" data-field="saveRSW" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
+        <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Breath<br>Weapon—</span><input class="fi" data-field="saveBW" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
+        <div class="save-line"><span class="lb">Spells—</span><input class="fi" data-field="saveSpell" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
+      </div>
     </div>
-    <!-- Right sub: Saving Throws with stacked labels -->
-    <div class="saves-block">
-      <div class="saves-title">Saving<br>Throws:</div>
-      <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Paralyzation/<br>Poison—</span><input class="fi" data-field="savePPD" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-      <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Petrification/<br>Polymorph—</span><input class="fi" data-field="savePP" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-      <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Rod, Staff<br>or Wand—</span><input class="fi" data-field="saveRSW" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-      <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Breath<br>Weapon—</span><input class="fi" data-field="saveBW" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-      <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal">Spells—</span><input class="fi" data-field="saveSpell" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-    </div>
-  </div>
-  <div style="margin-top:3px">
-    <div class="row"><span class="lb">Weapons of Proficiency:</span><span class="lb" style="margin-left:auto">Number</span><input class="fi" data-field="profNumber" style="flex:0 0 24px;text-align:center;min-width:24px"><span class="lb" style="margin-left:6px">Non-Prof. Penalty</span><input class="fi" data-field="nonProfPenalty" style="flex:0 0 24px;text-align:center;min-width:24px"></div>
-    <div class="prof-inline" id="prof-list"></div>
-    <button class="add-btn" id="add-prof">+ Prof</button>
-  </div>
-</div>
-</div><!-- ab-wrap -->
-
-<!-- ═══════ *COMBAT* ═══════ -->
-<div class="combat-ban">*COMBAT*</div>
-
-<div class="combat-grid">
-<div>
-  <div class="row"><span class="lb">Armor Worn</span><input class="fi" data-field="armorWorn"><span class="lb" style="margin-left:4px">AC Base</span><input class="bx" data-field="acBase"></div>
-  <div class="row"><span class="lb">Dex. Adj.</span><input class="fi" data-field="acDexAdj" style="flex:0 0 28px;text-align:center;min-width:28px"><span class="lb">Magical Adj.</span><input class="fi" data-field="acMagAdj" style="flex:0 0 28px;text-align:center;min-width:28px"><span class="lb" style="font-size:10px;font-weight:700">Shieldless AC</span><input class="bx" data-field="acShieldless"><span class="lb">Rear AC</span><input class="bx" data-field="acRear"></div>
-  <div class="row"><span class="lb">Const. Adj.</span><input class="fi" data-field="acConAdj" style="flex:0 0 28px;text-align:center;min-width:28px"><span class="lb">Hit Die Type</span><input class="fi" data-field="hitDieType" style="flex:0 0 40px;min-width:40px"></div>
-  <div class="row" style="margin-bottom:4px"><span class="lb" style="font-size:14px">AC</span><input class="bx bx-lg" data-field="ac"><span class="lb" style="font-size:11px;margin-left:8px">Hit Points</span><input class="bx bx-lg" data-field="hpCurrent" type="number"><span style="color:var(--ink-lt)">/</span><input class="bx bx-lg" data-field="hpMax" type="number" style="opacity:.6"></div>
-  <div class="row"><span class="lb">Wounds:</span><input class="fi" data-field="wounds"></div>
-  <div class="row"><span class="lb">Special Adjustments</span><input class="fi" data-field="specialAdjustments"></div>
-</div>
-<div>
-  <div class="row"><span class="lb">Condition of Armor</span><input class="fi" data-field="armorCondition"></div>
-  <div class="ca-box">
-    <div class="ca-box-title">Combat Adjustments: <span style="font-weight:400">Totals:</span></div>
-    <div class="row"><span class="lb">"To Hit" Adj.</span><input class="fi" data-field="combatToHitAdj" style="flex:0 0 34px;text-align:center"><span class="lb" style="margin-left:6px">Damage Adj.</span><input class="fi" data-field="combatDamAdj" style="flex:0 0 34px;text-align:center"></div>
-  </div>
-  <div class="row"><span class="lb">Surprise</span><input class="fi" data-field="surprise" style="flex:0 0 34px"><span class="lb" style="margin-left:6px">Dex. Adjust.</span><input class="fi" data-field="surpriseDexAdj" style="flex:0 0 34px"></div>
-  <div class="row"><span class="lb">Rear Attacks Adjust.</span><input class="fi" data-field="rearAttacksAdj" style="flex:0 0 50px"></div>
-  <div class="row"><span class="lb">Weapon in Hand</span><input class="fi" data-field="weaponInHand"></div>
-</div>
-</div>
-
-<!-- WEAPONS TABLE -->
-<table class="w-tbl">
-<thead>
-  <tr><th style="width:18%">Weapon</th><th>Mag. Adj.</th><th>Space Req'd/Range</th><th>Speed</th><th>10</th><th>9</th><th>8</th><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th style="width:10%">Dmg S-M/L</th><th style="width:16px"><button class="add-sm" id="add-weapon" title="Add weapon">+</button></th></tr>
-  <tr><td colspan="4" style="border:1px solid var(--ink)"></td><td colspan="9" style="border:1px solid var(--ink);font-family:var(--fh);font-size:6px;text-align:center;letter-spacing:1px;background:var(--paper-dk)">ADJUSTED TO HIT ARMOR CLASS</td><td style="border:1px solid var(--ink);font-family:var(--fh);font-size:6px;text-align:center;background:var(--paper-dk)">DAMAGE VS SIZE</td><td style="border:none"></td></tr>
-</thead>
-<tbody id="weapon-list"></tbody>
-</table>
-
-<!-- WEAPONLESS COMBAT (full width) -->
-<div style="margin-bottom:4px">
-  <div class="wlc-title">Weaponless Combat:</div>
-  <div class="wlc-sub">Attack Adj.—Damage Adj.—Defense Adj.</div>
-  <div style="margin-bottom:1px"><div style="display:flex;gap:2px;align-items:baseline"><input class="fi" data-field="pummelAtk" style="max-width:50px"><span>-</span><input class="fi" data-field="pummelDam" style="max-width:50px"><span>-</span><input class="fi" data-field="pummelDef" style="max-width:50px"></div><div class="lb">Pummeling</div></div>
-  <div style="margin-bottom:1px"><div style="display:flex;gap:2px;align-items:baseline"><input class="fi" data-field="grappleAtk" style="max-width:50px"><span>-</span><input class="fi" data-field="grappleDam" style="max-width:50px"><span>-</span><input class="fi" data-field="grappleDef" style="max-width:50px"></div><div class="lb">Grappling</div></div>
-  <div style="margin-bottom:1px"><div style="display:flex;gap:2px;align-items:baseline"><input class="fi" data-field="overbearAtk" style="max-width:50px"><span>-</span><input class="fi" data-field="overbearDam" style="max-width:50px"><span>-</span><input class="fi" data-field="overbearDef" style="max-width:50px"></div><div class="lb">Overbearing</div></div>
-</div>
-
-<!-- BOTTOM two-column: left = morale/patron/status, right = spells/turning -->
-<div class="bot-grid">
-<div>
-  <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:3px">
-    <div class="move-field" style="flex:0"><input class="fi" data-field="morale" style="width:60px"><span class="lb">Morale Modifier</span></div>
-    <div class="row" style="margin-bottom:0"><span class="lb"># Attacks:</span><input class="fi" data-field="numAttacks" style="max-width:40px"></div>
-  </div>
-
-  <!-- Patron / Lady -->
-  <div class="row"><span class="lb">Patron:</span><input class="fi" data-field="patron"></div>
-  <div class="row"><span class="lb">Lady:</span><input class="fi" data-field="lady"></div>
-
-  <!-- Tithings / Alignment / Mount -->
-  <div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:3px">
-    <div class="move-field" style="flex:0"><input class="fi" data-field="tithings" style="width:30px"><span class="lb">Tithings %</span></div>
-    <div class="row" style="margin-bottom:0"><span class="lb">Alignment</span><input class="fi" data-field="palAlignment" style="max-width:80px"></div>
-    <div class="row" style="margin-bottom:0"><span class="lb">Mount:</span><input class="fi" data-field="mount"></div>
-  </div>
-
-  <!-- Status + henchmen table -->
-  <div style="display:flex;align-items:flex-start;gap:4px;margin-bottom:3px">
-    <div><div class="bx" data-field="statusBox" style="width:22px;height:22px"></div><div class="lb" style="font-size:7px">Status</div></div>
-    <table class="h-tbl" style="flex:1"><thead><tr><th>#</th><th>Name</th><th>HD</th><th>AC</th><th>H.P.</th><th>#AT</th><th>Damage</th><th style="width:16px"><button class="add-sm" id="add-hench">+</button></th></tr></thead><tbody id="hench-list"></tbody></table>
-  </div>
-
-  <!-- Magic Components -->
-  <div class="row"><span class="lb">Magic Components:</span><input class="fi" data-field="magicComponents"></div>
-  <div class="row"><input class="fi" data-field="magicComponents2"><input class="fi" data-field="magicComponents3" style="margin-left:4px"></div>
-
-  <!-- Special Abilities -->
-  <div style="margin-top:3px"><span class="lb">Special Abilities:</span> <button class="add-btn" id="add-ability">+ Add</button></div>
-  <div class="prof-inline" id="ability-list"></div>
-</div>
-
-<div>
-  <!-- Spells (class-conditional) -->
-  <div class="cls-sec" id="section-spells">
-    <div class="row"><span class="lb">Spells Known</span><input class="fi" data-field="spellsKnown" style="flex:0 0 30px;text-align:center"></div>
-    <div class="lb" style="margin-bottom:2px">Spells Memorized per Level:</div>
-    <div class="sp-grid">
-      <div class="sp-hdr"><div>1st</div><div>2nd</div><div>3rd</div><div>4th/1st</div><div>2nd</div><div>—</div></div>
-      <div class="sp-cells"><input data-field="spellSlot1" type="number"><input data-field="spellSlot2" type="number"><input data-field="spellSlot3" type="number"><input data-field="spellSlot4" type="number"><input data-field="spellSlot5" type="number"><input data-field="spellSlot6" type="number"></div>
-    </div>
-    <div style="margin-top:2px"><span class="lb">Spell List</span> <button class="add-btn" id="add-spell">+ Spell</button></div>
-    <div id="spell-list" style="column-count:2;column-gap:8px;max-height:260px;overflow-y:auto"></div>
-  </div>
-
-  <!-- Turning Undead (class-conditional) — labels below lines -->
-  <div class="cls-sec" id="section-turning">
-    <div class="lb" style="margin-top:4px;margin-bottom:2px">Turning Undead:</div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:0 4px">
-      <div class="move-field"><input class="fi" data-field="turnSkeleton" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Skeleton</span></div>
-      <div class="move-field"><input class="fi" data-field="turnZombie" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Zombie</span></div>
-      <div class="move-field"><input class="fi" data-field="turnGhoul" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Ghoul</span></div>
-      <div class="move-field"><input class="fi" data-field="turnShadow" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Shadow</span></div>
-      <div class="move-field"><input class="fi" data-field="turnWight" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Wight</span></div>
-      <div class="move-field"><input class="fi" data-field="turnGhast" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Ghast</span></div>
-      <div class="move-field"><input class="fi" data-field="turnWraith" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Wraith</span></div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:0 4px;margin-top:2px">
-      <div class="move-field"><input class="fi" data-field="turnMummy" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Mummy</span></div>
-      <div class="move-field"><input class="fi" data-field="turnSpectre" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Spectre</span></div>
-      <div class="move-field"><input class="fi" data-field="turnVampire" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Vampire</span></div>
-      <div class="move-field"><input class="fi" data-field="turnGhost" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Ghost</span></div>
-      <div class="move-field"><input class="fi" data-field="turnLich" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Lich</span></div>
-      <div class="move-field"><input class="fi" data-field="turnSpecial" style="width:100%;text-align:center"><span class="lb" style="font-size:7px">Special</span></div>
-      <div></div>
+    <div style="margin-top:3px">
+      <div class="row"><span class="lb">Weapons of Proficiency:</span><span class="lb" style="margin-left:auto">Number</span><input class="fi" data-field="profNumber" style="flex:0 0 24px;text-align:center;min-width:24px"><span class="lb" style="margin-left:6px">Non-Prof. Penalty</span><input class="fi" data-field="nonProfPenalty" style="flex:0 0 24px;text-align:center;min-width:24px"></div>
+      <div class="prof-inline" id="prof-list"></div>
+      <button class="add-btn" id="add-prof">+ Prof</button>
     </div>
   </div>
 
-  <!-- Thief Skills (class-conditional) -->
-  <div class="cls-sec" id="section-thief">
-    <div class="lb" style="margin-top:4px">Thief Abilities:</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px">
-      <div class="row"><span class="lb-sm" style="min-width:75px">Pick Pockets</span><input class="fi" data-field="thiefPP" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:75px">Hide in Shadows</span><input class="fi" data-field="thiefHIS" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:75px">Open Locks</span><input class="fi" data-field="thiefOL" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:75px">Hear Noise</span><input class="fi" data-field="thiefHN" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:75px">Find/Rem. Traps</span><input class="fi" data-field="thiefFRT" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:75px">Climb Walls</span><input class="fi" data-field="thiefCW" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:75px">Move Silently</span><input class="fi" data-field="thiefMS" style="flex:0 0 34px;text-align:center"></div>
-      <div class="row"><span class="lb-sm" style="min-width:75px">Read Languages</span><input class="fi" data-field="thiefRL" style="flex:0 0 34px;text-align:center"></div>
+  <div class="full"><div class="combat-ban">*COMBAT*</div></div>
+
+  <div>
+    <div class="row"><span class="lb">Armor Worn</span><input class="fi" data-field="armorWorn"><span class="lb" style="margin-left:4px">AC Base</span><input class="bx" data-field="acBase"></div>
+    <div class="row"><span class="lb">Shield</span><input class="fi" data-field="shield"><span class="lb" style="margin-left:4px">Shield Adj.</span><input class="bx" data-field="shieldAdj"></div>
+    <div class="row"><span class="lb">Dex. Adj.</span><input class="fi" data-field="acDexAdj" style="flex:0 0 28px;text-align:center;min-width:28px"><span class="lb">Magical Adj.</span><input class="fi" data-field="acMagAdj" style="flex:0 0 28px;text-align:center;min-width:28px"><span class="lb" style="font-size:10px;font-weight:700">Shieldless AC</span><input class="bx" data-field="acShieldless"><span class="lb">Rear AC</span><input class="bx" data-field="acRear"></div>
+    <div class="row" style="margin-bottom:4px"><span class="lb" style="font-size:14px">AC</span><input class="bx bx-lg" data-field="ac"><span class="lb" style="font-size:11px;margin-left:8px">Hit Points</span><input class="bx bx-lg" data-field="hpCurrent" type="number"><span style="color:var(--ink-lt)">/</span><input class="bx bx-lg" data-field="hpMax" type="number" style="opacity:.6"></div>
+    <div class="row"><span class="lb">Special Adjustments</span><input class="fi" data-field="specialAdjustments"></div>
+  </div>
+
+  <div>
+    <div class="ca-box">
+      <div class="ca-box-title">Combat Adjustments: <span style="font-weight:400">Totals:</span></div>
+      <div class="row"><span class="lb">"To Hit" Adj.</span><input class="fi" data-field="combatToHitAdj" style="flex:0 0 34px;text-align:center"><span class="lb" style="margin-left:6px">Damage Adj.</span><input class="fi" data-field="combatDamAdj" style="flex:0 0 34px;text-align:center"></div>
+    </div>
+    <div class="row"><span class="lb"># Attacks</span><input class="fi" data-field="numAttacks" style="flex:0 0 34px;text-align:center"><span class="lb" style="margin-left:6px">Surprise</span><input class="fi" data-field="surprise" style="flex:0 0 34px;text-align:center"><span class="lb" style="margin-left:6px">Dex. Adj.</span><input class="fi" data-field="surpriseDexAdj" style="flex:0 0 34px;text-align:center"></div>
+    <div class="row"><span class="lb">Primary Weapon</span><input class="fi" data-field="primaryWeapon"></div>
+    <div class="row"><span class="lb">Secondary Weapon</span><input class="fi" data-field="secondaryWeapon"></div>
+  </div>
+
+  <div class="full">
+    <table class="w-tbl"><thead>
+      <tr><th style="width:18%">Weapon</th><th>Mag.</th><th>Range</th><th>Spd</th><th>10</th><th>9</th><th>8</th><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th style="width:10%">Dmg S-M/L</th><th style="width:16px"><button class="add-sm" id="add-weapon" title="Add weapon">+</button></th></tr>
+      <tr><td colspan="4" style="border:1px solid var(--ink)"></td><td colspan="9" style="border:1px solid var(--ink);font-family:var(--fh);font-size:6px;text-align:center;letter-spacing:1px;background:var(--paper-dk)">ADJUSTED TO HIT ARMOR CLASS</td><td style="border:1px solid var(--ink);font-family:var(--fh);font-size:6px;text-align:center;background:var(--paper-dk)">DAMAGE VS SIZE</td><td style="border:none"></td></tr>
+    </thead><tbody id="weapon-list"></tbody></table>
+  </div>
+
+  <div class="full">
+    <table class="wlc-tbl"><thead><tr><th style="width:20%">Weaponless</th><th>Atk. Adj.</th><th>Dam. Adj.</th><th>Def. Adj.</th></tr></thead>
+    <tbody>
+      <tr><td><input value="Pummeling" readonly style="font-family:var(--fh);font-size:9px;font-weight:700"></td><td><input data-field="pummelAtk"></td><td><input data-field="pummelDam"></td><td><input data-field="pummelDef"></td></tr>
+      <tr><td><input value="Grappling" readonly style="font-family:var(--fh);font-size:9px;font-weight:700"></td><td><input data-field="grappleAtk"></td><td><input data-field="grappleDam"></td><td><input data-field="grappleDef"></td></tr>
+      <tr><td><input value="Overbearing" readonly style="font-family:var(--fh);font-size:9px;font-weight:700"></td><td><input data-field="overbearAtk"></td><td><input data-field="overbearDam"></td><td><input data-field="overbearDef"></td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="full cls-sec" id="section-spells">
+    <div class="sec" style="margin-top:2px">Spells</div>
+    <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:4px">
+      <div style="flex:0 0 auto">
+        <div class="row"><span class="lb">Spells Known</span><input class="fi" data-field="spellsKnown" style="flex:0 0 30px;text-align:center"></div>
+        <div class="lb" style="margin-bottom:2px">Memorized per Level:</div>
+        <div class="sp-grid" style="width:280px">
+          <div class="sp-hdr"><div>1st</div><div>2nd</div><div>3rd</div><div>4th</div><div>5th</div><div>6th</div><div>7th</div><div>8th</div><div>9th</div></div>
+          <div class="sp-cells"><input data-field="spellSlot1" type="number"><input data-field="spellSlot2" type="number"><input data-field="spellSlot3" type="number"><input data-field="spellSlot4" type="number"><input data-field="spellSlot5" type="number"><input data-field="spellSlot6" type="number"><input data-field="spellSlot7" type="number"><input data-field="spellSlot8" type="number"><input data-field="spellSlot9" type="number"></div>
+        </div>
+        <div class="row" style="margin-top:4px"><span class="lb">Components:</span></div>
+        <div class="row"><input class="fi" data-field="magicComponents" style="width:260px"></div>
+        <div class="row"><input class="fi" data-field="magicComponents2" style="width:260px"></div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="margin-top:2px"><span class="lb">Spell List</span> <button class="add-btn" id="add-spell">+ Spell</button></div>
+        <div id="spell-list" class="spell-list"></div>
+      </div>
     </div>
   </div>
+
+  <div class="full cls-sec" id="section-turning">
+    <div class="sec" style="margin-top:2px">Turning Undead</div>
+    <table class="turn-tbl"><thead><tr><th>Skeleton</th><th>Zombie</th><th>Ghoul</th><th>Shadow</th><th>Wight</th><th>Ghast</th><th>Wraith</th><th>Mummy</th><th>Spectre</th><th>Vampire</th><th>Ghost</th><th>Lich</th><th>Special</th></tr></thead>
+    <tbody><tr><td><input data-field="turnSkeleton"></td><td><input data-field="turnZombie"></td><td><input data-field="turnGhoul"></td><td><input data-field="turnShadow"></td><td><input data-field="turnWight"></td><td><input data-field="turnGhast"></td><td><input data-field="turnWraith"></td><td><input data-field="turnMummy"></td><td><input data-field="turnSpectre"></td><td><input data-field="turnVampire"></td><td><input data-field="turnGhost"></td><td><input data-field="turnLich"></td><td><input data-field="turnSpecial"></td></tr></tbody></table>
+  </div>
+
+  <div class="full cls-sec" id="section-thief">
+    <div class="sec" style="margin-top:2px">Thief Abilities</div>
+    <div class="thief-grid">
+      <div class="row"><span class="lb-sm" style="min-width:80px">Pick Pockets</span><input class="fi" data-field="thiefPP" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px">Open Locks</span><input class="fi" data-field="thiefOL" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px">Find/Rem. Traps</span><input class="fi" data-field="thiefFRT" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px">Move Silently</span><input class="fi" data-field="thiefMS" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px">Hide in Shadows</span><input class="fi" data-field="thiefHIS" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px">Hear Noise</span><input class="fi" data-field="thiefHN" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px">Climb Walls</span><input class="fi" data-field="thiefCW" style="flex:0 0 34px;text-align:center"></div>
+      <div class="row"><span class="lb-sm" style="min-width:80px">Read Languages</span><input class="fi" data-field="thiefRL" style="flex:0 0 34px;text-align:center"></div>
+    </div>
+  </div>
+
 </div>
 </div>
 
-</div><!-- page1 -->
-
-<!-- ═══════ PAGE 2 ═══════ -->
 <div class="pg-page" id="page2">
 
 <div class="sec">Possessions</div>
@@ -543,7 +336,6 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 <div>
   <div class="row"><span class="lb">Total Weight Carried</span><input class="fi" data-field="totalWeight" id="total-weight" style="flex:0 0 50px;text-align:center;font-weight:700" readonly></div>
   <div class="row"><span class="lb">Carrying Capacity</span><input class="fi" data-field="carryingCapacity" style="flex:0 0 50px"></div>
-  <div class="row"><span class="lb">Load vs. Move Rate</span><input class="fi" data-field="loadMoveRate" style="flex:0 0 80px"></div>
 </div>
 <div>
   <div class="wealth-grid">
@@ -553,31 +345,30 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
     <span class="lb">Gold—</span><input class="fi" data-field="wealthGP" type="number" style="max-width:60px">
     <span class="lb">Platinum—</span><input class="fi" data-field="wealthPP" type="number" style="max-width:60px">
     <span class="lb">Gems—</span><input class="fi" data-field="wealthGems" style="max-width:60px">
-    <span class="lb">Jewels—</span><input class="fi" data-field="wealthJewels" style="max-width:60px">
-    <span class="lb">Misc—</span><input class="fi" data-field="wealthMisc" style="max-width:60px">
   </div>
 </div>
 </div>
 
-<div class="sec">Experience Points</div>
-<div class="row" style="margin-bottom:4px"><span class="lb">Combat—</span><input class="fi" data-field="xpCombat" type="number" style="max-width:80px"><span class="lb">Other</span><input class="fi" data-field="xpOther" type="number" style="max-width:80px"><span class="lb" style="font-size:10px">Total:</span><input class="fi" data-field="xpTotal" id="xp-total" style="flex:0 0 80px;font-weight:700;text-align:center" readonly><span class="lb">+ %</span><input class="fi" data-field="xpBonus" style="flex:0 0 28px"><span class="lb">Next Level Goal</span><input class="fi" data-field="xpNextLevel" style="max-width:80px"></div>
+<div class="sec">Experience</div>
+<div class="row" style="margin-bottom:4px"><span class="lb">XP Total:</span><input class="fi" data-field="xpTotal" id="xp-total" style="flex:0 0 80px;font-weight:700;text-align:center" type="number"><span class="lb" style="margin-left:8px">Next Level:</span><input class="fi" data-field="xpNextLevel" style="flex:0 0 80px" type="number"></div>
 
 <div class="sec">Description</div>
 <div class="desc-grid">
   <div class="row"><span class="lb">Age—</span><input class="fi" data-field="age" style="max-width:34px"></div>
+  <div class="row"><span class="lb">Mag. Aging—</span><input class="fi" data-field="magicalAging" style="max-width:34px"></div>
   <div class="row"><span class="lb">Height</span><input class="fi" data-field="height" style="max-width:44px"></div>
   <div class="row"><span class="lb">Weight</span><input class="fi" data-field="weight" style="max-width:44px"></div>
   <div class="row"><span class="lb">Sex</span><input class="fi" data-field="sex" style="max-width:28px"></div>
-  <div class="row"><span class="lb">Hair</span><input class="fi" data-field="hairColor" style="max-width:44px"></div>
-  <div class="row"><span class="lb">Eyes</span><input class="fi" data-field="eyeColor" style="max-width:44px"></div>
-  <div class="row"><span class="lb">Social Class</span><input class="fi" data-field="socialClass" style="max-width:60px"></div>
-  <div class="row"><span class="lb">Standing</span><input class="fi" data-field="standing" style="max-width:60px"></div>
 </div>
+<div class="row"><span class="lb">Hair</span><input class="fi" data-field="hairColor" style="max-width:60px"><span class="lb" style="margin-left:6px">Eyes</span><input class="fi" data-field="eyeColor" style="max-width:60px"><span class="lb" style="margin-left:6px">Social Class</span><input class="fi" data-field="socialClass"></div>
 <div class="row"><span class="lb">General Appearance:</span><input class="fi" data-field="appearance"></div>
 <div class="row"><span class="lb">Distinguishing Marks:</span><input class="fi" data-field="distinguishingMarks"></div>
-<div class="row"><span class="lb">Weaknesses/Fear:</span><input class="fi" data-field="weaknesses"></div>
+<div class="row"><span class="lb">Weaknesses/Fears:</span><input class="fi" data-field="weaknesses"></div>
 
-<div class="sec">Followers / Hirelings — Associates / Relatives</div>
+<div class="sec">Henchmen</div>
+<table class="h-tbl"><thead><tr><th>#</th><th>Name</th><th>HD</th><th>AC</th><th>H.P.</th><th>#AT</th><th>Damage</th><th style="width:16px"><button class="add-sm" id="add-hench">+</button></th></tr></thead><tbody id="hench-list"></tbody></table>
+
+<div class="sec">Associates / Relatives</div>
 <table class="h-tbl"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Level</th><th>Race</th><th>Notes</th><th style="width:16px"><button class="add-sm" id="add-assoc">+</button></th></tr></thead><tbody id="assoc-list"></tbody></table>
 
 <div class="sec">Locales Frequented / Residence</div>
@@ -586,9 +377,9 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 <div class="sec">Notes</div>
 <textarea class="notes-area" data-field="notes" rows="4"></textarea>
 
-</div><!-- page2 -->
+</div>
 
-</div></div><!-- sheet, sheet-wrap -->
+</div></div>
 <div class="adnd-ftr">Graycloak's Campaign Corner — AD&D 1st Edition Character Record</div>
 
 <script src="gcc-data.js"></script>
@@ -670,8 +461,8 @@ function renderTableRows(arrKey,tbId,addBtnId,fields){
 function renderSpells(){
   const arr=CHAR.spells||[];const el=document.getElementById('spell-list');el.innerHTML='';
   arr.forEach((sp,i)=>{
-    const d=document.createElement('div');d.style.cssText='display:flex;gap:2px;align-items:center;margin-bottom:2px';
-    d.innerHTML='<span style="font-family:var(--fh);font-size:8px;font-weight:700;width:14px;text-align:center">'+(sp.level||'')+'</span><input class="fi" value="'+(sp.name||'')+'" data-idx="'+i+'" data-lf="name" style="font-size:10px"><button class="del-btn" data-idx="'+i+'">×</button>';
+    const d=document.createElement('div');d.style.cssText='display:flex;gap:2px;align-items:center;margin-bottom:1px;break-inside:avoid';
+    d.innerHTML='<span style="font-family:var(--fh);font-size:8px;font-weight:700;width:14px;text-align:center;color:var(--accent)">'+(sp.level||'')+'</span><input class="fi" value="'+(sp.name||'')+'" data-idx="'+i+'" data-lf="name" style="font-size:10px"><button class="del-btn" data-idx="'+i+'">×</button>';
     el.appendChild(d);
   });
   el.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',e=>{arr[+e.target.dataset.idx].name=e.target.value;autosave();}));
@@ -683,7 +474,7 @@ document.getElementById('add-spell').addEventListener('click',()=>{
 });
 
 function calcWeight(){const items=CHAR.items||[];let t=0;items.forEach(it=>{t+=(parseFloat(it.weight)||0)*(parseInt(it.qty)||1);});document.getElementById('total-weight').value=t||'';CHAR.totalWeight=t;}
-function calcXP(){const c=parseFloat(CHAR.xpCombat)||0,o=parseFloat(CHAR.xpOther)||0;document.getElementById('xp-total').value=(c+o)||'';CHAR.xpTotal=c+o;}
+function calcXP(){const t=parseFloat(CHAR.xpTotal)||0;document.getElementById('xp-total').value=t||'';CHAR.xpTotal=t;}
 
 // Portrait (name box)
 const pBox=document.getElementById('portrait-box'),pInput=document.getElementById('portrait-input'),pDel=document.getElementById('portrait-del');
@@ -760,7 +551,7 @@ function mapARS(ars){
   c.acBase=at.ac?at.ac.value:'';
   const moveAb=items.find(i=>i.type==='ability'&&i.name.startsWith('Base Movement'));
   c.moveBase=moveAb?(moveAb.name.match(/\d+/)||[''])[0]:(at.movement&&at.movement.value?at.movement.value:'');
-  c.xpCombat=d.xp||'';c.xpTotal=d.xp||'';
+  c.xpTotal=d.xp||'';
   c.age=d.age||'';c.sex=d.sex||'';c.height=d.height||'';c.weight=d.weight||'';
   // Weapons
   const skipW=['Brawl','Grapple','Overbear'];
@@ -789,7 +580,7 @@ function mapARS(ars){
   // Spell slots
   const si=s.spellInfo||{},slots=si.slots||{};
   const arcS=(slots.arcane||{}).value||{},divS=(slots.divine||{}).value||{};
-  for(let i=1;i<=6;i++)c['spellSlot'+i]=(+(arcS[String(i)]||0)+ +(divS[String(i)]||0))||'';
+  for(let i=1;i<=9;i++)c['spellSlot'+i]=(+(arcS[String(i)]||0)+ +(divS[String(i)]||0))||'';
   c.spellsKnown=c.spells.length||'';
   // Thief skills
   const tMap={'Pick Pockets':'thiefPP','Hide in Shadows':'thiefHIS','Open Locks':'thiefOL','Open Locks/Disarm Traps':'thiefOL','Hear Noise':'thiefHN','Find Traps':'thiefFRT','Find/Remove Traps':'thiefFRT','Climb Walls':'thiefCW','Move Silently':'thiefMS','Read Languages':'thiefRL'};
@@ -847,7 +638,7 @@ classField.addEventListener('input',()=>{CHAR.characterClass=classField.value;up
 // Wire all fields
 document.querySelectorAll('[data-field]').forEach(el=>{
   const ev=el.tagName==='TEXTAREA'?'input':'change';
-  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(el.dataset.field==='xpCombat'||el.dataset.field==='xpOther')calcXP();autosave();});
+  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;autosave();});
 });
 
 function populateAll(){
@@ -859,7 +650,7 @@ function populateAll(){
   renderTableRows('henchmen','hench-list','add-hench',[{key:'num',center:true},{key:'name'},{key:'hd',center:true},{key:'ac',center:true},{key:'hp',center:true},{key:'numAt',center:true},{key:'damage'}]);
   renderTableRows('associates','assoc-list','add-assoc',[{key:'num',center:true},{key:'name'},{key:'cls'},{key:'level',center:true},{key:'race'},{key:'notes'}]);
   renderTableRows('locales','locale-list','add-locale',[{key:'location'},{key:'time'},{key:'details'}]);
-  renderSpells();calcWeight();calcXP();
+  renderSpells();calcWeight();
 }
 
 (function(){
