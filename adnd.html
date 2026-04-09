@@ -799,18 +799,34 @@ function mapARS(ars){
   c.saveSpell=sv.spell?sv.spell.value:'';
   // HP, AC, Movement
   c.hpMax=at.hp?at.hp.max:'';c.hpCurrent=at.hp?at.hp.value:'';
-  c.acBase=at.ac?at.ac.value:'';
-  // AC Dex Adjustment (from dex table, dL[2] is defense adj — negative is better)
-  c.acDexAdj=dL[2]||'';
-  // Armor worn — find equipped armor item
-  const armorItem=items.find(i=>i.type==='armor'&&(i.system||{}).location&&(i.system||{}).location.state==='equipped');
-  if(armorItem)c.armorWorn=armorItem.name;
-  // Compute AC: base + dex adj (defense adj is already negative-is-better)
-  const baseAC=+(at.ac?at.ac.value:10);
-  const dexACAdj=+(dL[2]||0);
-  c.ac=baseAC+dexACAdj;
-  c.acShieldless=c.ac; // placeholder until shield detection
-  c.acRear=baseAC; // rear AC ignores dex and shield
+  // AC — compute from equipped armor items
+  const armorItems=items.filter(i=>i.type==='armor'&&(i.system||{}).location&&(i.system||{}).location.state==='equipped');
+  let bestBaseAC=10,magAdj=0,shieldAdj=0;
+  const armorNames=[];
+  armorItems.forEach(ai=>{
+    const prot=(ai.system||{}).protection||{};
+    if(prot.type==='ring'){
+      // Ring of protection: modifier is AC bonus
+      magAdj-=(prot.modifier||0);
+    }else if(prot.type==='shield'){
+      shieldAdj-=(prot.ac||0)+(prot.modifier||0);
+    }else{
+      // Armor/bracers: ac field is the base AC it provides
+      const ac=prot.ac||10;
+      if(ac<bestBaseAC){bestBaseAC=ac;armorNames.length=0;armorNames.push(ai.name);}
+      else if(ac===bestBaseAC)armorNames.push(ai.name);
+      // Armor modifier (enchanted armor)
+      if(prot.modifier)magAdj-=prot.modifier;
+    }
+  });
+  c.acBase=bestBaseAC;
+  c.armorWorn=armorNames.join(', ')||'';
+  const dexACAdj=+(dL[2]||0); // dex defense adj (negative is better)
+  c.acDexAdj=dexACAdj||'';
+  c.acMagAdj=magAdj||'';
+  c.ac=bestBaseAC+dexACAdj+magAdj+shieldAdj;
+  c.acShieldless=bestBaseAC+dexACAdj+magAdj;
+  c.acRear=bestBaseAC+magAdj; // rear ignores dex and shield
   // # Attacks — try to get from primary melee weapon's perRound
   const primaryW=items.find(i=>i.type==='weapon'&&!['Brawl','Grapple','Overbear'].includes(i.name)&&(i.system||{}).attributes&&(i.system||{}).attributes.type!=='ammunition'&&((i.system||{}).attack||{}).type==='melee');
   if(primaryW){const pr=(primaryW.system.attack||{}).perRound||'';c.numAttacks=pr;}
