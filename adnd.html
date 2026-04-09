@@ -145,6 +145,9 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .w-tbl td input:focus,.wlc-tbl td input:focus,.turn-tbl td input:focus{background:var(--paper-lt)}
 .w-tbl td.w-ac input{font-size:8px}
 .w-tbl td.w-dmg input{font-size:8px}
+.inv-scroll{max-height:200px;overflow-y:auto;border:1px solid var(--ink);margin-bottom:4px}
+.inv-scroll table{margin-bottom:0}
+.inv-scroll thead th{position:sticky;top:0;z-index:1}
 .inv-tbl td,.h-tbl td{border:1px solid var(--ink);padding:0}
 .inv-tbl td input,.h-tbl td input{width:100%;height:18px;border:none;background:transparent;font-family:var(--fb);font-size:10px;outline:none;padding:0 3px}
 .inv-tbl td input:focus,.h-tbl td input:focus{background:var(--paper-lt)}
@@ -426,10 +429,14 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 <div class="pg-page" id="page2">
 
 <div class="sec">Possessions</div>
+<div class="inv-scroll">
 <table class="inv-tbl"><thead><tr><th style="width:30%">Item</th><th style="width:18%">Location</th><th style="width:8%">Qty</th><th style="width:10%">Weight</th><th style="width:26%">Notes</th><th style="width:16px"><button class="add-sm" id="add-item">+</button></th></tr></thead><tbody id="item-list"></tbody></table>
+</div>
 
 <div class="sec">Magic Items</div>
+<div class="inv-scroll">
 <table class="inv-tbl"><thead><tr><th style="width:30%">Item</th><th style="width:12%">Charges</th><th style="width:50%">Properties</th><th style="width:16px"><button class="add-sm" id="add-magic">+</button></th></tr></thead><tbody id="magic-list"></tbody></table>
+</div>
 
 <div class="sec">Encumbrance & Wealth</div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;margin-bottom:4px">
