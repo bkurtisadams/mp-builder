@@ -2037,7 +2037,7 @@ function compressPortrait(dataUrl){
     if(!dataUrl){resolve("");return;}
     const img=new Image();
     img.onload=()=>{
-      const maxW=120,maxH=160;
+      const maxW=240,maxH=320;
       let w=img.width,h=img.height;
       if(w>maxW){h*=maxW/w;w=maxW;}
       if(h>maxH){w*=maxH/h;h=maxH;}
@@ -2225,7 +2225,7 @@ document.addEventListener("DOMContentLoaded",()=>{
       const canvas=document.createElement("canvas");
       const img=new Image();
       img.onload=()=>{
-        const maxW=120,maxH=160;
+        const maxW=240,maxH=320;
         let w=img.width,h=img.height;
         if(w>maxW){h*=maxW/w;w=maxW;}
         if(h>maxH){w*=maxH/h;h=maxH;}
