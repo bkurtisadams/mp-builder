@@ -458,7 +458,7 @@ function render() {
           const found = ch._id
             ? saved.find(s => s._id === ch._id)
             : (ch.name ? saved.find(s => (s.heroName || s.name) === ch.name) : null);
-          if (found) resolved = resolveChar(found, camp.system, refKey);
+          if (found) { console.log('resolveChar input:', camp.system, found.heroName||found.name, {abilities: found.abilities, health: found.health, karma: found.karma, resourcesRank: found.resourcesRank, popularityHero: found.popularityHero}); resolved = resolveChar(found, camp.system, refKey); console.log('resolveChar output:', resolved); }
         } catch(e) {}
       }
       const portraitHtml = resolved.portrait
