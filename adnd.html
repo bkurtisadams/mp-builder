@@ -818,7 +818,9 @@ function calcWeight(){
   const adj=strAdj*100; // each ±1 str adj = ±100 cn per bracket
   const thresholds=[350+adj, 700+adj, 1050+adj, 1500+adj];
   // Movement rates: base move in 1e scale (12", 9", 6", 3")
-  const base=+(CHAR.moveBase||12);
+  // ARS may store in feet (120=12"), normalize if ≥30
+  let base=+(CHAR.moveBase||12);
+  if(base>=30)base=Math.round(base/10);
   const rates=[base, Math.floor(base*3/4), Math.floor(base/2), Math.floor(base/4)];
   // Fill the load fields
   const lN=document.querySelector('[data-field="loadNormal"]');
