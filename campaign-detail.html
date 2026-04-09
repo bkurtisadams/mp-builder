@@ -170,6 +170,25 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .sec-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px }
 .sec-title { font-family: var(--fsc); font-size: 10px; color: var(--tx3); letter-spacing: 1.5px }
 
+/* ── Invite / Players ── */
+.invite-section { margin-bottom: 16px }
+.invite-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px }
+.invite-code { font-family: var(--fm); font-size: 16px; font-weight: 700; color: var(--accent); letter-spacing: 3px; background: var(--bg-card); border: 1px dashed var(--accent-dim); border-radius: 4px; padding: 6px 14px; user-select: all }
+.invite-url { font-family: var(--fm); font-size: 10px; color: var(--tx2); word-break: break-all; background: var(--bg-card); border: 1px solid var(--brd); border-radius: 3px; padding: 6px 10px; flex: 1; min-width: 200px }
+.invite-btn { padding: 5px 12px; font-size: 10px; font-family: var(--fb); font-weight: 700; background: transparent; color: var(--accent); border: 1px solid var(--accent-dim); border-radius: 3px; cursor: pointer; transition: all 0.15s }
+.invite-btn:hover { border-color: var(--accent); color: var(--accent-lt); background: var(--hover-bg) }
+.invite-btn.danger { color: var(--red); border-color: rgba(208,72,72,0.3) }
+.invite-btn.danger:hover { border-color: var(--red); background: var(--hover-bg) }
+.invite-msg { font-family: var(--fb); font-size: 11px; color: var(--green); margin-top: 4px }
+.player-list { list-style: none; padding: 0 }
+.player-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border: 1px solid var(--brd); border-radius: 4px; margin-bottom: 6px; background: var(--bg-card) }
+.player-info { display: flex; align-items: center; gap: 10px }
+.player-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-dim); display: flex; align-items: center; justify-content: center; font-family: var(--fb); font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0 }
+.player-name { font-family: var(--fb); font-size: 13px; font-weight: 700; color: var(--tx) }
+.player-email { font-family: var(--fm); font-size: 10px; color: var(--tx3) }
+.player-role { font-family: var(--fsc); font-size: 9px; letter-spacing: 1px; color: var(--accent); margin-left: 6px }
+.player-remove { font-size: 10px }
+
 /* ── Footer ── */
 .ftr { padding: 10px 16px; font-size: 10px; color: var(--tx3); border-top: 1px solid var(--brd); background: var(--bg-section); position: relative; z-index: 1 }
 .ftr-inner { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px }
@@ -272,6 +291,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 <script src="gcc-firebase-config.js"></script>
 <script src="gcc-auth.js"></script>
 <script src="gcc-sync.js"></script>
+<script src="gcc-invite.js"></script>
 <script>
 GCC.init();
 
@@ -555,12 +575,22 @@ function render() {
         <button class="tab${currentTab==='party'?' active':''}" data-tab="party">${ESC(GCC.teamLabel(camp.system).toUpperCase())}${charCount}</button>
         <button class="tab${currentTab==='vehicles'?' active':''}" data-tab="vehicles">Vehicles${vehCount}</button>
         <button class="tab${currentTab==='sessions'?' active':''}" data-tab="sessions">Sessions${sesCount}</button>
+        <button class="tab${currentTab==='players'?' active':''}" data-tab="players">Players</button>
         <button class="tab${currentTab==='notes'?' active':''}" data-tab="notes">Notes</button>
       </div>
       <div class="tab-panel${currentTab==='overview'?' active':''}" data-panel="overview">${overviewHtml}</div>
       <div class="tab-panel${currentTab==='party'?' active':''}" data-panel="party">${partyHtml}</div>
       <div class="tab-panel${currentTab==='vehicles'?' active':''}" data-panel="vehicles">${vehHtml}</div>
       <div class="tab-panel${currentTab==='sessions'?' active':''}" data-panel="sessions">${sessHtml}</div>
+      <div class="tab-panel${currentTab==='players'?' active':''}" data-panel="players">
+        <div class="invite-section" id="invite-section">
+          <div class="sec-hdr"><div class="sec-title">INVITE PLAYERS</div></div>
+          <div id="invite-area"><button class="invite-btn" id="btn-gen-invite">Generate Invite Link</button></div>
+          <div id="invite-msg"></div>
+        </div>
+        <div class="sec-hdr"><div class="sec-title">PLAYER ROSTER</div></div>
+        <div id="player-roster"><div class="entity-empty">Loading...</div></div>
+      </div>
       <div class="tab-panel${currentTab==='notes'?' active':''}" data-panel="notes">${notesHtml}</div>
     </div></div>`;
 
@@ -611,6 +641,114 @@ function wireEvents() {
       sessions.splice(idx, 1);
       GCC.updateCampaign(campId, { sessions });
       render();
+    });
+  });
+
+  // ── Invite system ──
+  const btnGenInvite = document.getElementById('btn-gen-invite');
+  if (btnGenInvite) {
+    btnGenInvite.addEventListener('click', async () => {
+      const camp = getCamp();
+      if (!camp) return;
+      if (!GCCAuth.getUser()) {
+        document.getElementById('invite-msg').innerHTML = '<span style="color:var(--red)">Sign in to generate invites.</span>';
+        return;
+      }
+      btnGenInvite.disabled = true;
+      btnGenInvite.textContent = 'Generating...';
+      const result = await GCCInvite.createInvite(campId, camp.name, camp.system);
+      if (result.ok) {
+        showInviteCode(result.code);
+        loadPlayerRoster();
+      } else {
+        document.getElementById('invite-msg').innerHTML = '<span style="color:var(--red)">Failed: ' + ESC(result.reason || 'unknown error') + '</span>';
+      }
+      btnGenInvite.disabled = false;
+      btnGenInvite.textContent = 'Generate Invite Link';
+    });
+  }
+
+  // Load existing invites + players when Players tab first shown
+  loadExistingInvites();
+  loadPlayerRoster();
+}
+
+async function loadExistingInvites() {
+  if (!GCCAuth.getUser()) return;
+  const invites = await GCCInvite.getInvitesForCampaign(campId);
+  const active = invites.filter(i => i.active);
+  if (active.length > 0) {
+    showInviteCode(active[0].code);
+  }
+}
+
+function showInviteCode(code) {
+  const area = document.getElementById('invite-area');
+  if (!area) return;
+  const url = GCCInvite.buildInviteUrl(code);
+  area.innerHTML =
+    '<div class="invite-row">' +
+      '<span class="invite-code">' + ESC(code) + '</span>' +
+      '<button class="invite-btn" id="btn-copy-invite">Copy Link</button>' +
+      '<button class="invite-btn danger" id="btn-revoke-invite">Revoke</button>' +
+    '</div>' +
+    '<div class="invite-url" id="invite-url">' + ESC(url) + '</div>';
+
+  document.getElementById('btn-copy-invite').addEventListener('click', () => {
+    navigator.clipboard.writeText(url).then(() => {
+      document.getElementById('invite-msg').innerHTML = '<span class="invite-msg">Link copied to clipboard!</span>';
+      setTimeout(() => { const m = document.getElementById('invite-msg'); if (m) m.innerHTML = ''; }, 3000);
+    });
+  });
+
+  document.getElementById('btn-revoke-invite').addEventListener('click', async () => {
+    if (!confirm('Revoke this invite code? Players who already joined will not be affected.')) return;
+    await GCCInvite.deactivateInvite(code);
+    area.innerHTML = '<button class="invite-btn" id="btn-gen-invite">Generate Invite Link</button>';
+    document.getElementById('invite-msg').innerHTML = '<span class="invite-msg">Invite revoked.</span>';
+    // Re-wire the generate button
+    wireEvents();
+  });
+}
+
+async function loadPlayerRoster() {
+  const roster = document.getElementById('player-roster');
+  if (!roster) return;
+  if (!GCCAuth.getUser()) {
+    roster.innerHTML = '<div class="entity-empty">Sign in to see the player roster.</div>';
+    return;
+  }
+  const players = await GCCInvite.getPlayers(campId);
+  if (!players.length) {
+    roster.innerHTML = '<div class="entity-empty">No players have joined yet. Generate an invite link above.</div>';
+    return;
+  }
+  const uid = GCCAuth.getUser().uid;
+  let html = '<ul class="player-list">';
+  players.forEach(p => {
+    const initials = (p.displayName || '?').split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const roleLabel = p.role === 'gm' ? 'GM' : 'PLAYER';
+    const removeBtn = (p.uid !== uid && p.role !== 'gm')
+      ? ' <button class="invite-btn danger player-remove" data-remove-uid="' + ESC(p.uid) + '">Remove</button>'
+      : '';
+    html += '<li class="player-item">' +
+      '<div class="player-info">' +
+        '<div class="player-avatar">' + ESC(initials) + '</div>' +
+        '<div><div class="player-name">' + ESC(p.displayName || 'Unknown') + '<span class="player-role">' + roleLabel + '</span></div>' +
+        '<div class="player-email">' + ESC(p.email || '') + '</div></div>' +
+      '</div>' +
+      removeBtn +
+    '</li>';
+  });
+  html += '</ul>';
+  roster.innerHTML = html;
+
+  // Wire remove buttons
+  roster.querySelectorAll('[data-remove-uid]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Remove this player from the campaign?')) return;
+      await GCCInvite.removePlayer(campId, btn.dataset.removeUid);
+      loadPlayerRoster();
     });
   });
 }

@@ -346,6 +346,18 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   .dice-fab { bottom: 14px; right: 14px; width: 42px; height: 42px; font-size: 18px }
   .chars-item { flex-wrap: wrap }
 }
+/* ── Invite Banner ── */
+.invite-banner { max-width: 960px; margin: 12px auto; padding: 16px 20px; background: var(--card-bg); border: 1px solid var(--brd); border-radius: 6px; text-align: center }
+.invite-banner-title { font-family: 'Cinzel', serif; font-size: 16px; font-weight: 700; color: var(--tx); letter-spacing: 1px; margin-bottom: 4px }
+.invite-banner-sub { font-family: 'Alegreya', serif; font-size: 13px; color: var(--tx2); margin-bottom: 12px }
+.invite-banner-camp { font-family: 'Alegreya', serif; font-size: 15px; font-weight: 700; color: var(--accent) }
+.invite-banner-btn { padding: 8px 24px; font-family: 'Cinzel', serif; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; color: #fff; background: var(--accent); border: none; border-radius: 4px; cursor: pointer; transition: opacity 0.15s; margin: 0 6px }
+.invite-banner-btn:hover { opacity: 0.85 }
+.invite-banner-btn.secondary { background: transparent; color: var(--tx2); border: 1px solid var(--brd) }
+.invite-banner-btn.secondary:hover { border-color: var(--tx3) }
+.invite-banner-msg { font-family: 'Alegreya', serif; font-size: 12px; margin-top: 8px }
+.invite-banner-msg.error { color: #cc3333 }
+.invite-banner-msg.success { color: #2a8a3a }
 </style>
 </head>
 <body>
@@ -371,6 +383,8 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   </div>
 </div>
 <div class="gcc-tools-overlay" id="gcc-tools-overlay"></div>
+
+<div id="invite-banner" style="display:none"></div>
 
 <div class="main">
 <div class="main-in">
@@ -602,6 +616,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 <script src="gcc-firebase-config.js"></script>
 <script src="gcc-auth.js"></script>
 <script src="gcc-sync.js"></script>
+<script src="gcc-invite.js"></script>
 <script>
 // ── Init ──
 GCC.init();
@@ -1371,6 +1386,112 @@ renderJumpback(); renderCampaigns(); renderActivity();
 window.addEventListener('gcc-sync-ready', () => {
   renderJumpback(); renderCampaigns(); renderActivity();
 });
+
+// ── Invite Join Flow ──
+(function() {
+  const inviteCode = GCCInvite.getInviteCodeFromUrl();
+  if (!inviteCode) return;
+
+  const banner = document.getElementById('invite-banner');
+  banner.style.display = 'block';
+  banner.innerHTML = '<div class="invite-banner"><div class="invite-banner-title">CAMPAIGN INVITE</div><div class="invite-banner-sub">Looking up invite...</div></div>';
+
+  async function processInvite() {
+    // Wait for Firebase to be ready
+    const waitForAuth = () => new Promise(resolve => {
+      if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth()) {
+        resolve();
+      } else {
+        const check = setInterval(() => {
+          if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth()) {
+            clearInterval(check);
+            resolve();
+          }
+        }, 200);
+        setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+      }
+    });
+    await waitForAuth();
+
+    // Also wait for Firestore
+    const waitForDb = () => new Promise(resolve => {
+      if (typeof firebase !== 'undefined' && firebase.firestore) {
+        resolve();
+      } else {
+        const check = setInterval(() => {
+          if (typeof firebase !== 'undefined' && firebase.firestore) {
+            clearInterval(check);
+            resolve();
+          }
+        }, 200);
+        setTimeout(() => { clearInterval(check); resolve(); }, 5000);
+      }
+    });
+    await waitForDb();
+
+    const invite = await GCCInvite.lookupInvite(inviteCode);
+    if (!invite) {
+      banner.innerHTML = '<div class="invite-banner"><div class="invite-banner-title">INVALID INVITE</div><div class="invite-banner-sub">This invite code is invalid or has been revoked.</div><button class="invite-banner-btn secondary" onclick="document.getElementById(\'invite-banner\').style.display=\'none\';history.replaceState(null,\'\',\'index.html\')">Dismiss</button></div>';
+      return;
+    }
+
+    const user = GCCAuth.getUser();
+    if (!user) {
+      banner.innerHTML =
+        '<div class="invite-banner">' +
+          '<div class="invite-banner-title">CAMPAIGN INVITE</div>' +
+          '<div class="invite-banner-sub">You\'ve been invited to join:</div>' +
+          '<div class="invite-banner-camp">' + ESC(invite.campaignName) + '</div>' +
+          '<div style="margin-top:12px"><button class="invite-banner-btn" id="invite-signin-btn">Sign In to Join</button>' +
+          '<button class="invite-banner-btn secondary" onclick="document.getElementById(\'invite-banner\').style.display=\'none\';history.replaceState(null,\'\',\'index.html\')">Dismiss</button></div>' +
+        '</div>';
+      document.getElementById('invite-signin-btn').addEventListener('click', () => {
+        GCCAuth.showModal('register');
+      });
+      // Re-check after auth change
+      GCCAuth.onAuthChange(u => { if (u) joinWithCode(invite); });
+      return;
+    }
+
+    joinWithCode(invite);
+  }
+
+  async function joinWithCode(invite) {
+    banner.innerHTML =
+      '<div class="invite-banner">' +
+        '<div class="invite-banner-title">CAMPAIGN INVITE</div>' +
+        '<div class="invite-banner-sub">You\'ve been invited to join:</div>' +
+        '<div class="invite-banner-camp">' + ESC(invite.campaignName) + '</div>' +
+        '<div style="margin-top:12px"><button class="invite-banner-btn" id="btn-join-campaign">Join Campaign</button>' +
+        '<button class="invite-banner-btn secondary" onclick="document.getElementById(\'invite-banner\').style.display=\'none\';history.replaceState(null,\'\',\'index.html\')">Dismiss</button></div>' +
+      '</div>';
+
+    document.getElementById('btn-join-campaign').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-join-campaign');
+      btn.disabled = true;
+      btn.textContent = 'JOINING...';
+      const result = await GCCInvite.joinCampaign(inviteCode);
+      if (result.ok) {
+        banner.innerHTML =
+          '<div class="invite-banner">' +
+            '<div class="invite-banner-title">WELCOME!</div>' +
+            '<div class="invite-banner-sub">You\'ve joined <strong>' + ESC(result.campaignName) + '</strong></div>' +
+            '<div class="invite-banner-msg success">You\'re now part of this campaign.</div>' +
+            '<div style="margin-top:10px"><button class="invite-banner-btn secondary" onclick="document.getElementById(\'invite-banner\').style.display=\'none\';history.replaceState(null,\'\',\'index.html\')">Continue</button></div>' +
+          '</div>';
+      } else {
+        banner.innerHTML =
+          '<div class="invite-banner">' +
+            '<div class="invite-banner-title">JOIN FAILED</div>' +
+            '<div class="invite-banner-msg error">' + ESC(result.reason || 'Unknown error') + '</div>' +
+            '<div style="margin-top:10px"><button class="invite-banner-btn secondary" onclick="document.getElementById(\'invite-banner\').style.display=\'none\';history.replaceState(null,\'\',\'index.html\')">Dismiss</button></div>' +
+          '</div>';
+      }
+    });
+  }
+
+  processInvite();
+})();
 </script>
 </body>
 </html>
