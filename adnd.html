@@ -32,8 +32,8 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .hdr-btn:hover{border-color:#d4a843;background:#3a4a5a}
 .adnd-ftr{font-size:8px;color:#3a5a70;text-align:center;padding:6px;background:var(--bg2);border-top:1px solid #8ab4d0}
 .sheet-wrap{flex:1;overflow-y:auto;overflow-x:auto;padding:10px}
-.sheet{width:100%;max-width:740px;min-width:360px;margin:0 auto;background:var(--paper);border:2px solid var(--ink);padding:10px 14px 8px;position:relative}
-.fi{border:none;border-bottom:1px solid var(--ink);background:transparent;font-family:var(--fb);font-size:11px;color:var(--ink);padding:0 2px;height:18px;outline:none;flex:1;min-width:20px}
+.sheet{width:100%;max-width:740px;min-width:360px;margin:0 auto;background:var(--paper);border:2px solid var(--ink);padding:10px 14px 8px;position:relative;overflow:hidden}
+.fi{border:none;border-bottom:1px solid var(--ink);background:transparent;font-family:var(--fb);font-size:11px;color:var(--ink);padding:0 2px;height:18px;outline:none;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .fi:focus{border-bottom-color:var(--accent)}
 .lb{font-family:var(--fh);font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
 .lb-sm{font-family:var(--fh);font-weight:700;font-size:8px;text-transform:uppercase;letter-spacing:.2px;white-space:nowrap}
@@ -41,9 +41,9 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .bx{border:1px solid var(--ink);background:transparent;font-family:var(--fb);font-size:11px;font-weight:700;text-align:center;outline:none;height:18px;width:28px;padding:0}
 .bx:focus{border-color:var(--accent)}
 .bx-lg{height:22px;width:34px;font-size:13px;border-width:2px}
-.row{display:flex;align-items:baseline;gap:4px;margin-bottom:3px}
-.pair{display:flex;gap:12px;margin-bottom:3px}
-.pair .row{flex:1;margin-bottom:0}
+.row{display:flex;align-items:baseline;gap:4px;margin-bottom:3px;min-width:0}
+.pair{display:flex;gap:12px;margin-bottom:3px;min-width:0}
+.pair .row{flex:1;margin-bottom:0;min-width:0}
 .add-btn{font-family:var(--fb);font-size:9px;cursor:pointer;border:1px solid #999;background:var(--paper-dk);color:var(--ink-md);padding:1px 6px;height:18px;font-weight:700}
 .add-btn:hover{border-color:var(--accent);color:var(--accent)}
 .add-sm{border:none;background:none;color:var(--accent);font-weight:700;font-size:12px;cursor:pointer;line-height:1}
@@ -52,9 +52,9 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .top-ban .left,.top-ban .right{width:190px}
 .top-ban .center{text-align:center;flex:1}
 .top-ban .right{text-align:right}
-.bio-grid{display:grid;grid-template-columns:1fr 1fr 1fr 150px;gap:2px 8px;margin-bottom:6px;align-items:start}
+.bio-grid{display:grid;grid-template-columns:1fr 1fr 1fr 150px;gap:2px 8px;margin-bottom:6px;align-items:start;overflow:hidden}
 .bio-grid .portrait-area{grid-column:4;grid-row:1/7;display:flex;flex-direction:column;align-items:center}
-.bio-field{display:flex;align-items:baseline;gap:3px}
+.bio-field{display:flex;align-items:baseline;gap:3px;min-width:0;overflow:hidden}
 .bio-field .lb{flex-shrink:0}
 .bio-field .fi{flex:1;min-width:0}
 .bio-span2{grid-column:span 2}
@@ -71,8 +71,9 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .pg-tab.active{background:var(--paper);color:var(--ink);border-bottom:1px solid var(--paper);position:relative;z-index:1}
 .pg-tab:hover:not(.active){background:var(--paper-lt)}
 .pg-page{display:none;border-top:1px solid var(--ink);padding-top:6px}.pg-page.active{display:block}
-.p1-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
-.p1-grid .full{grid-column:1/-1}
+.p1-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;overflow:hidden}
+.p1-grid>div{min-width:0}
+.p1-grid .full{grid-column:1/-1;min-width:0}
 .ab-head{font-size:14px;font-family:var(--fh);font-weight:700;letter-spacing:1px;margin-bottom:2px}
 .ab-row{display:flex;align-items:stretch;gap:0;margin-bottom:0}
 .ab-score-box{width:26px;height:26px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -100,10 +101,10 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .combat-ban{font-family:var(--fh);font-size:14px;font-weight:700;text-align:center;letter-spacing:4px;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);padding:3px 0;margin:6px 0;background:var(--paper-dk)}
 .ca-box{border:1px solid var(--ink);padding:4px 6px;margin-bottom:3px}
 .ca-box-title{font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:2px}
-.w-tbl,.wlc-tbl,.turn-tbl,.inv-tbl,.h-tbl{width:100%;border-collapse:collapse;margin-bottom:4px}
+.w-tbl,.wlc-tbl,.turn-tbl,.inv-tbl,.h-tbl{width:100%;border-collapse:collapse;margin-bottom:4px;table-layout:fixed}
 .w-tbl th,.wlc-tbl th,.turn-tbl th,.inv-tbl th,.h-tbl th{font-family:var(--fh);font-size:7px;font-weight:700;text-transform:uppercase;text-align:center;padding:2px;border:1px solid var(--ink);background:var(--paper-dk);white-space:nowrap}
 .w-tbl td,.wlc-tbl td,.turn-tbl td{border:1px solid var(--ink);padding:0}
-.w-tbl td input,.wlc-tbl td input,.turn-tbl td input{width:100%;height:18px;border:none;background:transparent;text-align:center;font-family:var(--fb);font-size:10px;outline:none;padding:0}
+.w-tbl td input,.wlc-tbl td input,.turn-tbl td input{width:100%;height:18px;border:none;background:transparent;text-align:center;font-family:var(--fb);font-size:10px;outline:none;padding:0;overflow:hidden;text-overflow:ellipsis}
 .w-tbl td input.w-name,.wlc-tbl td:first-child input{text-align:left;padding-left:3px}
 .w-tbl td input:focus,.wlc-tbl td input:focus,.turn-tbl td input:focus{background:var(--paper-lt)}
 .inv-tbl td,.h-tbl td{border:1px solid var(--ink);padding:0}
@@ -115,7 +116,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .sp-cells{display:grid;grid-template-columns:repeat(9,1fr)}
 .sp-cells input{border:none;border-right:1px solid var(--ink);background:transparent;text-align:center;font-family:var(--fb);font-size:10px;height:18px;outline:none}
 .sp-cells input:last-child{border-right:none}
-.spell-list{column-count:3;column-gap:10px}
+.spell-list{column-count:3;column-gap:10px;overflow:hidden}
 .cls-sec{display:none}.cls-sec.visible{display:block}
 .thief-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2px 6px}
 .turn-tbl td input{font-size:9px}
@@ -214,7 +215,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
   </div>
 
   <div>
-    <div style="display:flex;gap:6px">
+    <div style="display:flex;gap:6px;overflow:hidden">
       <div style="flex:1;min-width:0">
         <div class="sa-title">Saving Throw Adjustments:</div>
         <div class="sa-grid">
@@ -281,17 +282,17 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 
   <div class="full cls-sec" id="section-spells">
     <div class="sec" style="margin-top:2px">Spells</div>
-    <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:4px">
-      <div style="flex:0 0 auto">
+    <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:4px;overflow:hidden">
+      <div style="flex:0 0 auto;max-width:280px;min-width:0">
         <div class="row"><span class="lb">Spells Known</span><input class="fi" data-field="spellsKnown" style="flex:0 0 30px;text-align:center"></div>
         <div class="lb" style="margin-bottom:2px">Memorized per Level:</div>
-        <div class="sp-grid" style="width:280px">
+        <div class="sp-grid" style="max-width:280px">
           <div class="sp-hdr"><div>1st</div><div>2nd</div><div>3rd</div><div>4th</div><div>5th</div><div>6th</div><div>7th</div><div>8th</div><div>9th</div></div>
           <div class="sp-cells"><input data-field="spellSlot1" type="number"><input data-field="spellSlot2" type="number"><input data-field="spellSlot3" type="number"><input data-field="spellSlot4" type="number"><input data-field="spellSlot5" type="number"><input data-field="spellSlot6" type="number"><input data-field="spellSlot7" type="number"><input data-field="spellSlot8" type="number"><input data-field="spellSlot9" type="number"></div>
         </div>
         <div class="row" style="margin-top:4px"><span class="lb">Components:</span></div>
-        <div class="row"><input class="fi" data-field="magicComponents" style="width:260px"></div>
-        <div class="row"><input class="fi" data-field="magicComponents2" style="width:260px"></div>
+        <div class="row"><input class="fi" data-field="magicComponents" style="max-width:260px"></div>
+        <div class="row"><input class="fi" data-field="magicComponents2" style="max-width:260px"></div>
       </div>
       <div style="flex:1;min-width:0">
         <div style="margin-top:2px"><span class="lb">Spell List</span> <button class="add-btn" id="add-spell">+ Spell</button></div>
