@@ -213,6 +213,8 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .karma-ledger .kl-pos{color:#2a7a2a;font-weight:700}
 .karma-ledger .kl-neg{color:#8b0000;font-weight:700}
 .karma-ledger .kl-empty{text-align:center;padding:12px;color:#999;font-style:italic}
+.karma-info-btn{color:var(--accent);cursor:pointer;font-size:10px;vertical-align:middle;margin-left:2px}
+.karma-info-btn:hover{color:#c04a1a}
 
 /* ── Limitation ── */
 .limitation-row{margin:6px 0;display:flex;align-items:baseline;gap:4px}
@@ -478,7 +480,7 @@ body.view-mode .hdr-btn-edit-view{display:none}
       <table class="sec-table">
         <thead><tr>
           <th>Health<br><span class="sec-formula">F+A+S+E</span></th>
-          <th>Karma<br><span class="sec-formula">R+I+P</span></th>
+          <th>Karma <span class="karma-info-btn" id="karma-info-btn" title="View karma history">&#x24D8;</span><br><span class="sec-formula">R+I+P</span></th>
           <th>Resources</th>
           <th>Popularity</th>
         </tr></thead>
@@ -2110,6 +2112,9 @@ document.addEventListener("DOMContentLoaded",()=>{
 
   // Karma ledger toggle
   document.getElementById('karma-value').addEventListener('click',()=>{
+    document.getElementById('karma-ledger').classList.toggle('open');
+  });
+  document.getElementById('karma-info-btn').addEventListener('click',()=>{
     document.getElementById('karma-ledger').classList.toggle('open');
   });
 
