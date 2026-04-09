@@ -369,7 +369,7 @@ function render() {
     entities.sort((a, b) => (a.systemId || '').localeCompare(b.systemId || '') || (a.name || '').localeCompare(b.name || ''));
   } else {
     // recent — sort by _saved descending
-    entities.sort((a, b) => (b._saved || '').localeCompare(a._saved || ''));
+    entities.sort((a, b) => (Number(b._saved) || 0) - (Number(a._saved) || 0));
   }
 
   // Count
