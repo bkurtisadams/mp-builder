@@ -114,10 +114,10 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .sp-hdr{display:grid;grid-template-columns:repeat(9,1fr);font-family:var(--fh);font-size:8px;font-weight:700;text-align:center;border-bottom:1px solid var(--ink)}
 .sp-hdr div{border-right:1px solid var(--ink);padding:2px}.sp-hdr div:last-child{border-right:none}
 .sp-cells{display:grid;grid-template-columns:repeat(9,1fr)}
-.sp-cells input{border:none;border-right:1px solid var(--ink);background:transparent;text-align:center;font-family:var(--fb);font-size:10px;height:18px;outline:none;-moz-appearance:textfield}
+.sp-cells input{border:none;border-right:1px solid var(--ink);background:transparent;text-align:center;font-family:var(--fb);font-size:10px;height:18px;outline:none;min-width:0;-moz-appearance:textfield}
 .sp-cells input::-webkit-inner-spin-button,.sp-cells input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .sp-cells input:last-child{border-right:none}
-.spell-list{column-count:2;column-gap:10px}
+.spell-list{column-count:3;column-gap:10px}
 .cls-sec{display:none}.cls-sec.visible{display:block}
 .thief-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2px 6px}
 .turn-tbl td input{font-size:9px}
@@ -145,7 +145,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 <div class="adnd-hdr"><div class="adnd-hdr-in">
   <div><div class="adnd-logo-title">AD&D 1ST EDITION</div><div class="adnd-logo-sub">Character Record</div></div>
   <div class="adnd-hdr-btns">
-    <button class="hdr-btn" id="btn-new">NEW</button>
+    <button class="hdr-btn" id="btn-new">CLEAR</button>
     <button class="hdr-btn" id="btn-save">SAVE</button>
     <button class="hdr-btn" id="btn-load">LOAD</button>
     <button class="hdr-btn" id="btn-delete">DELETE</button>
@@ -285,19 +285,19 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
   <div class="full cls-sec" id="section-spells">
     <div class="sec" style="margin-top:2px">Spells</div>
     <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:4px">
-      <div style="flex:0 0 280px;min-width:0">
+      <div style="flex:0 0 auto">
         <div class="row"><span class="lb">Spells Known</span><input class="fi" data-field="spellsKnown" style="flex:0 0 30px;text-align:center"></div>
         <div class="lb" style="margin-bottom:2px">Memorized per Level:</div>
-        <div class="sp-grid">
+        <div class="sp-grid" style="width:280px">
           <div class="sp-hdr"><div>1st</div><div>2nd</div><div>3rd</div><div>4th</div><div>5th</div><div>6th</div><div>7th</div><div>8th</div><div>9th</div></div>
           <div class="sp-cells"><input data-field="spellSlot1" type="number"><input data-field="spellSlot2" type="number"><input data-field="spellSlot3" type="number"><input data-field="spellSlot4" type="number"><input data-field="spellSlot5" type="number"><input data-field="spellSlot6" type="number"><input data-field="spellSlot7" type="number"><input data-field="spellSlot8" type="number"><input data-field="spellSlot9" type="number"></div>
         </div>
         <div class="row" style="margin-top:4px"><span class="lb">Components:</span></div>
-        <div class="row"><input class="fi" data-field="magicComponents" style="max-width:260px"></div>
-        <div class="row"><input class="fi" data-field="magicComponents2" style="max-width:260px"></div>
+        <div class="row"><input class="fi" data-field="magicComponents" style="width:260px"></div>
+        <div class="row"><input class="fi" data-field="magicComponents2" style="width:260px"></div>
       </div>
       <div style="flex:1;min-width:0">
-        <div style="margin-top:2px"><span class="lb">Spell List</span> <button class="add-btn" id="add-spell">+ Spell</button></div>
+        <div class="lb" style="margin-bottom:2px">Spell List: <button class="add-btn" id="add-spell">+ Spell</button></div>
         <div id="spell-list" class="spell-list"></div>
       </div>
     </div>
