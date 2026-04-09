@@ -452,21 +452,16 @@ function render() {
       const col = PIP_COLORS[i % PIP_COLORS.length];
       let resolved = ch;
       const refKey = ch.storageKey || ch.listKey || '';
-      console.log('[DBG] char ref:', JSON.stringify(ch).substring(0,300), 'refKey:', refKey);
       if (refKey) {
         try {
-          const raw = localStorage.getItem(refKey);
-          console.log('[DBG] localStorage raw for', refKey, ':', raw ? raw.substring(0,200) + '...' : 'NULL');
-          const saved = JSON.parse(raw) || [];
-          console.log('[DBG] parsed array length:', saved.length, 'looking for _id:', ch._id, 'name:', ch.name);
-          const found = ch._id
-            ? saved.find(s => s._id === ch._id)
-            : (ch.name ? saved.find(s => (s.heroName || s.name) === ch.name) : null);
-          console.log('[DBG] found:', found ? (found.heroName || found.name) : 'NOT FOUND');
-          if (found) resolved = resolveChar(found, camp.system, refKey);
-        } catch(e) { console.error('[DBG] error:', e); }
-      } else {
-        console.log('[DBG] no refKey — skipping lookup');
+          const saved = JSON.parse(localStorage.getItem(refKey)) || [];
+          let found = ch._id ? saved.find(s => s._id === ch._id) : null;
+          if (!found && ch.name) found = saved.find(s => (s.heroName || s.name) === ch.name);
+          if (found) {
+            if (ch._id && found._id && ch._id !== found._id) ch._id = found._id;
+            resolved = resolveChar(found, camp.system, refKey);
+          }
+        } catch(e) {}
       }
       const portraitHtml = resolved.portrait
         ? `<img class="entity-portrait" src="${resolved.portrait}" alt="">`
