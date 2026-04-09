@@ -510,7 +510,11 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 </div>
 
 <div class="sec">Experience</div>
-<div class="row" style="margin-bottom:4px"><span class="lb">XP Total:</span><input class="fi" data-field="xpTotal" id="xp-total" style="flex:0 0 80px;font-weight:700;text-align:center" type="number"><span class="lb" style="margin-left:8px">Next Level:</span><input class="fi" data-field="xpNextLevel" style="flex:0 0 80px" type="number"></div>
+<div id="xp-row" style="display:flex;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+  <div class="xp-slot" id="xp-slot-0" style="display:flex;align-items:baseline;gap:4px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-0">XP Total:</span><input class="fi xp-total" data-field="xpTotal" style="flex:0 0 70px;font-weight:700;text-align:center" type="number"><span class="lb" style="margin-left:4px">Next:</span><input class="fi xp-next" data-field="xpNextLevel" style="flex:0 0 60px;text-align:center" type="number"></div>
+  <div class="xp-slot" id="xp-slot-1" style="display:none;align-items:baseline;gap:4px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-1">XP:</span><input class="fi xp-total" data-field="xpTotal2" style="flex:0 0 70px;font-weight:700;text-align:center" type="number"><span class="lb" style="margin-left:4px">Next:</span><input class="fi xp-next" data-field="xpNextLevel2" style="flex:0 0 60px;text-align:center" type="number"></div>
+  <div class="xp-slot" id="xp-slot-2" style="display:none;align-items:baseline;gap:4px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-2">XP:</span><input class="fi xp-total" data-field="xpTotal3" style="flex:0 0 70px;font-weight:700;text-align:center" type="number"><span class="lb" style="margin-left:4px">Next:</span><input class="fi xp-next" data-field="xpNextLevel3" style="flex:0 0 60px;text-align:center" type="number"></div>
+</div>
 
 <!-- ═══ DESCRIPTION ═══ -->
 <!-- Header row: Description: Age— [box] Apparent Age / Unnatural Aging / Color of: Hair / Eyes -->
@@ -600,6 +604,28 @@ function updateClassSections(){
   let show=CLASS_SECTIONS[cls]||[];
   if(cls.includes('/'))show=['section-turning','section-thief','section-spells'];
   document.querySelectorAll('.cls-sec').forEach(el=>el.classList.toggle('visible',show.includes(el.id)));
+  updateXPSlots();
+}
+
+function updateXPSlots(){
+  const cls=(CHAR.characterClass||'').trim();
+  const parts=cls.includes('/')?cls.split('/').map(s=>s.trim()).filter(Boolean):[];
+  const slot0=document.getElementById('xp-slot-0');
+  const slot1=document.getElementById('xp-slot-1');
+  const slot2=document.getElementById('xp-slot-2');
+  if(parts.length>=2){
+    document.getElementById('xp-cls-0').textContent=parts[0]+':';
+    document.getElementById('xp-cls-1').textContent=parts[1]+':';
+    slot1.style.display='flex';
+    if(parts.length>=3){
+      document.getElementById('xp-cls-2').textContent=parts[2]+':';
+      slot2.style.display='flex';
+    } else { slot2.style.display='none'; }
+  } else {
+    document.getElementById('xp-cls-0').textContent='XP Total:';
+    slot1.style.display='none';
+    slot2.style.display='none';
+  }
 }
 
 document.querySelectorAll('.pg-tab').forEach(tab=>{
@@ -852,7 +878,6 @@ function calcWeight(){
   const moveAdj=document.querySelector('[data-field="moveAdj"]');
   if(moveAdj){moveAdj.value=effMove+'" ('+bracket+')';CHAR.moveAdj=moveAdj.value;}
 }
-function calcXP(){const t=parseFloat(CHAR.xpTotal)||0;document.getElementById('xp-total').value=t||'';CHAR.xpTotal=t;}
 
 // Portrait (name box)
 const pBox=document.getElementById('portrait-box'),pInput=document.getElementById('portrait-input'),pDel=document.getElementById('portrait-del');
@@ -969,6 +994,10 @@ function mapARS(ars){
   if(rawMove&&+rawMove>=30)rawMove=String(Math.round(+rawMove/10));
   c.moveBase=rawMove;
   c.xpTotal=d.xp||'';
+  if(classItems.length>1){
+    const xpFields=['xpTotal','xpTotal2','xpTotal3'];
+    classItems.forEach((ci,i)=>{if(i<3){const cx=(ci.system||{}).details||{};c[xpFields[i]]=cx.xp||'';}});
+  }
   c.age=d.age||'';
   // Clean sex to single letter, strip units from height/weight
   const rawSex=(d.sex||'').trim();
