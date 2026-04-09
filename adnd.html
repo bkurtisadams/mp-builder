@@ -613,20 +613,34 @@ const PHB_ALIASES={
 'lucern hammer':'Hammer, Lucern',
 'bec-de-corbin':'Bec de Corbin','bec de corbin':'Bec de Corbin',
 'glaive guisarme':'Glaive-Guisarme','guisarme voulge':'Guisarme-Voulge',
-'fauchard fork':'Fauchard-Fork','bill guisarme':'Bill-Guisarme'
+'fauchard fork':'Fauchard-Fork','bill guisarme':'Bill-Guisarme',
+// ARS weaponstyle values
+'sword, long':'Sword, Long','sword, short':'Sword, Short','sword, broad':'Sword, Broad',
+'sword, bastard':'Sword, Bastard','sword, two-handed':'Sword, Two-Handed',
+'bow, short':'Bow, Short','bow, long':'Bow, Long',
+'bow, composite, long':'Bow, Composite, Long','bow, composite, short':'Bow, Composite, Short',
+'crossbow, heavy':'Crossbow, Heavy','crossbow, light':'Crossbow, Light',
+'flail, footman\'s':'Flail, Footman\'s','flail, horseman\'s':'Flail, Horseman\'s',
+"mace, footman's":"Mace, Footman's","mace, horseman's":"Mace, Horseman's",
+'fist or open hand':'Club',
+'dagger-ranged':'Dagger (thrown)','dagger-melee':'Dagger',
+'axe, battle':'Axe, Battle','axe, hand':'Axe, Hand',
+'pick, military, footman\'s':'Pick, Military, Footman\'s',
+'pick, military, horseman\'s':'Pick, Military, Horseman\'s',
+'lance, heavy horse':'Lance, Heavy Horse','lance, light horse':'Lance, Light Horse',
+'lance, medium horse':'Lance, Medium Horse',
+'hammer, lucern':'Hammer, Lucern',
+'staff, quarter':'Staff, Quarter','morning star':'Morning Star',
+'pike, awl':'Pike, Awl'
 };
 
-// Look up PHB weapon data by name (strips magic bonus suffixes like "+1", "+2")
+// Look up PHB weapon data by name or weaponstyle (strips magic bonus suffixes like "+1", "+2")
 function phbLookup(name){
   if(!name)return null;
-  // Strip magic suffixes: "Long Sword +2" → "Long Sword"
   const base=name.replace(/\s*\+\d+$/,'').trim();
-  // Try exact match first
   if(PHB_WEAPONS[base])return PHB_WEAPONS[base];
-  // Try alias (case-insensitive)
   const low=base.toLowerCase();
   if(PHB_ALIASES[low]&&PHB_WEAPONS[PHB_ALIASES[low]])return PHB_WEAPONS[PHB_ALIASES[low]];
-  // Try partial match: "Sword, Long" in keys
   for(const k of Object.keys(PHB_WEAPONS)){
     if(k.toLowerCase()===low)return PHB_WEAPONS[k];
   }
@@ -634,8 +648,10 @@ function phbLookup(name){
 }
 
 // Fill AC adjustment columns + speed for a weapon object from PHB data
+// Uses weaponstyle (from ARS) as fallback lookup key
 function fillWeaponPHB(w){
-  const data=phbLookup(w.name);
+  let data=phbLookup(w.name);
+  if(!data&&w._weaponstyle)data=phbLookup(w._weaponstyle);
   if(!data)return;
   const acKeys=['ac2','ac3','ac4','ac5','ac6','ac7','ac8','ac9','ac10'];
   data.ac.forEach((v,i)=>{if(!w[acKeys[i]])w[acKeys[i]]=v>0?'+'+v:String(v);});
@@ -785,12 +801,45 @@ function mapARS(ars){
   c.age=d.age||'';c.sex=d.sex||'';c.height=d.height||'';c.weight=d.weight||'';
   // Weapons
   const skipW=['Brawl','Grapple','Overbear'];
-  c.weapons=items.filter(i=>i.type==='weapon'&&!skipW.includes(i.name)).map(w=>{
-    const ws=w.system||{},da=(ws.actions||[]).find(a=>a.type==='damage');
-    const mag=ws.attributes&&ws.attributes.magic?ws.attributes.magic:'';
-    const wObj={name:w.name,dmg:da?da.formula:'',speed:'',magAdj:mag?('+'+mag):'',range:'',ac10:'',ac9:'',ac8:'',ac7:'',ac6:'',ac5:'',ac4:'',ac3:'',ac2:''};
+  const skipAttr=['ammunition','noDrop'];
+  const wSeen={};
+  c.weapons=[];
+  items.filter(i=>i.type==='weapon'&&!skipW.includes(i.name)).forEach(w=>{
+    const ws=w.system||{},atk=ws.attack||{},dmg=ws.damage||{},attrs=ws.attributes||{};
+    // Skip ammunition
+    if(skipAttr.includes(attrs.type))return;
+    // Deduplicate by name+attack.type (keep melee and thrown as separate entries)
+    const deKey=w.name+'|'+(atk.type||'');
+    if(wSeen[deKey])return;wSeen[deKey]=true;
+    // Magic bonus
+    const mag=atk.magicBonus||0;
+    // Damage: combine normal/large + magic bonus
+    let dmgStr='';
+    if(dmg.normal||dmg.large){
+      const n=dmg.normal||'',l=dmg.large||'';
+      const mb=dmg.magicBonus||0;
+      const nStr=mb?(n+'+'+mb):n;
+      const lStr=mb?(l+'+'+mb):l;
+      dmgStr=nStr+(lStr?'/'+lStr:'');
+    }
+    // Range: convert feet to segments (10'/segment) for short/medium/long
+    let rng='';
+    const r=atk.range||{};
+    if(r.short)rng=[r.short,r.medium,r.long].filter(Boolean).map(v=>Math.round(+v/10)||v).join('/');
+    // Speed
+    const spd=atk.speed||'';
+    // Build weapon object
+    const wObj={
+      name:w.name,
+      dmg:dmgStr,
+      speed:spd?String(spd):'',
+      magAdj:mag?('+'+mag):'',
+      range:rng,
+      _weaponstyle:(ws.weaponstyle||'').toLowerCase(),
+      ac10:'',ac9:'',ac8:'',ac7:'',ac6:'',ac5:'',ac4:'',ac3:'',ac2:''
+    };
     fillWeaponPHB(wObj);
-    return wObj;
+    c.weapons.push(wObj);
   });
   // Inventory
   const skipT=['weapon','spell','race','class','skill','ability','proficiency'];
