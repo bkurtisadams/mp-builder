@@ -166,12 +166,12 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .wealth-grid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 6px;margin-bottom:4px;align-items:baseline}
 /* Encumbrance box */
 .enc-box{border:1.5px solid var(--ink);padding:6px 8px 4px;margin-bottom:4px}
-.enc-row1{display:flex;gap:4px;align-items:flex-end;margin-bottom:4px}
+.enc-row1{display:flex;gap:4px;align-items:flex-end;margin-bottom:4px;flex-wrap:wrap}
 .enc-label{font-family:var(--fh);font-size:10px;font-weight:700;color:var(--ink);line-height:1.2;flex-shrink:0;align-self:center}
 .enc-fc{display:flex;flex-direction:column;align-items:center;min-width:0}
-.enc-fc .lb{margin-top:1px;text-align:center;line-height:1}
+.enc-fc .lb{margin-top:1px;text-align:center;line-height:1;white-space:nowrap}
 .enc-fc .fi{text-align:center;font-size:10px;height:15px}
-.load-sep{color:var(--ink);font-size:11px;font-weight:700;align-self:center}
+.load-sep{color:var(--ink);font-size:11px;font-weight:700;align-self:center;flex-shrink:0}
 .coin-row{display:flex;gap:4px;align-items:flex-end;flex:0 0 auto}
 .coin-row .enc-fc .fi{width:44px}
 .gem-detail{flex:1;min-width:0;border:1px solid var(--ink);background:var(--paper-lt);font-family:var(--fb);font-size:10px;padding:2px 3px;resize:vertical;height:28px;outline:none;color:var(--ink)}
@@ -458,14 +458,14 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
     <span class="enc-label">ENCUMBRANCE:</span>
     <div class="enc-fc" style="flex:0 0 50px"><input class="fi" data-field="strAdj" style="text-align:center"><div class="lb">STR. ADJ.</div></div>
     <span class="enc-label" style="margin-left:4px">LOAD VS.<br>MOVE RATE:</span>
-    <div class="enc-fc" style="flex:0 0 58px"><input class="fi" data-field="loadNormal" style="text-align:center;font-size:9px" readonly><div class="lb">NORMAL = 1</div></div>
+    <div class="enc-fc" style="flex:1 1 50px"><input class="fi" data-field="loadNormal" style="text-align:center;font-size:9px" readonly><div class="lb">NORMAL = 1</div></div>
     <span class="load-sep">–</span>
-    <div class="enc-fc" style="flex:0 0 58px"><input class="fi" data-field="loadHeavy" style="text-align:center;font-size:9px" readonly><div class="lb">HEAVY = ¾</div></div>
+    <div class="enc-fc" style="flex:1 1 50px"><input class="fi" data-field="loadHeavy" style="text-align:center;font-size:9px" readonly><div class="lb">HEAVY = ¾</div></div>
     <span class="load-sep">–</span>
-    <div class="enc-fc" style="flex:0 0 58px"><input class="fi" data-field="loadLoaded" style="text-align:center;font-size:9px" readonly><div class="lb">LOADED = ½</div></div>
+    <div class="enc-fc" style="flex:1 1 50px"><input class="fi" data-field="loadLoaded" style="text-align:center;font-size:9px" readonly><div class="lb">LOADED = ½</div></div>
     <span class="load-sep">–</span>
-    <div class="enc-fc" style="flex:0 0 62px"><input class="fi" data-field="loadMax" style="text-align:center;font-size:9px" readonly><div class="lb">MAXIMUM = ¼</div></div>
-    <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+    <div class="enc-fc" style="flex:1 1 50px"><input class="fi" data-field="loadMax" style="text-align:center;font-size:9px" readonly><div class="lb">MAXIMUM = ¼</div></div>
+    <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">
       <span class="enc-label" style="font-size:11px;white-space:nowrap">Total Weight Carried</span>
       <div class="bx" style="width:58px;height:22px;font-size:13px"><input data-field="totalWeight" id="total-weight" readonly style="border:none;background:transparent;font-family:var(--fb);font-size:13px;font-weight:700;text-align:center;width:100%;outline:none;padding:0"></div>
     </div>
