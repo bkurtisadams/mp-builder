@@ -716,11 +716,20 @@ function _resolveChar(savedChar, systemId, storageKey) {
     if (savedChar.hitPts) derived.push('HP ' + savedChar.hitPts);
     if (savedChar.initiative) derived.push('Init ' + savedChar.initiative);
     if (derived.length) statsHtml += `<div class="cc-char-derived">${derived.map(d=>'<span>'+ESC(d)+'</span>').join('')}</div>`;
-  } else {
-    name = savedChar.name || savedChar.heroName || 'Unnamed';
+  } else if (systemId === 'add1e') {
+    name = savedChar.characterName || savedChar.name || 'Unnamed';
     player = savedChar.player || savedChar.playerName || '';
-    sub = savedChar.sub || savedChar.class || '';
-  }
+    portrait = savedChar.portrait || '';
+    const cls = savedChar.characterClass || '';
+    const lvl = savedChar.level || '';
+    const race = savedChar.race || '';
+    sub = [race, cls && lvl ? cls + ' ' + lvl : cls].filter(Boolean).join(' · ');
+    const derived = [];
+    if (savedChar.ac !== undefined && savedChar.ac !== '') derived.push('AC\u2009' + savedChar.ac);
+    const hp = savedChar.hpCurrent || savedChar.hpMax;
+    if (hp) derived.push('HP\u2009' + hp + (savedChar.hpMax ? '/' + savedChar.hpMax : ''));
+    if (derived.length) statsHtml += `<div class="cc-char-derived">${derived.map(d=>'<span>'+ESC(d)+'</span>').join('')}</div>`;
+  } else {
   return { name, player, sub, portrait, statsHtml, _id: savedChar._id || '', storageKey: storageKey || savedChar.storageKey || savedChar.listKey || '' };
 }
 
@@ -773,7 +782,7 @@ function renderCampaigns() {
         try {
           const saved = JSON.parse(localStorage.getItem(refKey)) || [];
           let found = ch._id ? saved.find(s => s._id === ch._id) : null;
-          if (!found && ch.name) found = saved.find(s => (s.heroName || s.name) === ch.name);
+          if (!found && ch.name) found = saved.find(s => (s.heroName || s.characterName || s.name) === ch.name);
           if (found) {
             if (ch._id && found._id && ch._id !== found._id) ch._id = found._id;
             resolved = _resolveChar(found, c.system, refKey);
