@@ -274,6 +274,8 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cp-info { flex: 1; min-width: 0 }
 .cp-name { font-family: var(--fb); font-size: 12px; font-weight: 700; color: var(--tx) }
 .cp-sub { font-family: var(--fm); font-size: 10px; color: var(--tx3) }
+.cp-del-btn { background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0; opacity: 0.3; transition: opacity 0.12s, border-color 0.12s }
+.cp-del-btn:hover { opacity: 1; border-color: var(--red, #c0392b) }
 .cp-player { font-family: var(--fm); font-size: 10px; color: var(--tx3); font-style: italic }
 .chars-picker-empty { padding: 16px; font-size: 11px; color: var(--tx3); font-style: italic; text-align: center; border: 1px dashed var(--brd); border-radius: 4px }
 
@@ -1247,6 +1249,7 @@ function renderCharsPicker() {
         <div class="cp-sub">${ESC(sc.sub)}</div>
         ${sc.player ? '<div class="cp-player">' + ESC(sc.player) + '</div>' : ''}
       </div>
+      <button class="cp-del-btn" data-cp-del="${i}" title="Delete character permanently">🗑</button>
     </div>`;
   }).join('');
 
@@ -1254,7 +1257,8 @@ function renderCharsPicker() {
 
   // Toggle selection on saved characters
   picker.querySelectorAll('.chars-picker-item[data-cp-idx]').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.cp-del-btn')) return;
       const idx = parseInt(el.dataset.cpIdx);
       const sc = saved[idx];
       const key = sc._id || sc.name;
@@ -1263,6 +1267,27 @@ function renderCharsPicker() {
       } else {
         charsSelected.add(key);
       }
+      renderCharsPicker();
+    });
+  });
+
+  // Delete saved character permanently
+  picker.querySelectorAll('.cp-del-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.cpDel);
+      const sc = saved[idx];
+      const ok = await MPDialog.confirm('Delete Character', 'Permanently delete <b>' + ESC(sc.name) + '</b>? This cannot be undone.', { okText: 'Delete', cancelText: 'Cancel', danger: true });
+      if (!ok) return;
+      const storageKey = sc.storageKey;
+      if (!storageKey) return;
+      try {
+        const list = JSON.parse(localStorage.getItem(storageKey)) || [];
+        const filtered = list.filter(c => sc._id ? c._id !== sc._id : (c.characterName || c.heroName || c.name) !== sc.name);
+        localStorage.setItem(storageKey, JSON.stringify(filtered));
+        if (typeof GCCSync !== 'undefined' && GCCSync.notifySync) GCCSync.notifySync(storageKey);
+      } catch(e) {}
+      charsSelected.delete(sc._id || sc.name);
       renderCharsPicker();
     });
   });
