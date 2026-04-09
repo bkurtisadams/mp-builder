@@ -521,6 +521,128 @@ function loadAutosave(){try{return JSON.parse(localStorage.getItem(AUTOSAVE_KEY)
 function collectFields(){document.querySelectorAll("[data-field]").forEach(el=>{const k=el.dataset.field;if(el.tagName==='TEXTAREA')CHAR[k]=el.value;else if(el.type==='number')CHAR[k]=el.value===''?'':Number(el.value);else CHAR[k]=el.value;});}
 function populateFields(){document.querySelectorAll("[data-field]").forEach(el=>{const v=CHAR[el.dataset.field];if(v===undefined||v===null)return;el.value=v;});}
 
+// ── PHB Weapon AC Adjustment Table ──
+// ac: [AC2,AC3,AC4,AC5,AC6,AC7,AC8,AC9,AC10], spd: speed factor
+const PHB_WEAPONS={
+'Axe, Battle':{spd:7,ac:[-3,-1,1,-1,0,0,1,1,2]},
+'Axe, Hand':{spd:4,ac:[-3,-2,-2,-1,0,0,1,1,1]},
+'Bardiche':{spd:9,ac:[-2,-1,0,0,1,1,2,2,3]},
+'Bec de Corbin':{spd:9,ac:[2,2,2,0,0,0,0,0,-1]},
+'Bill-Guisarme':{spd:10,ac:[0,0,0,0,0,0,1,0,0]},
+'Bo Stick':{spd:3,ac:[-9,-7,-5,-3,-1,0,1,0,3]},
+'Club':{spd:4,ac:[-5,-4,-3,-2,-1,-1,0,0,1]},
+'Dagger':{spd:2,ac:[-3,-3,-2,-2,0,0,1,1,3]},
+'Fauchard':{spd:8,ac:[-2,-2,-1,-1,0,0,0,-1,-1]},
+'Fauchard-Fork':{spd:8,ac:[-1,-1,-1,0,0,0,1,0,1]},
+"Flail, Footman's":{spd:7,ac:[2,2,1,2,1,1,1,1,-1]},
+"Flail, Horseman's":{spd:6,ac:[0,0,0,0,0,1,1,1,0]},
+'Fork, Military':{spd:7,ac:[-2,-2,1,0,0,1,1,0,1]},
+'Glaive':{spd:8,ac:[-1,-1,0,0,0,0,0,0,0]},
+'Glaive-Guisarme':{spd:9,ac:[-1,-1,0,0,0,0,0,0,0]},
+'Guisarme':{spd:8,ac:[-2,-2,-1,-1,0,0,0,-1,-1]},
+'Guisarme-Voulge':{spd:10,ac:[-1,-1,0,1,1,1,0,0,0]},
+'Halberd':{spd:9,ac:[1,1,1,2,2,2,1,1,0]},
+'Hammer, Lucern':{spd:9,ac:[1,1,2,2,2,1,1,0,0]},
+'Hammer':{spd:4,ac:[0,1,0,1,0,0,0,0,0]},
+'Jo Stick':{spd:2,ac:[-8,-6,-4,-2,-1,0,1,0,2]},
+'Lance, Heavy Horse':{spd:8,ac:[3,3,2,2,2,1,1,0,0]},
+'Lance, Light Horse':{spd:7,ac:[-2,-2,-1,0,0,0,0,0,0]},
+'Lance, Medium Horse':{spd:6,ac:[0,1,1,1,1,0,0,0,0]},
+"Mace, Footman's":{spd:7,ac:[1,1,0,0,0,0,0,1,-1]},
+"Mace, Horseman's":{spd:6,ac:[1,1,0,0,0,0,0,0,0]},
+'Morning Star':{spd:7,ac:[0,1,1,1,1,1,1,2,2]},
+'Partisan':{spd:9,ac:[0,0,0,0,0,0,0,0,0]},
+"Pick, Military, Footman's":{spd:7,ac:[2,2,1,1,0,-1,-1,-1,-2]},
+"Pick, Military, Horseman's":{spd:5,ac:[1,1,1,1,0,0,-1,-1,-1]},
+'Pike, Awl':{spd:13,ac:[-1,0,0,0,0,0,0,-1,-2]},
+'Ranseur':{spd:8,ac:[-2,-1,-1,0,0,0,0,0,1]},
+'Scimitar':{spd:4,ac:[-3,-2,-2,1,0,0,1,1,3]},
+'Spear':{spd:6,ac:[-2,-1,-1,-1,0,0,0,0,0]},
+'Spetum':{spd:8,ac:[-2,-1,0,0,0,0,0,1,2]},
+'Staff, Quarter':{spd:4,ac:[-7,-5,-3,-1,0,0,1,1,0]},
+'Sword, Bastard':{spd:6,ac:[0,0,1,1,1,1,1,1,0]},
+'Sword, Broad':{spd:5,ac:[-3,-2,-1,0,0,1,1,1,2]},
+'Sword, Long':{spd:5,ac:[-2,-1,0,0,0,0,0,1,2]},
+'Sword, Short':{spd:3,ac:[-3,-2,-1,0,0,0,1,0,2]},
+'Sword, Two-Handed':{spd:10,ac:[2,2,2,2,3,3,3,1,0]},
+'Trident':{spd:7,ac:[-3,-2,-1,-1,0,0,1,0,1]},
+'Voulge':{spd:10,ac:[-1,-1,0,1,1,1,0,0,0]},
+// Missiles (short range; -2 at medium, -5 at long)
+'Axe, Hand (thrown)':{spd:4,rof:1,range:[1,2,3],ac:[-4,-3,-2,-1,-1,0,0,0,1]},
+'Bow, Composite, Long':{rof:2,range:[6,12,21],ac:[-2,-1,0,0,1,2,2,3,3]},
+'Bow, Composite, Short':{rof:2,range:[5,10,18],ac:[-3,-3,-1,0,1,2,2,2,3]},
+'Bow, Long':{rof:2,range:[7,14,21],ac:[-1,0,0,1,2,3,3,3,3]},
+'Bow, Short':{rof:2,range:[5,10,15],ac:[-5,-4,-1,0,0,1,2,2,2]},
+'Club (thrown)':{spd:4,rof:1,range:[1,2,3],ac:[-7,-5,-3,-2,-1,-1,-1,0,0]},
+'Crossbow, Heavy':{rof:0.5,range:[8,16,24],ac:[-1,0,1,2,3,3,4,4,4]},
+'Crossbow, Light':{rof:1,range:[6,12,18],ac:[-2,-1,0,0,1,2,3,3,3]},
+'Dagger (thrown)':{spd:2,rof:2,range:[1,2,3],ac:[-5,-4,-3,-2,-1,-1,0,0,1]},
+'Dart':{rof:3,range:[1.5,3,4.5],ac:[-5,-4,-3,-2,-1,0,1,0,1]},
+'Hammer (thrown)':{spd:4,rof:1,range:[1,2,3],ac:[-2,-1,0,0,0,0,0,0,1]},
+'Javelin':{rof:1,range:[2,4,6],ac:[-5,-4,-3,-2,-1,0,1,0,1]},
+'Sling, Bullet':{rof:1,range:[5,10,20],ac:[-2,-2,-1,0,0,0,2,1,3]},
+'Sling, Stone':{rof:1,range:[4,8,16],ac:[-5,-4,-2,-1,0,0,2,1,3]},
+'Spear (thrown)':{spd:6,rof:1,range:[1,2,3],ac:[-3,-3,-2,-2,-1,0,0,0,0]}
+};
+
+// Alias map: common name variants → PHB canonical name
+const PHB_ALIASES={
+'battle axe':'Axe, Battle','hand axe':'Axe, Hand','throwing axe':'Axe, Hand (thrown)',
+'long sword':'Sword, Long','longsword':'Sword, Long',
+'short sword':'Sword, Short','shortsword':'Sword, Short',
+'broad sword':'Sword, Broad','broadsword':'Sword, Broad',
+'bastard sword':'Sword, Bastard',
+'two-handed sword':'Sword, Two-Handed','two handed sword':'Sword, Two-Handed',
+'footman\'s flail':'Flail, Footman\'s','horseman\'s flail':'Flail, Horseman\'s',
+'footman\'s mace':'Mace, Footman\'s','horseman\'s mace':'Mace, Horseman\'s',
+'footman\'s pick':'Pick, Military, Footman\'s','horseman\'s pick':'Pick, Military, Horseman\'s',
+'military pick':'Pick, Military, Footman\'s',
+'military fork':'Fork, Military',
+'morning star':'Morning Star','morningstar':'Morning Star',
+'heavy lance':'Lance, Heavy Horse','light lance':'Lance, Light Horse','medium lance':'Lance, Medium Horse',
+'lance':'Lance, Medium Horse',
+'heavy crossbow':'Crossbow, Heavy','light crossbow':'Crossbow, Light',
+'composite long bow':'Bow, Composite, Long','composite short bow':'Bow, Composite, Short',
+'long bow':'Bow, Long','longbow':'Bow, Long',
+'short bow':'Bow, Short','shortbow':'Bow, Short',
+'quarterstaff':'Staff, Quarter','quarter staff':'Staff, Quarter','staff':'Staff, Quarter',
+'awl pike':'Pike, Awl',
+'war hammer':'Hammer','warhammer':'Hammer',
+'sling':'Sling, Bullet',
+'bo stick':'Bo Stick','jo stick':'Jo Stick',
+'lucern hammer':'Hammer, Lucern',
+'bec-de-corbin':'Bec de Corbin','bec de corbin':'Bec de Corbin',
+'glaive guisarme':'Glaive-Guisarme','guisarme voulge':'Guisarme-Voulge',
+'fauchard fork':'Fauchard-Fork','bill guisarme':'Bill-Guisarme'
+};
+
+// Look up PHB weapon data by name (strips magic bonus suffixes like "+1", "+2")
+function phbLookup(name){
+  if(!name)return null;
+  // Strip magic suffixes: "Long Sword +2" → "Long Sword"
+  const base=name.replace(/\s*\+\d+$/,'').trim();
+  // Try exact match first
+  if(PHB_WEAPONS[base])return PHB_WEAPONS[base];
+  // Try alias (case-insensitive)
+  const low=base.toLowerCase();
+  if(PHB_ALIASES[low]&&PHB_WEAPONS[PHB_ALIASES[low]])return PHB_WEAPONS[PHB_ALIASES[low]];
+  // Try partial match: "Sword, Long" in keys
+  for(const k of Object.keys(PHB_WEAPONS)){
+    if(k.toLowerCase()===low)return PHB_WEAPONS[k];
+  }
+  return null;
+}
+
+// Fill AC adjustment columns + speed for a weapon object from PHB data
+function fillWeaponPHB(w){
+  const data=phbLookup(w.name);
+  if(!data)return;
+  const acKeys=['ac2','ac3','ac4','ac5','ac6','ac7','ac8','ac9','ac10'];
+  data.ac.forEach((v,i)=>{if(!w[acKeys[i]])w[acKeys[i]]=v>0?'+'+v:String(v);});
+  if(!w.speed&&data.spd)w.speed=String(data.spd);
+  if(!w.range&&data.range)w.range=data.range.join('/');
+}
+
 function renderWeapons(){
   const arr=CHAR.weapons||[];const tb=document.getElementById('weapon-list');tb.innerHTML='';
   arr.forEach((w,i)=>{
@@ -528,7 +650,15 @@ function renderWeapons(){
     tr.innerHTML='<td><input class="w-name" value="'+(w.name||'')+'" data-idx="'+i+'" data-lf="name"></td><td><input value="'+(w.magAdj||'')+'" data-idx="'+i+'" data-lf="magAdj"></td><td><input value="'+(w.range||'')+'" data-idx="'+i+'" data-lf="range"></td><td><input value="'+(w.speed||'')+'" data-idx="'+i+'" data-lf="speed"></td><td class="w-ac"><input value="'+(w.ac10||'')+'" data-idx="'+i+'" data-lf="ac10"></td><td class="w-ac"><input value="'+(w.ac9||'')+'" data-idx="'+i+'" data-lf="ac9"></td><td class="w-ac"><input value="'+(w.ac8||'')+'" data-idx="'+i+'" data-lf="ac8"></td><td class="w-ac"><input value="'+(w.ac7||'')+'" data-idx="'+i+'" data-lf="ac7"></td><td class="w-ac"><input value="'+(w.ac6||'')+'" data-idx="'+i+'" data-lf="ac6"></td><td class="w-ac"><input value="'+(w.ac5||'')+'" data-idx="'+i+'" data-lf="ac5"></td><td class="w-ac"><input value="'+(w.ac4||'')+'" data-idx="'+i+'" data-lf="ac4"></td><td class="w-ac"><input value="'+(w.ac3||'')+'" data-idx="'+i+'" data-lf="ac3"></td><td class="w-ac"><input value="'+(w.ac2||'')+'" data-idx="'+i+'" data-lf="ac2"></td><td class="w-dmg"><input value="'+(w.dmg||'')+'" data-idx="'+i+'" data-lf="dmg"></td><td style="text-align:center"><button class="del-btn" data-idx="'+i+'">×</button></td>';
     tb.appendChild(tr);
   });
-  tb.querySelectorAll('input').forEach(el=>el.addEventListener('change',e=>{arr[+e.target.dataset.idx][e.target.dataset.lf]=e.target.value;autosave();}));
+  tb.querySelectorAll('input').forEach(el=>{
+    el.addEventListener('change',e=>{
+      const idx=+e.target.dataset.idx,fld=e.target.dataset.lf;
+      arr[idx][fld]=e.target.value;
+      // Auto-fill PHB data when weapon name changes
+      if(fld==='name'){fillWeaponPHB(arr[idx]);renderWeapons();}
+      autosave();
+    });
+  });
   tb.querySelectorAll('.del-btn').forEach(el=>el.addEventListener('click',e=>{arr.splice(+e.target.dataset.idx,1);renderWeapons();autosave();}));
 }
 document.getElementById('add-weapon').addEventListener('click',()=>{if(!CHAR.weapons)CHAR.weapons=[];CHAR.weapons.push({});renderWeapons();autosave();});
@@ -657,7 +787,10 @@ function mapARS(ars){
   const skipW=['Brawl','Grapple','Overbear'];
   c.weapons=items.filter(i=>i.type==='weapon'&&!skipW.includes(i.name)).map(w=>{
     const ws=w.system||{},da=(ws.actions||[]).find(a=>a.type==='damage');
-    return{name:w.name,dmg:da?da.formula:'',speed:'',magAdj:ws.attributes&&ws.attributes.magic?'+':'',range:'',ac10:'',ac9:'',ac8:'',ac7:'',ac6:'',ac5:'',ac4:'',ac3:'',ac2:''};
+    const mag=ws.attributes&&ws.attributes.magic?ws.attributes.magic:'';
+    const wObj={name:w.name,dmg:da?da.formula:'',speed:'',magAdj:mag?('+'+mag):'',range:'',ac10:'',ac9:'',ac8:'',ac7:'',ac6:'',ac5:'',ac4:'',ac3:'',ac2:''};
+    fillWeaponPHB(wObj);
+    return wObj;
   });
   // Inventory
   const skipT=['weapon','spell','race','class','skill','ability','proficiency'];
