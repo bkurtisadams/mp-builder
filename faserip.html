@@ -198,6 +198,22 @@ body{min-height:100vh;background:var(--bg);color:var(--dark);font-family:var(--f
 .karma-pool-name{width:100%;margin-top:3px;font-size:9px;text-align:center;border:none;border-bottom:1px solid #ccc;background:transparent;font-family:var(--fb);outline:none;padding:1px 2px}
 .karma-pool-name:focus{border-bottom-color:var(--accent)}
 
+/* ── Karma Ledger ── */
+.karma-toggle{cursor:pointer;position:relative}
+.karma-toggle:hover{border-bottom-color:var(--accent)}
+.karma-toggle::after{content:" \u25BC";font-size:7px;color:#999;vertical-align:middle}
+.karma-ledger{display:none;border:1.5px solid #000;margin:8px 0;background:#faf8f2;max-height:300px;overflow-y:auto}
+.karma-ledger.open{display:block}
+.karma-ledger-hdr{display:flex;justify-content:space-between;align-items:center;padding:4px 8px;border-bottom:1px solid #ccc;background:#f0ede4}
+.karma-ledger-hdr span{font-family:var(--fd);font-size:9px;font-weight:700;letter-spacing:.5px}
+.karma-ledger-summary{display:flex;gap:12px;font-family:var(--fm);font-size:9px;color:#666}
+.karma-ledger table{width:100%;border-collapse:collapse;font-size:9px;font-family:var(--fb)}
+.karma-ledger th{font-family:var(--fd);font-size:8px;font-weight:700;letter-spacing:.5px;text-align:left;padding:3px 6px;border-bottom:1.5px solid #000;background:#f0ede4;position:sticky;top:0}
+.karma-ledger td{padding:2px 6px;border-bottom:1px dotted #ccc}
+.karma-ledger .kl-pos{color:#2a7a2a;font-weight:700}
+.karma-ledger .kl-neg{color:#8b0000;font-weight:700}
+.karma-ledger .kl-empty{text-align:center;padding:12px;color:#999;font-style:italic}
+
 /* ── Limitation ── */
 .limitation-row{margin:6px 0;display:flex;align-items:baseline;gap:4px}
 .limitation-row .si{flex:1}
@@ -464,7 +480,7 @@ body.view-mode .hdr-btn-view-edit{display:inline-block}
         </tr></thead>
         <tbody><tr>
           <td><input class="si-calc" data-field="health" type="number" style="width:60px" readonly></td>
-          <td><input class="si-calc" data-field="karma" type="number" style="width:60px" readonly></td>
+          <td><input class="si-calc karma-toggle" data-field="karma" type="number" style="width:60px" readonly id="karma-value" title="Click to view karma history"></td>
           <td>
             <select data-field="resourcesRank" style="width:70px;border:none;font-family:var(--fb);font-size:10px;font-weight:700;text-align:center;outline:none;background:transparent" id="res-rank"></select>
             <input class="si-box" data-field="resourcesValue" type="number" style="width:40px;margin-top:2px">
@@ -483,6 +499,17 @@ body.view-mode .hdr-btn-view-edit{display:inline-block}
         <div class="movement-item"><span class="lbl">SWIM</span><input type="number" data-field="moveSwim" placeholder="—"></div>
         <div class="movement-item"><span class="lbl">FLY</span><input type="number" data-field="moveFly" placeholder="0"></div>
         <div class="movement-item"><span class="lbl">TELE</span><input type="number" data-field="moveTeleport" placeholder="0"></div>
+      </div>
+      <!-- Karma Ledger (expandable) -->
+      <div class="karma-ledger" id="karma-ledger">
+        <div class="karma-ledger-hdr">
+          <span>Karma History</span>
+          <div class="karma-ledger-summary" id="karma-ledger-summary"></div>
+        </div>
+        <table>
+          <thead><tr><th>Date</th><th>Game Date</th><th>Amount</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody id="karma-ledger-body"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -719,7 +746,8 @@ function newChar(){
     headquarters:[],
     vehicles:[],
     limitation:"",
-    advancementKarma:0, karmaPool:0, poolName:""
+    advancementKarma:0, karmaPool:0, poolName:"",
+    karmaHistory:[]
   };
 }
 
@@ -1100,6 +1128,28 @@ function renderAll(){
     const calc=calcLeap(CHAR.abilities.strength.rank);
     leapEl.placeholder=calc;
   }
+  renderKarmaLedger();
+}
+
+function renderKarmaLedger(){
+  const hist=CHAR.karmaHistory||[];
+  const body=document.getElementById('karma-ledger-body');
+  const summary=document.getElementById('karma-ledger-summary');
+  if(!hist.length){
+    body.innerHTML='<tr><td colspan="5" class="kl-empty">No karma history. Import from Foundry to populate.</td></tr>';
+    summary.textContent='';
+    return;
+  }
+  let earned=0,spent=0;
+  hist.forEach(e=>{if(e.amount>0)earned+=e.amount;else spent+=Math.abs(e.amount);});
+  summary.innerHTML='<span>Earned\u2009'+earned+'</span><span>Spent\u2009'+spent+'</span>';
+  body.innerHTML=hist.map(e=>{
+    const cls=e.amount<0?'kl-neg':'kl-pos';
+    const sign=e.amount>0?'+':'';
+    const rd=e.realDate||'\u2014';
+    const gd=e.gameDate||'\u2014';
+    return '<tr><td>'+rd+'</td><td>'+gd+'</td><td class="'+cls+'">'+sign+e.amount+'</td><td>'+(e.type||'')+'</td><td>'+(e.description||'')+'</td></tr>';
+  }).join('');
 }
 
 // ── Field Change Listeners ──
@@ -1830,6 +1880,15 @@ function importFoundryActor(data){
   char.advancementKarma=kp.advancement||0;
   char.karmaPool=kp.pool||0;
   char.poolName=kp.poolName||"";
+  if(Array.isArray(kp.history)){
+    char.karmaHistory=kp.history.map(e=>({
+      realDate:e.realDate||"",
+      gameDate:e.gameDate||"",
+      amount:e.amount||0,
+      type:e.type||"",
+      description:e.description||""
+    }));
+  }
 
   // Stunts — fallback from system-level array if no item-based stunts were imported
   if(!char.stunts.length && s.stunts && s.stunts.length){
@@ -2044,6 +2103,11 @@ document.addEventListener("DOMContentLoaded",()=>{
   renderAll();
   bindFields();
   bindAddButtons();
+
+  // Karma ledger toggle
+  document.getElementById('karma-value').addEventListener('click',()=>{
+    document.getElementById('karma-ledger').classList.toggle('open');
+  });
 
   // Header buttons
   document.getElementById("btn-new").addEventListener("click",async ()=>{
