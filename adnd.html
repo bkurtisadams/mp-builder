@@ -71,7 +71,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .pg-tab.active{background:var(--paper);color:var(--ink);border-bottom:1px solid var(--paper);position:relative;z-index:1}
 .pg-tab:hover:not(.active){background:var(--paper-lt)}
 .pg-page{display:none;border-top:1px solid var(--ink);padding-top:6px}.pg-page.active{display:block}
-.p1-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;overflow:hidden}
+.p1-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
 .p1-grid>div{min-width:0}
 .p1-grid .full{grid-column:1/-1;min-width:0}
 .ab-head{font-size:14px;font-family:var(--fh);font-weight:700;letter-spacing:1px;margin-bottom:2px}
@@ -249,7 +249,8 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
   <div>
     <div class="row"><span class="lb">Armor Worn</span><input class="fi" data-field="armorWorn"><span class="lb" style="margin-left:4px">AC Base</span><input class="bx" data-field="acBase"></div>
     <div class="row"><span class="lb">Shield</span><input class="fi" data-field="shield"><span class="lb" style="margin-left:4px">Shield Adj.</span><input class="bx" data-field="shieldAdj"></div>
-    <div class="row"><span class="lb">Dex. Adj.</span><input class="fi" data-field="acDexAdj" style="flex:0 0 28px;text-align:center;min-width:28px"><span class="lb">Magical Adj.</span><input class="fi" data-field="acMagAdj" style="flex:0 0 28px;text-align:center;min-width:28px"><span class="lb" style="font-size:10px;font-weight:700">Shieldless AC</span><input class="bx" data-field="acShieldless"><span class="lb">Rear AC</span><input class="bx" data-field="acRear"></div>
+    <div class="row"><span class="lb">Dex. Adj.</span><input class="fi" data-field="acDexAdj" style="flex:0 0 28px;text-align:center;min-width:28px"><span class="lb">Magical Adj.</span><input class="fi" data-field="acMagAdj" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
+    <div class="row"><span class="lb" style="font-size:10px;font-weight:700">Shieldless AC</span><input class="bx" data-field="acShieldless"><span class="lb">Rear AC</span><input class="bx" data-field="acRear"></div>
     <div class="row" style="margin-bottom:4px"><span class="lb" style="font-size:14px">AC</span><input class="bx bx-lg" data-field="ac"><span class="lb" style="font-size:11px;margin-left:8px">Hit Points</span><input class="bx bx-lg" data-field="hpCurrent" type="number"><span style="color:var(--ink-lt)">/</span><input class="bx bx-lg" data-field="hpMax" type="number" style="opacity:.6"></div>
     <div class="row"><span class="lb">Special Adjustments</span><input class="fi" data-field="specialAdjustments"></div>
   </div>
