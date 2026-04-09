@@ -188,8 +188,10 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .desc-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:2px 8px;margin-bottom:4px}
 .notes-area{width:100%;border:1px solid var(--ink);background:var(--paper-lt);font-family:var(--fb);font-size:10px;padding:4px;resize:vertical;min-height:48px;outline:none;color:var(--ink)}
 .notes-area:focus{border-color:var(--accent)}
-.xp-bonus-badge{display:none;font-family:var(--fh);font-size:7px;font-weight:700;color:#fff;background:#5b7a3a;border-radius:2px;padding:1px 3px;letter-spacing:.3px;white-space:nowrap;flex-shrink:0}
-.xp-bonus-badge.visible{display:inline}
+.xp-bonus-cb{display:inline-flex;align-items:center;gap:1px;cursor:pointer;flex-shrink:0}
+.xp-bonus-cb input{width:9px;height:9px;margin:0;cursor:pointer;accent-color:var(--accent)}
+.xp-bonus-cb span{font-family:var(--fh);font-size:7px;font-weight:700;color:var(--ink-lt);letter-spacing:.2px}
+.xp-bonus-cb input:checked+span{color:#5b7a3a}
 @media print{
   .gcc-bar,.adnd-hdr,.adnd-ftr,.name-box-del,.add-btn,.add-sm,.del-btn,.pg-tabs{display:none!important}
   .sheet{border:none;max-width:100%}
@@ -512,10 +514,11 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 </div>
 
 <div class="sec">Experience</div>
-<div id="xp-row" style="display:flex;gap:6px;margin-bottom:4px;flex-wrap:wrap">
-  <div class="xp-slot" id="xp-slot-0" style="display:flex;align-items:baseline;gap:4px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-0">XP Total:</span><input class="fi xp-total" data-field="xpTotal" style="flex:0 0 70px;font-weight:700;text-align:center" type="number"><span class="xp-bonus-badge" id="xp-bonus-0"></span><span class="lb" style="margin-left:4px">Next:</span><input class="fi xp-next" data-field="xpNextLevel" style="flex:0 0 60px;text-align:center" type="number"></div>
-  <div class="xp-slot" id="xp-slot-1" style="display:none;align-items:baseline;gap:4px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-1">XP:</span><input class="fi xp-total" data-field="xpTotal2" style="flex:0 0 70px;font-weight:700;text-align:center" type="number"><span class="xp-bonus-badge" id="xp-bonus-1"></span><span class="lb" style="margin-left:4px">Next:</span><input class="fi xp-next" data-field="xpNextLevel2" style="flex:0 0 60px;text-align:center" type="number"></div>
-  <div class="xp-slot" id="xp-slot-2" style="display:none;align-items:baseline;gap:4px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-2">XP:</span><input class="fi xp-total" data-field="xpTotal3" style="flex:0 0 70px;font-weight:700;text-align:center" type="number"><span class="xp-bonus-badge" id="xp-bonus-2"></span><span class="lb" style="margin-left:4px">Next:</span><input class="fi xp-next" data-field="xpNextLevel3" style="flex:0 0 60px;text-align:center" type="number"></div>
+<div id="xp-row" style="display:flex;gap:6px;margin-bottom:4px;flex-wrap:wrap;align-items:flex-end">
+  <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto"><input class="fi" data-field="xpEarned" style="width:68px;font-weight:700;text-align:center" type="number"><div class="lb" style="text-align:center;line-height:1;margin-top:1px">Total<br>Earned</div></div>
+  <div class="xp-slot" id="xp-slot-0" style="display:flex;align-items:baseline;gap:3px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-0">XP:</span><input class="fi" data-field="xpTotal" style="flex:0 0 68px;font-weight:700;text-align:center" type="number"><label class="xp-bonus-cb" title="10% prime requisite XP bonus"><input type="checkbox" data-field="xpBonus" class="xp-bonus-chk" id="xp-chk-0"><span>+10%</span></label><span class="lb" style="margin-left:3px">Next:</span><input class="fi" data-field="xpNextLevel" style="flex:0 0 50px;text-align:center" type="number"></div>
+  <div class="xp-slot" id="xp-slot-1" style="display:none;align-items:baseline;gap:3px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-1">XP:</span><input class="fi" data-field="xpTotal2" style="flex:0 0 68px;font-weight:700;text-align:center" type="number"><label class="xp-bonus-cb" title="10% prime requisite XP bonus"><input type="checkbox" data-field="xpBonus2" class="xp-bonus-chk" id="xp-chk-1"><span>+10%</span></label><span class="lb" style="margin-left:3px">Next:</span><input class="fi" data-field="xpNextLevel2" style="flex:0 0 50px;text-align:center" type="number"></div>
+  <div class="xp-slot" id="xp-slot-2" style="display:none;align-items:baseline;gap:3px;flex:1;min-width:0"><span class="lb xp-cls-label" id="xp-cls-2">XP:</span><input class="fi" data-field="xpTotal3" style="flex:0 0 68px;font-weight:700;text-align:center" type="number"><label class="xp-bonus-cb" title="10% prime requisite XP bonus"><input type="checkbox" data-field="xpBonus3" class="xp-bonus-chk" id="xp-chk-2"><span>+10%</span></label><span class="lb" style="margin-left:3px">Next:</span><input class="fi" data-field="xpNextLevel3" style="flex:0 0 50px;text-align:center" type="number"></div>
 </div>
 
 <!-- ═══ DESCRIPTION ═══ -->
@@ -624,16 +627,14 @@ function updateXPSlots(){
       slot2.style.display='flex';
     } else { slot2.style.display='none'; }
   } else {
-    document.getElementById('xp-cls-0').textContent='XP Total:';
+    document.getElementById('xp-cls-0').textContent='XP:';
     slot1.style.display='none';
     slot2.style.display='none';
   }
   const bonusKeys=['xpBonus','xpBonus2','xpBonus3'];
   for(let i=0;i<3;i++){
-    const badge=document.getElementById('xp-bonus-'+i);
-    const val=+(CHAR[bonusKeys[i]]||0);
-    if(val){badge.textContent='+'+val+'%';badge.classList.add('visible');}
-    else{badge.textContent='';badge.classList.remove('visible');}
+    const chk=document.getElementById('xp-chk-'+i);
+    if(chk)chk.checked=!!(+(CHAR[bonusKeys[i]]||0));
   }
 }
 
@@ -648,8 +649,8 @@ document.querySelectorAll('.pg-tab').forEach(tab=>{
 
 function autosave(){collectFields();try{localStorage.setItem(AUTOSAVE_KEY,JSON.stringify(CHAR));}catch(e){}}
 function loadAutosave(){try{return JSON.parse(localStorage.getItem(AUTOSAVE_KEY));}catch(e){return null;}}
-function collectFields(){document.querySelectorAll("[data-field]").forEach(el=>{const k=el.dataset.field;if(el.tagName==='TEXTAREA')CHAR[k]=el.value;else if(el.type==='number')CHAR[k]=el.value===''?'':Number(el.value);else CHAR[k]=el.value;});}
-function populateFields(){document.querySelectorAll("[data-field]").forEach(el=>{const v=CHAR[el.dataset.field];if(v===undefined||v===null)return;el.value=v;});}
+function collectFields(){document.querySelectorAll("[data-field]").forEach(el=>{const k=el.dataset.field;if(el.type==='checkbox')CHAR[k]=el.checked?10:0;else if(el.tagName==='TEXTAREA')CHAR[k]=el.value;else if(el.type==='number')CHAR[k]=el.value===''?'':Number(el.value);else CHAR[k]=el.value;});}
+function populateFields(){document.querySelectorAll("[data-field]").forEach(el=>{const v=CHAR[el.dataset.field];if(v===undefined||v===null)return;if(el.type==='checkbox')el.checked=!!v;else el.value=v;});}
 
 // ── PHB Weapon AC Adjustment Table ──
 // ac: [AC2,AC3,AC4,AC5,AC6,AC7,AC8,AC9,AC10], spd: speed factor
@@ -899,8 +900,8 @@ function showPortrait(){const ex=pBox.querySelector('img');if(ex)ex.remove();con
 function getAllChars(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[];}catch(e){return[];}}
 function saveChar(){collectFields();if(!CHAR.characterName){MPDialog.alert('Save','Enter a character name first.');return;}if(!CHAR._id)CHAR._id=GCC.genId?GCC.genId('add'):('add_'+Date.now());CHAR._saved=Date.now();CHAR._system='add1e';const chars=getAllChars();const idx=chars.findIndex(c=>c._id===CHAR._id);if(idx>=0)chars[idx]=CHAR;else chars.push(CHAR);try{localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));autosave();if(typeof GCCSync!=='undefined'&&GCCSync.notifySync)GCCSync.notifySync(STORAGE_KEY);MPDialog.alert('Saved','"'+CHAR.characterName+'" saved.');}catch(e){MPDialog.alert('Error','Failed: '+e.message);}}
 function loadChar(){const chars=getAllChars();if(!chars.length){MPDialog.alert('Load','No saved characters.');return;}const opts=chars.map((c,i)=>'<option value="'+i+'">'+(c.characterName||'Unnamed')+' ('+(c.characterClass||'?')+' '+(c.level||'?')+')</option>').join('');MPDialog.confirm('Load Character','<select id="dlg-sel" style="width:100%;padding:4px;font-size:12px">'+opts+'</select>',{okText:'Load',cancelText:'Cancel'}).then(ok=>{if(!ok)return;CHAR=JSON.parse(JSON.stringify(chars[+document.getElementById('dlg-sel').value]));populateAll();});}
-function newChar(){MPDialog.confirm('New Character','Clear all fields?',{okText:'Clear',cancelText:'Cancel',danger:true}).then(ok=>{if(!ok)return;CHAR={};document.querySelectorAll('[data-field]').forEach(el=>{el.value='';});populateAll();autosave();});}
-function deleteChar(){if(!CHAR._id){MPDialog.alert('Delete','Not saved yet.');return;}MPDialog.confirm('Delete','"'+(CHAR.characterName||'Unnamed')+'"?',{okText:'Delete',cancelText:'Cancel',danger:true}).then(ok=>{if(!ok)return;const chars=getAllChars();const idx=chars.findIndex(c=>c._id===CHAR._id);if(idx>=0){chars.splice(idx,1);localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));if(typeof GCCSync!=='undefined'&&GCCSync.notifySync)GCCSync.notifySync(STORAGE_KEY);}CHAR={};document.querySelectorAll('[data-field]').forEach(el=>{el.value='';});populateAll();autosave();});}
+function newChar(){MPDialog.confirm('New Character','Clear all fields?',{okText:'Clear',cancelText:'Cancel',danger:true}).then(ok=>{if(!ok)return;CHAR={};document.querySelectorAll('[data-field]').forEach(el=>{if(el.type==='checkbox')el.checked=false;else el.value='';});populateAll();autosave();});}
+function deleteChar(){if(!CHAR._id){MPDialog.alert('Delete','Not saved yet.');return;}MPDialog.confirm('Delete','"'+(CHAR.characterName||'Unnamed')+'"?',{okText:'Delete',cancelText:'Cancel',danger:true}).then(ok=>{if(!ok)return;const chars=getAllChars();const idx=chars.findIndex(c=>c._id===CHAR._id);if(idx>=0){chars.splice(idx,1);localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));if(typeof GCCSync!=='undefined'&&GCCSync.notifySync)GCCSync.notifySync(STORAGE_KEY);}CHAR={};document.querySelectorAll('[data-field]').forEach(el=>{if(el.type==='checkbox')el.checked=false;else el.value='';});populateAll();autosave();});}
 function exportChar(){collectFields();const b=new Blob([JSON.stringify(CHAR,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=(CHAR.characterName||'char').replace(/[^a-zA-Z0-9]/g,'_')+'.json';a.click();}
 function importChar(){const inp=document.createElement('input');inp.type='file';inp.accept='.json';inp.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{CHAR=JSON.parse(ev.target.result);populateAll();autosave();MPDialog.alert('Imported','"'+(CHAR.characterName||'Unnamed')+'" loaded.');}catch(err){MPDialog.alert('Error','Invalid JSON.');}};r.readAsText(f);};inp.click();}
 
@@ -1002,12 +1003,13 @@ function mapARS(ars){
   // ARS stores movement in feet (120=12"), convert to 1e scale
   if(rawMove&&+rawMove>=30)rawMove=String(Math.round(+rawMove/10));
   c.moveBase=rawMove;
+  c.xpEarned=d.xp||'';
   c.xpTotal=d.xp||'';
-  c.xpBonus=(classItems[0]&&(classItems[0].system||{}).xpbonus)||'';
+  c.xpBonus=+(classItems[0]&&(classItems[0].system||{}).xpbonus)||0;
   if(classItems.length>1){
     const xpFields=['xpTotal','xpTotal2','xpTotal3'];
     const bonusFields=['xpBonus','xpBonus2','xpBonus3'];
-    classItems.forEach((ci,i)=>{if(i<3){c[xpFields[i]]=(ci.system||{}).xp||'';c[bonusFields[i]]=(ci.system||{}).xpbonus||'';}});
+    classItems.forEach((ci,i)=>{if(i<3){c[xpFields[i]]=(ci.system||{}).xp||'';c[bonusFields[i]]=+((ci.system||{}).xpbonus)||0;}});
   }
   c.age=d.age||'';
   // Clean sex to single letter, strip units from height/weight
@@ -1195,6 +1197,10 @@ const _encFields=new Set(['wealthCP','wealthSP','wealthEP','wealthGP','wealthPP'
 const _abilityFields=new Set(['str','strPct','weight','int','wis','dex','con','cha']);
 const _thiefFields=new Set(['dex','race','level']);
 document.querySelectorAll('[data-field]').forEach(el=>{
+  if(el.type==='checkbox'){
+    el.addEventListener('change',()=>{CHAR[el.dataset.field]=el.checked?10:0;autosave();});
+    return;
+  }
   const ev=el.tagName==='TEXTAREA'?'input':'change';
   el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_abilityFields.has(el.dataset.field))calcAbilitySubs();if(_thiefFields.has(el.dataset.field))calcThiefSkills();autosave();});
 });
