@@ -452,17 +452,21 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 <div class="sec">Encumbrance & Wealth</div>
 <div class="enc-box">
   <!-- ROW 1: Encumbrance / Str Adj / Load vs Move / Total Weight -->
-  <div style="display:flex;gap:3px;align-items:flex-start;margin-bottom:4px">
-    <div class="lb" style="font-size:9px;color:var(--ink);align-self:center;flex-shrink:0">Encumbrance:</div>
+  <div style="display:flex;gap:3px;align-items:flex-end;margin-bottom:4px">
+    <div class="enc-fc" style="flex:0 0 auto"><div class="lb" style="font-size:9px;color:var(--ink)">Encumbrance:</div></div>
     <div class="enc-fc" style="flex:0 0 36px"><input class="fi" data-field="strAdj" style="text-align:center"><div class="lb">Str. Adj.</div></div>
-    <div class="lb" style="font-size:7px;align-self:center;flex-shrink:0">Load vs. Move:</div>
-    <div class="enc-fc" style="flex:1;min-width:0"><input class="fi" data-field="loadNormal" style="text-align:center;font-size:10px" readonly><div class="lb">Normal=1</div></div>
-    <span class="load-sep">—</span>
-    <div class="enc-fc" style="flex:1;min-width:0"><input class="fi" data-field="loadHeavy" style="text-align:center;font-size:10px" readonly><div class="lb">Heavy=¾</div></div>
-    <span class="load-sep">—</span>
-    <div class="enc-fc" style="flex:1;min-width:0"><input class="fi" data-field="loadLoaded" style="text-align:center;font-size:10px" readonly><div class="lb">Loaded=½</div></div>
-    <span class="load-sep">—</span>
-    <div class="enc-fc" style="flex:1;min-width:0"><input class="fi" data-field="loadMax" style="text-align:center;font-size:10px" readonly><div class="lb">Max=¼</div></div>
+    <div style="flex:1;min-width:0">
+      <div class="lb" style="font-size:7px;margin-bottom:1px">Load vs. Move Rate:</div>
+      <div style="display:flex;gap:3px;align-items:flex-start">
+        <div class="enc-fc" style="flex:1;min-width:0"><input class="fi" data-field="loadNormal" style="text-align:center;font-size:9px" readonly><div class="lb">Normal=1</div></div>
+        <span class="load-sep">—</span>
+        <div class="enc-fc" style="flex:1;min-width:0"><input class="fi" data-field="loadHeavy" style="text-align:center;font-size:9px" readonly><div class="lb">Heavy=¾</div></div>
+        <span class="load-sep">—</span>
+        <div class="enc-fc" style="flex:1;min-width:0"><input class="fi" data-field="loadLoaded" style="text-align:center;font-size:9px" readonly><div class="lb">Loaded=½</div></div>
+        <span class="load-sep">—</span>
+        <div class="enc-fc" style="flex:1;min-width:0"><input class="fi" data-field="loadMax" style="text-align:center;font-size:9px" readonly><div class="lb">Max=¼</div></div>
+      </div>
+    </div>
     <div class="enc-fc" style="flex:0 0 50px"><div class="bx" style="width:50px;height:22px;font-size:13px"><input data-field="totalWeight" id="total-weight" readonly style="border:none;background:transparent;font-family:var(--fb);font-size:13px;font-weight:700;text-align:center;width:100%;outline:none;padding:0"></div><div class="lb">Total Wt.</div></div>
   </div>
   <!-- ROW 2: Provisions + Water -->
@@ -800,21 +804,20 @@ document.getElementById('add-spell').addEventListener('click',()=>{
 });
 
 function calcWeight(){
-  // Item weight
-  const items=CHAR.items||[];let itemWt=0;
-  items.forEach(it=>{itemWt+=(parseFloat(it.weight)||0)*(parseInt(it.qty)||1);});
-  // Coin weight (10 coins = 1 lb)
-  const coinWt=((+(CHAR.wealthCP||0))+(+(CHAR.wealthSP||0))+(+(CHAR.wealthEP||0))+(+(CHAR.wealthGP||0))+(+(CHAR.wealthPP||0)))/10;
-  const totalWt=Math.round((itemWt+coinWt)*10)/10;
-  document.getElementById('total-weight').value=totalWt||'';
-  CHAR.totalWeight=totalWt;
-  // PHB Encumbrance thresholds (base: 35/70/105/150 lbs)
-  // Str bonus from strOpenDoors or manual strAdj field modifies thresholds
-  // Positive str adj increases capacity, negative decreases
+  // 1e AD&D uses coins (cn) as weight unit: 10 cn = 1 lb
+  // Item weights from ARS are in lbs, convert to cn (*10)
+  const items=CHAR.items||[];let itemCn=0;
+  items.forEach(it=>{itemCn+=((parseFloat(it.weight)||0)*10)*(parseInt(it.qty)||1);});
+  // Coin weight: each coin = 1 cn
+  const coinCn=(+(CHAR.wealthCP||0))+(+(CHAR.wealthSP||0))+(+(CHAR.wealthEP||0))+(+(CHAR.wealthGP||0))+(+(CHAR.wealthPP||0));
+  const totalCn=Math.round(itemCn+coinCn);
+  document.getElementById('total-weight').value=totalCn||'';
+  CHAR.totalWeight=totalCn;
+  // PHB Encumbrance thresholds in cn (350/700/1050/1500 cn = 35/70/105/150 lbs)
   const strAdj=+(CHAR.strAdj||0);
-  const adj=strAdj*10; // each +1 str adj ≈ +10 lbs per bracket
-  const thresholds=[35+adj, 70+adj, 105+adj, 150+adj];
-  // Movement rates based on base move (default 12")
+  const adj=strAdj*100; // each ±1 str adj = ±100 cn per bracket
+  const thresholds=[350+adj, 700+adj, 1050+adj, 1500+adj];
+  // Movement rates: base move in 1e scale (12", 9", 6", 3")
   const base=+(CHAR.moveBase||12);
   const rates=[base, Math.floor(base*3/4), Math.floor(base/2), Math.floor(base/4)];
   // Fill the load fields
@@ -822,18 +825,17 @@ function calcWeight(){
   const lH=document.querySelector('[data-field="loadHeavy"]');
   const lL=document.querySelector('[data-field="loadLoaded"]');
   const lM=document.querySelector('[data-field="loadMax"]');
-  if(lN)lN.value=thresholds[0]+'# / '+rates[0]+'"';
-  if(lH)lH.value=thresholds[1]+'# / '+rates[1]+'"';
-  if(lL)lL.value=thresholds[2]+'# / '+rates[2]+'"';
-  if(lM)lM.value=thresholds[3]+'# / '+rates[3]+'"';
+  if(lN)lN.value=thresholds[0]+' / '+rates[0]+'"';
+  if(lH)lH.value=thresholds[1]+' / '+rates[1]+'"';
+  if(lL)lL.value=thresholds[2]+' / '+rates[2]+'"';
+  if(lM)lM.value=thresholds[3]+' / '+rates[3]+'"';
   CHAR.loadNormal=lN?lN.value:'';CHAR.loadHeavy=lH?lH.value:'';
   CHAR.loadLoaded=lL?lL.value:'';CHAR.loadMax=lM?lM.value:'';
   // Determine current bracket and effective move
   let bracket='Normal',effMove=rates[0];
-  if(totalWt>thresholds[2]){bracket='Encumbered';effMove=rates[3];}
-  else if(totalWt>thresholds[1]){bracket='Very Heavy';effMove=rates[2];}
-  else if(totalWt>thresholds[0]){bracket='Heavy';effMove=rates[1];}
-  // Update move adjusted field if it exists
+  if(totalCn>thresholds[2]){bracket='Encumbered';effMove=rates[3];}
+  else if(totalCn>thresholds[1]){bracket='Very Heavy';effMove=rates[2];}
+  else if(totalCn>thresholds[0]){bracket='Heavy';effMove=rates[1];}
   const moveAdj=document.querySelector('[data-field="moveAdj"]');
   if(moveAdj){moveAdj.value=effMove+'" ('+bracket+')';CHAR.moveAdj=moveAdj.value;}
 }
@@ -948,7 +950,10 @@ function mapARS(ars){
   const primaryW=items.find(i=>i.type==='weapon'&&!['Brawl','Grapple','Overbear'].includes(i.name)&&(i.system||{}).attributes&&(i.system||{}).attributes.type!=='ammunition'&&((i.system||{}).attack||{}).type==='melee');
   if(primaryW){const pr=(primaryW.system.attack||{}).perRound||'';c.numAttacks=pr;}
   const moveAb=items.find(i=>i.type==='ability'&&i.name.startsWith('Base Movement'));
-  c.moveBase=moveAb?(moveAb.name.match(/\d+/)||[''])[0]:(at.movement&&at.movement.value?at.movement.value:'');
+  let rawMove=moveAb?(moveAb.name.match(/\d+/)||[''])[0]:(at.movement&&at.movement.value?at.movement.value:'');
+  // ARS stores movement in feet (120=12"), convert to 1e scale
+  if(rawMove&&+rawMove>=30)rawMove=String(Math.round(+rawMove/10));
+  c.moveBase=rawMove;
   c.xpTotal=d.xp||'';
   c.age=d.age||'';
   // Clean sex to single letter, strip units from height/weight
