@@ -305,7 +305,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
       <!-- Surprise / Dex Adjust / Rear Attacks Adjust -->
       <div class="fr">
         <div class="fc" style="flex:0 0 40px"><input class="fi" data-field="surprise" style="text-align:center;border-bottom:1px solid var(--ink)"><div class="lb">Surprise</div></div>
-        <div class="fc" style="flex:1"><input class="fi" data-field="surpriseDexAdj" style="border-bottom:1px solid var(--ink)"><div class="lb">Dex. Adjust.</div></div>
+        <div class="fc" style="flex:1"><input class="fi" data-field="surpriseDexAdj" style="border-bottom:1px solid var(--ink)"><div class="lb">Surp. Dex. Adj.</div></div>
         <div class="fc" style="flex:1"><input class="fi" data-field="rearAtkAdj" style="border-bottom:1px solid var(--ink)"><div class="lb">Rear Attacks Adjust.</div></div>
       </div>
       <!-- HP (merged) + Weapon in Hand + Secondary -->
@@ -765,9 +765,14 @@ function mapARS(ars){
   const classItems=items.filter(i=>i.type==='class');
   if(classItems.length){
     c.characterClass=classItems.map(ci=>ci.name||'').join('/');
+    // Get level from advancement array length on each class
+    c.level=classItems.map(ci=>{
+      const adv=(ci.system||{}).advancement||[];
+      return adv.length?adv[adv.length-1].level||adv.length:''
+    }).join('/');
+    // Override class name from system.classname if available
     const cn=s.classname||'';
     if(cn){c.characterClass=cn.replace(/\s*\d+/g,'').trim();const lvls=cn.match(/\d+/g);if(lvls)c.level=lvls.join('/');}
-    else c.level='';
   }
   const alMap={lg:'Lawful Good',ln:'Lawful Neutral',le:'Lawful Evil',ng:'Neutral Good',n:'True Neutral',tn:'True Neutral',ne:'Neutral Evil',cg:'Chaotic Good',cn:'Chaotic Neutral',ce:'Chaotic Evil'};
   c.alignment=alMap[(d.alignment||'').toLowerCase()]||d.alignment||'';
@@ -795,6 +800,20 @@ function mapARS(ars){
   // HP, AC, Movement
   c.hpMax=at.hp?at.hp.max:'';c.hpCurrent=at.hp?at.hp.value:'';
   c.acBase=at.ac?at.ac.value:'';
+  // AC Dex Adjustment (from dex table, dL[2] is defense adj — negative is better)
+  c.acDexAdj=dL[2]||'';
+  // Armor worn — find equipped armor item
+  const armorItem=items.find(i=>i.type==='armor'&&(i.system||{}).location&&(i.system||{}).location.state==='equipped');
+  if(armorItem)c.armorWorn=armorItem.name;
+  // Compute AC: base + dex adj (defense adj is already negative-is-better)
+  const baseAC=+(at.ac?at.ac.value:10);
+  const dexACAdj=+(dL[2]||0);
+  c.ac=baseAC+dexACAdj;
+  c.acShieldless=c.ac; // placeholder until shield detection
+  c.acRear=baseAC; // rear AC ignores dex and shield
+  // # Attacks — try to get from primary melee weapon's perRound
+  const primaryW=items.find(i=>i.type==='weapon'&&!['Brawl','Grapple','Overbear'].includes(i.name)&&(i.system||{}).attributes&&(i.system||{}).attributes.type!=='ammunition'&&((i.system||{}).attack||{}).type==='melee');
+  if(primaryW){const pr=(primaryW.system.attack||{}).perRound||'';c.numAttacks=pr;}
   const moveAb=items.find(i=>i.type==='ability'&&i.name.startsWith('Base Movement'));
   c.moveBase=moveAb?(moveAb.name.match(/\d+/)||[''])[0]:(at.movement&&at.movement.value?at.movement.value:'');
   c.xpTotal=d.xp||'';
@@ -864,9 +883,17 @@ function mapARS(ars){
   const arcS=(slots.arcane||{}).value||{},divS=(slots.divine||{}).value||{};
   for(let i=1;i<=9;i++)c['spellSlot'+i]=(+(arcS[String(i)]||0)+ +(divS[String(i)]||0))||'';
   c.spellsKnown=c.spells.length||'';
-  // Thief skills
-  const tMap={'Pick Pockets':'thiefPP','Hide in Shadows':'thiefHIS','Open Locks':'thiefOL','Open Locks/Disarm Traps':'thiefOL','Hear Noise':'thiefHN','Find Traps':'thiefFRT','Find/Remove Traps':'thiefFRT','Climb Walls':'thiefCW','Move Silently':'thiefMS','Read Languages':'thiefRL'};
-  items.filter(i=>i.type==='skill').forEach(sk=>{if(tMap[sk.name])c[tMap[sk.name]]='—';});
+  // Thief skills — extract target percentage from features
+  const tMap={'Pick Pockets':'thiefPP','Hide in Shadows':'thiefHIS','Open Locks':'thiefOL','Open Locks/Disarm Traps':'thiefOL','Hear Noise':'thiefHN','Find Traps':'thiefFRT','Find/Remove Traps':'thiefFRT','Climb Walls':'thiefCW','Move Silently':'thiefMS','Move Quietly':'thiefMS','Read Languages':'thiefRL'};
+  items.filter(i=>i.type==='skill').forEach(sk=>{
+    const feat=(sk.system||{}).features||{};
+    const grp=(sk.system||{}).groups||'';
+    const key=tMap[sk.name];
+    if(key){
+      const tgt=feat.target||'';
+      c[key]=tgt?(tgt+'%'):'—';
+    }
+  });
   // Languages
   const langs=items.filter(i=>i.type==='ability'&&i.name.startsWith('Language')).map(i=>i.name.replace('Language (','').replace(')',''));
   if(langs.length){const j=langs.join(', ');if(j.length>60){const m=Math.ceil(langs.length/2);c.languages=langs.slice(0,m).join(', ');c.languages2=langs.slice(m).join(', ');}else c.languages=j;}
