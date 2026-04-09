@@ -160,6 +160,16 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .sp-cells input::-webkit-inner-spin-button,.sp-cells input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .sp-cells input:last-child{border-right:none}
 .spell-list{column-count:3;column-gap:10px}
+.sp-mem{width:9px;height:9px;border:1.5px solid #999;border-radius:1px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:7px;color:transparent;background:var(--paper-lt)}
+.sp-mem.checked{background:#5b7a3a;border-color:#3a5a1a;color:#fff}
+.sp-mem:hover{border-color:var(--accent)}
+.sp-name-mem{font-weight:700}
+.sp-counter{display:grid;grid-template-columns:repeat(9,1fr);border:1px solid var(--ink);border-top:none;width:280px}
+.sp-cnt-cell{text-align:center;font-family:var(--fh);font-size:8px;font-weight:700;padding:1px 0;border-right:1px solid #ccc}
+.sp-cnt-cell:last-child{border-right:none}
+.sp-cnt-ok{color:#5b7a3a}
+.sp-cnt-over{color:#8b0000}
+.sp-cnt-empty{color:#999}
 .cls-sec{display:none}.cls-sec.visible{display:block}
 .thief-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:2px 6px}
 .thief-grid .lb-sm{cursor:pointer}
@@ -416,6 +426,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
           <div class="sp-hdr"><div>1st</div><div>2nd</div><div>3rd</div><div>4th</div><div>5th</div><div>6th</div><div>7th</div><div>8th</div><div>9th</div></div>
           <div class="sp-cells"><input data-field="spellSlot1" type="number"><input data-field="spellSlot2" type="number"><input data-field="spellSlot3" type="number"><input data-field="spellSlot4" type="number"><input data-field="spellSlot5" type="number"><input data-field="spellSlot6" type="number"><input data-field="spellSlot7" type="number"><input data-field="spellSlot8" type="number"><input data-field="spellSlot9" type="number"></div>
         </div>
+        <div class="sp-counter" id="sp-counter"></div>
         <div class="row" style="margin-top:4px"><span class="lb">Components:</span></div>
         <div class="row"><input class="fi" data-field="magicComponents" style="width:260px"></div>
         <div class="row"><input class="fi" data-field="magicComponents2" style="width:260px"></div>
@@ -838,11 +849,38 @@ function renderSpells(){
   const arr=CHAR.spells||[];const el=document.getElementById('spell-list');el.innerHTML='';
   arr.forEach((sp,i)=>{
     const d=document.createElement('div');d.style.cssText='display:flex;gap:2px;align-items:center;margin-bottom:1px;break-inside:avoid';
-    d.innerHTML='<span style="font-family:var(--fh);font-size:8px;font-weight:700;width:14px;text-align:center;color:var(--accent)">'+(sp.level||'')+'</span><input class="fi" value="'+(sp.name||'')+'" data-idx="'+i+'" data-lf="name" style="font-size:10px"><button class="del-btn" data-idx="'+i+'">×</button>';
+    const mem=sp.memorized?'checked':'';
+    d.innerHTML='<span style="font-family:var(--fh);font-size:8px;font-weight:700;width:14px;text-align:center;color:var(--accent)">'+(sp.level||'')+'</span><div class="sp-mem '+mem+'" data-idx="'+i+'">'+(sp.memorized?'✓':'')+'</div><input class="fi'+(sp.memorized?' sp-name-mem':'')+'" value="'+(sp.name||'')+'" data-idx="'+i+'" data-lf="name" style="font-size:10px"><button class="del-btn" data-idx="'+i+'">×</button>';
     el.appendChild(d);
   });
   el.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',e=>{arr[+e.target.dataset.idx].name=e.target.value;autosave();}));
   el.querySelectorAll('.del-btn').forEach(btn=>btn.addEventListener('click',e=>{arr.splice(+e.target.dataset.idx,1);renderSpells();autosave();}));
+  el.querySelectorAll('.sp-mem').forEach(box=>box.addEventListener('click',e=>{
+    const idx=+box.dataset.idx;
+    arr[idx].memorized=!arr[idx].memorized;
+    box.classList.toggle('checked',arr[idx].memorized);
+    box.textContent=arr[idx].memorized?'✓':'';
+    const nameEl=box.nextElementSibling;
+    if(nameEl)nameEl.classList.toggle('sp-name-mem',arr[idx].memorized);
+    updateSpellCounter();
+    autosave();
+  }));
+  updateSpellCounter();
+}
+
+function updateSpellCounter(){
+  const arr=CHAR.spells||[];
+  const memByLvl={};
+  arr.forEach(sp=>{if(sp.memorized){const l=+(sp.level||0);memByLvl[l]=(memByLvl[l]||0)+1;}});
+  const counter=document.getElementById('sp-counter');
+  let html='';
+  for(let i=1;i<=9;i++){
+    const slots=+(CHAR['spellSlot'+i]||0);
+    const mem=memByLvl[i]||0;
+    if(!slots&&!mem){html+='<div class="sp-cnt-cell sp-cnt-empty">&nbsp;</div>';}
+    else{const cls=mem>slots?'sp-cnt-over':'sp-cnt-ok';html+='<div class="sp-cnt-cell '+cls+'">'+mem+'/'+slots+'</div>';}
+  }
+  counter.innerHTML=html;
 }
 document.getElementById('add-spell').addEventListener('click',()=>{
   const lvl=prompt('Spell level (1-9)?','1');if(!lvl)return;
@@ -1194,9 +1232,10 @@ classField.addEventListener('input',()=>{CHAR.characterClass=classField.value;up
 const _encFields=new Set(['wealthCP','wealthSP','wealthEP','wealthGP','wealthPP','strAdj','moveBase']);
 const _abilityFields=new Set(['str','strPct','weight','int','wis','dex','con','cha']);
 const _thiefFields=new Set(['dex','race','level']);
+const _spellSlotFields=new Set(['spellSlot1','spellSlot2','spellSlot3','spellSlot4','spellSlot5','spellSlot6','spellSlot7','spellSlot8','spellSlot9']);
 document.querySelectorAll('[data-field]').forEach(el=>{
   const ev=el.tagName==='TEXTAREA'?'input':'change';
-  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_abilityFields.has(el.dataset.field))calcAbilitySubs();if(_thiefFields.has(el.dataset.field))calcThiefSkills();autosave();});
+  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_abilityFields.has(el.dataset.field))calcAbilitySubs();if(_thiefFields.has(el.dataset.field))calcThiefSkills();if(_spellSlotFields.has(el.dataset.field))updateSpellCounter();autosave();});
 });
 
 function _setField(f,v){CHAR[f]=v;const el=document.querySelector('[data-field="'+f+'"]');if(el)el.value=v;}
