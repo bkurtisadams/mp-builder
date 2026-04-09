@@ -166,20 +166,13 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .wealth-grid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 6px;margin-bottom:4px;align-items:baseline}
 /* Encumbrance box */
 .enc-box{border:1.5px solid var(--ink);padding:6px 8px 4px;margin-bottom:4px}
-.enc-top{display:flex;gap:6px;align-items:flex-start;margin-bottom:4px;flex-wrap:wrap}
-.enc-mid{display:flex;gap:10px;align-items:flex-start;margin-bottom:4px}
-.enc-bot{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap}
 .enc-fc{display:flex;flex-direction:column;align-items:center;min-width:0}
 .enc-fc .lb{margin-top:1px;text-align:center;line-height:1}
 .enc-fc .fi{text-align:center;font-size:10px;height:15px}
 .load-sep{color:var(--ink-lt);font-size:9px;margin-top:2px}
-.prov-row{display:flex;gap:3px;align-items:baseline}
-.prov-row .lb{flex:0 0 auto}
-.cont-row{display:flex;gap:3px;align-items:baseline}
-.cont-row .fi{font-size:10px;height:15px}
 .coin-row{display:flex;gap:4px;align-items:flex-end;flex:0 0 auto}
 .coin-row .enc-fc .fi{width:44px}
-.gem-detail{flex:1;min-width:0;border:1px solid var(--ink);background:var(--paper-lt);font-family:var(--fb);font-size:10px;padding:2px 3px;resize:vertical;height:34px;outline:none;color:var(--ink)}
+.gem-detail{flex:1;min-width:0;border:1px solid var(--ink);background:var(--paper-lt);font-family:var(--fb);font-size:10px;padding:2px 3px;resize:vertical;height:28px;outline:none;color:var(--ink)}
 .desc-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:2px 8px;margin-bottom:4px}
 .notes-area{width:100%;border:1px solid var(--ink);background:var(--paper-lt);font-family:var(--fb);font-size:10px;padding:4px;resize:vertical;min-height:48px;outline:none;color:var(--ink)}
 .notes-area:focus{border-color:var(--accent)}
@@ -458,52 +451,37 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 
 <div class="sec">Encumbrance & Wealth</div>
 <div class="enc-box">
-  <!-- TOP ROW: Encumbrance / Load vs Move Rate / Total Weight -->
-  <div class="enc-top">
-    <div class="lb" style="font-size:9px;color:var(--ink);align-self:center">Encumbrance:</div>
-    <div class="enc-fc"><input class="fi" data-field="strAdj" style="width:40px"><div class="lb">Str. Adj.</div></div>
-    <div class="lb" style="font-size:8px;align-self:center">Load vs. Move Rate:</div>
-    <div class="enc-fc"><input class="fi" data-field="loadNormal" style="width:56px" readonly><div class="lb">Normal=1</div></div>
+  <!-- ROW 1: Encumbrance / Str Adj / Load vs Move / Total Weight -->
+  <div style="display:flex;gap:3px;align-items:flex-start;margin-bottom:4px">
+    <div class="lb" style="font-size:9px;color:var(--ink);align-self:center;flex-shrink:0">Encumbrance:</div>
+    <div class="enc-fc" style="flex:0 0 36px"><input class="fi" data-field="strAdj" style="text-align:center"><div class="lb">Str. Adj.</div></div>
+    <div class="lb" style="font-size:7px;align-self:center;flex-shrink:0">Load vs. Move:</div>
+    <div class="enc-fc" style="flex:1;min-width:0"><input class="fi" data-field="loadNormal" style="text-align:center;font-size:10px" readonly><div class="lb">Normal=1</div></div>
     <span class="load-sep">—</span>
-    <div class="enc-fc"><input class="fi" data-field="loadHeavy" style="width:56px" readonly><div class="lb">Heavy=¾</div></div>
+    <div class="enc-fc" style="flex:1;min-width:0"><input class="fi" data-field="loadHeavy" style="text-align:center;font-size:10px" readonly><div class="lb">Heavy=¾</div></div>
     <span class="load-sep">—</span>
-    <div class="enc-fc"><input class="fi" data-field="loadLoaded" style="width:56px" readonly><div class="lb">Loaded=½</div></div>
+    <div class="enc-fc" style="flex:1;min-width:0"><input class="fi" data-field="loadLoaded" style="text-align:center;font-size:10px" readonly><div class="lb">Loaded=½</div></div>
     <span class="load-sep">—</span>
-    <div class="enc-fc"><input class="fi" data-field="loadMax" style="width:56px" readonly><div class="lb">Max=¼</div></div>
-    <div style="margin-left:auto;display:flex;gap:4px;align-items:center">
-      <span class="lb" style="font-size:9px">Total Weight Carried</span>
-      <div class="bx" style="width:56px;height:22px;font-size:13px"><input data-field="totalWeight" id="total-weight" readonly style="border:none;background:transparent;font-family:var(--fb);font-size:13px;font-weight:700;text-align:center;width:100%;outline:none;padding:0"></div>
-    </div>
+    <div class="enc-fc" style="flex:1;min-width:0"><input class="fi" data-field="loadMax" style="text-align:center;font-size:10px" readonly><div class="lb">Max=¼</div></div>
+    <div class="enc-fc" style="flex:0 0 50px"><div class="bx" style="width:50px;height:22px;font-size:13px"><input data-field="totalWeight" id="total-weight" readonly style="border:none;background:transparent;font-family:var(--fb);font-size:13px;font-weight:700;text-align:center;width:100%;outline:none;padding:0"></div><div class="lb">Total Wt.</div></div>
   </div>
-  <!-- MID ROW: Provisions + Carrying Capacity containers -->
-  <div class="enc-mid">
-    <div style="flex:0 0 auto">
-      <div class="prov-row" style="margin-bottom:2px">
-        <span class="lb" style="width:52px">Provisions:</span>
-        <div class="enc-fc"><input class="fi" data-field="provFoodSupply" style="width:40px"><div class="lb">Supply</div></div>
-        <div class="enc-fc"><input class="fi" data-field="provFoodUsed" style="width:40px"><div class="lb">Used</div></div>
-      </div>
-      <div class="prov-row">
-        <span class="lb" style="width:52px">Water:</span>
-        <div class="enc-fc"><input class="fi" data-field="provWaterSupply" style="width:40px"><div class="lb">Supply</div></div>
-        <div class="enc-fc"><input class="fi" data-field="provWaterUsed" style="width:40px"><div class="lb">Used</div></div>
-      </div>
-    </div>
-    <div style="flex:1;min-width:0">
-      <div class="lb" style="font-size:9px;color:var(--ink);margin-bottom:2px">Carrying Capacity:</div>
-      <div style="display:grid;grid-template-columns:1fr 44px 44px 1fr 44px 44px;gap:1px 3px">
-        <div class="lb" style="text-align:center;font-size:7px">Container</div><div class="lb" style="text-align:center;font-size:7px">Max Vol.</div><div class="lb" style="text-align:center;font-size:7px">Load</div>
-        <div class="lb" style="text-align:center;font-size:7px">Container</div><div class="lb" style="text-align:center;font-size:7px">Max Vol.</div><div class="lb" style="text-align:center;font-size:7px">Load</div>
-        <input class="fi" data-field="cont1Name"><input class="fi" data-field="cont1Vol" style="text-align:center"><input class="fi" data-field="cont1Load" style="text-align:center">
-        <input class="fi" data-field="cont3Name"><input class="fi" data-field="cont3Vol" style="text-align:center"><input class="fi" data-field="cont3Load" style="text-align:center">
-        <input class="fi" data-field="cont2Name"><input class="fi" data-field="cont2Vol" style="text-align:center"><input class="fi" data-field="cont2Load" style="text-align:center">
-        <input class="fi" data-field="cont4Name"><input class="fi" data-field="cont4Vol" style="text-align:center"><input class="fi" data-field="cont4Load" style="text-align:center">
-      </div>
-    </div>
+  <!-- ROW 2: Provisions + Water -->
+  <div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:4px">
+    <div class="lb" style="font-size:8px;align-self:center;flex-shrink:0">Provisions:</div>
+    <div class="enc-fc"><input class="fi" data-field="provFoodSupply" style="width:36px;text-align:center"><div class="lb">Supply</div></div>
+    <div class="enc-fc"><input class="fi" data-field="provFoodUsed" style="width:36px;text-align:center"><div class="lb">Used</div></div>
+    <div class="lb" style="font-size:8px;align-self:center;flex-shrink:0;margin-left:4px">Water:</div>
+    <div class="enc-fc"><input class="fi" data-field="provWaterSupply" style="width:36px;text-align:center"><div class="lb">Supply</div></div>
+    <div class="enc-fc"><input class="fi" data-field="provWaterUsed" style="width:36px;text-align:center"><div class="lb">Used</div></div>
   </div>
-  <!-- BOTTOM ROW: Coins + Gems/Jewelry -->
-  <div class="enc-bot">
-    <div class="lb" style="font-size:8px;align-self:flex-end;margin-bottom:2px">Coins:</div>
+  <!-- ROW 3: Gem & Jewelry Details (full width) -->
+  <div style="display:flex;gap:4px;align-items:flex-start;margin-bottom:4px">
+    <div class="lb" style="font-size:8px;flex-shrink:0;align-self:center">Gems & Jewelry:</div>
+    <textarea class="gem-detail" data-field="gemDetails" placeholder="e.g. 2x Diamond (5000gp ea.), Pearl necklace (2500gp)"></textarea>
+  </div>
+  <!-- ROW 4: Coins -->
+  <div style="display:flex;gap:4px;align-items:flex-end">
+    <div class="lb" style="font-size:8px;align-self:center;flex-shrink:0">Coins:</div>
     <div class="coin-row">
       <div class="enc-fc"><input class="fi" data-field="wealthCP" type="number"><div class="lb">CP</div></div>
       <div class="enc-fc"><input class="fi" data-field="wealthSP" type="number"><div class="lb">SP</div></div>
@@ -512,10 +490,6 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
       <div class="enc-fc"><input class="fi" data-field="wealthPP" type="number"><div class="lb">PP</div></div>
       <div class="enc-fc"><input class="fi" data-field="wealthGems" style="width:44px"><div class="lb">Gems</div></div>
       <div class="enc-fc"><input class="fi" data-field="wealthJewelry" style="width:44px"><div class="lb">Jewelry</div></div>
-    </div>
-    <div class="enc-fc" style="flex:1;min-width:0;align-items:stretch">
-      <textarea class="gem-detail" data-field="gemDetails" placeholder="Gem & jewelry details..."></textarea>
-      <div class="lb" style="text-align:left">Gem & Jewelry Details</div>
     </div>
   </div>
 </div>
