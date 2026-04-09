@@ -98,6 +98,42 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .sa-row{display:grid;grid-template-columns:24px 1fr 24px 1fr;border-bottom:1px solid #ccc}
 .sa-row:last-child{border-bottom:none}
 .sa-row input{border:none;background:transparent;font-family:var(--fb);font-size:10px;outline:none;padding:0 2px;height:16px}
+/* ── Combat: top 2-col grid ── */
+.combat-top{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;margin-bottom:4px}
+.combat-top>div{min-width:0}
+/* Field cell: value on top, label below */
+.fc{display:flex;flex-direction:column;align-items:center;min-width:0}
+.fc .lb{margin-top:1px;text-align:center;line-height:1}
+/* Horizontal field row */
+.fr{display:flex;gap:4px;align-items:flex-start;margin-bottom:3px}
+.fr>.fc{flex:1}
+/* Combat Adjustments box */
+.ca-sec{border:1px solid var(--ink);padding:4px 6px 2px}
+.ca-title{font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:2px}
+.ca-title span{font-weight:400}
+.ca-totals{display:flex;gap:8px;align-items:flex-start;margin-bottom:4px}
+.ca-totals .fc{flex:1}
+.ca-row{display:flex;gap:2px;align-items:baseline;margin-bottom:1px}
+.ca-pm{flex:0 0 24px;border:none;border-bottom:1px solid var(--ink);font-family:var(--fb);font-size:10px;font-weight:700;text-align:center;height:14px;background:transparent;outline:none;padding:0}
+.ca-pm:focus{border-bottom-color:var(--accent)}
+.ca-cond{flex:1;border:none;border-bottom:1px solid var(--ink);font-family:var(--fb);font-size:10px;height:14px;background:transparent;outline:none;padding:0 2px;min-width:0}
+.ca-cond:focus{border-bottom-color:var(--accent)}
+.ca-labels{display:flex;gap:2px}
+.ca-labels .lb{line-height:1}
+/* Combat: bottom 2-col grid */
+.combat-bot{display:grid;grid-template-columns:170px 1fr;gap:4px 10px;margin-top:2px}
+.combat-bot>div{min-width:0}
+/* Weaponless compact */
+.wlc-title{font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;text-align:center;letter-spacing:.5px;border-bottom:1.5px solid var(--ink);padding-bottom:1px;margin-bottom:1px}
+.wlc-hdr{font-family:var(--fh);font-size:7px;font-weight:700;text-transform:uppercase;text-align:center;letter-spacing:.2px;margin-bottom:3px;color:var(--ink-md)}
+.wlc-row{margin-bottom:4px}
+.wlc-row-label{font-family:var(--fh);font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.wlc-row-fields{display:flex;gap:2px;align-items:baseline}
+.wlc-row-fields input{flex:1;border:none;border-bottom:1px solid var(--ink);background:transparent;font-family:var(--fb);font-size:10px;height:14px;min-width:0;outline:none;padding:0 2px}
+.wlc-row-fields input:focus{border-bottom-color:var(--accent)}
+.wlc-row-fields .sep{font-size:8px;color:var(--ink-lt);flex-shrink:0}
+.w-tbl td.w-ac{font-size:8px}
+.w-tbl td.w-dmg{font-size:8px}
 .combat-ban{font-family:var(--fh);font-size:14px;font-weight:700;text-align:center;letter-spacing:4px;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);padding:3px 0;margin:6px 0;background:var(--paper-dk)}
 .ca-box{border:1px solid var(--ink);padding:4px 6px;margin-bottom:3px}
 .ca-box-title{font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:2px}
@@ -107,6 +143,8 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .w-tbl td input,.wlc-tbl td input,.turn-tbl td input{width:100%;height:18px;border:none;background:transparent;text-align:center;font-family:var(--fb);font-size:10px;outline:none;padding:0;overflow:hidden;text-overflow:ellipsis}
 .w-tbl td input.w-name,.wlc-tbl td:first-child input{text-align:left;padding-left:3px}
 .w-tbl td input:focus,.wlc-tbl td input:focus,.turn-tbl td input:focus{background:var(--paper-lt)}
+.w-tbl td.w-ac input{font-size:8px}
+.w-tbl td.w-dmg input{font-size:8px}
 .inv-tbl td,.h-tbl td{border:1px solid var(--ink);padding:0}
 .inv-tbl td input,.h-tbl td input{width:100%;height:18px;border:none;background:transparent;font-family:var(--fb);font-size:10px;outline:none;padding:0 3px}
 .inv-tbl td input:focus,.h-tbl td input:focus{background:var(--paper-lt)}
@@ -247,39 +285,98 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 
   <div class="full"><div class="combat-ban">*COMBAT*</div></div>
 
-  <div>
-    <div class="row"><span class="lb">Armor Worn</span><input class="fi" data-field="armorWorn"><span class="lb" style="margin-left:4px">AC Base</span><input class="bx" data-field="acBase"></div>
-    <div class="row"><span class="lb">Shield</span><input class="fi" data-field="shield"><span class="lb" style="margin-left:4px">Shield Adj.</span><input class="bx" data-field="shieldAdj"></div>
-    <div class="row"><span class="lb">Dex. Adj.</span><input class="fi" data-field="acDexAdj" style="flex:0 0 28px;text-align:center;min-width:28px"><span class="lb">Magical Adj.</span><input class="fi" data-field="acMagAdj" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-    <div class="row"><span class="lb" style="font-size:10px;font-weight:700">Shieldless AC</span><input class="bx" data-field="acShieldless"><span class="lb">Rear AC</span><input class="bx" data-field="acRear"></div>
-    <div class="row" style="margin-bottom:4px"><span class="lb" style="font-size:14px">AC</span><input class="bx bx-lg" data-field="ac"><span class="lb" style="font-size:11px;margin-left:8px">Hit Points</span><input class="bx bx-lg" data-field="hpCurrent" type="number"><span style="color:var(--ink-lt)">/</span><input class="bx bx-lg" data-field="hpMax" type="number" style="opacity:.6"></div>
-    <div class="row"><span class="lb">Special Adjustments</span><input class="fi" data-field="specialAdjustments"></div>
-  </div>
-
-  <div>
-    <div class="ca-box">
-      <div class="ca-box-title">Combat Adjustments: <span style="font-weight:400">Totals:</span></div>
-      <div class="row"><span class="lb">"To Hit" Adj.</span><input class="fi" data-field="combatToHitAdj" style="flex:0 0 34px;text-align:center"><span class="lb" style="margin-left:6px">Damage Adj.</span><input class="fi" data-field="combatDamAdj" style="flex:0 0 34px;text-align:center"></div>
+  <!-- ═══ COMBAT TOP: AC left / Combat Adjustments right ═══ -->
+  <div class="full">
+  <div class="combat-top">
+    <div>
+      <!-- AC box + Armor Worn + AC Base -->
+      <div class="fr">
+        <div class="fc" style="flex:0 0 44px"><div class="bx bx-lg" style="width:44px"><input data-field="ac" style="border:none;background:transparent;font-family:var(--fb);font-size:16px;font-weight:700;text-align:center;width:100%;height:100%;outline:none;padding:0"></div><div class="lb">AC</div></div>
+        <div class="fc" style="flex:2"><input class="fi" data-field="armorWorn" style="border-bottom:1px solid var(--ink)"><div class="lb">Armor Worn</div></div>
+        <div class="fc" style="flex:0 0 36px"><input class="fi" data-field="acBase" style="text-align:center;border-bottom:1px solid var(--ink)"><div class="lb">AC Base</div></div>
+      </div>
+      <!-- Dex Adj / Mag Adj / Shieldless AC / Rear AC -->
+      <div class="fr">
+        <div class="fc"><input class="fi" data-field="acDexAdj" style="text-align:center;border-bottom:1px solid var(--ink)"><div class="lb">Dex. Adj.</div></div>
+        <div class="fc"><input class="fi" data-field="acMagAdj" style="text-align:center;border-bottom:1px solid var(--ink)"><div class="lb">Magical Adj.</div></div>
+        <div class="fc"><input class="fi" data-field="acShieldless" style="text-align:center;font-size:12px;border-bottom:1px solid var(--ink)"><div class="lb" style="font-size:9px;font-weight:700;color:var(--ink)">Shieldless AC</div></div>
+        <div class="fc"><input class="fi" data-field="acRear" style="text-align:center;border-bottom:1px solid var(--ink)"><div class="lb">Rear AC</div></div>
+      </div>
+      <!-- Surprise / Dex Adjust / Rear Attacks Adjust -->
+      <div class="fr">
+        <div class="fc" style="flex:0 0 40px"><input class="fi" data-field="surprise" style="text-align:center;border-bottom:1px solid var(--ink)"><div class="lb">Surprise</div></div>
+        <div class="fc" style="flex:1"><input class="fi" data-field="surpriseDexAdj" style="border-bottom:1px solid var(--ink)"><div class="lb">Dex. Adjust.</div></div>
+        <div class="fc" style="flex:1"><input class="fi" data-field="rearAtkAdj" style="border-bottom:1px solid var(--ink)"><div class="lb">Rear Attacks Adjust.</div></div>
+      </div>
+      <!-- HP (merged) + Weapon in Hand + Secondary -->
+      <div class="fr" style="align-items:flex-end">
+        <div class="fc" style="flex:0 0 70px"><div class="bx bx-lg" style="width:70px;font-size:13px;gap:0"><input data-field="hpCurrent" type="number" style="border:none;background:transparent;font-family:var(--fb);font-size:13px;font-weight:700;text-align:right;width:28px;outline:none;padding:0;-moz-appearance:textfield"><span style="font-size:11px;color:var(--ink-lt)">/</span><input data-field="hpMax" type="number" style="border:none;background:transparent;font-family:var(--fb);font-size:13px;font-weight:700;text-align:left;width:28px;outline:none;padding:0;opacity:.6;-moz-appearance:textfield"></div><div class="lb">Hit Points</div></div>
+        <div class="fc" style="flex:1"><input class="fi" data-field="primaryWeapon" style="border-bottom:1px solid var(--ink)"><div class="lb">Weapon in Hand</div></div>
+        <div class="fc" style="flex:1"><input class="fi" data-field="secondaryWeapon" style="border-bottom:1px solid var(--ink)"><div class="lb">Secondary</div></div>
+      </div>
     </div>
-    <div class="row"><span class="lb"># Attacks</span><input class="fi" data-field="numAttacks" style="flex:0 0 34px;text-align:center"><span class="lb" style="margin-left:6px">Surprise</span><input class="fi" data-field="surprise" style="flex:0 0 34px;text-align:center"><span class="lb" style="margin-left:6px">Dex. Adj.</span><input class="fi" data-field="surpriseDexAdj" style="flex:0 0 34px;text-align:center"></div>
-    <div class="row"><span class="lb">Primary Weapon</span><input class="fi" data-field="primaryWeapon"></div>
-    <div class="row"><span class="lb">Secondary Weapon</span><input class="fi" data-field="secondaryWeapon"></div>
+
+    <!-- RIGHT: Combat Adjustments -->
+    <div>
+      <div class="ca-sec">
+        <div class="ca-title">Combat Adjustments: <span>Totals:</span></div>
+        <div class="ca-totals">
+          <div class="fc"><input class="fi" data-field="combatToHitAdj" style="text-align:center;font-size:12px;border-bottom:1px solid var(--ink)"><div class="lb">"To Hit" Adj.</div></div>
+          <div class="fc"><input class="fi" data-field="combatDamAdj" style="text-align:center;font-size:12px;border-bottom:1px solid var(--ink)"><div class="lb">Damage Adj.</div></div>
+        </div>
+        <div class="ca-row"><input class="ca-pm" data-field="caHit1"><input class="ca-cond" data-field="caCond1"><input class="ca-pm" data-field="caDam1"><input class="ca-cond" data-field="caDCond1"></div>
+        <div class="ca-row"><input class="ca-pm" data-field="caHit2"><input class="ca-cond" data-field="caCond2"><input class="ca-pm" data-field="caDam2"><input class="ca-cond" data-field="caDCond2"></div>
+        <div class="ca-row"><input class="ca-pm" data-field="caHit3"><input class="ca-cond" data-field="caCond3"><input class="ca-pm" data-field="caDam3"><input class="ca-cond" data-field="caDCond3"></div>
+        <div class="ca-row"><input class="ca-pm" data-field="caHit4"><input class="ca-cond" data-field="caCond4"><input class="ca-pm" data-field="caDam4"><input class="ca-cond" data-field="caDCond4"></div>
+        <div class="ca-labels">
+          <div class="lb" style="flex:0 0 24px;text-align:center">±</div>
+          <div class="lb" style="flex:1">Condition</div>
+          <div class="lb" style="flex:0 0 24px;text-align:center">±</div>
+          <div class="lb" style="flex:1">Condition</div>
+        </div>
+      </div>
+    </div>
+  </div>
   </div>
 
+  <!-- ═══ COMBAT BOTTOM: Weaponless left / Weapon table right ═══ -->
   <div class="full">
-    <table class="w-tbl"><thead>
-      <tr><th style="width:18%">Weapon</th><th>Mag.</th><th>Range</th><th>Spd</th><th>10</th><th>9</th><th>8</th><th>7</th><th>6</th><th>5</th><th>4</th><th>3</th><th>2</th><th style="width:10%">Dmg S-M/L</th><th style="width:16px"><button class="add-sm" id="add-weapon" title="Add weapon">+</button></th></tr>
-      <tr><td colspan="4" style="border:1px solid var(--ink)"></td><td colspan="9" style="border:1px solid var(--ink);font-family:var(--fh);font-size:6px;text-align:center;letter-spacing:1px;background:var(--paper-dk)">ADJUSTED TO HIT ARMOR CLASS</td><td style="border:1px solid var(--ink);font-family:var(--fh);font-size:6px;text-align:center;background:var(--paper-dk)">DAMAGE VS SIZE</td><td style="border:none"></td></tr>
-    </thead><tbody id="weapon-list"></tbody></table>
-  </div>
+  <div class="combat-bot">
+    <div>
+      <div style="margin-bottom:6px">
+        <input class="fi" data-field="numAttacks" style="width:50px;text-align:center;border-bottom:1px solid var(--ink)">
+        <div class="lb"># Attacks</div>
+      </div>
+      <div class="wlc-title">Weaponless Combat:</div>
+      <div class="wlc-hdr">Attack Adj.—Damage Adj.—Defense Adj.</div>
+      <div class="wlc-row">
+        <div class="wlc-row-fields"><input data-field="pummelAtk"><span class="sep">-</span><input data-field="pummelDam"><span class="sep">-</span><input data-field="pummelDef"></div>
+        <div class="wlc-row-label">Pummeling</div>
+      </div>
+      <div class="wlc-row">
+        <div class="wlc-row-fields"><input data-field="grappleAtk"><span class="sep">-</span><input data-field="grappleDam"><span class="sep">-</span><input data-field="grappleDef"></div>
+        <div class="wlc-row-label">Grappling</div>
+      </div>
+      <div class="wlc-row">
+        <div class="wlc-row-fields"><input data-field="overbearAtk"><span class="sep">-</span><input data-field="overbearDam"><span class="sep">-</span><input data-field="overbearDef"></div>
+        <div class="wlc-row-label">Overbearing</div>
+      </div>
+    </div>
 
-  <div class="full">
-    <table class="wlc-tbl"><thead><tr><th style="width:20%">Weaponless</th><th>Atk. Adj.</th><th>Dam. Adj.</th><th>Def. Adj.</th></tr></thead>
-    <tbody>
-      <tr><td><input value="Pummeling" readonly style="font-family:var(--fh);font-size:9px;font-weight:700"></td><td><input data-field="pummelAtk"></td><td><input data-field="pummelDam"></td><td><input data-field="pummelDef"></td></tr>
-      <tr><td><input value="Grappling" readonly style="font-family:var(--fh);font-size:9px;font-weight:700"></td><td><input data-field="grappleAtk"></td><td><input data-field="grappleDam"></td><td><input data-field="grappleDef"></td></tr>
-      <tr><td><input value="Overbearing" readonly style="font-family:var(--fh);font-size:9px;font-weight:700"></td><td><input data-field="overbearAtk"></td><td><input data-field="overbearDam"></td><td><input data-field="overbearDef"></td></tr>
-    </tbody></table>
+    <div>
+      <table class="w-tbl"><thead>
+        <tr>
+          <th style="width:18%">Weapon</th>
+          <th style="width:5%">Mag.<br>Adj.</th>
+          <th style="width:9%">Space/<br>Range</th>
+          <th style="width:4%">Spd</th>
+          <th style="width:3.5%">10</th><th style="width:3.5%">9</th><th style="width:3.5%">8</th><th style="width:3.5%">7</th><th style="width:3.5%">6</th><th style="width:3.5%">5</th><th style="width:3.5%">4</th><th style="width:3.5%">3</th><th style="width:3.5%">2</th>
+          <th style="width:14%">Dmg<br>S-M/L</th>
+          <th style="width:16px"><button class="add-sm" id="add-weapon" title="Add weapon">+</button></th>
+        </tr>
+      </thead><tbody id="weapon-list"></tbody></table>
+    </div>
+  </div>
   </div>
 
   <div class="full cls-sec" id="section-spells">
@@ -428,7 +525,7 @@ function renderWeapons(){
   const arr=CHAR.weapons||[];const tb=document.getElementById('weapon-list');tb.innerHTML='';
   arr.forEach((w,i)=>{
     const tr=document.createElement('tr');
-    tr.innerHTML='<td><input class="w-name" value="'+(w.name||'')+'" data-idx="'+i+'" data-lf="name"></td><td><input value="'+(w.magAdj||'')+'" data-idx="'+i+'" data-lf="magAdj"></td><td><input value="'+(w.range||'')+'" data-idx="'+i+'" data-lf="range"></td><td><input value="'+(w.speed||'')+'" data-idx="'+i+'" data-lf="speed"></td><td><input value="'+(w.ac10||'')+'" data-idx="'+i+'" data-lf="ac10"></td><td><input value="'+(w.ac9||'')+'" data-idx="'+i+'" data-lf="ac9"></td><td><input value="'+(w.ac8||'')+'" data-idx="'+i+'" data-lf="ac8"></td><td><input value="'+(w.ac7||'')+'" data-idx="'+i+'" data-lf="ac7"></td><td><input value="'+(w.ac6||'')+'" data-idx="'+i+'" data-lf="ac6"></td><td><input value="'+(w.ac5||'')+'" data-idx="'+i+'" data-lf="ac5"></td><td><input value="'+(w.ac4||'')+'" data-idx="'+i+'" data-lf="ac4"></td><td><input value="'+(w.ac3||'')+'" data-idx="'+i+'" data-lf="ac3"></td><td><input value="'+(w.ac2||'')+'" data-idx="'+i+'" data-lf="ac2"></td><td><input value="'+(w.dmg||'')+'" data-idx="'+i+'" data-lf="dmg"></td><td style="text-align:center"><button class="del-btn" data-idx="'+i+'">×</button></td>';
+    tr.innerHTML='<td><input class="w-name" value="'+(w.name||'')+'" data-idx="'+i+'" data-lf="name"></td><td><input value="'+(w.magAdj||'')+'" data-idx="'+i+'" data-lf="magAdj"></td><td><input value="'+(w.range||'')+'" data-idx="'+i+'" data-lf="range"></td><td><input value="'+(w.speed||'')+'" data-idx="'+i+'" data-lf="speed"></td><td class="w-ac"><input value="'+(w.ac10||'')+'" data-idx="'+i+'" data-lf="ac10"></td><td class="w-ac"><input value="'+(w.ac9||'')+'" data-idx="'+i+'" data-lf="ac9"></td><td class="w-ac"><input value="'+(w.ac8||'')+'" data-idx="'+i+'" data-lf="ac8"></td><td class="w-ac"><input value="'+(w.ac7||'')+'" data-idx="'+i+'" data-lf="ac7"></td><td class="w-ac"><input value="'+(w.ac6||'')+'" data-idx="'+i+'" data-lf="ac6"></td><td class="w-ac"><input value="'+(w.ac5||'')+'" data-idx="'+i+'" data-lf="ac5"></td><td class="w-ac"><input value="'+(w.ac4||'')+'" data-idx="'+i+'" data-lf="ac4"></td><td class="w-ac"><input value="'+(w.ac3||'')+'" data-idx="'+i+'" data-lf="ac3"></td><td class="w-ac"><input value="'+(w.ac2||'')+'" data-idx="'+i+'" data-lf="ac2"></td><td class="w-dmg"><input value="'+(w.dmg||'')+'" data-idx="'+i+'" data-lf="dmg"></td><td style="text-align:center"><button class="del-btn" data-idx="'+i+'">×</button></td>';
     tb.appendChild(tr);
   });
   tb.querySelectorAll('input').forEach(el=>el.addEventListener('change',e=>{arr[+e.target.dataset.idx][e.target.dataset.lf]=e.target.value;autosave();}));
