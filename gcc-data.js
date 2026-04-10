@@ -1,4 +1,6 @@
-// gcc-data.js v1.0.0 — 2026-04-02
+// gcc-data.js v1.1.0 — 2026-04-10
+// v1.1.0: Add lore array, enriched session schema (v2 migration),
+//         system-aware labels (sessionLabel, xpLabel, LORE_TYPES)
 // Graycloak's Campaign Corner — core data layer
 
 const GCC = (function() {
@@ -91,6 +93,15 @@ const GCC = (function() {
     return TEAM_LABELS[systemId] || 'Party';
   }
 
+  const SESSION_LABELS = { faserip: 'Issue', mp: 'Episode', add1e: 'Session' };
+  function sessionLabel(systemId) { return SESSION_LABELS[systemId] || 'Session'; }
+
+  const XP_LABELS = { faserip: 'Karma', mp: 'XP', add1e: 'XP' };
+  function xpLabel(systemId) { return XP_LABELS[systemId] || 'XP'; }
+
+  const LORE_TYPES = ['npc', 'location', 'faction', 'item', 'other'];
+  const LORE_TYPE_LABELS = { npc: 'NPC', location: 'Location', faction: 'Faction', item: 'Item', other: 'Other' };
+
   // ── Schema Migration ──
   function migrateEntity(entity) {
     if (!entity) return entity;
@@ -106,6 +117,22 @@ const GCC = (function() {
         });
       }
       entity.schemaVersion = 1;
+    }
+    if (entity.schemaVersion < 2) {
+      // v1→v2: enrich sessions with new fields, add lore array
+      if (entity.sessions) {
+        entity.sessions.forEach(s => {
+          if (!s._id) s._id = genId('ses');
+          if (s.gameDate === undefined) s.gameDate = '';
+          if (s.image === undefined) s.image = '';
+          if (s.sections === undefined) s.sections = [];
+          if (s.tags === undefined) s.tags = [];
+          if (s.visible === undefined) s.visible = true;
+          if (s.type === undefined) s.type = 'session'; // 'session' or 'timeline'
+        });
+      }
+      if (!entity.lore) entity.lore = [];
+      entity.schemaVersion = 2;
     }
     return entity;
   }
@@ -160,6 +187,7 @@ const GCC = (function() {
       notes: data.notes || '',
       characters: data.characters || [],
       sessions: data.sessions || [],
+      lore: data.lore || [],
       created: data.created || new Date().toISOString(),
     };
     list.push(camp);
@@ -370,7 +398,11 @@ const GCC = (function() {
     KEYS,
     SYSTEM_DEFS,
     TEAM_LABELS,
+    LORE_TYPES,
+    LORE_TYPE_LABELS,
     teamLabel,
+    sessionLabel,
+    xpLabel,
     init,
     // Campaigns
     loadCampaigns,
