@@ -152,6 +152,11 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .inv-tbl td,.h-tbl td{border:1px solid var(--ink);padding:0}
 .inv-tbl td input,.h-tbl td input{width:100%;height:18px;border:none;background:transparent;font-family:var(--fb);font-size:10px;outline:none;padding:0 3px}
 .inv-tbl td input:focus,.h-tbl td input:focus{background:var(--paper-lt)}
+.inv-cont{font-weight:700;background:var(--paper-dk)!important}
+.inv-cont input{font-weight:700!important}
+.inv-toggle{border:none;background:none;font-size:9px;cursor:pointer;padding:0 2px;color:var(--ink-md);font-family:var(--fb);width:12px;flex-shrink:0}
+.inv-toggle:hover{color:var(--accent)}
+.inv-hidden{display:none}
 .sp-grid{border:1px solid var(--ink);margin-bottom:2px}
 .sp-hdr{display:grid;grid-template-columns:repeat(9,1fr);font-family:var(--fh);font-size:8px;font-weight:700;text-align:center;border-bottom:1px solid var(--ink)}
 .sp-hdr div{border-right:1px solid var(--ink);padding:2px}.sp-hdr div:last-child{border-right:none}
@@ -970,6 +975,90 @@ function renderTableRows(arrKey,tbId,addBtnId,fields){
   document.getElementById(addBtnId).onclick=()=>{if(!CHAR[arrKey])CHAR[arrKey]=[];const o={};fields.forEach(f=>o[f.key]='');CHAR[arrKey].push(o);renderTableRows(arrKey,tbId,addBtnId,fields);autosave();};
 }
 
+function renderInventory(){
+  const arr=CHAR.items||[];
+  const tb=document.getElementById('item-list');
+  tb.innerHTML='';
+  // Build parent→children map for collapse
+  const collapsedSet=new Set();
+  arr.forEach((row,i)=>{if(row._container&&row._collapsed)collapsedSet.add(i);});
+  // Determine which rows are hidden by a collapsed ancestor
+  function isHidden(idx){
+    const row=arr[idx];
+    const depth=+(row._depth||0);
+    if(depth===0)return false;
+    for(let j=idx-1;j>=0;j--){
+      const p=arr[j];
+      const pd=+(p._depth||0);
+      if(pd<depth){
+        if(p._container&&p._collapsed)return true;
+        if(pd===0)return false;
+        depth===pd; // check this parent's ancestors
+      }
+    }
+    return false;
+  }
+  // Smarter hidden check: walk up to find any collapsed ancestor
+  function isRowHidden(idx){
+    const myDepth=+(arr[idx]._depth||0);
+    if(myDepth===0)return false;
+    let checkDepth=myDepth;
+    for(let j=idx-1;j>=0;j--){
+      const pd=+(arr[j]._depth||0);
+      if(pd<checkDepth){
+        if(arr[j]._container&&arr[j]._collapsed)return true;
+        checkDepth=pd;
+        if(pd===0)return false;
+      }
+    }
+    return false;
+  }
+  arr.forEach((row,i)=>{
+    const tr=document.createElement('tr');
+    const depth=+(row._depth||0);
+    const isCont=!!row._container;
+    const hidden=isRowHidden(i);
+    if(isCont)tr.classList.add('inv-cont');
+    if(hidden)tr.classList.add('inv-hidden');
+    const indent=depth*12;
+    const toggleBtn=isCont?'<span class="inv-toggle" data-idx="'+i+'">'+(row._collapsed?'▶':'▼')+'</span>':'';
+    let html='';
+    html+='<td><div style="display:flex;align-items:center;padding-left:'+indent+'px">'+toggleBtn+'<input value="'+(row.name||'')+'" data-idx="'+i+'" data-lf="name" style="flex:1;min-width:0'+(isCont?';font-weight:700':'')+'"></div></td>';
+    html+='<td><input value="'+(row.location||'')+'" data-idx="'+i+'" data-lf="location"></td>';
+    html+='<td><input value="'+(row.qty||'')+'" data-idx="'+i+'" data-lf="qty" style="text-align:center"></td>';
+    html+='<td><input value="'+(row.weight||'')+'" data-idx="'+i+'" data-lf="weight" style="text-align:center"></td>';
+    html+='<td><input value="'+(row.notes||'')+'" data-idx="'+i+'" data-lf="notes"></td>';
+    html+='<td style="text-align:center"><button class="del-btn" data-idx="'+i+'">×</button></td>';
+    tr.innerHTML=html;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('input').forEach(el=>el.addEventListener('change',e=>{
+    arr[+e.target.dataset.idx][e.target.dataset.lf]=e.target.value;
+    calcWeight();autosave();
+  }));
+  tb.querySelectorAll('.del-btn').forEach(el=>el.addEventListener('click',e=>{
+    const idx=+e.target.dataset.idx;
+    // If container, also delete children
+    if(arr[idx]&&arr[idx]._container){
+      const parentDepth=+(arr[idx]._depth||0);
+      let end=idx+1;
+      while(end<arr.length&&+(arr[end]._depth||0)>parentDepth)end++;
+      arr.splice(idx,end-idx);
+    }else{arr.splice(idx,1);}
+    renderInventory();calcWeight();autosave();
+  }));
+  tb.querySelectorAll('.inv-toggle').forEach(el=>el.addEventListener('click',()=>{
+    const idx=+el.dataset.idx;
+    arr[idx]._collapsed=!arr[idx]._collapsed;
+    renderInventory();
+  }));
+  document.getElementById('add-item').onclick=()=>{
+    if(!CHAR.items)CHAR.items=[];
+    CHAR.items.push({name:'',location:'',qty:'',weight:'',notes:''});
+    renderInventory();autosave();
+  };
+}
+
 function renderSpells(){
   const arr=CHAR.spells||[];const el=document.getElementById('spell-list');el.innerHTML='';
   arr.forEach((sp,i)=>{
@@ -1723,12 +1812,45 @@ function mapARS(ars){
     fillWeaponPHB(wObj);
     c.weapons.push(wObj);
   });
-  // Inventory (exclude currency, weapons, spells, class, race, skill, ability, proficiency)
+  // Inventory — build container tree from ARS itemList references
   const skipT=['weapon','spell','race','class','skill','ability','proficiency','currency'];
-  c.items=items.filter(i=>!skipT.includes(i.type)).map(i=>{
-    const is=i.system||{};
-    return{name:i.name,location:is.location?is.location.state:'',qty:is.quantity||1,weight:is.weight?Math.round((+is.weight)*10):'',notes:is.attributes&&is.attributes.magic?'magical':''};
-  });
+  const idMap={};items.forEach(i=>{idMap[i._id]=i;});
+  c.items=[];
+  // Track which item IDs are inside containers (to avoid duplicating them at top level)
+  const insideContainer=new Set();
+  function markContained(container){
+    const il=(container.system||{}).itemList||[];
+    il.forEach(ref=>{
+      insideContainer.add(ref.id);
+      const child=idMap[ref.id];
+      if(child&&child.type==='container')markContained(child);
+    });
+  }
+  items.filter(i=>i.type==='container').forEach(c2=>markContained(c2));
+  // Recursive tree walker
+  function addItems(itemOrRef, depth, parentState){
+    const item=typeof itemOrRef==='string'?idMap[itemOrRef]:itemOrRef;
+    if(!item)return;
+    if(skipT.includes(item.type))return;
+    const is=item.system||{};
+    const loc=is.location||{};
+    const state=loc.state||parentState||'';
+    if(item.type==='container'){
+      c.items.push({name:item.name,location:state,qty:is.quantity||1,weight:is.weight?Math.round((+is.weight)*10):'',notes:'',_container:true,_depth:depth,_collapsed:false});
+      const il=is.itemList||[];
+      il.forEach(ref=>{
+        const child=idMap[ref.id];
+        if(child)addItems(child,depth+1,state);
+        else c.items.push({name:ref.name||'?',location:state,qty:ref.quantity||1,weight:'',notes:'',_depth:depth+1});
+      });
+    }else{
+      c.items.push({name:item.name,location:state,qty:is.quantity||1,weight:is.weight?Math.round((+is.weight)*10):'',notes:is.attributes&&is.attributes.magic?'magical':'',_depth:depth});
+    }
+  }
+  // Add top-level containers first
+  items.filter(i=>i.type==='container'&&!insideContainer.has(i._id)).forEach(cont=>addItems(cont,0,''));
+  // Add loose items (not inside any container)
+  items.filter(i=>!skipT.includes(i.type)&&i.type!=='container'&&!insideContainer.has(i._id)).forEach(i=>addItems(i,0,''));
   // Magic items
   // Coins — type='currency', denomination from cost.currency
   const coinMap={cp:'wealthCP',sp:'wealthSP',ep:'wealthEP',gp:'wealthGP',pp:'wealthPP'};
@@ -2196,7 +2318,7 @@ const _thiefFieldToSkill={thiefPP:'PP',thiefOL:'OL',thiefFRT:'FRT',thiefMS:'MS',
 function populateAll(){
   populateFields();updateClassSections();showPortrait();renderWeapons();calcAbilitySubs();calcThiefSkills();calcProfSlots();
   renderInlineList('proficiencies','prof-list','add-prof');
-  renderTableRows('items','item-list','add-item',[{key:'name'},{key:'location'},{key:'qty',center:true},{key:'weight',center:true},{key:'notes'}]);
+  renderInventory();
   renderTableRows('associates','assoc-list','add-assoc',[{key:'num',center:true},{key:'name'},{key:'cls'},{key:'level',center:true},{key:'race'},{key:'notes'},{key:'num2',center:true},{key:'name2'},{key:'cls2'},{key:'level2',center:true},{key:'race2'},{key:'notes2'}]);
   renderTableRows('locales','locale-list','add-locale',[{key:'location'},{key:'time'},{key:'details'},{key:'location2'},{key:'time2'},{key:'details2'}]);
   renderSpells();calcWeight();
