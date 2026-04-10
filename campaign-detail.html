@@ -99,30 +99,44 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .filter-pill:hover{color:var(--tx2);border-color:var(--brd-lt)}
 .filter-pill.active{color:var(--accent);border-color:var(--accent-dim);background:rgba(96,160,208,0.06)}
 .session-list{list-style:none}
-.session-card{background:var(--bg-card);border:1px solid var(--brd);border-radius:4px;margin-bottom:10px;overflow:hidden;box-shadow:var(--card-shadow)}
+.session-card{background:var(--bg-card);border:1px solid var(--brd);border-radius:4px;margin-bottom:12px;overflow:hidden;box-shadow:var(--card-shadow)}
 .session-card.timeline-entry{opacity:.75}
 .session-card.dm-only{border-left:2px solid var(--amber)}
-.session-card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 0;gap:8px}
+.session-card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 6px;gap:8px;border-bottom:1px solid var(--brd)}
 .session-num{font-family:var(--fsc);font-size:11px;color:var(--accent);letter-spacing:.5px;font-weight:700;flex:1;min-width:0}
 .session-num-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 .session-dates{display:flex;gap:10px;align-items:center;flex-shrink:0}
 .session-date{font-family:var(--fm);font-size:10px;color:var(--tx3)}.session-date-game{color:var(--amber)}
-.session-card-img{max-width:40%;object-fit:contain;display:block;margin:10px auto 4px;border-radius:3px;border:1px solid var(--brd)}
-.session-sec-img{max-width:35%;object-fit:contain;display:block;margin:6px auto 4px;border-radius:3px;border:1px solid var(--brd)}
+/* ── Recap layout: cover left + text right ── */
+.session-recap{display:flex;gap:14px;padding:12px 14px 8px;align-items:flex-start}
+.session-recap-img{flex:0 0 220px;max-width:220px}
+.session-recap-img img{width:100%;border-radius:3px;border:1px solid var(--brd);display:block}
+.session-recap-text{flex:1;min-width:0}
+.session-recap-noimg{padding:10px 14px 6px}
+/* ── Roster strip ── */
+.session-roster{display:flex;gap:4px;flex-wrap:wrap;padding:4px 14px 6px;border-top:1px solid var(--brd);background:var(--bg2)}
+.session-roster-label{font-family:var(--fsc);font-size:8px;color:var(--tx3);letter-spacing:1px;margin-right:4px;align-self:center}
+.session-roster-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:10px;border-radius:2px;border:1px solid var(--brd);color:var(--tx2);background:var(--bg-card)}
+.session-roster-chip img{width:18px;height:18px;border-radius:50%;object-fit:contain}
+.session-roster-chip .roster-ph{width:18px;height:18px;border-radius:50%;background:var(--bg-section);display:inline-flex;align-items:center;justify-content:center;font-size:8px;color:var(--tx3)}
+/* ── Sections area (below recap) ── */
+.session-sections{padding:6px 14px 6px;border-top:1px solid var(--brd)}
+.session-sec-block{margin-bottom:8px}
+.session-sec-block:last-child{margin-bottom:2px}
+.session-sec-img{max-width:45%;float:right;margin:0 0 8px 12px;border-radius:3px;border:1px solid var(--brd)}
 .session-body{padding:10px 14px 6px}
 .session-text{font-size:12px;color:var(--tx2);line-height:1.5;white-space:pre-line}
-.session-section-title{font-size:11px;font-weight:700;color:var(--accent-dim);margin:8px 0 3px;letter-spacing:.3px}
-.session-roster{display:flex;gap:4px;flex-wrap:wrap;padding:2px 14px 4px}
-.session-roster-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:10px;border-radius:2px;border:1px solid var(--brd);color:var(--tx2);background:var(--bg2)}
-.session-roster-chip img{width:16px;height:16px;border-radius:50%;object-fit:contain}
-.session-roster-chip .roster-ph{width:16px;height:16px;border-radius:50%;background:var(--bg-section);display:inline-flex;align-items:center;justify-content:center;font-size:8px;color:var(--tx3)}
-.session-footer{display:flex;gap:8px;align-items:center;padding:4px 14px 10px;flex-wrap:wrap}
+.session-section-title{font-size:11px;font-weight:700;color:var(--accent-dim);margin:0 0 3px;letter-spacing:.3px}
+.session-section-text{font-size:12px;color:var(--tx2);line-height:1.5;white-space:pre-line}
+.clearfix::after{content:'';display:table;clear:both}
+.session-footer{display:flex;gap:8px;align-items:center;padding:6px 14px 10px;flex-wrap:wrap;border-top:1px solid var(--brd)}
 .session-tag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;font-size:10px;border-radius:2px;border:1px solid var(--brd-lt);color:var(--tx2);background:var(--bg2);cursor:default}
 .session-tag .tag-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
 .session-xp{font-family:var(--fm);font-size:10px;color:var(--accent);margin-left:auto}
 .session-vis{font-size:9px;color:var(--tx3);display:flex;align-items:center;gap:3px}
 .session-actions{display:flex;gap:6px;opacity:0;transition:opacity .1s}
 .session-card:hover .session-actions{opacity:1}
+@media(max-width:600px){.session-recap{flex-direction:column}.session-recap-img{flex:none;max-width:60%;margin:0 auto}.session-sec-img{max-width:100%;float:none;margin:6px 0}}
 .session-action-btn{background:none;border:none;color:var(--tx3);font-size:10px;cursor:pointer;padding:0 2px;font-family:var(--fb);font-weight:700}
 .session-action-btn:hover{color:var(--tx)}.session-action-btn.danger:hover{color:var(--red)}
 
@@ -340,23 +354,34 @@ function buildSessionCard(s,idx,total,camp){
   if(s.gameDate)datesHtml+=`<span class="session-date session-date-game">${ESC(s.gameDate)}</span>`;
   if(s.date)datesHtml+=`<span class="session-date">${formatDateShort(s.date)}</span>`;
 
-  const imgHtml=s.image?`<img class="session-card-img" src="${s.image}" alt="">`:'';
-
-  let bodyHtml='';
-  if(s.text){bodyHtml+=`<div class="session-text">${ESC(s.text)}</div>`}
-  if(s.sections&&s.sections.length){
-    s.sections.forEach(sec=>{
-      if(sec.title)bodyHtml+=`<div class="session-section-title">${ESC(sec.title)}</div>`;
-      if(sec.image)bodyHtml+=`<img class="session-sec-img" src="${sec.image}" alt="">`;
-      if(sec.text)bodyHtml+=`<div class="session-text">${ESC(sec.text)}</div>`;
-    });
+  // ── Recap layout: cover image left, summary text right ──
+  let recapHtml='';
+  const summaryHtml=s.text?`<div class="session-text">${ESC(s.text)}</div>`:'';
+  if(s.image){
+    recapHtml=`<div class="session-recap"><div class="session-recap-img"><img src="${s.image}" alt=""></div><div class="session-recap-text">${summaryHtml}</div></div>`;
+  }else if(summaryHtml){
+    recapHtml=`<div class="session-recap-noimg">${summaryHtml}</div>`;
   }
 
-  // Character roster for this session
+  // ── Sections: title + floated image + text ──
+  let sectionsHtml='';
+  if(s.sections&&s.sections.length){
+    sectionsHtml='<div class="session-sections">';
+    s.sections.forEach(sec=>{
+      sectionsHtml+='<div class="session-sec-block clearfix">';
+      if(sec.title)sectionsHtml+=`<div class="session-section-title">${ESC(sec.title)}</div>`;
+      if(sec.image)sectionsHtml+=`<img class="session-sec-img" src="${sec.image}" alt="">`;
+      if(sec.text)sectionsHtml+=`<div class="session-section-text">${ESC(sec.text)}</div>`;
+      sectionsHtml+='</div>';
+    });
+    sectionsHtml+='</div>';
+  }
+
+  // ── Character roster strip ──
   let rosterHtml='';
   if(s.roster&&s.roster.length){
     const chars=camp.characters||[];
-    rosterHtml='<div class="session-roster">';
+    rosterHtml='<div class="session-roster"><span class="session-roster-label">ROSTER</span>';
     s.roster.forEach(id=>{
       const ch=chars.find(c=>(c._id||c.name)===id);
       if(!ch)return;
@@ -383,8 +408,9 @@ function buildSessionCard(s,idx,total,camp){
     <div class="session-card-header">${numLabel}<div style="display:flex;align-items:center;gap:8px"><div class="session-dates">${datesHtml}</div>
       <div class="session-actions"><button class="session-action-btn" data-ses-edit="${idx}">Edit</button><button class="session-action-btn danger" data-ses-del="${idx}">Del</button></div>
     </div></div>
-    ${imgHtml}${bodyHtml?'<div class="session-body">'+bodyHtml+'</div>':''}
+    ${recapHtml}
     ${rosterHtml}
+    ${sectionsHtml}
     <div class="session-footer">${tagsHtml}${xpHtml}${visHtml}</div>
   </li>`;
 }
