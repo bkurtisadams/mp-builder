@@ -274,6 +274,10 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
   .pg-page:first-of-type{page-break-before:auto}
   .cls-sec{display:block!important}
 }
+.save-line .fi{flex:0 0 28px;text-align:center;min-width:28px}
+.save-step{display:flex;flex-direction:column;gap:0;flex-shrink:0;margin-left:1px}
+.save-step button{width:12px;height:9px;border:1px solid #999;background:var(--paper-dk);font-size:7px;line-height:1;cursor:pointer;padding:0;font-family:var(--fh);font-weight:700;color:var(--ink-md);display:flex;align-items:center;justify-content:center}
+.save-step button:hover{border-color:var(--accent);color:var(--accent)}
 </style>
 </head>
 <body>
@@ -370,11 +374,11 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
       </div>
       <div class="saves-block" style="min-width:110px">
         <div class="saves-title">Saving<br>Throws:</div>
-        <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Paralyzation/<br>Poison—</span><input class="fi" data-field="savePPD" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-        <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Petrification/<br>Polymorph—</span><input class="fi" data-field="savePP" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-        <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Rod, Staff<br>or Wand—</span><input class="fi" data-field="saveRSW" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-        <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Breath<br>Weapon—</span><input class="fi" data-field="saveBW" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
-        <div class="save-line"><span class="lb">Spells—</span><input class="fi" data-field="saveSpell" style="flex:0 0 28px;text-align:center;min-width:28px"></div>
+        <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Paralyzation/<br>Poison—</span><input class="fi" data-field="savePPD" style="flex:0 0 28px;text-align:center;min-width:28px"><div class="save-step"><button data-save="savePPD" data-dir="-1" title="Improve save">+</button><button data-save="savePPD" data-dir="1" title="Worsen save">−</button></div></div>
+        <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Petrification/<br>Polymorph—</span><input class="fi" data-field="savePP" style="flex:0 0 28px;text-align:center;min-width:28px"><div class="save-step"><button data-save="savePP" data-dir="-1" title="Improve save">+</button><button data-save="savePP" data-dir="1" title="Worsen save">−</button></div></div>
+        <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Rod, Staff<br>or Wand—</span><input class="fi" data-field="saveRSW" style="flex:0 0 28px;text-align:center;min-width:28px"><div class="save-step"><button data-save="saveRSW" data-dir="-1" title="Improve save">+</button><button data-save="saveRSW" data-dir="1" title="Worsen save">−</button></div></div>
+        <div class="save-line"><span class="lb" style="text-align:right;line-height:1.1;white-space:normal;max-width:80px">Breath<br>Weapon—</span><input class="fi" data-field="saveBW" style="flex:0 0 28px;text-align:center;min-width:28px"><div class="save-step"><button data-save="saveBW" data-dir="-1" title="Improve save">+</button><button data-save="saveBW" data-dir="1" title="Worsen save">−</button></div></div>
+        <div class="save-line"><span class="lb">Spells—</span><input class="fi" data-field="saveSpell" style="flex:0 0 28px;text-align:center;min-width:28px"><div class="save-step"><button data-save="saveSpell" data-dir="-1" title="Improve save">+</button><button data-save="saveSpell" data-dir="1" title="Worsen save">−</button></div></div>
       </div>
     </div>
     <div style="margin-top:3px">
@@ -1903,6 +1907,19 @@ document.getElementById('btn-import-ars').addEventListener('click',importARS);
 const classField=document.querySelector('[data-field="characterClass"]');
 classField.addEventListener('change',()=>{CHAR.characterClass=classField.value;updateClassSections();calcThiefSkills();calcProfSlots();autosave();});
 classField.addEventListener('input',()=>{CHAR.characterClass=classField.value;updateClassSections();calcThiefSkills();calcProfSlots();});
+
+// Save stepper buttons
+document.querySelectorAll('.save-step button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const field=btn.dataset.save;
+    const dir=+(btn.dataset.dir);
+    const cur=+(CHAR[field]||0);
+    if(!cur)return;
+    const nv=cur+dir;
+    _setField(field,nv);
+    autosave();
+  });
+});
 
 // Wire all fields
 const _encFields=new Set(['wealthCP','wealthSP','wealthEP','wealthGP','wealthPP','strAdj','moveBase']);
