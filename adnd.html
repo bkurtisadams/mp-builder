@@ -160,14 +160,18 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .sp-cells input::-webkit-inner-spin-button,.sp-cells input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .sp-cells input:last-child{border-right:none}
 .spell-list{column-count:3;column-gap:10px}
-.sp-mem{width:9px;height:9px;border:1.5px solid #999;border-radius:1px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:7px;color:transparent;background:var(--paper-lt)}
-.sp-mem.checked{background:#5b7a3a;border-color:#3a5a1a;color:#fff}
+.sp-mem{min-width:22px;height:13px;border:1.5px solid #999;border-radius:1px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-size:8px;font-weight:700;color:transparent;background:var(--paper-lt);padding:0 2px;user-select:none}
+.sp-mem.mem-full{background:#5b7a3a;border-color:#3a5a1a;color:#fff}
+.sp-mem.mem-partial{background:#b8860b;border-color:#8b6508;color:#fff}
+.sp-mem.mem-spent{background:#8b0000;border-color:#5a0000;color:#fff}
 .sp-mem:hover{border-color:var(--accent)}
 .sp-name-mem{font-weight:700}
+.sp-name-spent{text-decoration:line-through;color:var(--ink-lt)}
 .sp-counter{display:grid;grid-template-columns:repeat(9,1fr);border:1px solid var(--ink);border-top:none;width:280px}
 .sp-cnt-cell{text-align:center;font-family:var(--fh);font-size:8px;font-weight:700;padding:1px 0;border-right:1px solid #ccc}
 .sp-cnt-cell:last-child{border-right:none}
 .sp-cnt-ok{color:#5b7a3a}
+.sp-cnt-partial{color:#b8860b}
 .sp-cnt-over{color:#8b0000}
 .sp-cnt-empty{color:#999}
 .cls-sec{display:none}.cls-sec.visible{display:block}
@@ -905,43 +909,75 @@ function renderTableRows(arrKey,tbId,addBtnId,fields){
 function renderSpells(){
   const arr=CHAR.spells||[];const el=document.getElementById('spell-list');el.innerHTML='';
   arr.forEach((sp,i)=>{
+    const q=+(sp.qty||0),cs=+(sp.cast||0),mem=!!sp.memorized;
+    const remaining=Math.max(0,q-cs);
+    let boxCls='sp-mem',boxTxt='',nameCls='fi';
+    if(mem&&q>0){
+      if(cs>=q){boxCls+=' mem-spent';boxTxt='0/'+q;nameCls+=' sp-name-spent';}
+      else if(cs>0){boxCls+=' mem-partial';boxTxt=remaining+'/'+q;nameCls+=' sp-name-mem';}
+      else{boxCls+=' mem-full';boxTxt=q>1?String(q):'✓';nameCls+=' sp-name-mem';}
+    }else if(mem){boxCls+=' mem-full';boxTxt='✓';nameCls+=' sp-name-mem';}
     const d=document.createElement('div');d.style.cssText='display:flex;gap:2px;align-items:center;margin-bottom:1px;break-inside:avoid';
-    const mem=sp.memorized?'checked':'';
-    d.innerHTML='<span style="font-family:var(--fh);font-size:8px;font-weight:700;width:14px;text-align:center;color:var(--accent)">'+(sp.level||'')+'</span><div class="sp-mem '+mem+'" data-idx="'+i+'">'+(sp.memorized?'✓':'')+'</div><input class="fi'+(sp.memorized?' sp-name-mem':'')+'" value="'+(sp.name||'')+'" data-idx="'+i+'" data-lf="name" style="font-size:10px"><button class="del-btn" data-idx="'+i+'">×</button>';
+    d.innerHTML='<span style="font-family:var(--fh);font-size:8px;font-weight:700;width:14px;text-align:center;color:var(--accent)">'+(sp.level||'')+'</span><div class="'+boxCls+'" data-idx="'+i+'">'+boxTxt+'</div><input class="'+nameCls+'" value="'+(sp.name||'')+'" data-idx="'+i+'" data-lf="name" style="font-size:10px"><button class="del-btn" data-idx="'+i+'">×</button>';
     el.appendChild(d);
   });
   el.querySelectorAll('input').forEach(inp=>inp.addEventListener('change',e=>{arr[+e.target.dataset.idx].name=e.target.value;autosave();}));
   el.querySelectorAll('.del-btn').forEach(btn=>btn.addEventListener('click',e=>{arr.splice(+e.target.dataset.idx,1);renderSpells();autosave();}));
-  el.querySelectorAll('.sp-mem').forEach(box=>box.addEventListener('click',e=>{
-    const idx=+box.dataset.idx;
-    arr[idx].memorized=!arr[idx].memorized;
-    box.classList.toggle('checked',arr[idx].memorized);
-    box.textContent=arr[idx].memorized?'✓':'';
-    const nameEl=box.nextElementSibling;
-    if(nameEl)nameEl.classList.toggle('sp-name-mem',arr[idx].memorized);
-    updateSpellCounter();
-    autosave();
-  }));
+  el.querySelectorAll('.sp-mem').forEach(box=>{
+    // Left click: cast one (increment cast count); if not memorized, toggle memorize on
+    box.addEventListener('click',e=>{
+      e.preventDefault();
+      const idx=+box.dataset.idx,sp=arr[idx];
+      if(!sp.memorized){sp.memorized=true;if(!sp.qty)sp.qty=1;sp.cast=0;}
+      else if(+(sp.qty||0)>0){
+        sp.cast=Math.min((+(sp.cast||0))+1,+(sp.qty||1));
+      }else{sp.memorized=!sp.memorized;}
+      renderSpells();autosave();
+    });
+    // Right click: context menu — reset cast, set qty, or un-memorize
+    box.addEventListener('contextmenu',e=>{
+      e.preventDefault();
+      const idx=+box.dataset.idx,sp=arr[idx];
+      if(!sp.memorized)return;
+      const q=+(sp.qty||0),cs=+(sp.cast||0);
+      if(cs>0){sp.cast=0;renderSpells();autosave();return;}
+      const nq=prompt('Memorized copies (0 to un-memorize):',String(q));
+      if(nq===null)return;
+      const n=parseInt(nq);
+      if(isNaN(n)||n<0)return;
+      if(n===0){sp.memorized=false;sp.qty=0;sp.cast=0;}
+      else{sp.qty=n;sp.cast=Math.min(+(sp.cast||0),n);}
+      renderSpells();autosave();
+    });
+  });
   updateSpellCounter();
 }
 
 function updateSpellCounter(){
   const arr=CHAR.spells||[];
-  const memByLvl={};
-  arr.forEach(sp=>{if(sp.memorized){const l=+(sp.level||0);memByLvl[l]=(memByLvl[l]||0)+1;}});
+  const memByLvl={},remByLvl={};
+  arr.forEach(sp=>{
+    if(!sp.memorized)return;
+    const l=+(sp.level||0),q=+(sp.qty||1),cs=+(sp.cast||0);
+    memByLvl[l]=(memByLvl[l]||0)+q;
+    remByLvl[l]=(remByLvl[l]||0)+Math.max(0,q-cs);
+  });
   const counter=document.getElementById('sp-counter');
   let html='';
   for(let i=1;i<=9;i++){
     const slots=+(CHAR['spellSlot'+i]||0);
-    const mem=memByLvl[i]||0;
+    const mem=memByLvl[i]||0,rem=remByLvl[i]||0;
     if(!slots&&!mem){html+='<div class="sp-cnt-cell sp-cnt-empty">&nbsp;</div>';}
-    else{const cls=mem>slots?'sp-cnt-over':'sp-cnt-ok';html+='<div class="sp-cnt-cell '+cls+'">'+mem+'/'+slots+'</div>';}
+    else{
+      const cls=mem>slots?'sp-cnt-over':(rem<mem?'sp-cnt-partial':'sp-cnt-ok');
+      html+='<div class="sp-cnt-cell '+cls+'">'+rem+'/'+slots+'</div>';
+    }
   }
   counter.innerHTML=html;
 }
 document.getElementById('add-spell').addEventListener('click',()=>{
   const lvl=prompt('Spell level (1-9)?','1');if(!lvl)return;
-  if(!CHAR.spells)CHAR.spells=[];CHAR.spells.push({level:lvl,name:''});renderSpells();autosave();
+  if(!CHAR.spells)CHAR.spells=[];CHAR.spells.push({level:lvl,name:'',memorized:false,qty:0,cast:0});renderSpells();autosave();
 });
 
 // ═══════════════════════════════════════════════════════
@@ -1147,7 +1183,7 @@ function _sbGetSpellPool(types){
     Object.keys(pool).sort((a,b)=>+a-(+b)).forEach(lv=>{
       pool[lv].forEach(name=>{
         if(known[name]&&!nowNames[name]){
-          CHAR.spells.push({level:String(lv),name:name,memorized:false});
+          CHAR.spells.push({level:String(lv),name:name,memorized:false,qty:0,cast:0});
         }
       });
     });
@@ -1417,16 +1453,17 @@ function mapARS(ars){
       return(qty>1?qty+'x ':'')+g.name+(val?' ('+val+' ea.)':'');
     }).join(', ');
   }
-  // Spells — read from spell items (arcane spellbook) + memorization data (divine/fallback)
+  // Spells — read from spell items (arcane spellbook) + memorization data with qty/cast
   const si=s.spellInfo||{},slots=si.slots||{};
   const mem=si.memorization||{};
   const seen={};c.spells=[];
-  // 1) Spell items = full spellbook (MU, Illusionist)
+  // 1) Spell items = full spellbook (MU, Illusionist) — known but not necessarily memorized
   items.filter(i=>i.type==='spell').forEach(sp=>{
     const key=sp.name+'|'+(sp.system?sp.system.level:'');
-    if(!seen[key]){seen[key]=true;c.spells.push({level:sp.system?String(sp.system.level):'',name:sp.name,memorized:false});}
+    if(!seen[key]){seen[key]=true;c.spells.push({level:sp.system?String(sp.system.level):'',name:sp.name,memorized:false,qty:0,cast:0});}
   });
-  // 2) Memorization data — mark memorized spells, add divine spells not in spellbook
+  // 2) Memorization data — count qty per spell and how many are cast
+  const memTally={};
   ['arcane','divine'].forEach(stype=>{
     const mSlots=mem[stype]||{};
     Object.keys(mSlots).forEach(lvl=>{
@@ -1435,11 +1472,18 @@ function mapARS(ars){
       Object.values(spells).forEach(sp=>{
         if(!sp||!sp.name)return;
         const key=sp.name+'|'+(sp.level||lvl);
-        const existing=c.spells.find(s=>s.name===sp.name&&s.level===String(sp.level||lvl));
-        if(existing){existing.memorized=true;}
-        else if(!seen[key]){seen[key]=true;c.spells.push({level:String(sp.level||lvl),name:sp.name,memorized:true});}
+        if(!memTally[key])memTally[key]={name:sp.name,level:String(sp.level||lvl),qty:0,cast:0};
+        memTally[key].qty++;
+        if(sp.cast)memTally[key].cast++;
       });
     });
+  });
+  // Apply tally to spells list
+  Object.keys(memTally).forEach(key=>{
+    const t=memTally[key];
+    const existing=c.spells.find(s=>s.name===t.name&&s.level===t.level);
+    if(existing){existing.memorized=true;existing.qty=t.qty;existing.cast=t.cast;}
+    else if(!seen[key]){seen[key]=true;c.spells.push({level:t.level,name:t.name,memorized:true,qty:t.qty,cast:t.cast});}
   });
   c.spells.sort((a,b)=>(+a.level)-(+b.level)||a.name.localeCompare(b.name));
   // Spell slots
