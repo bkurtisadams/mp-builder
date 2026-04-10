@@ -336,8 +336,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
   <div class="bio-field"><span class="lb">Listening:</span><input class="fi" data-field="listening"></div>
   <div class="bio-field"><span class="lb">Secondary Skill:</span><input class="fi" data-field="secondarySkill"></div>
   <div class="bio-field"><span class="lb">Secondary Skill:</span><input class="fi" data-field="secondarySkill2"></div>
-  <div class="bio-field"><span class="lb">Heir / Will:</span><input class="fi" data-field="heirWill"></div>
-  <div class="bio-span3"><div><span class="lb">Special Abilities:</span> <button class="add-btn" id="add-ability">+ Add</button></div><div class="prof-inline" id="ability-list"></div></div>
+  <div class="bio-span3 bio-field"><span class="lb">Special Abilities:</span><input class="fi" data-field="specialAbilities"></div>
 </div>
 
 <div class="pg-tabs">
@@ -728,16 +727,27 @@ const AUTOSAVE_KEY='gcc_add1e_autosave';
 let CHAR={};
 
 const CLASS_SECTIONS={
-  'Cleric':['section-turning','section-spells'],'Druid':['section-spells'],
-  'Paladin':['section-turning'],'Ranger':['section-spells'],
-  'Magic-User':['section-spells'],'Illusionist':['section-spells'],
-  'Thief':['section-thief'],'Assassin':['section-thief'],
-  'Monk':['section-thief'],'Bard':['section-thief','section-spells'],
+  'cleric':['section-turning','section-spells'],'druid':['section-spells'],
+  'paladin':['section-turning'],'ranger':['section-spells'],
+  'magic-user':['section-spells'],'magic user':['section-spells'],'mage':['section-spells'],
+  'illusionist':['section-spells'],
+  'thief':['section-thief'],'assassin':['section-thief'],
+  'monk':['section-thief'],'bard':['section-thief','section-spells'],
 };
+function _lookupSections(cls){
+  return CLASS_SECTIONS[cls.toLowerCase().trim()]||[];
+}
 function updateClassSections(){
   const cls=(CHAR.characterClass||'').trim();
-  let show=CLASS_SECTIONS[cls]||[];
-  if(cls.includes('/'))show=['section-turning','section-thief','section-spells'];
+  let show;
+  if(cls.includes('/')){
+    show=[];
+    cls.split('/').forEach(p=>{
+      _lookupSections(p).forEach(s=>{if(!show.includes(s))show.push(s);});
+    });
+  }else{
+    show=_lookupSections(cls);
+  }
   document.querySelectorAll('.cls-sec').forEach(el=>el.classList.toggle('visible',show.includes(el.id)));
   updateXPSlots();
 }
@@ -1792,6 +1802,10 @@ function mapARS(ars){
   });
   if(bestProfTotal>0)c.profNumber=bestProfTotal;
   if(bestProfPenalty>-99)c.nonProfPenalty=bestProfPenalty;
+  // Special Abilities — from ability items, excluding languages, movement, combat basics, vision
+  const _abSkip=/^(Language|Base Movement|Non-Lethal|Vision)/;
+  const specAbs=items.filter(i=>i.type==='ability'&&!_abSkip.test(i.name)).map(i=>i.name);
+  if(specAbs.length)c.specialAbilities=specAbs.join(', ');
   c._arsImport=true;c._arsActorId=ars._id||'';
   return c;
 }
@@ -2087,7 +2101,6 @@ const _thiefFieldToSkill={thiefPP:'PP',thiefOL:'OL',thiefFRT:'FRT',thiefMS:'MS',
 function populateAll(){
   populateFields();updateClassSections();showPortrait();renderWeapons();calcAbilitySubs();calcThiefSkills();calcProfSlots();
   renderInlineList('proficiencies','prof-list','add-prof');
-  renderInlineList('abilities','ability-list','add-ability');
   renderTableRows('items','item-list','add-item',[{key:'name'},{key:'location'},{key:'qty',center:true},{key:'weight',center:true},{key:'notes'}]);
   renderTableRows('magicItems','magic-list','add-magic',[{key:'name'},{key:'charges',center:true},{key:'properties'}]);
   renderTableRows('associates','assoc-list','add-assoc',[{key:'num',center:true},{key:'name'},{key:'cls'},{key:'level',center:true},{key:'race'},{key:'notes'},{key:'num2',center:true},{key:'name2'},{key:'cls2'},{key:'level2',center:true},{key:'race2'},{key:'notes2'}]);
