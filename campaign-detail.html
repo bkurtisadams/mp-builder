@@ -535,17 +535,36 @@ function wireSessionModalEvents(camp,isTimeline){
 }
 
 function closeSessionModal(){sesModal.classList.remove('open');sesEditIdx=-1;delete sesModal.dataset.entryType}
+// Resize image data URL to fit localStorage safely (max ~800KB)
+function compressImageData(dataUrl,maxKB,cb){
+  if(!dataUrl||dataUrl.length<maxKB*1024){cb(dataUrl);return}
+  const img=new Image();img.onload=()=>{
+    const canvas=document.createElement('canvas');let w=img.width,h=img.height;
+    const maxDim=1200;if(w>maxDim||h>maxDim){const r=Math.min(maxDim/w,maxDim/h);w=Math.round(w*r);h=Math.round(h*r)}
+    canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,w,h);
+    let quality=0.8,result=canvas.toDataURL('image/jpeg',quality);
+    while(result.length>maxKB*1024&&quality>0.3){quality-=0.1;result=canvas.toDataURL('image/jpeg',quality)}
+    console.log('[GCC] Image compressed:',Math.round(dataUrl.length/1024)+'KB →',Math.round(result.length/1024)+'KB');
+    cb(result);
+  };img.onerror=()=>cb(dataUrl);img.src=dataUrl;
+}
+
 document.getElementById('sm-save').addEventListener('click',()=>{
   const camp=getCamp();if(!camp)return;const sessions=camp.sessions||[];captureSessionSections();
-  const entry={_id:(sesEditIdx>=0&&sessions[sesEditIdx])?sessions[sesEditIdx]._id:GCC.genId('ses'),
-    date:document.getElementById('sm-date').value||'',gameDate:document.getElementById('sm-gamedate').value.trim()||'',
-    title:document.getElementById('sm-title').value.trim()||'',text:document.getElementById('sm-text').value.trim()||'',
-    sections:sesSections.filter(s=>s.title||s.text),image:sesImageData||'',tags:sesTags,
-    xp:parseInt(document.getElementById('sm-xp').value)||0,visible:document.getElementById('sm-visible').checked,
-    type:sesModal.dataset.entryType||'session'};
-  if(sesEditIdx>=0&&sessions[sesEditIdx]){entry.type=sessions[sesEditIdx].type}
-  if(sesEditIdx>=0&&sesEditIdx<sessions.length){sessions[sesEditIdx]=entry}else{sessions.unshift(entry)}
-  GCC.updateCampaign(campId,{sessions,session:countRealSessions(sessions)});closeSessionModal();render();
+  const rawImage=sesImageData||'';
+  function doSave(finalImage){
+    const entry={_id:(sesEditIdx>=0&&sessions[sesEditIdx])?sessions[sesEditIdx]._id:GCC.genId('ses'),
+      date:document.getElementById('sm-date').value||'',gameDate:document.getElementById('sm-gamedate').value.trim()||'',
+      title:document.getElementById('sm-title').value.trim()||'',text:document.getElementById('sm-text').value.trim()||'',
+      sections:sesSections.filter(s=>s.title||s.text),image:finalImage,tags:sesTags,
+      xp:parseInt(document.getElementById('sm-xp').value)||0,visible:document.getElementById('sm-visible').checked,
+      type:sesModal.dataset.entryType||'session'};
+    if(sesEditIdx>=0&&sessions[sesEditIdx]){entry.type=sessions[sesEditIdx].type}
+    if(sesEditIdx>=0&&sesEditIdx<sessions.length){sessions[sesEditIdx]=entry}else{sessions.unshift(entry)}
+    console.log('[GCC] Saving session, entries:',sessions.length,'image size:',Math.round((finalImage||'').length/1024)+'KB');
+    GCC.updateCampaign(campId,{sessions,session:countRealSessions(sessions)});closeSessionModal();render();
+  }
+  compressImageData(rawImage,800,doSave);
 });
 document.getElementById('sm-cancel').addEventListener('click',closeSessionModal);
 document.getElementById('session-modal-close').addEventListener('click',closeSessionModal);

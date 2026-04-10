@@ -16,7 +16,7 @@ const GCC = (function() {
     try { return JSON.parse(localStorage.getItem(key)); } catch(e) { return null; }
   }
   function save(key, val) {
-    try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) { console.warn('[GCC] save failed for', key, e); }
   }
 
   // ── Keys ──
@@ -142,7 +142,7 @@ const GCC = (function() {
     const list = load(KEYS.campaigns) || [];
     let dirty = false;
     list.forEach((c, i) => {
-      if (!c.schemaVersion || c.schemaVersion < 1) {
+      if (!c.schemaVersion || c.schemaVersion < 2) {
         list[i] = migrateEntity(c);
         dirty = true;
       }
