@@ -37,8 +37,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 
 .main{flex:1;padding:0 16px 40px;position:relative;z-index:1}
 .main-in{max-width:960px;margin:0 auto}
-.camp-banner{position:relative;width:100%;max-width:960px;margin:0 auto;height:160px;overflow:hidden;border-bottom:1px solid var(--brd)}
-.camp-banner img{width:100%;height:100%;object-fit:cover;display:block}
+.camp-banner{position:relative;width:100%;max-width:960px;margin:0 auto;min-height:120px;overflow:hidden;border-bottom:1px solid var(--brd)}
+.camp-banner img{width:100%;display:block;object-fit:contain}
 .camp-banner-empty{width:100%;height:100%;background:var(--bg2);display:flex;align-items:center;justify-content:center;color:var(--tx3);font-size:12px}
 .camp-banner::after{content:'';position:absolute;inset:0;background:var(--banner-overlay);pointer-events:none}
 .camp-header{position:relative;z-index:2;margin-top:-50px;padding:0 16px}
@@ -107,7 +107,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .session-num-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 .session-dates{display:flex;gap:10px;align-items:center;flex-shrink:0}
 .session-date{font-family:var(--fm);font-size:10px;color:var(--tx3)}.session-date-game{color:var(--amber)}
-.session-card-img{width:100%;max-height:260px;object-fit:cover;display:block;margin:8px 0 0;border-top:1px solid var(--brd);border-bottom:1px solid var(--brd)}
+.session-card-img{width:100%;object-fit:contain;display:block;margin:8px 0 0;border-top:1px solid var(--brd);border-bottom:1px solid var(--brd);background:var(--bg2)}
 .session-body{padding:10px 14px 6px}
 .session-text{font-size:12px;color:var(--tx2);line-height:1.5;white-space:pre-line}
 .session-section-title{font-size:11px;font-weight:700;color:var(--accent-dim);margin:8px 0 3px;letter-spacing:.3px}
@@ -204,7 +204,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .mf-tag-input{border:none;background:none;outline:none;font-family:var(--fb);font-size:11px;color:var(--tx);flex:1;min-width:80px;padding:2px 0}
 .mf-tag-input::placeholder{color:var(--tx3)}
 .mf-img-area{margin-bottom:10px}
-.mf-img-preview{max-width:100%;max-height:160px;border-radius:3px;border:1px solid var(--brd);margin-bottom:6px;display:block;object-fit:cover}
+.mf-img-preview{max-width:100%;max-height:240px;border-radius:3px;border:1px solid var(--brd);margin-bottom:6px;display:block;object-fit:contain;background:var(--bg2)}
 .mf-img-btns{display:flex;gap:6px}
 .mf-img-btn{font-size:10px;color:var(--accent);background:none;border:1px solid var(--accent-dim);border-radius:2px;padding:3px 10px;cursor:pointer;font-family:var(--fb);font-weight:700}
 .mf-img-btn:hover{border-color:var(--accent)}.mf-img-btn.danger{color:var(--red);border-color:rgba(208,72,72,0.3)}
@@ -540,11 +540,11 @@ function compressImageData(dataUrl,maxKB,cb){
   if(!dataUrl||dataUrl.length<maxKB*1024){cb(dataUrl);return}
   const img=new Image();img.onload=()=>{
     const canvas=document.createElement('canvas');let w=img.width,h=img.height;
-    const maxDim=1200;if(w>maxDim||h>maxDim){const r=Math.min(maxDim/w,maxDim/h);w=Math.round(w*r);h=Math.round(h*r)}
+    const maxDim=1600;if(w>maxDim||h>maxDim){const r=Math.min(maxDim/w,maxDim/h);w=Math.round(w*r);h=Math.round(h*r)}
     canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,w,h);
-    let quality=0.8,result=canvas.toDataURL('image/jpeg',quality);
-    while(result.length>maxKB*1024&&quality>0.3){quality-=0.1;result=canvas.toDataURL('image/jpeg',quality)}
-    console.log('[GCC] Image compressed:',Math.round(dataUrl.length/1024)+'KB →',Math.round(result.length/1024)+'KB');
+    let quality=0.85,result=canvas.toDataURL('image/jpeg',quality);
+    while(result.length>maxKB*1024&&quality>0.4){quality-=0.05;result=canvas.toDataURL('image/jpeg',quality)}
+    console.log('[GCC] Image compressed:',Math.round(dataUrl.length/1024)+'KB →',Math.round(result.length/1024)+'KB','q='+quality.toFixed(2));
     cb(result);
   };img.onerror=()=>cb(dataUrl);img.src=dataUrl;
 }
