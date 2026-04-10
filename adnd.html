@@ -534,11 +534,6 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 <table class="inv-tbl"><thead><tr><th style="width:30%">Item</th><th style="width:18%">Location</th><th style="width:8%">Qty</th><th style="width:10%" title="Weight in coin (10 cn = 1 lb)">Wt (cn)</th><th style="width:26%">Notes</th><th style="width:16px"><button class="add-sm" id="add-item">+</button></th></tr></thead><tbody id="item-list"></tbody></table>
 </div>
 
-<div class="sec">Magic Items</div>
-<div class="inv-scroll">
-<table class="inv-tbl"><thead><tr><th style="width:30%">Item</th><th style="width:12%">Charges</th><th style="width:50%">Properties</th><th style="width:16px"><button class="add-sm" id="add-magic">+</button></th></tr></thead><tbody id="magic-list"></tbody></table>
-</div>
-
 <div class="sec">Encumbrance & Wealth</div>
 <div class="enc-box">
   <!-- ROW 1a: Encumbrance / Str Adj / Load vs Move -->
@@ -1680,10 +1675,6 @@ function mapARS(ars){
     return{name:i.name,location:is.location?is.location.state:'',qty:is.quantity||1,weight:is.weight?Math.round((+is.weight)*10):'',notes:is.attributes&&is.attributes.magic?'magical':''};
   });
   // Magic items
-  c.magicItems=items.filter(i=>(i.system||{}).attributes&&(i.system||{}).attributes.magic&&i.type!=='spell').map(i=>{
-    const is=i.system||{};
-    return{name:i.name,charges:is.charges&&is.charges.max?is.charges.value+'/'+is.charges.max:'',properties:''};
-  });
   // Coins — type='currency', denomination from cost.currency
   const coinMap={cp:'wealthCP',sp:'wealthSP',ep:'wealthEP',gp:'wealthGP',pp:'wealthPP'};
   items.filter(i=>i.type==='currency').forEach(ci=>{
@@ -2151,7 +2142,6 @@ function populateAll(){
   populateFields();updateClassSections();showPortrait();renderWeapons();calcAbilitySubs();calcThiefSkills();calcProfSlots();
   renderInlineList('proficiencies','prof-list','add-prof');
   renderTableRows('items','item-list','add-item',[{key:'name'},{key:'location'},{key:'qty',center:true},{key:'weight',center:true},{key:'notes'}]);
-  renderTableRows('magicItems','magic-list','add-magic',[{key:'name'},{key:'charges',center:true},{key:'properties'}]);
   renderTableRows('associates','assoc-list','add-assoc',[{key:'num',center:true},{key:'name'},{key:'cls'},{key:'level',center:true},{key:'race'},{key:'notes'},{key:'num2',center:true},{key:'name2'},{key:'cls2'},{key:'level2',center:true},{key:'race2'},{key:'notes2'}]);
   renderTableRows('locales','locale-list','add-locale',[{key:'location'},{key:'time'},{key:'details'},{key:'location2'},{key:'time2'},{key:'details2'}]);
   renderSpells();calcWeight();
