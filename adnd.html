@@ -333,9 +333,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
   <div class="bio-field"><span class="lb">Move Base:</span><input class="fi" data-field="moveBase"></div>
   <div class="bio-field"><span class="lb">Move Adj.:</span><input class="fi" data-field="moveAdj" readonly></div>
   <div class="bio-field"><span class="lb">Vision:</span><input class="fi" data-field="vision"></div>
-  <div class="bio-field"><span class="lb">Listening:</span><input class="fi" data-field="listening"></div>
-  <div class="bio-field"><span class="lb">Secondary Skill:</span><input class="fi" data-field="secondarySkill"></div>
-  <div class="bio-field"><span class="lb">Secondary Skill:</span><input class="fi" data-field="secondarySkill2"></div>
+  <div class="bio-span3 bio-field"><span class="lb">Skills:</span><input class="fi" data-field="skills"></div>
   <div class="bio-span3 bio-field"><span class="lb">Special Abilities:</span><input class="fi" data-field="specialAbilities"></div>
 </div>
 
@@ -1482,7 +1480,7 @@ function calcWeight(){
   const thresholds=[350+strAdj, 700+strAdj, 1050+strAdj, 1500+strAdj];
   // Movement rates: base move in 1e scale (12", 9", 6", 3")
   // ARS may store in feet (120=12"), normalize if ≥30
-  let base=+(CHAR.moveBase||12);
+  let base=+(String(CHAR.moveBase||'12').replace(/[^0-9]/g,''))||12;
   if(base>=30)base=Math.round(base/10);
   const rates=[base, Math.floor(base*3/4), Math.floor(base/2), Math.floor(base/4)];
   // Fill the load fields
@@ -1619,7 +1617,7 @@ function mapARS(ars){
   let rawMove=moveAb?(moveAb.name.match(/\d+/)||[''])[0]:(at.movement&&at.movement.value?at.movement.value:'');
   // ARS stores movement in feet (120=12"), convert to 1e scale
   if(rawMove&&+rawMove>=30)rawMove=String(Math.round(+rawMove/10));
-  c.moveBase=rawMove;
+  c.moveBase=rawMove?rawMove+'"':'';
   c.xpTotal=d.xp||'';
   c.xpBonus=(classItems[0]&&(classItems[0].system||{}).xpbonus)||'';
   if(classItems.length>1){
@@ -1802,12 +1800,63 @@ function mapARS(ars){
   });
   if(bestProfTotal>0)c.profNumber=bestProfTotal;
   if(bestProfPenalty>-99)c.nonProfPenalty=bestProfPenalty;
-  // Special Abilities — from ability items, excluding languages, movement, combat basics, vision
-  const _abSkip=/^(Language|Base Movement|Non-Lethal|Vision)/;
-  const specAbs=items.filter(i=>i.type==='ability'&&!_abSkip.test(i.name)).map(i=>i.name);
-  if(specAbs.length)c.specialAbilities=specAbs.join(', ');
+  // Special Abilities — PHB racial abilities
+  const race=(c.race||'').toLowerCase().trim();
+  c.specialAbilities=_phbRacialAbilities(race);
+  // Vision — from race
+  const _infraRaces={'elf':'Infravision 60\'','dwarf':'Infravision 60\'','gnome':'Infravision 60\'','half-elf':'Infravision 60\'','half-orc':'Infravision 60\'','halfling':'Infravision 30\''};
+  c.vision=_infraRaces[race]||'Normal';
   c._arsImport=true;c._arsActorId=ars._id||'';
   return c;
+}
+
+function _phbRacialAbilities(race){
+  const r=race.toLowerCase().trim();
+  const abilities={
+    'dwarf':[
+      'Infravision 60\'',
+      'Detect grade/slope 1-5in6',
+      'Detect new construction 1-5in6',
+      'Detect sliding/shifting walls 1-4in6',
+      'Detect stonework traps 1-3in6',
+      'Determine depth underground 1-3in6',
+      '+1 save vs magic/poison per 3.5 Con',
+      'Gnoll/goblin/orc -4 to hit dwarf',
+      'Ogre/troll/giant -4 to hit dwarf',
+    ],
+    'elf':[
+      'Infravision 60\'',
+      '90% resist sleep/charm',
+      'Secret doors 1in6 (passing), 2in6 (searching)',
+      'Concealed doors 3in6',
+      '+4 to surprise when alone or w/ elves/halflings',
+    ],
+    'gnome':[
+      'Infravision 60\'',
+      'Detect grade/slope 1-5in6',
+      'Detect unsafe walls/ceiling/floor 1-7in10',
+      'Determine depth underground 1-4in6',
+      'Determine direction underground 1-3in6',
+      '+1 save vs magic per 3.5 Con',
+      'Kobold/goblin -4 to hit gnome',
+      'Gnoll/bugbear/ogre/troll/giant -4 to hit gnome',
+    ],
+    'half-elf':[
+      'Infravision 60\'',
+      '30% resist sleep/charm',
+      'Secret doors 1in6 (passing), 2in6 (searching)',
+    ],
+    'halfling':[
+      'Infravision 30\'',
+      '+1 save vs magic/poison per 3.5 Con',
+      '+4 to surprise when alone or w/ elves/halflings',
+      'Hide outdoors 2in6 (4in6 w/ heavy cover)',
+    ],
+    'half-orc':[
+      'Infravision 60\'',
+    ],
+  };
+  return (abilities[r]||[]).join(', ');
 }
 // PHB Ability Tables extended to 19-25 per Deities & Demigods
 function _strTbl(v,p){
