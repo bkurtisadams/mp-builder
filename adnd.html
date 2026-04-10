@@ -165,6 +165,9 @@ tr.inv-drag-over-below td{border-bottom:2px solid var(--accent)!important}
 tr.inv-dragging{opacity:.4}
 tr.inv-nocarry{opacity:.5}
 tr.inv-nocarry td input{color:var(--ink-lt)}
+.inv-carry{width:10px;height:10px;border:1.5px solid #999;border-radius:1px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:7px;color:transparent;background:var(--paper-lt);vertical-align:middle}
+.inv-carry.checked{background:#5b7a3a;border-color:#3a5a1a;color:#fff}
+.inv-carry:hover{border-color:var(--accent)}
 .sp-grid{border:1px solid var(--ink);margin-bottom:2px}
 .sp-hdr{display:grid;grid-template-columns:repeat(9,1fr);font-family:var(--fh);font-size:8px;font-weight:700;text-align:center;border-bottom:1px solid var(--ink)}
 .sp-hdr div{border-right:1px solid var(--ink);padding:2px}.sp-hdr div:last-child{border-right:none}
@@ -1046,21 +1049,21 @@ function renderInventory(){
     html+='<td><input value="'+(row.qty||'')+'" data-idx="'+i+'" data-lf="qty" style="text-align:center"></td>';
     html+='<td><input value="'+(row.weight||'')+'" data-idx="'+i+'" data-lf="weight" style="text-align:center"></td>';
     html+='<td><input value="'+(row.notes||'')+'" data-idx="'+i+'" data-lf="notes"></td>';
-    html+='<td style="text-align:center"><input type="checkbox" data-carryidx="'+i+'" '+carriedCk+' title="Carried on person" style="margin:0;cursor:pointer"></td>';
+    html+='<td style="text-align:center"><div class="inv-carry'+(row._nocarry?'':' checked')+'" data-carryidx="'+i+'" title="Carried on person">'+(row._nocarry?'':'✓')+'</div></td>';
     html+='<td style="text-align:center"><button class="del-btn" data-idx="'+i+'">×</button></td>';
     tr.innerHTML=html;
     tb.appendChild(tr);
   });
   // ── Field editing ──
-  tb.querySelectorAll('input:not([type=checkbox])').forEach(el=>el.addEventListener('change',e=>{
+  tb.querySelectorAll('input').forEach(el=>el.addEventListener('change',e=>{
     arr[+e.target.dataset.idx][e.target.dataset.lf]=e.target.value;
     calcWeight();autosave();
   }));
-  // ── Carried checkbox ──
-  tb.querySelectorAll('[data-carryidx]').forEach(cb=>{
-    cb.addEventListener('change',()=>{
-      const idx=+cb.dataset.carryidx;
-      arr[idx]._nocarry=!cb.checked;
+  // ── Carried toggle ──
+  tb.querySelectorAll('[data-carryidx]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const idx=+el.dataset.carryidx;
+      arr[idx]._nocarry=!arr[idx]._nocarry;
       renderInventory();calcWeight();autosave();
     });
   });
