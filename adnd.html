@@ -238,6 +238,34 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .sb-ftr-btn:hover{border-color:var(--accent)}
 .sb-ftr-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
 .sb-ftr-btn.primary:hover{background:#6a0000}
+/* ── Exchange Dialog ── */
+.ex-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:none;align-items:center;justify-content:center}
+.ex-overlay.open{display:flex}
+.ex-dlg{background:var(--paper);border:2px solid var(--ink);width:380px;max-width:94vw;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.ex-hdr{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:2px solid var(--ink);background:var(--paper-dk)}
+.ex-hdr-title{font-family:var(--fh);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.ex-close{border:none;background:none;font-size:16px;cursor:pointer;color:var(--ink-md);padding:0 4px;line-height:1}
+.ex-close:hover{color:var(--accent)}
+.ex-tabs{display:flex;border-bottom:1px solid var(--ink)}
+.ex-tab{flex:1;font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;text-align:center;padding:5px 0;cursor:pointer;background:var(--paper-dk);color:var(--ink-md);border-right:1px solid var(--ink)}
+.ex-tab:last-child{border-right:none}
+.ex-tab.active{background:var(--paper);color:var(--ink)}
+.ex-tab:hover:not(.active){background:var(--paper-lt)}
+.ex-body{padding:10px 12px}
+.ex-page{display:none}.ex-page.active{display:block}
+.ex-row{display:flex;gap:6px;align-items:baseline;margin-bottom:6px}
+.ex-lbl{font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;flex-shrink:0;min-width:50px}
+.ex-input{border:1px solid var(--ink);background:var(--paper-lt);font-family:var(--fb);font-size:11px;padding:2px 4px;height:22px;outline:none;text-align:center}
+.ex-input:focus{border-color:var(--accent)}
+.ex-select{border:1px solid var(--ink);background:var(--paper-lt);font-family:var(--fb);font-size:11px;padding:1px 4px;height:22px;outline:none}
+.ex-result{border:1px solid var(--ink);background:var(--paper-lt);padding:6px 8px;margin-top:6px;font-family:var(--fb);font-size:10px;line-height:1.5}
+.ex-result-title{font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;color:var(--accent);margin-bottom:2px}
+.ex-ftr{display:flex;justify-content:flex-end;gap:4px;padding:6px 10px;border-top:1px solid var(--ink);background:var(--paper-dk)}
+.ex-btn{font-family:var(--fb);font-size:10px;font-weight:700;padding:3px 12px;border:1px solid #999;background:var(--paper-lt);cursor:pointer}
+.ex-btn:hover{border-color:var(--accent)}
+.ex-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ex-btn.primary:hover{background:#6a0000}
+.ex-avail{font-family:var(--fb);font-size:9px;color:var(--ink-lt);margin-left:4px}
 @media(max-width:500px){.sb-spell-grid{grid-template-columns:1fr 1fr}}
 @media print{
   .gcc-bar,.adnd-hdr,.adnd-ftr,.name-box-del,.add-btn,.add-sm,.del-btn,.pg-tabs{display:none!important}
@@ -560,6 +588,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
       <div class="enc-fc"><input class="fi" data-field="wealthGems" style="width:44px"><div class="lb">Gems</div></div>
       <div class="enc-fc"><input class="fi" data-field="wealthJewelry" style="width:44px"><div class="lb">Jewelry</div></div>
     </div>
+    <button class="add-btn" id="btn-exchange" style="align-self:center;margin-left:4px">Exchange</button>
   </div>
 </div>
 
@@ -653,6 +682,36 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
       <button class="sb-ftr-btn" id="sb-cancel">Cancel</button>
       <button class="sb-ftr-btn primary" id="sb-apply">Apply</button>
     </div>
+  </div>
+</div>
+</div>
+
+<!-- Exchange Dialog -->
+<div class="ex-overlay" id="ex-overlay">
+<div class="ex-dlg">
+  <div class="ex-hdr"><span class="ex-hdr-title">Exchange</span><button class="ex-close" id="ex-close">×</button></div>
+  <div class="ex-tabs">
+    <div class="ex-tab active" data-ex="change">Money Change</div>
+    <div class="ex-tab" data-ex="gems">Buy Gems</div>
+  </div>
+  <!-- Money Change -->
+  <div class="ex-page active" id="ex-change">
+    <div class="ex-body">
+      <div class="ex-row"><span class="ex-lbl">From:</span><input class="ex-input" id="exc-amount" type="number" min="1" style="width:80px" value="100"><select class="ex-select" id="exc-from"><option value="pp">PP</option><option value="gp" selected>GP</option><option value="ep">EP</option><option value="sp">SP</option><option value="cp">CP</option></select><span class="ex-avail" id="exc-avail"></span></div>
+      <div class="ex-row"><span class="ex-lbl">To:</span><select class="ex-select" id="exc-to"><option value="pp">PP</option><option value="gp">GP</option><option value="ep">EP</option><option value="sp" selected>SP</option><option value="cp">CP</option></select></div>
+      <div class="ex-row"><span class="ex-lbl">Fee:</span><input class="ex-input" id="exc-fee" type="number" min="0" max="100" style="width:50px" value="3"><span style="font-size:10px">%</span></div>
+      <div class="ex-result" id="exc-result"></div>
+    </div>
+    <div class="ex-ftr"><button class="ex-btn" id="exc-cancel">Cancel</button><button class="ex-btn primary" id="exc-apply">Exchange</button></div>
+  </div>
+  <!-- Buy Gems -->
+  <div class="ex-page" id="ex-gems">
+    <div class="ex-body">
+      <div class="ex-row"><span class="ex-lbl">Spend:</span><input class="ex-input" id="exg-amount" type="number" min="1" style="width:80px" value="1000"><select class="ex-select" id="exg-coin"><option value="pp">PP</option><option value="gp" selected>GP</option><option value="ep">EP</option><option value="sp">SP</option><option value="cp">CP</option></select><span class="ex-avail" id="exg-avail"></span></div>
+      <div class="ex-row"><span class="ex-lbl">Fee:</span><input class="ex-input" id="exg-fee" type="number" min="0" max="100" style="width:50px" value="10"><span style="font-size:10px">%</span></div>
+      <div class="ex-result" id="exg-result"></div>
+    </div>
+    <div class="ex-ftr"><button class="ex-btn" id="exg-cancel">Cancel</button><button class="ex-btn primary" id="exg-apply">Buy Gems</button></div>
   </div>
 </div>
 </div>
@@ -1199,6 +1258,154 @@ function _sbGetSpellPool(types){
   document.getElementById('sb-apply').addEventListener('click',apply);
   overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
   document.getElementById('btn-spellbook').addEventListener('click',open);
+})();
+
+// ═══════════════════════════════════════════════════════
+// Exchange Dialog (Money Change + Buy Gems)
+// ═══════════════════════════════════════════════════════
+(function(){
+  const overlay=document.getElementById('ex-overlay');
+  const COIN_FIELDS={cp:'wealthCP',sp:'wealthSP',ep:'wealthEP',gp:'wealthGP',pp:'wealthPP'};
+  const COIN_TO_GP={cp:0.01,sp:0.1,ep:0.5,gp:1,pp:5};
+  const GP_TO_COIN={cp:100,sp:10,ep:2,gp:1,pp:0.2};
+  const COIN_NAMES={cp:'CP',sp:'SP',ep:'EP',gp:'GP',pp:'PP'};
+  // DMG/PHB gem denominations (base values in gp)
+  const GEM_VALS=[5000,1000,500,100,50,10];
+
+  function coinAvail(type){return +(CHAR[COIN_FIELDS[type]]||0);}
+  function setCoin(type,val){CHAR[COIN_FIELDS[type]]=val;_setField(COIN_FIELDS[type],val);}
+
+  // ── Tabs ──
+  overlay.querySelectorAll('.ex-tab').forEach(tab=>{
+    tab.addEventListener('click',()=>{
+      overlay.querySelectorAll('.ex-tab').forEach(t=>t.classList.toggle('active',t===tab));
+      overlay.querySelectorAll('.ex-page').forEach(p=>p.classList.toggle('active',p.id==='ex-'+tab.dataset.ex));
+    });
+  });
+
+  function open(){
+    updateChangePreview();updateGemPreview();
+    overlay.classList.add('open');
+  }
+  function close(){overlay.classList.remove('open');}
+
+  // ── Money Change ──
+  const excAmt=document.getElementById('exc-amount');
+  const excFrom=document.getElementById('exc-from');
+  const excTo=document.getElementById('exc-to');
+  const excFee=document.getElementById('exc-fee');
+  const excResult=document.getElementById('exc-result');
+  const excAvail=document.getElementById('exc-avail');
+
+  function updateChangePreview(){
+    const from=excFrom.value,to=excTo.value;
+    const amt=Math.max(0,+(excAmt.value||0));
+    const fee=Math.max(0,Math.min(100,+(excFee.value||0)));
+    const avail=coinAvail(from);
+    excAvail.textContent='(have '+avail+' '+COIN_NAMES[from]+')';
+    if(from===to||amt<=0){excResult.innerHTML='<span style="color:var(--ink-lt)">Select different coin types.</span>';return;}
+    const gpVal=amt*COIN_TO_GP[from];
+    const afterFee=gpVal*(1-fee/100);
+    const received=Math.floor(afterFee/COIN_TO_GP[to]);
+    const feePaid=gpVal-afterFee;
+    const overBudget=amt>avail;
+    excResult.innerHTML='<div class="ex-result-title">Result</div>'+
+      '<div>'+amt+' '+COIN_NAMES[from]+' → <b>'+received+' '+COIN_NAMES[to]+'</b></div>'+
+      '<div style="font-size:9px;color:var(--ink-lt)">Fee: '+fee+'% ('+feePaid.toFixed(1)+' gp equivalent)</div>'+
+      (overBudget?'<div style="color:var(--accent);font-weight:700;margin-top:2px">Insufficient funds!</div>':'');
+  }
+  [excAmt,excFrom,excTo,excFee].forEach(el=>el.addEventListener('input',updateChangePreview));
+  [excFrom,excTo].forEach(el=>el.addEventListener('change',updateChangePreview));
+
+  document.getElementById('exc-apply').addEventListener('click',()=>{
+    const from=excFrom.value,to=excTo.value;
+    const amt=Math.max(0,+(excAmt.value||0));
+    const fee=Math.max(0,Math.min(100,+(excFee.value||0)));
+    if(from===to||amt<=0)return;
+    if(amt>coinAvail(from)){MPDialog.alert('Exchange','Insufficient '+COIN_NAMES[from]+'.');return;}
+    const gpVal=amt*COIN_TO_GP[from];
+    const afterFee=gpVal*(1-fee/100);
+    const received=Math.floor(afterFee/COIN_TO_GP[to]);
+    setCoin(from,coinAvail(from)-amt);
+    setCoin(to,coinAvail(to)+received);
+    calcWeight();autosave();close();
+  });
+  document.getElementById('exc-cancel').addEventListener('click',close);
+
+  // ── Buy Gems ──
+  const exgAmt=document.getElementById('exg-amount');
+  const exgCoin=document.getElementById('exg-coin');
+  const exgFee=document.getElementById('exg-fee');
+  const exgResult=document.getElementById('exg-result');
+  const exgAvail=document.getElementById('exg-avail');
+
+  function breakIntoGems(gpVal){
+    const gems=[];
+    let remaining=gpVal;
+    GEM_VALS.forEach(v=>{
+      if(remaining>=v){
+        const count=Math.floor(remaining/v);
+        gems.push({value:v,count:count});
+        remaining-=count*v;
+      }
+    });
+    return gems;
+  }
+
+  function updateGemPreview(){
+    const coin=exgCoin.value;
+    const amt=Math.max(0,+(exgAmt.value||0));
+    const fee=Math.max(0,Math.min(100,+(exgFee.value||0)));
+    const avail=coinAvail(coin);
+    exgAvail.textContent='(have '+avail+' '+COIN_NAMES[coin]+')';
+    if(amt<=0){exgResult.innerHTML='<span style="color:var(--ink-lt)">Enter amount to spend.</span>';return;}
+    const gpSpend=amt*COIN_TO_GP[coin];
+    const feeCost=Math.floor(gpSpend*fee/100);
+    const netGP=gpSpend-feeCost;
+    const gems=breakIntoGems(netGP);
+    const overBudget=amt>avail;
+    let html='<div class="ex-result-title">Gems Received ('+netGP+' gp value)</div>';
+    if(gems.length){gems.forEach(g=>{html+='<div>'+g.count+'× '+g.value+' gp gem</div>';});}
+    else{html+='<div style="color:var(--ink-lt)">Amount too small for any gems.</div>';}
+    html+='<div style="font-size:9px;color:var(--ink-lt);margin-top:2px">Fee: '+fee+'% ('+feeCost+' gp)</div>';
+    if(overBudget)html+='<div style="color:var(--accent);font-weight:700;margin-top:2px">Insufficient funds!</div>';
+    exgResult.innerHTML=html;
+  }
+  [exgAmt,exgFee].forEach(el=>el.addEventListener('input',updateGemPreview));
+  exgCoin.addEventListener('change',updateGemPreview);
+
+  document.getElementById('exg-apply').addEventListener('click',()=>{
+    const coin=exgCoin.value;
+    const amt=Math.max(0,+(exgAmt.value||0));
+    const fee=Math.max(0,Math.min(100,+(exgFee.value||0)));
+    if(amt<=0)return;
+    if(amt>coinAvail(coin)){MPDialog.alert('Exchange','Insufficient '+COIN_NAMES[coin]+'.');return;}
+    const gpSpend=amt*COIN_TO_GP[coin];
+    const feeCost=Math.floor(gpSpend*fee/100);
+    const netGP=gpSpend-feeCost;
+    const gems=breakIntoGems(netGP);
+    if(!gems.length){MPDialog.alert('Exchange','Amount too small for any gems.');return;}
+    // Deduct coins
+    setCoin(coin,coinAvail(coin)-amt);
+    // Add gems to count and details
+    let totalNewGems=0;
+    const parts=[];
+    gems.forEach(g=>{totalNewGems+=g.count;parts.push(g.count+'x Gem ('+g.value+'gp)');});
+    CHAR.wealthGems=(+(CHAR.wealthGems||0))+totalNewGems;
+    _setField('wealthGems',CHAR.wealthGems);
+    // Append to gem details textarea
+    const detail=CHAR.gemDetails||'';
+    const newDetail=parts.join(', ');
+    CHAR.gemDetails=detail?(detail+', '+newDetail):newDetail;
+    _setField('gemDetails',CHAR.gemDetails);
+    calcWeight();autosave();close();
+  });
+  document.getElementById('exg-cancel').addEventListener('click',close);
+
+  // ── Open / Close ──
+  document.getElementById('ex-close').addEventListener('click',close);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
+  document.getElementById('btn-exchange').addEventListener('click',open);
 })();
 
 function calcWeight(){
