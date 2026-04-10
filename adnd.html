@@ -1507,8 +1507,63 @@ function showPortrait(){const ex=pBox.querySelector('img');if(ex)ex.remove();con
 
 // Save/Load
 function getAllChars(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY))||[];}catch(e){return[];}}
-function saveChar(){collectFields();if(!CHAR.characterName){MPDialog.alert('Save','Enter a character name first.');return;}if(!CHAR._id)CHAR._id=GCC.genId?GCC.genId('add'):('add_'+Date.now());CHAR._saved=Date.now();CHAR._system='add1e';const chars=getAllChars();const idx=chars.findIndex(c=>c._id===CHAR._id);if(idx>=0)chars[idx]=CHAR;else chars.push(CHAR);try{localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));autosave();if(typeof GCCSync!=='undefined'&&GCCSync.notifySync)GCCSync.notifySync(STORAGE_KEY);MPDialog.alert('Saved','"'+CHAR.characterName+'" saved.');}catch(e){MPDialog.alert('Error','Failed: '+e.message);}}
-function loadChar(){const chars=getAllChars();if(!chars.length){MPDialog.alert('Load','No saved characters.');return;}const opts=chars.map((c,i)=>'<option value="'+i+'">'+(c.characterName||'Unnamed')+' ('+(c.characterClass||'?')+' '+(c.level||'?')+')</option>').join('');MPDialog.confirm('Load Character','<select id="dlg-sel" style="width:100%;padding:4px;font-size:12px">'+opts+'</select>',{okText:'Load',cancelText:'Cancel'}).then(ok=>{if(!ok)return;CHAR=JSON.parse(JSON.stringify(chars[+document.getElementById('dlg-sel').value]));populateAll();});}
+function saveChar(){
+  collectFields();
+  if(!CHAR.characterName){MPDialog.alert('Save','Enter a character name first.');return;}
+  if(!CHAR._id)CHAR._id=GCC.genId?GCC.genId('add'):('add_'+Date.now());
+  CHAR._saved=Date.now();CHAR._system='add1e';
+  const chars=getAllChars();
+  const idx=chars.findIndex(c=>c._id===CHAR._id);
+  function doSave(){
+    if(idx>=0)chars[idx]=CHAR;else chars.push(CHAR);
+    try{localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));autosave();
+    if(typeof GCCSync!=='undefined'&&GCCSync.notifySync)GCCSync.notifySync(STORAGE_KEY);
+    MPDialog.alert('Saved','"'+CHAR.characterName+'" saved.');}catch(e){MPDialog.alert('Error','Failed: '+e.message);}
+  }
+  if(idx>=0){
+    MPDialog.confirm('Overwrite','Overwrite existing save of "'+CHAR.characterName+'"?',{okText:'Overwrite',cancelText:'Cancel'}).then(ok=>{if(ok)doSave();});
+  }else{doSave();}
+}
+function loadChar(){
+  const chars=getAllChars();
+  if(!chars.length){MPDialog.alert('Load','No saved characters.');return;}
+  const rows=chars.map((c,i)=>{
+    const name=c.characterName||'Unnamed';
+    const cls=c.characterClass||'?';
+    const lvl=c.level||'?';
+    return'<div style="display:flex;align-items:center;gap:4px;padding:3px 0;border-bottom:1px solid #ddd"><button data-delidx="'+i+'" style="border:none;background:none;color:#8b0000;font-size:13px;cursor:pointer;padding:0 2px;flex-shrink:0" title="Delete this character">×</button><span data-loadidx="'+i+'" style="cursor:pointer;flex:1;font-size:12px" title="Click to load">'+name+' <span style="color:#666;font-size:10px">('+cls+' '+lvl+')</span></span></div>';
+  }).join('');
+  MPDialog.confirm('Load Character','<div style="max-height:300px;overflow-y:auto" id="dlg-charlist">'+rows+'</div>',{okText:'',cancelText:'Close'}).then(()=>{});
+  // Wire up after dialog renders
+  setTimeout(()=>{
+    const list=document.getElementById('dlg-charlist');if(!list)return;
+    list.querySelectorAll('[data-loadidx]').forEach(el=>{
+      el.addEventListener('click',()=>{
+        const idx=+el.dataset.loadidx;
+        const fresh=getAllChars();
+        if(fresh[idx]){CHAR=JSON.parse(JSON.stringify(fresh[idx]));populateAll();}
+        document.querySelector('.mp-dlg-overlay')?.click();
+      });
+    });
+    list.querySelectorAll('[data-delidx]').forEach(el=>{
+      el.addEventListener('click',e=>{
+        e.stopPropagation();
+        const idx=+el.dataset.delidx;
+        const fresh=getAllChars();
+        const name=fresh[idx]?fresh[idx].characterName||'Unnamed':'?';
+        if(!confirm('Delete "'+name+'"?'))return;
+        fresh.splice(idx,1);
+        localStorage.setItem(STORAGE_KEY,JSON.stringify(fresh));
+        if(typeof GCCSync!=='undefined'&&GCCSync.notifySync)GCCSync.notifySync(STORAGE_KEY);
+        // Refresh the list
+        const row=el.parentElement;if(row)row.remove();
+        // Re-index remaining items
+        list.querySelectorAll('[data-delidx]').forEach((d,i)=>d.dataset.delidx=i);
+        list.querySelectorAll('[data-loadidx]').forEach((d,i)=>d.dataset.loadidx=i);
+      });
+    });
+  },100);
+}
 function newChar(){MPDialog.confirm('New Character','Clear all fields?',{okText:'Clear',cancelText:'Cancel',danger:true}).then(ok=>{if(!ok)return;CHAR={};document.querySelectorAll('[data-field]').forEach(el=>{el.value='';});populateAll();autosave();});}
 function deleteChar(){if(!CHAR._id){MPDialog.alert('Delete','Not saved yet.');return;}MPDialog.confirm('Delete','"'+(CHAR.characterName||'Unnamed')+'"?',{okText:'Delete',cancelText:'Cancel',danger:true}).then(ok=>{if(!ok)return;const chars=getAllChars();const idx=chars.findIndex(c=>c._id===CHAR._id);if(idx>=0){chars.splice(idx,1);localStorage.setItem(STORAGE_KEY,JSON.stringify(chars));if(typeof GCCSync!=='undefined'&&GCCSync.notifySync)GCCSync.notifySync(STORAGE_KEY);}CHAR={};document.querySelectorAll('[data-field]').forEach(el=>{el.value='';});populateAll();autosave();});}
 function exportChar(){collectFields();const b=new Blob([JSON.stringify(CHAR,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=(CHAR.characterName||'char').replace(/[^a-zA-Z0-9]/g,'_')+'.json';a.click();}
