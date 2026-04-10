@@ -107,10 +107,15 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .session-num-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 .session-dates{display:flex;gap:10px;align-items:center;flex-shrink:0}
 .session-date{font-family:var(--fm);font-size:10px;color:var(--tx3)}.session-date-game{color:var(--amber)}
-.session-card-img{max-width:50%;object-fit:contain;display:block;margin:10px auto 4px;border-radius:3px;border:1px solid var(--brd)}
+.session-card-img{max-width:40%;object-fit:contain;display:block;margin:10px auto 4px;border-radius:3px;border:1px solid var(--brd)}
+.session-sec-img{max-width:35%;object-fit:contain;display:block;margin:6px auto 4px;border-radius:3px;border:1px solid var(--brd)}
 .session-body{padding:10px 14px 6px}
 .session-text{font-size:12px;color:var(--tx2);line-height:1.5;white-space:pre-line}
 .session-section-title{font-size:11px;font-weight:700;color:var(--accent-dim);margin:8px 0 3px;letter-spacing:.3px}
+.session-roster{display:flex;gap:4px;flex-wrap:wrap;padding:2px 14px 4px}
+.session-roster-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:10px;border-radius:2px;border:1px solid var(--brd);color:var(--tx2);background:var(--bg2)}
+.session-roster-chip img{width:16px;height:16px;border-radius:50%;object-fit:contain}
+.session-roster-chip .roster-ph{width:16px;height:16px;border-radius:50%;background:var(--bg-section);display:inline-flex;align-items:center;justify-content:center;font-size:8px;color:var(--tx3)}
 .session-footer{display:flex;gap:8px;align-items:center;padding:4px 14px 10px;flex-wrap:wrap}
 .session-tag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;font-size:10px;border-radius:2px;border:1px solid var(--brd-lt);color:var(--tx2);background:var(--bg2);cursor:default}
 .session-tag .tag-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
@@ -193,6 +198,15 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .mf-sections{margin-bottom:10px}
 .mf-sec-item{display:flex;gap:6px;align-items:flex-start;margin-bottom:6px;background:var(--bg-section);border:1px solid var(--brd);border-radius:3px;padding:6px 8px}
 .mf-sec-item input{flex:0 0 120px;font-size:11px}.mf-sec-item textarea{flex:1;min-height:40px;font-size:11px}
+.mf-sec-img-row{display:flex;align-items:center;gap:6px;margin-top:4px}
+.mf-sec-img-preview{max-width:80px;max-height:60px;border-radius:2px;border:1px solid var(--brd);object-fit:contain}
+.mf-char-grid{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.mf-char-check{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;font-size:11px;border:1px solid var(--brd);border-radius:3px;color:var(--tx2);cursor:pointer;transition:all .12s;background:var(--bg2)}
+.mf-char-check:hover{border-color:var(--brd-lt)}
+.mf-char-check.checked{border-color:var(--accent-dim);color:var(--accent);background:rgba(96,160,208,0.06)}
+.mf-char-check input{display:none}
+.mf-char-check img{width:18px;height:18px;border-radius:50%;object-fit:contain}
+.mf-char-check .char-ph{width:18px;height:18px;border-radius:50%;background:var(--bg-section);display:inline-flex;align-items:center;justify-content:center;font-size:9px;color:var(--tx3)}
 .mf-sec-remove{background:none;border:none;color:var(--tx3);cursor:pointer;font-size:14px;padding:0 4px;line-height:1}
 .mf-sec-remove:hover{color:var(--red)}
 .mf-sec-add{font-size:10px;color:var(--accent);background:none;border:1px solid var(--accent-dim);border-radius:2px;padding:3px 10px;cursor:pointer;font-family:var(--fb);font-weight:700}
@@ -332,9 +346,27 @@ function buildSessionCard(s,idx,total,camp){
   if(s.sections&&s.sections.length){
     s.sections.forEach(sec=>{
       if(sec.title)bodyHtml+=`<div class="session-section-title">${ESC(sec.title)}</div>`;
+      if(sec.image)bodyHtml+=`<img class="session-sec-img" src="${sec.image}" alt="">`;
       if(sec.text)bodyHtml+=`<div class="session-text">${ESC(sec.text)}</div>`;
     });
   }else if(s.text){bodyHtml=`<div class="session-text">${ESC(s.text)}</div>`}
+
+  // Character roster for this session
+  let rosterHtml='';
+  if(s.roster&&s.roster.length){
+    const chars=camp.characters||[];
+    rosterHtml='<div class="session-roster">';
+    s.roster.forEach(id=>{
+      const ch=chars.find(c=>(c._id||c.name)===id);
+      if(!ch)return;
+      let name=ch.name||'?',portrait='';
+      const refKey=ch.storageKey||ch.listKey||'';
+      if(refKey){try{const saved=JSON.parse(localStorage.getItem(refKey))||[];const found=ch._id?saved.find(x=>x._id===ch._id):null;if(found){name=found.heroName||found.characterName||found.name||name;portrait=found.portraitData||found.portrait||found._image||''}}catch(e){}}
+      const ava=portrait?`<img src="${portrait}">`:`<span class="roster-ph">?</span>`;
+      rosterHtml+=`<span class="session-roster-chip">${ava} ${ESC(name)}</span>`;
+    });
+    rosterHtml+='</div>';
+  }
 
   let tagsHtml='';
   if(s.tags&&s.tags.length){s.tags.forEach(tag=>{
@@ -351,6 +383,7 @@ function buildSessionCard(s,idx,total,camp){
       <div class="session-actions"><button class="session-action-btn" data-ses-edit="${idx}">Edit</button><button class="session-action-btn danger" data-ses-del="${idx}">Del</button></div>
     </div></div>
     ${imgHtml}${bodyHtml?'<div class="session-body">'+bodyHtml+'</div>':''}
+    ${rosterHtml}
     <div class="session-footer">${tagsHtml}${xpHtml}${visHtml}</div>
   </li>`;
 }
@@ -485,15 +518,32 @@ async function loadPlayerRoster(){const roster=document.getElementById('player-r
 
 // ═══ SESSION MODAL ═══
 const sesModal=document.getElementById('session-modal');
-let sesEditIdx=-1,sesImageData='',sesSections=[],sesTags=[];
+let sesEditIdx=-1,sesImageData='',sesSections=[],sesTags=[],sesRoster=[];
 
 function buildSessionModalBody(camp,isTimeline){
   const xpLbl=GCC.xpLabel(camp.system);
   const imgPreview=sesImageData?`<img class="mf-img-preview" src="${sesImageData}">`:'';
   let sectionsHtml='';
-  if(!isTimeline){sectionsHtml=`<label class="mf-label">SECTIONS (optional — for structured recaps)</label><div class="mf-sections" id="sm-sections">${sesSections.map((sec,i)=>`<div class="mf-sec-item" data-sec-idx="${i}"><input class="mf-input" style="margin:0" placeholder="Section title" value="${ESC(sec.title)}" data-sec-title="${i}"><textarea class="mf-textarea" style="margin:0;min-height:50px" placeholder="Section text..." data-sec-text="${i}">${ESC(sec.text)}</textarea><button class="mf-sec-remove" data-sec-remove="${i}">✕</button></div>`).join('')}</div><button class="mf-sec-add" id="sm-add-section">+ Add Section</button><div style="margin-bottom:10px"></div>`}
+  if(!isTimeline){sectionsHtml=`<label class="mf-label">SECTIONS (optional — for structured recaps)</label><div class="mf-sections" id="sm-sections">${sesSections.map((sec,i)=>{
+    const secImgPreview=sec.image?`<div class="mf-sec-img-row"><img class="mf-sec-img-preview" src="${sec.image}"><button class="mf-img-btn danger" data-sec-img-clear="${i}" style="font-size:9px;padding:2px 6px">✕</button></div>`:`<div class="mf-sec-img-row"><button class="mf-img-btn" data-sec-img-upload="${i}" style="font-size:9px;padding:2px 6px">+ Image</button><input type="file" data-sec-img-file="${i}" accept="image/*" style="display:none"></div>`;
+    return`<div class="mf-sec-item" data-sec-idx="${i}"><div style="flex:1"><input class="mf-input" style="margin:0 0 4px" placeholder="Section title" value="${ESC(sec.title)}" data-sec-title="${i}"><textarea class="mf-textarea" style="margin:0;min-height:50px" placeholder="Section text..." data-sec-text="${i}">${ESC(sec.text)}</textarea>${secImgPreview}</div><button class="mf-sec-remove" data-sec-remove="${i}">✕</button></div>`}).join('')}</div><button class="mf-sec-add" id="sm-add-section">+ Add Section</button><div style="margin-bottom:10px"></div>`}
+  // Character participation checklist
+  const chars=camp.characters||[];
+  let charCheckHtml='';
+  if(chars.length&&!isTimeline){
+    charCheckHtml=`<label class="mf-label">CHARACTERS IN THIS SESSION</label><div class="mf-char-grid" id="sm-char-grid">`;
+    chars.forEach(ch=>{
+      let name=ch.name||'?',portrait='';
+      const refKey=ch.storageKey||ch.listKey||'';
+      if(refKey){try{const saved=JSON.parse(localStorage.getItem(refKey))||[];const found=ch._id?saved.find(x=>x._id===ch._id):null;if(found){name=found.heroName||found.characterName||found.name||name;portrait=found.portraitData||found.portrait||found._image||''}}catch(e){}}
+      const id=ch._id||ch.name;const checked=sesRoster.includes(id);
+      const ava=portrait?`<img src="${portrait}">`:`<span class="char-ph">?</span>`;
+      charCheckHtml+=`<label class="mf-char-check${checked?' checked':''}" data-char-id="${ESC(id)}">${ava} ${ESC(name)}<input type="checkbox" data-roster-id="${ESC(id)}"${checked?' checked':''}></label>`;
+    });
+    charCheckHtml+='</div>';
+  }
   const tagPills=sesTags.map((t,i)=>{const color=LORE_COLORS[t.type]||'var(--tx3)';return`<span class="mf-tag-pill"><span class="tag-dot" style="background:${color};width:5px;height:5px;border-radius:50%;display:inline-block"></span> ${ESC(t.name)}<span class="tag-x" data-tag-remove="${i}">✕</span></span>`}).join('');
-  return`<div class="mf-row"><div><label class="mf-label">SESSION DATE (real-world)</label><input class="mf-input" id="sm-date" type="date"></div><div><label class="mf-label">IN-GAME DATE (text)</label><input class="mf-input" id="sm-gamedate" placeholder="e.g. Nov 13, 1976"></div></div><label class="mf-label">TITLE</label><input class="mf-input" id="sm-title" placeholder="e.g. ESU Break-In"><label class="mf-label">SUMMARY</label><textarea class="mf-textarea" id="sm-text" rows="4" placeholder="${isTimeline?'Brief timeline note...':'What happened this session...'}" style="min-height:${isTimeline?'50':'80'}px"></textarea>${sectionsHtml}<label class="mf-label">ARTWORK / IMAGE</label><div class="mf-img-area" id="sm-img-area">${imgPreview}<div class="mf-img-btns"><button class="mf-img-btn" id="sm-img-upload">Upload</button><button class="mf-img-btn" id="sm-img-paste">Paste</button>${sesImageData?'<button class="mf-img-btn danger" id="sm-img-clear">Remove</button>':''}</div><input type="file" id="sm-img-file" accept="image/*" style="display:none"></div><label class="mf-label">ENTITY TAGS</label><div class="mf-tags-area" id="sm-tags-area">${tagPills}<input class="mf-tag-input" id="sm-tag-input" placeholder="Type name, Enter to add..."></div><div class="mf-row"><div><label class="mf-label">${ESC(xpLbl.toUpperCase())} AWARDED</label><input class="mf-input" id="sm-xp" type="number" placeholder="0"></div><div><label class="mf-check"><input type="checkbox" id="sm-visible" checked> Visible to players</label></div></div>`;
+  return`<div class="mf-row"><div><label class="mf-label">SESSION DATE (real-world)</label><input class="mf-input" id="sm-date" type="date"></div><div><label class="mf-label">IN-GAME DATE (text)</label><input class="mf-input" id="sm-gamedate" placeholder="e.g. Nov 13, 1976"></div></div><label class="mf-label">TITLE</label><input class="mf-input" id="sm-title" placeholder="e.g. ESU Break-In"><label class="mf-label">SUMMARY</label><textarea class="mf-textarea" id="sm-text" rows="4" placeholder="${isTimeline?'Brief timeline note...':'What happened this session...'}" style="min-height:${isTimeline?'50':'80'}px"></textarea>${sectionsHtml}<label class="mf-label">ARTWORK / IMAGE</label><div class="mf-img-area" id="sm-img-area">${imgPreview}<div class="mf-img-btns"><button class="mf-img-btn" id="sm-img-upload">Upload</button><button class="mf-img-btn" id="sm-img-paste">Paste</button>${sesImageData?'<button class="mf-img-btn danger" id="sm-img-clear">Remove</button>':''}</div><input type="file" id="sm-img-file" accept="image/*" style="display:none"></div>${charCheckHtml}<label class="mf-label">ENTITY TAGS</label><div class="mf-tags-area" id="sm-tags-area">${tagPills}<input class="mf-tag-input" id="sm-tag-input" placeholder="Type name, Enter to add..."></div><div class="mf-row"><div><label class="mf-label">${ESC(xpLbl.toUpperCase())} AWARDED</label><input class="mf-input" id="sm-xp" type="number" placeholder="0"></div><div><label class="mf-check"><input type="checkbox" id="sm-visible" checked> Visible to players</label></div></div>`;
 }
 
 function captureSessionFields(){return{date:document.getElementById('sm-date')?.value||'',gameDate:document.getElementById('sm-gamedate')?.value||'',title:document.getElementById('sm-title')?.value||'',text:document.getElementById('sm-text')?.value||'',xp:document.getElementById('sm-xp')?.value||'',visible:document.getElementById('sm-visible')?.checked!==false}}
@@ -509,8 +559,8 @@ function refreshModalBody(camp,isTimeline){
 function openSessionModal(editIdx,typeOverride){
   sesEditIdx=editIdx!=null?editIdx:-1;const camp=getCamp();if(!camp)return;
   const isEdit=sesEditIdx>=0;let isTimeline=typeOverride==='timeline';
-  if(isEdit){const s=camp.sessions?.[sesEditIdx];if(s){isTimeline=s.type==='timeline';sesImageData=s.image||'';sesSections=(s.sections||[]).map(sec=>({...sec}));sesTags=(s.tags||[]).map(t=>({...t}))}}
-  else{sesImageData='';sesSections=[];sesTags=[]}
+  if(isEdit){const s=camp.sessions?.[sesEditIdx];if(s){isTimeline=s.type==='timeline';sesImageData=s.image||'';sesSections=(s.sections||[]).map(sec=>({...sec}));sesTags=(s.tags||[]).map(t=>({...t}));sesRoster=[...(s.roster||[])]}}
+  else{sesImageData='';sesSections=[];sesTags=[];sesRoster=[]}
   const sesLbl=GCC.sessionLabel(camp.system);
   document.getElementById('session-modal-title').textContent=isEdit?(isTimeline?'EDIT TIMELINE ENTRY':'EDIT '+sesLbl.toUpperCase()):(isTimeline?'NEW TIMELINE ENTRY':'NEW '+sesLbl.toUpperCase());
   document.getElementById('session-modal-body').innerHTML=buildSessionModalBody(camp,isTimeline);
@@ -526,8 +576,13 @@ function wireSessionModalEvents(camp,isTimeline){
   document.getElementById('sm-img-file')?.addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{sesImageData=ev.target.result;refreshModalBody(camp,isTimeline)};reader.readAsDataURL(file)});
   document.getElementById('sm-img-paste')?.addEventListener('click',async()=>{try{const items=await navigator.clipboard.read();for(const item of items){const imgType=item.types.find(t=>t.startsWith('image/'));if(imgType){const blob=await item.getType(imgType);const reader=new FileReader();reader.onload=ev=>{sesImageData=ev.target.result;refreshModalBody(camp,isTimeline)};reader.readAsDataURL(blob);return}}}catch(e){console.warn('Clipboard paste failed:',e)}});
   document.getElementById('sm-img-clear')?.addEventListener('click',()=>{sesImageData='';refreshModalBody(camp,isTimeline)});
-  if(!isTimeline){document.getElementById('sm-add-section')?.addEventListener('click',()=>{captureSessionSections();sesSections.push({title:'',text:''});refreshModalBody(camp,isTimeline)});
-    document.querySelectorAll('[data-sec-remove]').forEach(btn=>{btn.addEventListener('click',()=>{captureSessionSections();sesSections.splice(parseInt(btn.dataset.secRemove),1);refreshModalBody(camp,isTimeline)})})}
+  if(!isTimeline){document.getElementById('sm-add-section')?.addEventListener('click',()=>{captureSessionSections();sesSections.push({title:'',text:'',image:''});refreshModalBody(camp,isTimeline)});
+    document.querySelectorAll('[data-sec-remove]').forEach(btn=>{btn.addEventListener('click',()=>{captureSessionSections();sesSections.splice(parseInt(btn.dataset.secRemove),1);refreshModalBody(camp,isTimeline)})});
+    document.querySelectorAll('[data-sec-img-upload]').forEach(btn=>{btn.addEventListener('click',()=>{const fi=document.querySelector(`[data-sec-img-file="${btn.dataset.secImgUpload}"]`);if(fi)fi.click()})});
+    document.querySelectorAll('[data-sec-img-file]').forEach(fi=>{fi.addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const idx=parseInt(fi.dataset.secImgFile);const reader=new FileReader();reader.onload=ev=>{captureSessionSections();if(sesSections[idx])sesSections[idx].image=ev.target.result;refreshModalBody(camp,isTimeline)};reader.readAsDataURL(file)})});
+    document.querySelectorAll('[data-sec-img-clear]').forEach(btn=>{btn.addEventListener('click',()=>{const idx=parseInt(btn.dataset.secImgClear);captureSessionSections();if(sesSections[idx])sesSections[idx].image='';refreshModalBody(camp,isTimeline)})});
+  }
+  document.querySelectorAll('[data-roster-id]').forEach(cb=>{cb.addEventListener('change',()=>{const id=cb.dataset.rosterId;if(cb.checked){if(!sesRoster.includes(id))sesRoster.push(id)}else{sesRoster=sesRoster.filter(r=>r!==id)}cb.closest('.mf-char-check').classList.toggle('checked',cb.checked)})});
   document.querySelectorAll('[data-tag-remove]').forEach(btn=>{btn.addEventListener('click',()=>{sesTags.splice(parseInt(btn.dataset.tagRemove),1);refreshModalBody(camp,isTimeline)})});
   const tagInput=document.getElementById('sm-tag-input');
   if(tagInput){tagInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&tagInput.value.trim()){e.preventDefault();const name=tagInput.value.trim();const camp=getCamp();const loreMatch=(camp?.lore||[]).find(l=>l.name.toLowerCase()===name.toLowerCase());sesTags.push({name,type:loreMatch?loreMatch.type:'other'});tagInput.value='';refreshModalBody(camp,isTimeline);document.getElementById('sm-tag-input')?.focus()}});
@@ -552,17 +607,28 @@ function compressImageData(dataUrl,maxKB,cb){
 document.getElementById('sm-save').addEventListener('click',()=>{
   const camp=getCamp();if(!camp)return;const sessions=camp.sessions||[];captureSessionSections();
   const rawImage=sesImageData||'';
+  // Compress section images too
+  function compressAllSectionImages(idx,cb){
+    if(idx>=sesSections.length){cb();return}
+    const sec=sesSections[idx];
+    if(sec.image&&sec.image.length>400*1024){
+      compressImageData(sec.image,400,compressed=>{sec.image=compressed;compressAllSectionImages(idx+1,cb)});
+    }else{compressAllSectionImages(idx+1,cb)}
+  }
   function doSave(finalImage){
-    const entry={_id:(sesEditIdx>=0&&sessions[sesEditIdx])?sessions[sesEditIdx]._id:GCC.genId('ses'),
-      date:document.getElementById('sm-date').value||'',gameDate:document.getElementById('sm-gamedate').value.trim()||'',
-      title:document.getElementById('sm-title').value.trim()||'',text:document.getElementById('sm-text').value.trim()||'',
-      sections:sesSections.filter(s=>s.title||s.text),image:finalImage,tags:sesTags,
-      xp:parseInt(document.getElementById('sm-xp').value)||0,visible:document.getElementById('sm-visible').checked,
-      type:sesModal.dataset.entryType||'session'};
-    if(sesEditIdx>=0&&sessions[sesEditIdx]){entry.type=sessions[sesEditIdx].type}
-    if(sesEditIdx>=0&&sesEditIdx<sessions.length){sessions[sesEditIdx]=entry}else{sessions.unshift(entry)}
-    console.log('[GCC] Saving session, entries:',sessions.length,'image size:',Math.round((finalImage||'').length/1024)+'KB');
-    GCC.updateCampaign(campId,{sessions,session:countRealSessions(sessions)});closeSessionModal();render();
+    compressAllSectionImages(0,()=>{
+      const entry={_id:(sesEditIdx>=0&&sessions[sesEditIdx])?sessions[sesEditIdx]._id:GCC.genId('ses'),
+        date:document.getElementById('sm-date').value||'',gameDate:document.getElementById('sm-gamedate').value.trim()||'',
+        title:document.getElementById('sm-title').value.trim()||'',text:document.getElementById('sm-text').value.trim()||'',
+        sections:sesSections.filter(s=>s.title||s.text||s.image),image:finalImage,tags:sesTags,
+        roster:sesRoster.length?sesRoster:[],
+        xp:parseInt(document.getElementById('sm-xp').value)||0,visible:document.getElementById('sm-visible').checked,
+        type:sesModal.dataset.entryType||'session'};
+      if(sesEditIdx>=0&&sessions[sesEditIdx]){entry.type=sessions[sesEditIdx].type}
+      if(sesEditIdx>=0&&sesEditIdx<sessions.length){sessions[sesEditIdx]=entry}else{sessions.unshift(entry)}
+      console.log('[GCC] Saving session, entries:',sessions.length,'image size:',Math.round((finalImage||'').length/1024)+'KB');
+      GCC.updateCampaign(campId,{sessions,session:countRealSessions(sessions)});closeSessionModal();render();
+    });
   }
   compressImageData(rawImage,800,doSave);
 });
