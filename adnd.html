@@ -1266,8 +1266,8 @@ function _sbGetSpellPool(types){
 (function(){
   const overlay=document.getElementById('ex-overlay');
   const COIN_FIELDS={cp:'wealthCP',sp:'wealthSP',ep:'wealthEP',gp:'wealthGP',pp:'wealthPP'};
-  const COIN_TO_GP={cp:0.01,sp:0.1,ep:0.5,gp:1,pp:5};
-  const GP_TO_COIN={cp:100,sp:10,ep:2,gp:1,pp:0.2};
+  const COIN_TO_GP={cp:1/200,sp:1/20,ep:0.5,gp:1,pp:5};
+  const GP_TO_COIN={cp:200,sp:20,ep:2,gp:1,pp:0.2};
   const COIN_NAMES={cp:'CP',sp:'SP',ep:'EP',gp:'GP',pp:'PP'};
   // DMG/PHB gem denominations (base values in gp)
   const GEM_VALS=[5000,1000,500,100,50,10];
@@ -1297,6 +1297,33 @@ function _sbGetSpellPool(types){
   const excResult=document.getElementById('exc-result');
   const excAvail=document.getElementById('exc-avail');
 
+  // Break a GP value into mixed coin denominations, preferring the target coin first
+  // then cascading down to smaller denominations for the remainder
+  const COIN_ORDER=['pp','gp','ep','sp','cp'];
+  const cpPer={pp:1000,gp:200,ep:100,sp:10,cp:1};
+  function gpToMixedCoins(gpVal, preferCoin){
+    const result={pp:0,gp:0,ep:0,sp:0,cp:0};
+    let remainCp=Math.round(gpVal*200);
+    // Pay in preferred denomination, then only smaller denominations
+    const prefIdx=COIN_ORDER.indexOf(preferCoin);
+    const order=COIN_ORDER.slice(prefIdx>=0?prefIdx:0);
+    order.forEach(coin=>{
+      if(coin==='ep'&&preferCoin!=='ep')return;
+      if(remainCp>=cpPer[coin]){
+        const count=Math.floor(remainCp/cpPer[coin]);
+        result[coin]=count;
+        remainCp-=count*cpPer[coin];
+      }
+    });
+    return result;
+  }
+
+  function formatMixed(coins){
+    const parts=[];
+    COIN_ORDER.forEach(c=>{if(coins[c]>0)parts.push(coins[c]+' '+COIN_NAMES[c]);});
+    return parts.join(', ')||'0';
+  }
+
   function updateChangePreview(){
     const from=excFrom.value,to=excTo.value;
     const amt=Math.max(0,+(excAmt.value||0));
@@ -1306,12 +1333,12 @@ function _sbGetSpellPool(types){
     if(from===to||amt<=0){excResult.innerHTML='<span style="color:var(--ink-lt)">Select different coin types.</span>';return;}
     const gpVal=amt*COIN_TO_GP[from];
     const afterFee=gpVal*(1-fee/100);
-    const received=Math.floor(afterFee/COIN_TO_GP[to]);
     const feePaid=gpVal-afterFee;
+    const coins=gpToMixedCoins(afterFee,to);
     const overBudget=amt>avail;
     excResult.innerHTML='<div class="ex-result-title">Result</div>'+
-      '<div>'+amt+' '+COIN_NAMES[from]+' → <b>'+received+' '+COIN_NAMES[to]+'</b></div>'+
-      '<div style="font-size:9px;color:var(--ink-lt)">Fee: '+fee+'% ('+feePaid.toFixed(1)+' gp equivalent)</div>'+
+      '<div>'+amt+' '+COIN_NAMES[from]+' → <b>'+formatMixed(coins)+'</b></div>'+
+      '<div style="font-size:9px;color:var(--ink-lt)">Fee: '+fee+'% ('+feePaid.toFixed(2)+' gp)</div>'+
       (overBudget?'<div style="color:var(--accent);font-weight:700;margin-top:2px">Insufficient funds!</div>':'');
   }
   [excAmt,excFrom,excTo,excFee].forEach(el=>el.addEventListener('input',updateChangePreview));
@@ -1325,9 +1352,9 @@ function _sbGetSpellPool(types){
     if(amt>coinAvail(from)){MPDialog.alert('Exchange','Insufficient '+COIN_NAMES[from]+'.');return;}
     const gpVal=amt*COIN_TO_GP[from];
     const afterFee=gpVal*(1-fee/100);
-    const received=Math.floor(afterFee/COIN_TO_GP[to]);
+    const coins=gpToMixedCoins(afterFee,to);
     setCoin(from,coinAvail(from)-amt);
-    setCoin(to,coinAvail(to)+received);
+    COIN_ORDER.forEach(c=>{if(coins[c]>0)setCoin(c,coinAvail(c)+coins[c]);});
     calcWeight();autosave();close();
   });
   document.getElementById('exc-cancel').addEventListener('click',close);
