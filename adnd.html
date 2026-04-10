@@ -1516,6 +1516,24 @@ function mapARS(ars){
   // Bio
   if(d.biography&&d.biography.value)c.notes=d.biography.value.replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim().substring(0,2000);
   c.patron=d.patron||'';
+  // Weapon Proficiencies — from proficiency items on the actor
+  const _profSkip=new Set(['Brawl (P)','Grapple (P)','Overbear (P)']);
+  const profItems=items.filter(i=>i.type==='proficiency'&&!_profSkip.has(i.name));
+  c.proficiencies=profItems.map(p=>p.name);
+  // Proficiency slots/penalty — read from class items, take best single class
+  let bestProfTotal=0,bestProfPenalty=-99;
+  classItems.forEach(ci=>{
+    const cp=(ci.system||{}).proficiencies||{};
+    const w=cp.weapon||{};
+    const start=+(w.starting||0),earn=+(w.earnLevel||0),penalty=+(cp.penalty||0);
+    const adv=(ci.system||{}).advancement||[];
+    const lvl=Math.max(1,adv.length);
+    const total=start+(earn>0?Math.floor((lvl-1)/earn):0);
+    if(total>bestProfTotal)bestProfTotal=total;
+    if(penalty>bestProfPenalty)bestProfPenalty=penalty;
+  });
+  if(bestProfTotal>0)c.profNumber=bestProfTotal;
+  if(bestProfPenalty>-99)c.nonProfPenalty=bestProfPenalty;
   c._arsImport=true;c._arsActorId=ars._id||'';
   return c;
 }
@@ -1571,8 +1589,8 @@ document.getElementById('btn-import-ars').addEventListener('click',importARS);
 
 // Class detection
 const classField=document.querySelector('[data-field="characterClass"]');
-classField.addEventListener('change',()=>{CHAR.characterClass=classField.value;updateClassSections();calcThiefSkills();autosave();});
-classField.addEventListener('input',()=>{CHAR.characterClass=classField.value;updateClassSections();calcThiefSkills();});
+classField.addEventListener('change',()=>{CHAR.characterClass=classField.value;updateClassSections();calcThiefSkills();calcProfSlots();autosave();});
+classField.addEventListener('input',()=>{CHAR.characterClass=classField.value;updateClassSections();calcThiefSkills();calcProfSlots();});
 
 // Wire all fields
 const _encFields=new Set(['wealthCP','wealthSP','wealthEP','wealthGP','wealthPP','strAdj','moveBase']);
@@ -1581,10 +1599,45 @@ const _thiefFields=new Set(['dex','race','level']);
 const _spellSlotFields=new Set(['spellSlot1','spellSlot2','spellSlot3','spellSlot4','spellSlot5','spellSlot6','spellSlot7','spellSlot8','spellSlot9']);
 document.querySelectorAll('[data-field]').forEach(el=>{
   const ev=el.tagName==='TEXTAREA'?'input':'change';
-  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_abilityFields.has(el.dataset.field))calcAbilitySubs();if(_thiefFields.has(el.dataset.field))calcThiefSkills();if(_spellSlotFields.has(el.dataset.field))updateSpellCounter();autosave();});
+  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_abilityFields.has(el.dataset.field))calcAbilitySubs();if(_thiefFields.has(el.dataset.field))calcThiefSkills();if(_spellSlotFields.has(el.dataset.field))updateSpellCounter();if(el.dataset.field==='level')calcProfSlots();autosave();});
 });
 
 function _setField(f,v){CHAR[f]=v;const el=document.querySelector('[data-field="'+f+'"]');if(el)el.value=v;}
+
+function calcProfSlots(){
+  // PHB Weapon Proficiency table (1e, no UA)
+  // {starting, earnLevel, penalty}
+  const PROF_TABLE={
+    'fighter':{starting:4,earn:3,penalty:-2},
+    'paladin':{starting:3,earn:3,penalty:-2},
+    'ranger':{starting:3,earn:3,penalty:-2},
+    'cleric':{starting:2,earn:4,penalty:-3},
+    'druid':{starting:2,earn:5,penalty:-4},
+    'magic-user':{starting:1,earn:5,penalty:-5},
+    'mage':{starting:1,earn:5,penalty:-5},
+    'illusionist':{starting:1,earn:5,penalty:-5},
+    'thief':{starting:2,earn:4,penalty:-3},
+    'assassin':{starting:3,earn:4,penalty:-2},
+    'monk':{starting:1,earn:2,penalty:-3},
+    'bard':{starting:2,earn:4,penalty:-3},
+  };
+  const rawCls=(CHAR.characterClass||'').trim();
+  const rawLvl=(CHAR.level||'').trim();
+  if(!rawCls||!rawLvl)return;
+  const clsParts=rawCls.includes('/')?rawCls.split('/').map(s=>s.trim()):[ rawCls];
+  const lvlParts=rawLvl.includes('/')?rawLvl.split('/').map(s=>s.trim()):[rawLvl];
+  let bestTotal=0,bestPenalty=-99;
+  clsParts.forEach((cls,i)=>{
+    const key=cls.toLowerCase().replace(/[\s-]+/g,'-');
+    const tbl=PROF_TABLE[key];if(!tbl)return;
+    const lvl=Math.max(1,+(lvlParts[i]||lvlParts[0]||1));
+    const total=tbl.starting+Math.floor((lvl-1)/tbl.earn);
+    if(total>bestTotal)bestTotal=total;
+    if(tbl.penalty>bestPenalty)bestPenalty=tbl.penalty;
+  });
+  if(bestTotal>0)_setField('profNumber',bestTotal);
+  if(bestPenalty>-99)_setField('nonProfPenalty',bestPenalty);
+}
 
 function calcAbilitySubs(){
   // Strength
@@ -1763,7 +1816,7 @@ const _thiefFieldToSkill={thiefPP:'PP',thiefOL:'OL',thiefFRT:'FRT',thiefMS:'MS',
 })();
 
 function populateAll(){
-  populateFields();updateClassSections();showPortrait();renderWeapons();calcAbilitySubs();calcThiefSkills();
+  populateFields();updateClassSections();showPortrait();renderWeapons();calcAbilitySubs();calcThiefSkills();calcProfSlots();
   renderInlineList('proficiencies','prof-list','add-prof');
   renderInlineList('abilities','ability-list','add-ability');
   renderTableRows('items','item-list','add-item',[{key:'name'},{key:'location'},{key:'qty',center:true},{key:'weight',center:true},{key:'notes'}]);
