@@ -157,6 +157,12 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .inv-toggle{border:none;background:none;font-size:9px;cursor:pointer;padding:0 2px;color:var(--ink-md);font-family:var(--fb);width:12px;flex-shrink:0}
 .inv-toggle:hover{color:var(--accent)}
 .inv-hidden{display:none}
+.inv-grip{cursor:grab;color:var(--ink-lt);font-size:10px;text-align:center;user-select:none;padding:0 1px;width:16px}
+.inv-grip:active{cursor:grabbing}
+tr.inv-drag-over-into{outline:2px solid var(--accent);outline-offset:-2px}
+tr.inv-drag-over-above td{border-top:2px solid var(--accent)!important}
+tr.inv-drag-over-below td{border-bottom:2px solid var(--accent)!important}
+tr.inv-dragging{opacity:.4}
 .sp-grid{border:1px solid var(--ink);margin-bottom:2px}
 .sp-hdr{display:grid;grid-template-columns:repeat(9,1fr);font-family:var(--fh);font-size:8px;font-weight:700;text-align:center;border-bottom:1px solid var(--ink)}
 .sp-hdr div{border-right:1px solid var(--ink);padding:2px}.sp-hdr div:last-child{border-right:none}
@@ -536,7 +542,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 
 <div class="sec">Possessions</div>
 <div class="inv-scroll">
-<table class="inv-tbl"><thead><tr><th style="width:30%">Item</th><th style="width:18%">Location</th><th style="width:8%">Qty</th><th style="width:10%" title="Weight in coin (10 cn = 1 lb)">Wt (cn)</th><th style="width:26%">Notes</th><th style="width:16px"><button class="add-sm" id="add-item">+</button></th></tr></thead><tbody id="item-list"></tbody></table>
+<table class="inv-tbl"><thead><tr><th style="width:16px"></th><th style="width:28%">Item</th><th style="width:16%">Location</th><th style="width:8%">Qty</th><th style="width:10%" title="Weight in coin (10 cn = 1 lb)">Wt (cn)</th><th style="width:26%">Notes</th><th style="width:16px"><button class="add-sm" id="add-item">+</button></th></tr></thead><tbody id="item-list"></tbody></table>
 </div>
 
 <div class="sec">Encumbrance & Wealth</div>
@@ -979,26 +985,7 @@ function renderInventory(){
   const arr=CHAR.items||[];
   const tb=document.getElementById('item-list');
   tb.innerHTML='';
-  // Build parent→children map for collapse
-  const collapsedSet=new Set();
-  arr.forEach((row,i)=>{if(row._container&&row._collapsed)collapsedSet.add(i);});
-  // Determine which rows are hidden by a collapsed ancestor
-  function isHidden(idx){
-    const row=arr[idx];
-    const depth=+(row._depth||0);
-    if(depth===0)return false;
-    for(let j=idx-1;j>=0;j--){
-      const p=arr[j];
-      const pd=+(p._depth||0);
-      if(pd<depth){
-        if(p._container&&p._collapsed)return true;
-        if(pd===0)return false;
-        depth===pd; // check this parent's ancestors
-      }
-    }
-    return false;
-  }
-  // Smarter hidden check: walk up to find any collapsed ancestor
+  // Hidden check: walk up to find any collapsed ancestor
   function isRowHidden(idx){
     const myDepth=+(arr[idx]._depth||0);
     if(myDepth===0)return false;
@@ -1013,6 +1000,13 @@ function renderInventory(){
     }
     return false;
   }
+  // Get the block of indices for a container (itself + all children)
+  function getBlock(idx){
+    const d=+(arr[idx]._depth||0);
+    let end=idx+1;
+    while(end<arr.length&&+(arr[end]._depth||0)>d)end++;
+    return{start:idx,end:end};
+  }
   arr.forEach((row,i)=>{
     const tr=document.createElement('tr');
     const depth=+(row._depth||0);
@@ -1020,9 +1014,12 @@ function renderInventory(){
     const hidden=isRowHidden(i);
     if(isCont)tr.classList.add('inv-cont');
     if(hidden)tr.classList.add('inv-hidden');
+    tr.dataset.idx=i;
+    tr.draggable=false; // only drag via handle
     const indent=depth*12;
     const toggleBtn=isCont?'<span class="inv-toggle" data-idx="'+i+'">'+(row._collapsed?'▶':'▼')+'</span>':'';
     let html='';
+    html+='<td class="inv-grip" draggable="true" data-idx="'+i+'" title="Drag to move">⠿</td>';
     html+='<td><div style="display:flex;align-items:center;padding-left:'+indent+'px">'+toggleBtn+'<input value="'+(row.name||'')+'" data-idx="'+i+'" data-lf="name" style="flex:1;min-width:0'+(isCont?';font-weight:700':'')+'"></div></td>';
     html+='<td><input value="'+(row.location||'')+'" data-idx="'+i+'" data-lf="location"></td>';
     html+='<td><input value="'+(row.qty||'')+'" data-idx="'+i+'" data-lf="qty" style="text-align:center"></td>';
@@ -1032,29 +1029,118 @@ function renderInventory(){
     tr.innerHTML=html;
     tb.appendChild(tr);
   });
+  // ── Field editing ──
   tb.querySelectorAll('input').forEach(el=>el.addEventListener('change',e=>{
     arr[+e.target.dataset.idx][e.target.dataset.lf]=e.target.value;
     calcWeight();autosave();
   }));
+  // ── Delete ──
   tb.querySelectorAll('.del-btn').forEach(el=>el.addEventListener('click',e=>{
     const idx=+e.target.dataset.idx;
-    // If container, also delete children
     if(arr[idx]&&arr[idx]._container){
-      const parentDepth=+(arr[idx]._depth||0);
-      let end=idx+1;
-      while(end<arr.length&&+(arr[end]._depth||0)>parentDepth)end++;
-      arr.splice(idx,end-idx);
+      const blk=getBlock(idx);
+      arr.splice(blk.start,blk.end-blk.start);
     }else{arr.splice(idx,1);}
     renderInventory();calcWeight();autosave();
   }));
+  // ── Collapse toggles ──
   tb.querySelectorAll('.inv-toggle').forEach(el=>el.addEventListener('click',()=>{
     const idx=+el.dataset.idx;
     arr[idx]._collapsed=!arr[idx]._collapsed;
     renderInventory();
   }));
+  // ── Drag and drop ──
+  let dragIdx=-1,dragBlock=null;
+  function clearDropIndicators(){
+    tb.querySelectorAll('.inv-drag-over-above,.inv-drag-over-below,.inv-drag-over-into').forEach(el=>{
+      el.classList.remove('inv-drag-over-above','inv-drag-over-below','inv-drag-over-into');
+    });
+  }
+  tb.querySelectorAll('.inv-grip').forEach(grip=>{
+    grip.addEventListener('dragstart',e=>{
+      dragIdx=+grip.dataset.idx;
+      dragBlock=arr[dragIdx]&&arr[dragIdx]._container?getBlock(dragIdx):{start:dragIdx,end:dragIdx+1};
+      const tr=grip.closest('tr');
+      if(tr)tr.classList.add('inv-dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',String(dragIdx));
+    });
+    grip.addEventListener('dragend',()=>{
+      clearDropIndicators();
+      tb.querySelectorAll('.inv-dragging').forEach(el=>el.classList.remove('inv-dragging'));
+      dragIdx=-1;dragBlock=null;
+    });
+  });
+  tb.querySelectorAll('tr').forEach(tr=>{
+    tr.addEventListener('dragover',e=>{
+      e.preventDefault();
+      e.dataTransfer.dropEffect='move';
+      clearDropIndicators();
+      const targetIdx=+tr.dataset.idx;
+      if(dragBlock&&targetIdx>=dragBlock.start&&targetIdx<dragBlock.end)return;
+      const rect=tr.getBoundingClientRect();
+      const y=e.clientY-rect.top;
+      const third=rect.height/3;
+      if(arr[targetIdx]&&arr[targetIdx]._container&&y>third&&y<third*2){
+        tr.classList.add('inv-drag-over-into');
+      }else if(y<rect.height/2){
+        tr.classList.add('inv-drag-over-above');
+      }else{
+        tr.classList.add('inv-drag-over-below');
+      }
+    });
+    tr.addEventListener('dragleave',()=>{
+      tr.classList.remove('inv-drag-over-above','inv-drag-over-below','inv-drag-over-into');
+    });
+    tr.addEventListener('drop',e=>{
+      e.preventDefault();
+      clearDropIndicators();
+      if(dragIdx<0||!dragBlock)return;
+      const targetIdx=+tr.dataset.idx;
+      if(targetIdx>=dragBlock.start&&targetIdx<dragBlock.end)return;
+      const rect=tr.getBoundingClientRect();
+      const y=e.clientY-rect.top;
+      const third=rect.height/3;
+      const isCont=arr[targetIdx]&&arr[targetIdx]._container;
+      let mode='below';
+      if(isCont&&y>third&&y<third*2)mode='into';
+      else if(y<rect.height/2)mode='above';
+      // Extract the dragged block
+      const moved=arr.splice(dragBlock.start,dragBlock.end-dragBlock.start);
+      // Recalculate target index after splice
+      let insertIdx=targetIdx;
+      if(dragBlock.start<targetIdx)insertIdx-=moved.length;
+      if(mode==='into'){
+        // Insert as first child of container
+        const containerDepth=+(arr[insertIdx]._depth||0);
+        moved.forEach(m=>{m._depth=(+(m._depth||0))-(+(moved[0]._depth||0))+containerDepth+1;});
+        arr.splice(insertIdx+1,0,...moved);
+      }else if(mode==='above'){
+        const targetDepth=+(arr[insertIdx]._depth||0);
+        const srcDepth=+(moved[0]._depth||0);
+        const depthDelta=targetDepth-srcDepth;
+        moved.forEach(m=>{m._depth=(+(m._depth||0))+depthDelta;});
+        arr.splice(insertIdx,0,...moved);
+      }else{
+        // below — insert after target and its children
+        let afterIdx=insertIdx+1;
+        if(arr[insertIdx]&&arr[insertIdx]._container){
+          const blk=getBlock(insertIdx);
+          afterIdx=blk.end;
+        }
+        const targetDepth=+(arr[insertIdx]._depth||0);
+        const srcDepth=+(moved[0]._depth||0);
+        const depthDelta=targetDepth-srcDepth;
+        moved.forEach(m=>{m._depth=(+(m._depth||0))+depthDelta;});
+        arr.splice(afterIdx,0,...moved);
+      }
+      renderInventory();calcWeight();autosave();
+    });
+  });
+  // ── Add item ──
   document.getElementById('add-item').onclick=()=>{
     if(!CHAR.items)CHAR.items=[];
-    CHAR.items.push({name:'',location:'',qty:'',weight:'',notes:''});
+    CHAR.items.push({name:'',location:'',qty:'',weight:'',notes:'',_depth:0});
     renderInventory();autosave();
   };
 }
