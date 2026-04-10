@@ -343,13 +343,14 @@ function buildSessionCard(s,idx,total,camp){
   const imgHtml=s.image?`<img class="session-card-img" src="${s.image}" alt="">`:'';
 
   let bodyHtml='';
+  if(s.text){bodyHtml+=`<div class="session-text">${ESC(s.text)}</div>`}
   if(s.sections&&s.sections.length){
     s.sections.forEach(sec=>{
       if(sec.title)bodyHtml+=`<div class="session-section-title">${ESC(sec.title)}</div>`;
       if(sec.image)bodyHtml+=`<img class="session-sec-img" src="${sec.image}" alt="">`;
       if(sec.text)bodyHtml+=`<div class="session-text">${ESC(sec.text)}</div>`;
     });
-  }else if(s.text){bodyHtml=`<div class="session-text">${ESC(s.text)}</div>`}
+  }
 
   // Character roster for this session
   let rosterHtml='';
