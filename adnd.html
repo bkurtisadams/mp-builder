@@ -371,10 +371,11 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
         <div class="fc" style="flex:2"><input class="fi" data-field="armorWorn" style="border-bottom:1px solid var(--ink)"><div class="lb">Armor Worn</div></div>
         <div class="fc" style="flex:0 0 36px"><input class="fi" data-field="acBase" style="text-align:center;border-bottom:1px solid var(--ink)"><div class="lb">AC Base</div></div>
       </div>
-      <!-- Dex Adj / Mag Adj / Shieldless AC / Rear AC -->
+      <!-- Dex Adj / Mag Adj / Shield Adj / Shieldless AC / Rear AC -->
       <div class="fr">
         <div class="fc"><input class="fi" data-field="acDexAdj" style="text-align:center;border-bottom:1px solid var(--ink)"><div class="lb">Dex. Adj.</div></div>
         <div class="fc"><input class="fi" data-field="acMagAdj" style="text-align:center;border-bottom:1px solid var(--ink)"><div class="lb">Magical Adj.</div></div>
+        <div class="fc"><input class="fi" data-field="acShieldAdj" style="text-align:center;border-bottom:1px solid var(--ink)"><div class="lb">Shield Adj.</div></div>
         <div class="fc"><input class="fi" data-field="acShieldless" style="text-align:center;font-size:12px;border-bottom:1px solid var(--ink)"><div class="lb" style="font-size:9px;font-weight:700;color:var(--ink)">Shieldless AC</div></div>
         <div class="fc"><input class="fi" data-field="acRear" style="text-align:center;border-bottom:1px solid var(--ink)"><div class="lb">Rear AC</div></div>
       </div>
@@ -384,11 +385,11 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
         <div class="fc" style="flex:1"><input class="fi" data-field="surpriseDexAdj" style="border-bottom:1px solid var(--ink)"><div class="lb">Surp. Dex. Adj.</div></div>
         <div class="fc" style="flex:1"><input class="fi" data-field="rearAtkAdj" style="border-bottom:1px solid var(--ink)"><div class="lb">Rear Attacks Adjust.</div></div>
       </div>
-      <!-- HP (merged) + Weapon in Hand + Secondary -->
+      <!-- HP (merged) + Primary Hand + Off-Hand -->
       <div class="fr" style="align-items:flex-end">
         <div class="fc" style="flex:0 0 70px"><div class="bx bx-lg" style="width:70px;font-size:13px;gap:0"><input data-field="hpCurrent" type="number" style="border:none;background:transparent;font-family:var(--fb);font-size:13px;font-weight:700;text-align:right;width:28px;outline:none;padding:0;-moz-appearance:textfield"><span style="font-size:11px;color:var(--ink-lt)">/</span><input data-field="hpMax" type="number" style="border:none;background:transparent;font-family:var(--fb);font-size:13px;font-weight:700;text-align:left;width:28px;outline:none;padding:0;opacity:.6;-moz-appearance:textfield"></div><div class="lb">Hit Points</div></div>
-        <div class="fc" style="flex:1"><input class="fi" data-field="primaryWeapon" style="border-bottom:1px solid var(--ink)"><div class="lb">Weapon in Hand</div></div>
-        <div class="fc" style="flex:1"><input class="fi" data-field="secondaryWeapon" style="border-bottom:1px solid var(--ink)"><div class="lb">Secondary</div></div>
+        <div class="fc" style="flex:1"><input class="fi" data-field="primaryWeapon" style="border-bottom:1px solid var(--ink)"><div class="lb">Primary Hand</div></div>
+        <div class="fc" style="flex:1"><input class="fi" data-field="secondaryWeapon" style="border-bottom:1px solid var(--ink)"><div class="lb">Off-Hand</div></div>
       </div>
     </div>
 
@@ -1341,6 +1342,7 @@ function mapARS(ars){
   const dexACAdj=+(dL[2]||0); // dex defense adj (negative is better)
   c.acDexAdj=dexACAdj||'';
   c.acMagAdj=magAdj||'';
+  c.acShieldAdj=shieldAdj||'';
   c.ac=bestBaseAC+dexACAdj+magAdj+shieldAdj;
   c.acShieldless=bestBaseAC+dexACAdj+magAdj;
   c.acRear=bestBaseAC+magAdj; // rear ignores dex and shield
@@ -1597,12 +1599,23 @@ const _encFields=new Set(['wealthCP','wealthSP','wealthEP','wealthGP','wealthPP'
 const _abilityFields=new Set(['str','strPct','weight','int','wis','dex','con','cha']);
 const _thiefFields=new Set(['dex','race','level']);
 const _spellSlotFields=new Set(['spellSlot1','spellSlot2','spellSlot3','spellSlot4','spellSlot5','spellSlot6','spellSlot7','spellSlot8','spellSlot9']);
+const _acFields=new Set(['acBase','acDexAdj','acMagAdj','acShieldAdj']);
 document.querySelectorAll('[data-field]').forEach(el=>{
   const ev=el.tagName==='TEXTAREA'?'input':'change';
-  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_abilityFields.has(el.dataset.field))calcAbilitySubs();if(_thiefFields.has(el.dataset.field))calcThiefSkills();if(_spellSlotFields.has(el.dataset.field))updateSpellCounter();if(el.dataset.field==='level')calcProfSlots();autosave();});
+  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_abilityFields.has(el.dataset.field))calcAbilitySubs();if(_thiefFields.has(el.dataset.field))calcThiefSkills();if(_spellSlotFields.has(el.dataset.field))updateSpellCounter();if(el.dataset.field==='level')calcProfSlots();if(_acFields.has(el.dataset.field))calcAC();autosave();});
 });
 
 function _setField(f,v){CHAR[f]=v;const el=document.querySelector('[data-field="'+f+'"]');if(el)el.value=v;}
+
+function calcAC(){
+  const base=+(CHAR.acBase||10);
+  const dex=+(CHAR.acDexAdj||0);
+  const mag=+(CHAR.acMagAdj||0);
+  const shld=+(CHAR.acShieldAdj||0);
+  _setField('ac',base+dex+mag+shld);
+  _setField('acShieldless',base+dex+mag);
+  _setField('acRear',base+mag);
+}
 
 function calcProfSlots(){
   // PHB Weapon Proficiency table (1e, no UA)
