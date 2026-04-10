@@ -1003,27 +1003,27 @@ const PHB_SPELLS={
 
 // Determine which spell list(s) apply to the character
 function _sbGetCasterType(){
-  const cls=(CHAR.characterClass||'').toLowerCase().trim();
-  if(cls.includes('/')) {
+  const raw=(CHAR.characterClass||'').trim();
+  const cls=raw.toLowerCase().replace(/[\s-]+/g,' ');
+  function matchPart(p){
+    p=p.replace(/[\s-]+/g,' ').trim();
+    if(p==='magic user'||p==='mage'||p==='mu'||p==='m u')return'magic-user';
+    if(p==='illusionist')return'illusionist';
+    if(p==='cleric')return'cleric';
+    if(p==='druid')return'druid';
+    if(p==='ranger')return'ranger';
+    if(p==='paladin')return'cleric';
+    if(p==='bard')return'bard';
+    return null;
+  }
+  if(raw.includes('/')) {
     const parts=cls.split('/').map(s=>s.trim());
     const types=[];
-    parts.forEach(p=>{
-      if(p==='magic-user'||p==='mage')types.push('magic-user');
-      else if(p==='illusionist')types.push('illusionist');
-      else if(p==='cleric')types.push('cleric');
-      else if(p==='druid')types.push('druid');
-      else if(p==='ranger')types.push('ranger');
-    });
+    parts.forEach(p=>{const t=matchPart(p);if(t&&!types.includes(t))types.push(t);});
     return types.length?types:null;
   }
-  if(cls==='magic-user'||cls==='mage')return['magic-user'];
-  if(cls==='illusionist')return['illusionist'];
-  if(cls==='cleric')return['cleric'];
-  if(cls==='druid')return['druid'];
-  if(cls==='ranger')return['ranger'];
-  if(cls==='paladin')return['cleric'];
-  if(cls==='bard')return['bard'];
-  return null;
+  const t=matchPart(cls);
+  return t?[t]:null;
 }
 
 function _sbGetSpellPool(types){
