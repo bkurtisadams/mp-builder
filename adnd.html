@@ -200,6 +200,41 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .notes-area:focus{border-color:var(--accent)}
 .xp-bonus-badge{display:none;font-family:var(--fh);font-size:7px;font-weight:700;color:#fff;background:#5b7a3a;border-radius:2px;padding:1px 3px;letter-spacing:.3px;white-space:nowrap;flex-shrink:0}
 .xp-bonus-badge.visible{display:inline}
+/* ── Spellbook Dialog ── */
+.sb-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:none;align-items:center;justify-content:center}
+.sb-overlay.open{display:flex}
+.sb-dlg{background:var(--paper);border:2px solid var(--ink);width:680px;max-width:96vw;max-height:88vh;display:flex;flex-direction:column;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.sb-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:2px solid var(--ink);background:var(--paper-dk)}
+.sb-hdr-title{font-family:var(--fh);font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.sb-hdr-sub{font-family:var(--fb);font-size:10px;color:var(--ink-md);margin-left:8px}
+.sb-close{border:none;background:none;font-size:18px;cursor:pointer;color:var(--ink-md);padding:0 4px;line-height:1}
+.sb-close:hover{color:var(--accent)}
+.sb-toolbar{display:flex;gap:6px;align-items:center;padding:6px 12px;border-bottom:1px solid #ccc;flex-wrap:wrap}
+.sb-filter{font-family:var(--fb);font-size:10px;padding:2px 6px;border:1px solid #999;background:var(--paper-lt);outline:none;height:22px;min-width:140px}
+.sb-filter:focus{border-color:var(--accent)}
+.sb-lvl-btn{font-family:var(--fh);font-size:9px;font-weight:700;padding:2px 6px;border:1px solid #999;background:var(--paper-lt);cursor:pointer;height:22px}
+.sb-lvl-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.sb-lvl-btn:hover:not(.active){border-color:var(--accent)}
+.sb-body{flex:1;overflow-y:auto;padding:8px 12px}
+.sb-level-group{margin-bottom:8px}
+.sb-level-hdr{font-family:var(--fh);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);border-bottom:1px solid var(--accent);padding-bottom:1px;margin-bottom:4px;display:flex;align-items:baseline;gap:6px}
+.sb-level-count{font-family:var(--fb);font-size:9px;font-weight:400;color:var(--ink-lt)}
+.sb-spell-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px 12px}
+.sb-spell-row{display:flex;align-items:center;gap:4px;padding:1px 0;cursor:pointer}
+.sb-spell-row:hover{background:var(--paper-lt)}
+.sb-spell-cb{width:11px;height:11px;border:1.5px solid #999;border-radius:1px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:8px;color:transparent;background:var(--paper-lt)}
+.sb-spell-cb.checked{background:#5b7a3a;border-color:#3a5a1a;color:#fff}
+.sb-spell-name{font-family:var(--fb);font-size:10px;cursor:pointer;user-select:none}
+.sb-spell-name.known{font-weight:700}
+.sb-spell-rev{font-size:8px;color:var(--ink-lt);font-style:italic;margin-left:1px}
+.sb-ftr{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-top:2px solid var(--ink);background:var(--paper-dk)}
+.sb-ftr-info{font-family:var(--fh);font-size:9px;color:var(--ink-md)}
+.sb-ftr-btns{display:flex;gap:4px}
+.sb-ftr-btn{font-family:var(--fb);font-size:10px;font-weight:700;padding:3px 12px;border:1px solid #999;background:var(--paper-lt);cursor:pointer}
+.sb-ftr-btn:hover{border-color:var(--accent)}
+.sb-ftr-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.sb-ftr-btn.primary:hover{background:#6a0000}
+@media(max-width:500px){.sb-spell-grid{grid-template-columns:1fr 1fr}}
 @media print{
   .gcc-bar,.adnd-hdr,.adnd-ftr,.name-box-del,.add-btn,.add-sm,.del-btn,.pg-tabs{display:none!important}
   .sheet{border:none;max-width:100%}
@@ -432,7 +467,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
         <div class="row"><input class="fi" data-field="magicComponents2" style="width:260px"></div>
       </div>
       <div style="flex:1;min-width:0">
-        <div class="lb" style="margin-bottom:2px">Spell List: <button class="add-btn" id="add-spell">+ Spell</button></div>
+        <div class="lb" style="margin-bottom:2px">Spell List: <button class="add-btn" id="add-spell">+ Spell</button> <button class="add-btn" id="btn-spellbook" style="border-color:var(--accent);color:var(--accent)">📖 Spellbook</button></div>
         <div id="spell-list" class="spell-list"></div>
       </div>
     </div>
@@ -593,6 +628,28 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 
 </div></div>
 <div class="adnd-ftr">Graycloak's Campaign Corner — AD&D 1st Edition Character Record</div>
+
+<!-- Spellbook Dialog -->
+<div class="sb-overlay" id="sb-overlay">
+<div class="sb-dlg">
+  <div class="sb-hdr">
+    <div><span class="sb-hdr-title">Spellbook</span><span class="sb-hdr-sub" id="sb-class-label"></span></div>
+    <button class="sb-close" id="sb-close">×</button>
+  </div>
+  <div class="sb-toolbar">
+    <input class="sb-filter" id="sb-filter" placeholder="Search spells…">
+    <div id="sb-lvl-btns" style="display:flex;gap:2px;flex-wrap:wrap"></div>
+  </div>
+  <div class="sb-body" id="sb-body"></div>
+  <div class="sb-ftr">
+    <span class="sb-ftr-info" id="sb-info"></span>
+    <div class="sb-ftr-btns">
+      <button class="sb-ftr-btn" id="sb-cancel">Cancel</button>
+      <button class="sb-ftr-btn primary" id="sb-apply">Apply</button>
+    </div>
+  </div>
+</div>
+</div>
 
 <script src="gcc-data.js"></script>
 <script src="gcc-header.js"></script>
@@ -886,6 +943,225 @@ document.getElementById('add-spell').addEventListener('click',()=>{
   const lvl=prompt('Spell level (1-9)?','1');if(!lvl)return;
   if(!CHAR.spells)CHAR.spells=[];CHAR.spells.push({level:lvl,name:''});renderSpells();autosave();
 });
+
+// ═══════════════════════════════════════════════════════
+// PHB Spellbook Dialog
+// ═══════════════════════════════════════════════════════
+const PHB_SPELLS={
+'magic-user':{
+1:['Affect Normal Fires','Burning Hands','Charm Person','Comprehend Languages','Dancing Lights','Detect Magic','Enlarge','Erase','Feather Fall','Find Familiar','Friends','Hold Portal','Identify','Jump','Light','Magic Missile','Mending','Message','Nystul\'s Magic Aura','Protection from Evil','Push','Read Magic','Shield','Shocking Grasp','Sleep','Spider Climb','Tenser\'s Floating Disc','Unseen Servant','Ventriloquism','Write'],
+2:['Audible Glamer','Bind','Continual Light','Darkness 15\' Radius','Detect Evil','Detect Invisibility','ESP','Fools\' Gold','Forget','Invisibility','Knock','Know Alignment','Leomund\'s Trap','Levitate','Locate Object','Magic Mouth','Mirror Image','Misdirection','Pyrotechnics','Ray of Enfeeblement','Rope Trick','Scare','Shatter','Stinking Cloud','Strength','Web','Wizard Lock'],
+3:['Blink','Clairaudience','Clairvoyance','Dispel Magic','Explosive Runes','Feign Death','Fireball','Flame Arrow','Fly','Gust of Wind','Haste','Hold Person','Infravision','Invisibility 10\' Radius','Item','Leomund\'s Tiny Hut','Lightning Bolt','Material','Monster Summoning I','Non-Detection','Phantom Steed','Protection from Evil 10\' Radius','Protection from Normal Missiles','Secret Page','Sepia Snake Sigil','Slow','Suggestion','Tongues','Water Breathing'],
+4:['Charm Monster','Confusion','Dig','Dimension Door','Enchanted Weapon','Evard\'s Black Tentacles','Extension I','Fear','Fire Charm','Fire Shield','Fire Trap','Fumble','Hallucinatory Terrain','Ice Storm','Leomund\'s Secure Shelter','Magic Mirror','Massmorph','Minor Globe of Invulnerability','Monster Summoning II','Otiluke\'s Resilient Sphere','Plant Growth','Polymorph Other','Polymorph Self','Rary\'s Mnemonic Enhancer','Remove Curse','Shout','Stoneskin','Wall of Fire','Wall of Ice','Wizard Eye'],
+5:['Advanced Illusion','Airy Water','Animal Growth','Animate Dead','Avoidance','Bigby\'s Interposing Hand','Cloudkill','Cone of Cold','Conjure Elemental','Contact Other Plane','Demiteleport','Distance Distortion','Dream','Extension II','Fabricate','Feeblemind','Hold Monster','Leomund\'s Lamentable Belaborment','Leomund\'s Secret Chest','Magic Jar','Major Creation','Minor Creation','Monster Summoning III','Mordenkainen\'s Faithful Hound','Passwall','Sending','Stone Shape','Telekinesis','Teleport','Transmute Rock to Mud','Wall of Force','Wall of Iron','Wall of Stone'],
+6:['Anti-Magic Shell','Bigby\'s Forceful Hand','Chain Lightning','Conjure Animals','Contingency','Control Weather','Death Spell','Disintegrate','Enchant an Item','Ensnarement','Extension III','Geas','Glassee','Globe of Invulnerability','Guards and Wards','Invisible Stalker','Legend Lore','Lower Water','Mass Suggestion','Mirage Arcane','Monster Summoning IV','Mordenkainen\'s Lucubration','Move Earth','Otiluke\'s Freezing Sphere','Part Water','Project Image','Reincarnation','Repulsion','Spiritwrack','Stone to Flesh','Tenser\'s Transformation','Transmute Water to Dust'],
+7:['Banishment','Bigby\'s Grasping Hand','Cacodemon','Charm Plants','Control Undead','Delayed Blast Fireball','Drawmij\'s Instant Summons','Duo-Dimension','Finger of Death','Limited Wish','Mass Invisibility','Monster Summoning V','Mordenkainen\'s Magnificent Mansion','Mordenkainen\'s Sword','Phase Door','Power Word Stun','Prismatic Spray','Reverse Gravity','Sequester','Simulacrum','Spell Turning','Statue','Teleport without Error','Torment','Vanish','Vision'],
+8:['Antipathy/Sympathy','Bigby\'s Clenched Fist','Binding','Clone','Demand','Glass Steel','Incendiary Cloud','Mass Charm','Maze','Mind Blank','Monster Summoning VI','Otiluke\'s Telekinetic Sphere','Otto\'s Irresistible Dance','Permanency','Polymorph Any Object','Power Word Blind','Prismatic Wall','Serten\'s Spell Immunity','Sink','Symbol','Trap the Soul'],
+9:['Astral Spell','Bigby\'s Crushing Hand','Energy Drain','Gate','Imprisonment','Meteor Swarm','Monster Summoning VII','Mordenkainen\'s Disjunction','Power Word Kill','Prismatic Sphere','Shape Change','Temporal Stasis','Time Stop','Wish']
+},
+'illusionist':{
+1:['Audible Glamer','Change Self','Color Spray','Dancing Lights','Darkness','Detect Illusion','Detect Invisibility','Gaze Reflection','Hypnotism','Light','Phantasmal Force','Wall of Fog'],
+2:['Blindness','Blur','Deafness','Detect Magic','Fog Cloud','Hypnotic Pattern','Improved Phantasmal Force','Invisibility','Magic Mouth','Mirror Image','Misdirection','Ventriloquism'],
+3:['Continual Darkness','Continual Light','Dispel Illusion','Fear','Hallucinatory Terrain','Illusionary Script','Invisibility 10\' Radius','Non-Detection','Paralyzation','Phantom Steed','Spectral Force','Suggestion'],
+4:['Confusion','Dispel Exhaustion','Emotion','Improved Invisibility','Massmorph','Minor Creation','Phantasmal Killer','Rainbow Pattern','Shadow Monsters','Vacancy'],
+5:['Advanced Illusion','Demi-Shadow Monsters','Dream','Major Creation','Maze','Projected Image','Shadow Door','Shadow Magic','Summon Shadow','Tempus Fugit'],
+6:['Conjure Animals','Demi-Shadow Magic','Mass Suggestion','Mirage Arcane','Mislead','Permanent Illusion','Phantasmagoria','Programmed Illusion','Shades','True Sight','Veil'],
+7:['Alter Reality','Astral Spell','Prismatic Spray','Prismatic Wall','Shadow Walk','Vision','Weird']
+},
+'cleric':{
+1:['Bless','Command','Create Water','Cure Light Wounds','Detect Evil','Detect Magic','Light','Protection from Evil','Purify Food & Drink','Remove Fear','Resist Cold','Sanctuary'],
+2:['Augury','Chant','Detect Charm','Find Traps','Hold Person','Know Alignment','Resist Fire','Silence 15\' Radius','Slow Poison','Snake Charm','Speak with Animals','Spiritual Hammer'],
+3:['Animate Dead','Continual Light','Create Food & Water','Cure Blindness','Cure Disease','Dispel Magic','Feign Death','Glyph of Warding','Locate Object','Prayer','Remove Curse','Speak with Dead'],
+4:['Atonement','Cure Serious Wounds','Detect Lie','Divination','Exorcise','Lower Water','Neutralize Poison','Protection from Evil 10\' Radius','Speak with Plants','Sticks to Snakes','Tongues'],
+5:['Commune','Cure Critical Wounds','Dispel Evil','Flame Strike','Insect Plague','Plane Shift','Quest','Raise Dead','True Seeing'],
+6:['Aerial Servant','Animate Object','Blade Barrier','Conjure Animals','Find the Path','Heal','Part Water','Speak with Monsters','Stone Tell','Word of Recall'],
+7:['Astral Spell','Control Weather','Earthquake','Gate','Holy Word','Regenerate','Restoration','Resurrection','Symbol','Wind Walk']
+},
+'druid':{
+1:['Animal Friendship','Detect Magic','Detect Snares & Pits','Entangle','Faerie Fire','Invisibility to Animals','Locate Animals','Pass without Trace','Predict Weather','Purify Water','Shillelagh','Speak with Animals'],
+2:['Barkskin','Charm Person or Mammal','Create Water','Cure Light Wounds','Feign Death','Fire Trap','Heat Metal','Locate Plants','Obscurement','Produce Flame','Trip','Warp Wood'],
+3:['Call Lightning','Cure Disease','Hold Animal','Neutralize Poison','Plant Growth','Protection from Fire','Pyrotechnics','Snare','Spike Growth','Stone Shape','Summon Insects','Tree','Water Breathing'],
+4:['Animal Summoning I','Call Woodland Beings','Control Temperature 10\' Radius','Cure Serious Wounds','Dispel Magic','Hallucinatory Forest','Hold Plant','Plant Door','Produce Fire','Protection from Lightning','Repel Insects','Speak with Plants'],
+5:['Animal Growth','Animal Summoning II','Anti-Plant Shell','Commune with Nature','Control Winds','Insect Plague','Pass Plant','Sticks to Snakes','Transmute Rock to Mud','Wall of Fire'],
+6:['Animal Summoning III','Anti-Animal Shell','Conjure Fire Elemental','Cure Critical Wounds','Feeblemind','Fire Seeds','Liveoak','Transport via Plants','Turn Wood','Wall of Thorns','Weather Summoning'],
+7:['Animate Rock','Chariot of Sustarre','Confusion','Conjure Earth Elemental','Control Weather','Creeping Doom','Finger of Death','Fire Storm','Reincarnate','Transmute Metal to Wood']
+},
+'ranger':{
+1:['Animal Friendship','Detect Magic','Entangle','Invisibility to Animals','Locate Animals','Pass without Trace','Predict Weather','Speak with Animals'],
+2:['Barkskin','Charm Person or Mammal','Cure Light Wounds','Heat Metal','Locate Plants','Speak with Animals','Trip','Warp Wood'],
+3:['Call Lightning','Cure Disease','Hold Animal','Neutralize Poison','Plant Growth','Protection from Fire','Snare','Tree']
+},
+'bard':{
+1:['Affect Normal Fires','Burning Hands','Charm Person','Comprehend Languages','Dancing Lights','Detect Magic','Enlarge','Erase','Feather Fall','Friends','Hold Portal','Identify','Jump','Light','Magic Missile','Mending','Message','Nystul\'s Magic Aura','Protection from Evil','Push','Read Magic','Shield','Shocking Grasp','Sleep','Spider Climb','Tenser\'s Floating Disc','Unseen Servant','Ventriloquism','Write'],
+2:['Audible Glamer','Bind','Continual Light','Darkness 15\' Radius','Detect Evil','Detect Invisibility','ESP','Fools\' Gold','Forget','Invisibility','Knock','Know Alignment','Leomund\'s Trap','Levitate','Locate Object','Magic Mouth','Mirror Image','Misdirection','Pyrotechnics','Ray of Enfeeblement','Rope Trick','Scare','Shatter','Stinking Cloud','Strength','Web','Wizard Lock'],
+3:['Blink','Clairaudience','Clairvoyance','Dispel Magic','Explosive Runes','Feign Death','Fireball','Flame Arrow','Fly','Gust of Wind','Haste','Hold Person','Infravision','Invisibility 10\' Radius','Item','Leomund\'s Tiny Hut','Lightning Bolt','Material','Monster Summoning I','Non-Detection','Phantom Steed','Protection from Evil 10\' Radius','Protection from Normal Missiles','Secret Page','Sepia Snake Sigil','Slow','Suggestion','Tongues','Water Breathing'],
+4:['Charm Monster','Confusion','Dig','Dimension Door','Enchanted Weapon','Evard\'s Black Tentacles','Extension I','Fear','Fire Charm','Fire Shield','Fire Trap','Fumble','Hallucinatory Terrain','Ice Storm','Leomund\'s Secure Shelter','Magic Mirror','Massmorph','Minor Globe of Invulnerability','Monster Summoning II','Otiluke\'s Resilient Sphere','Plant Growth','Polymorph Other','Polymorph Self','Rary\'s Mnemonic Enhancer','Remove Curse','Shout','Stoneskin','Wall of Fire','Wall of Ice','Wizard Eye'],
+5:['Advanced Illusion','Airy Water','Animal Growth','Animate Dead','Avoidance','Bigby\'s Interposing Hand','Cloudkill','Cone of Cold','Conjure Elemental','Contact Other Plane','Demiteleport','Distance Distortion','Dream','Extension II','Fabricate','Feeblemind','Hold Monster','Leomund\'s Lamentable Belaborment','Leomund\'s Secret Chest','Magic Jar','Major Creation','Minor Creation','Monster Summoning III','Mordenkainen\'s Faithful Hound','Passwall','Sending','Stone Shape','Telekinesis','Teleport','Transmute Rock to Mud','Wall of Force','Wall of Iron','Wall of Stone'],
+6:['Anti-Magic Shell','Bigby\'s Forceful Hand','Chain Lightning','Conjure Animals','Contingency','Control Weather','Death Spell','Disintegrate','Enchant an Item','Ensnarement','Extension III','Geas','Glassee','Globe of Invulnerability','Guards and Wards','Invisible Stalker','Legend Lore','Lower Water','Mass Suggestion','Mirage Arcane','Monster Summoning IV','Mordenkainen\'s Lucubration','Move Earth','Otiluke\'s Freezing Sphere','Part Water','Project Image','Reincarnation','Repulsion','Spiritwrack','Stone to Flesh','Tenser\'s Transformation','Transmute Water to Dust']
+}
+};
+
+// Determine which spell list(s) apply to the character
+function _sbGetCasterType(){
+  const cls=(CHAR.characterClass||'').toLowerCase().trim();
+  if(cls.includes('/')) {
+    const parts=cls.split('/').map(s=>s.trim());
+    const types=[];
+    parts.forEach(p=>{
+      if(p==='magic-user'||p==='mage')types.push('magic-user');
+      else if(p==='illusionist')types.push('illusionist');
+      else if(p==='cleric')types.push('cleric');
+      else if(p==='druid')types.push('druid');
+      else if(p==='ranger')types.push('ranger');
+    });
+    return types.length?types:null;
+  }
+  if(cls==='magic-user'||cls==='mage')return['magic-user'];
+  if(cls==='illusionist')return['illusionist'];
+  if(cls==='cleric')return['cleric'];
+  if(cls==='druid')return['druid'];
+  if(cls==='ranger')return['ranger'];
+  if(cls==='paladin')return['cleric'];
+  if(cls==='bard')return['bard'];
+  return null;
+}
+
+function _sbGetSpellPool(types){
+  const pool={};
+  types.forEach(t=>{
+    const src=PHB_SPELLS[t];if(!src)return;
+    Object.keys(src).forEach(lv=>{
+      const lvn=+lv;
+      if(!pool[lvn])pool[lvn]=[];
+      src[lv].forEach(name=>{if(!pool[lvn].includes(name))pool[lvn].push(name);});
+    });
+  });
+  Object.keys(pool).forEach(lv=>pool[lv].sort());
+  return pool;
+}
+
+(function(){
+  const overlay=document.getElementById('sb-overlay');
+  const body=document.getElementById('sb-body');
+  const filterInput=document.getElementById('sb-filter');
+  const lvlBtns=document.getElementById('sb-lvl-btns');
+  const info=document.getElementById('sb-info');
+  const classLabel=document.getElementById('sb-class-label');
+  let known={};  // {name→true}
+  let pool={};   // {level→[names]}
+  let filterLvl=0; // 0=all
+
+  function open(){
+    const types=_sbGetCasterType();
+    if(!types){MPDialog.alert('Spellbook','No caster class detected. Set a class (Magic-User, Cleric, Druid, Illusionist, Ranger, Paladin, Bard, or multi-class) first.');return;}
+    pool=_sbGetSpellPool(types);
+    classLabel.textContent='— '+types.map(t=>t.charAt(0).toUpperCase()+t.slice(1)).join(' / ');
+    known={};
+    (CHAR.spells||[]).forEach(sp=>{if(sp.name)known[sp.name]=true;});
+    filterLvl=0;filterInput.value='';
+    buildLevelBtns();
+    render();
+    overlay.classList.add('open');
+  }
+
+  function close(){overlay.classList.remove('open');}
+
+  function buildLevelBtns(){
+    const lvls=Object.keys(pool).map(Number).sort((a,b)=>a-b);
+    let h='<button class="sb-lvl-btn active" data-lv="0">All</button>';
+    lvls.forEach(lv=>{h+='<button class="sb-lvl-btn" data-lv="'+lv+'">'+lv+'</button>';});
+    lvlBtns.innerHTML=h;
+    lvlBtns.querySelectorAll('.sb-lvl-btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        filterLvl=+btn.dataset.lv;
+        lvlBtns.querySelectorAll('.sb-lvl-btn').forEach(b=>b.classList.toggle('active',+b.dataset.lv===filterLvl));
+        render();
+      });
+    });
+  }
+
+  function render(){
+    const q=filterInput.value.toLowerCase().trim();
+    const lvls=Object.keys(pool).map(Number).sort((a,b)=>a-b);
+    let totalKnown=0,totalAvail=0;
+    let html='';
+    lvls.forEach(lv=>{
+      if(filterLvl&&lv!==filterLvl)return;
+      const spells=pool[lv].filter(n=>!q||n.toLowerCase().includes(q));
+      if(!spells.length)return;
+      const knownAtLvl=spells.filter(n=>known[n]).length;
+      totalKnown+=knownAtLvl;totalAvail+=spells.length;
+      html+='<div class="sb-level-group"><div class="sb-level-hdr">Level '+lv+' <span class="sb-level-count">('+knownAtLvl+'/'+spells.length+' known)</span></div><div class="sb-spell-grid">';
+      spells.forEach(name=>{
+        const ck=known[name]?'checked':'';
+        const nk=known[name]?' known':'';
+        html+='<div class="sb-spell-row" data-spell="'+name.replace(/"/g,'&quot;')+'" data-lv="'+lv+'"><div class="sb-spell-cb '+ck+'">'+(known[name]?'✓':'')+'</div><span class="sb-spell-name'+nk+'">'+name+'</span></div>';
+      });
+      html+='</div></div>';
+    });
+    if(!html)html='<div style="text-align:center;color:var(--ink-lt);padding:20px;font-family:var(--fb);font-size:11px">No spells match your filter.</div>';
+    body.innerHTML=html;
+    info.textContent=totalKnown+' of '+totalAvail+' spells known';
+    body.querySelectorAll('.sb-spell-row').forEach(row=>{
+      row.addEventListener('click',()=>{
+        const name=row.dataset.spell;
+        const cb=row.querySelector('.sb-spell-cb');
+        const label=row.querySelector('.sb-spell-name');
+        if(known[name]){delete known[name];cb.classList.remove('checked');cb.textContent='';label.classList.remove('known');}
+        else{known[name]=true;cb.classList.add('checked');cb.textContent='✓';label.classList.add('known');}
+        updateInfo();
+      });
+    });
+  }
+
+  function updateInfo(){
+    let totalKnown=0,totalAvail=0;
+    Object.keys(pool).forEach(lv=>{
+      totalAvail+=pool[lv].length;
+      pool[lv].forEach(n=>{if(known[n])totalKnown++;});
+    });
+    info.textContent=totalKnown+' of '+totalAvail+' spells known';
+    body.querySelectorAll('.sb-level-hdr').forEach(hdr=>{
+      const group=hdr.parentElement;
+      const rows=group.querySelectorAll('.sb-spell-row');
+      let ct=0;rows.forEach(r=>{if(known[r.dataset.spell])ct++;});
+      const countEl=hdr.querySelector('.sb-level-count');
+      if(countEl)countEl.textContent='('+ct+'/'+rows.length+' known)';
+    });
+  }
+
+  function apply(){
+    if(!CHAR.spells)CHAR.spells=[];
+    const existing={};
+    CHAR.spells.forEach(sp=>{if(sp.name)existing[sp.name]=sp;});
+    // Remove spells no longer known (only if they came from the pool)
+    const poolNames={};
+    Object.values(pool).forEach(arr=>arr.forEach(n=>{poolNames[n]=true;}));
+    CHAR.spells=CHAR.spells.filter(sp=>{
+      if(!sp.name)return false;
+      if(poolNames[sp.name]&&!known[sp.name])return false;
+      return true;
+    });
+    // Add newly known spells not already present
+    const nowNames={};CHAR.spells.forEach(sp=>{if(sp.name)nowNames[sp.name]=true;});
+    Object.keys(pool).sort((a,b)=>+a-(+b)).forEach(lv=>{
+      pool[lv].forEach(name=>{
+        if(known[name]&&!nowNames[name]){
+          CHAR.spells.push({level:String(lv),name:name,memorized:false});
+        }
+      });
+    });
+    CHAR.spells.sort((a,b)=>(+a.level)-(+b.level)||a.name.localeCompare(b.name));
+    renderSpells();autosave();close();
+  }
+
+  filterInput.addEventListener('input',render);
+  document.getElementById('sb-close').addEventListener('click',close);
+  document.getElementById('sb-cancel').addEventListener('click',close);
+  document.getElementById('sb-apply').addEventListener('click',apply);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
+  document.getElementById('btn-spellbook').addEventListener('click',open);
+})();
 
 function calcWeight(){
   // 1e AD&D uses coins (cn) as weight unit: 10 cn = 1 lb
