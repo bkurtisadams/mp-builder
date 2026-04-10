@@ -1141,15 +1141,32 @@ function mapARS(ars){
       return(qty>1?qty+'x ':'')+g.name+(val?' ('+val+' ea.)':'');
     }).join(', ');
   }
-  // Spells (deduplicated)
+  // Spells — read from spell items (arcane spellbook) + memorization data (divine/fallback)
+  const si=s.spellInfo||{},slots=si.slots||{};
+  const mem=si.memorization||{};
   const seen={};c.spells=[];
+  // 1) Spell items = full spellbook (MU, Illusionist)
   items.filter(i=>i.type==='spell').forEach(sp=>{
     const key=sp.name+'|'+(sp.system?sp.system.level:'');
-    if(!seen[key]){seen[key]=true;c.spells.push({level:sp.system?String(sp.system.level):'',name:sp.name});}
+    if(!seen[key]){seen[key]=true;c.spells.push({level:sp.system?String(sp.system.level):'',name:sp.name,memorized:false});}
+  });
+  // 2) Memorization data — mark memorized spells, add divine spells not in spellbook
+  ['arcane','divine'].forEach(stype=>{
+    const mSlots=mem[stype]||{};
+    Object.keys(mSlots).forEach(lvl=>{
+      const spells=mSlots[lvl];
+      if(!spells||typeof spells!=='object')return;
+      Object.values(spells).forEach(sp=>{
+        if(!sp||!sp.name)return;
+        const key=sp.name+'|'+(sp.level||lvl);
+        const existing=c.spells.find(s=>s.name===sp.name&&s.level===String(sp.level||lvl));
+        if(existing){existing.memorized=true;}
+        else if(!seen[key]){seen[key]=true;c.spells.push({level:String(sp.level||lvl),name:sp.name,memorized:true});}
+      });
+    });
   });
   c.spells.sort((a,b)=>(+a.level)-(+b.level)||a.name.localeCompare(b.name));
   // Spell slots
-  const si=s.spellInfo||{},slots=si.slots||{};
   const arcS=(slots.arcane||{}).value||{},divS=(slots.divine||{}).value||{};
   for(let i=1;i<=9;i++)c['spellSlot'+i]=(+(arcS[String(i)]||0)+ +(divS[String(i)]||0))||'';
   c.spellsKnown=c.spells.length||'';
