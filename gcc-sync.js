@@ -278,16 +278,7 @@ const GCCSync = (function() {
 
   async function uploadLocalData() {
     if (!_db || !_uid) return;
-    const flagKey = 'gcc-sync-uploaded-' + _uid;
-    try {
-      const stored = localStorage.getItem(flagKey);
-      if (stored) {
-        const ver = parseInt(stored, 10);
-        if (ver >= SYNC_FORMAT_VERSION) return;
-      }
-    } catch(e) {}
-
-    console.log('[GCCSync] Uploading local data to cloud (format v' + SYNC_FORMAT_VERSION + ')...');
+    console.log('[GCCSync] Pushing local data to cloud...');
     let count = 0;
     for (const key of ALL_SYNC_KEYS) {
       try {
@@ -301,9 +292,9 @@ const GCCSync = (function() {
         console.warn('[GCCSync] upload skip for', key, e);
       }
     }
-    console.log('[GCCSync] Uploaded', count, 'keys to cloud');
-
-    try { localStorage.setItem(flagKey, String(SYNC_FORMAT_VERSION)); } catch(e) {}
+    console.log('[GCCSync] Pushed', count, 'keys to cloud');
+    // Mark format version for any future migration checks
+    try { localStorage.setItem('gcc-sync-uploaded-' + _uid, String(SYNC_FORMAT_VERSION)); } catch(e) {}
   }
 
   // Restore local portraits that were stripped during cloud save
@@ -332,13 +323,15 @@ const GCCSync = (function() {
 
   async function pullCloudData() {
     if (!_db || !_uid) return;
-    console.log('[GCCSync] Pulling cloud data to local cache...');
+    console.log('[GCCSync] Pulling missing keys from cloud...');
     let count = 0;
     for (const key of ALL_SYNC_KEYS) {
       try {
+        // Only pull from cloud if localStorage has no data for this key
+        const local = localStorage.getItem(key);
+        if (local !== null) continue;
         const val = await cloudLoad(key);
         if (val !== undefined) {
-          // For entity lists, restore any portraits that were stripped
           if (isListKey(key) && Array.isArray(val)) {
             mergeLocalPortraits(key, val);
           }
@@ -349,7 +342,8 @@ const GCCSync = (function() {
         console.warn('[GCCSync] pull skip for', key, e);
       }
     }
-    console.log('[GCCSync] Pulled', count, 'keys from cloud');
+    if (count) console.log('[GCCSync] Restored', count, 'keys from cloud');
+    else console.log('[GCCSync] Local data complete, nothing to pull');
   }
 
   // ══════════════════════════════════════
@@ -469,7 +463,20 @@ const GCCSync = (function() {
   async function pullNow() {
     if (!_uid || !_db) return { ok: false, reason: 'Not signed in' };
     await flushPendingSaves();
-    await pullCloudData();
+    // Force full pull — overwrite local with cloud
+    console.log('[GCCSync] Force pulling all keys from cloud...');
+    let count = 0;
+    for (const key of ALL_SYNC_KEYS) {
+      try {
+        const val = await cloudLoad(key);
+        if (val !== undefined) {
+          if (isListKey(key) && Array.isArray(val)) mergeLocalPortraits(key, val);
+          localStorage.setItem(key, JSON.stringify(val));
+          count++;
+        }
+      } catch(e) {}
+    }
+    console.log('[GCCSync] Force pulled', count, 'keys');
     return { ok: true };
   }
 
