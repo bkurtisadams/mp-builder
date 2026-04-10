@@ -697,8 +697,8 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
   <!-- Money Change -->
   <div class="ex-page active" id="ex-change">
     <div class="ex-body">
-      <div class="ex-row"><span class="ex-lbl">From:</span><input class="ex-input" id="exc-amount" type="number" min="1" style="width:80px" value="100"><select class="ex-select" id="exc-from"><option value="pp">PP</option><option value="gp" selected>GP</option><option value="ep">EP</option><option value="sp">SP</option><option value="cp">CP</option></select><span class="ex-avail" id="exc-avail"></span></div>
-      <div class="ex-row"><span class="ex-lbl">To:</span><select class="ex-select" id="exc-to"><option value="pp">PP</option><option value="gp">GP</option><option value="ep">EP</option><option value="sp" selected>SP</option><option value="cp">CP</option></select></div>
+      <div class="ex-row"><span class="ex-lbl">From:</span><input class="ex-input" id="exc-amount" type="number" min="1" style="width:80px" placeholder="—"><select class="ex-select" id="exc-from"><option value="" selected>—</option><option value="pp">PP</option><option value="gp">GP</option><option value="ep">EP</option><option value="sp">SP</option><option value="cp">CP</option></select><span class="ex-avail" id="exc-avail"></span></div>
+      <div class="ex-row"><span class="ex-lbl">To:</span><select class="ex-select" id="exc-to"><option value="" selected>—</option><option value="pp">PP</option><option value="gp">GP</option><option value="ep">EP</option><option value="sp">SP</option><option value="cp">CP</option></select></div>
       <div class="ex-row"><span class="ex-lbl">Fee:</span><input class="ex-input" id="exc-fee" type="number" min="0" max="100" style="width:50px" value="3"><span style="font-size:10px">%</span></div>
       <div class="ex-result" id="exc-result"></div>
     </div>
@@ -707,7 +707,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
   <!-- Buy Gems -->
   <div class="ex-page" id="ex-gems">
     <div class="ex-body">
-      <div class="ex-row"><span class="ex-lbl">Spend:</span><input class="ex-input" id="exg-amount" type="number" min="1" style="width:80px" value="1000"><select class="ex-select" id="exg-coin"><option value="pp">PP</option><option value="gp" selected>GP</option><option value="ep">EP</option><option value="sp">SP</option><option value="cp">CP</option></select><span class="ex-avail" id="exg-avail"></span></div>
+      <div class="ex-row"><span class="ex-lbl">Spend:</span><input class="ex-input" id="exg-amount" type="number" min="1" style="width:80px" placeholder="—"><select class="ex-select" id="exg-coin"><option value="" selected>—</option><option value="pp">PP</option><option value="gp">GP</option><option value="ep">EP</option><option value="sp">SP</option><option value="cp">CP</option></select><span class="ex-avail" id="exg-avail"></span></div>
       <div class="ex-row"><span class="ex-lbl">Fee:</span><input class="ex-input" id="exg-fee" type="number" min="0" max="100" style="width:50px" value="10"><span style="font-size:10px">%</span></div>
       <div class="ex-result" id="exg-result"></div>
     </div>
@@ -1284,7 +1284,11 @@ function _sbGetSpellPool(types){
   });
 
   function open(){
-    updateChangePreview();updateGemPreview();
+    // Reset fields to clean state
+    excFrom.value='';excTo.value='';excAmt.value='';excFee.value='3';
+    excAvail.textContent='';excResult.innerHTML='';
+    exgCoin.value='';exgAmt.value='';exgFee.value='10';
+    exgAvail.textContent='';exgResult.innerHTML='';
     overlay.classList.add('open');
   }
   function close(){overlay.classList.remove('open');}
@@ -1328,9 +1332,10 @@ function _sbGetSpellPool(types){
     const from=excFrom.value,to=excTo.value;
     const amt=Math.max(0,+(excAmt.value||0));
     const fee=Math.max(0,Math.min(100,+(excFee.value||0)));
+    if(!from){excAvail.textContent='';excResult.innerHTML='';return;}
     const avail=coinAvail(from);
     excAvail.textContent='(have '+avail+' '+COIN_NAMES[from]+')';
-    if(from===to||amt<=0){excResult.innerHTML='<span style="color:var(--ink-lt)">Select different coin types.</span>';return;}
+    if(!to||from===to||amt<=0){excResult.innerHTML='';return;}
     const gpVal=amt*COIN_TO_GP[from];
     const afterFee=gpVal*(1-fee/100);
     const feePaid=gpVal-afterFee;
@@ -1341,14 +1346,20 @@ function _sbGetSpellPool(types){
       '<div style="font-size:9px;color:var(--ink-lt)">Fee: '+fee+'% ('+feePaid.toFixed(2)+' gp)</div>'+
       (overBudget?'<div style="color:var(--accent);font-weight:700;margin-top:2px">Insufficient funds!</div>':'');
   }
-  [excAmt,excFrom,excTo,excFee].forEach(el=>el.addEventListener('input',updateChangePreview));
-  [excFrom,excTo].forEach(el=>el.addEventListener('change',updateChangePreview));
+  // Auto-fill amount when From coin type changes
+  excFrom.addEventListener('change',()=>{
+    const from=excFrom.value;
+    if(from){excAmt.value=coinAvail(from);}else{excAmt.value='';}
+    updateChangePreview();
+  });
+  [excAmt,excFee].forEach(el=>el.addEventListener('input',updateChangePreview));
+  excTo.addEventListener('change',updateChangePreview);
 
   document.getElementById('exc-apply').addEventListener('click',()=>{
     const from=excFrom.value,to=excTo.value;
     const amt=Math.max(0,+(excAmt.value||0));
     const fee=Math.max(0,Math.min(100,+(excFee.value||0)));
-    if(from===to||amt<=0)return;
+    if(!from||!to||from===to||amt<=0)return;
     if(amt>coinAvail(from)){MPDialog.alert('Exchange','Insufficient '+COIN_NAMES[from]+'.');return;}
     const gpVal=amt*COIN_TO_GP[from];
     const afterFee=gpVal*(1-fee/100);
@@ -1383,9 +1394,10 @@ function _sbGetSpellPool(types){
     const coin=exgCoin.value;
     const amt=Math.max(0,+(exgAmt.value||0));
     const fee=Math.max(0,Math.min(100,+(exgFee.value||0)));
+    if(!coin){exgAvail.textContent='';exgResult.innerHTML='';return;}
     const avail=coinAvail(coin);
     exgAvail.textContent='(have '+avail+' '+COIN_NAMES[coin]+')';
-    if(amt<=0){exgResult.innerHTML='<span style="color:var(--ink-lt)">Enter amount to spend.</span>';return;}
+    if(amt<=0){exgResult.innerHTML='';return;}
     const gpSpend=amt*COIN_TO_GP[coin];
     const feeCost=Math.floor(gpSpend*fee/100);
     const netGP=gpSpend-feeCost;
@@ -1398,14 +1410,19 @@ function _sbGetSpellPool(types){
     if(overBudget)html+='<div style="color:var(--accent);font-weight:700;margin-top:2px">Insufficient funds!</div>';
     exgResult.innerHTML=html;
   }
+  // Auto-fill amount when coin type changes
+  exgCoin.addEventListener('change',()=>{
+    const coin=exgCoin.value;
+    if(coin){exgAmt.value=coinAvail(coin);}else{exgAmt.value='';}
+    updateGemPreview();
+  });
   [exgAmt,exgFee].forEach(el=>el.addEventListener('input',updateGemPreview));
-  exgCoin.addEventListener('change',updateGemPreview);
 
   document.getElementById('exg-apply').addEventListener('click',()=>{
     const coin=exgCoin.value;
     const amt=Math.max(0,+(exgAmt.value||0));
     const fee=Math.max(0,Math.min(100,+(exgFee.value||0)));
-    if(amt<=0)return;
+    if(!coin||amt<=0)return;
     if(amt>coinAvail(coin)){MPDialog.alert('Exchange','Insufficient '+COIN_NAMES[coin]+'.');return;}
     const gpSpend=amt*COIN_TO_GP[coin];
     const feeCost=Math.floor(gpSpend*fee/100);
