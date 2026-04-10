@@ -506,7 +506,7 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 
 <div class="sec">Possessions</div>
 <div class="inv-scroll">
-<table class="inv-tbl"><thead><tr><th style="width:30%">Item</th><th style="width:18%">Location</th><th style="width:8%">Qty</th><th style="width:10%">Weight</th><th style="width:26%">Notes</th><th style="width:16px"><button class="add-sm" id="add-item">+</button></th></tr></thead><tbody id="item-list"></tbody></table>
+<table class="inv-tbl"><thead><tr><th style="width:30%">Item</th><th style="width:18%">Location</th><th style="width:8%">Qty</th><th style="width:10%" title="Weight in coin (10 cn = 1 lb)">Wt (cn)</th><th style="width:26%">Notes</th><th style="width:16px"><button class="add-sm" id="add-item">+</button></th></tr></thead><tbody id="item-list"></tbody></table>
 </div>
 
 <div class="sec">Magic Items</div>
@@ -516,21 +516,22 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 
 <div class="sec">Encumbrance & Wealth</div>
 <div class="enc-box">
-  <!-- ROW 1: Encumbrance / Str Adj / Load vs Move / Total Weight -->
+  <!-- ROW 1a: Encumbrance / Str Adj / Load vs Move -->
   <div class="enc-row1">
     <span class="enc-label">ENCUMBRANCE:</span>
-    <div class="enc-fc" style="flex:0 0 50px"><input class="fi" data-field="strAdj" style="text-align:center"><div class="lb">STR. ADJ.</div></div>
+    <div class="enc-fc" style="flex:0 0 40px"><input class="fi" data-field="strAdj" style="text-align:center"><div class="lb">STR. ADJ.</div></div>
     <span class="enc-label" style="margin-left:4px">LOAD VS.<br>MOVE RATE:</span>
-    <div class="enc-fc" style="flex:1 1 50px"><input class="fi" data-field="loadNormal" style="text-align:center;font-size:9px" readonly><div class="lb">NORMAL = 1</div></div>
+    <div class="enc-fc" style="flex:1 1 55px"><input class="fi" data-field="loadNormal" style="text-align:center;font-size:9px" readonly><div class="lb">NORMAL = 1</div></div>
     <span class="load-sep">–</span>
-    <div class="enc-fc" style="flex:1 1 50px"><input class="fi" data-field="loadHeavy" style="text-align:center;font-size:9px" readonly><div class="lb">HEAVY = ¾</div></div>
+    <div class="enc-fc" style="flex:1 1 55px"><input class="fi" data-field="loadHeavy" style="text-align:center;font-size:9px" readonly><div class="lb">HEAVY = ¾</div></div>
     <span class="load-sep">–</span>
-    <div class="enc-fc" style="flex:1 1 50px"><input class="fi" data-field="loadLoaded" style="text-align:center;font-size:9px" readonly><div class="lb">LOADED = ½</div></div>
+    <div class="enc-fc" style="flex:1 1 55px"><input class="fi" data-field="loadLoaded" style="text-align:center;font-size:9px" readonly><div class="lb">LOADED = ½</div></div>
     <span class="load-sep">–</span>
-    <div class="enc-fc" style="flex:1 1 50px"><input class="fi" data-field="loadMax" style="text-align:center;font-size:9px" readonly><div class="lb">MAXIMUM = ¼</div></div>
-    <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">
-      <span class="enc-label" style="font-size:11px;white-space:nowrap">Total Weight Carried</span>
-      <div class="bx" style="width:58px;height:22px;font-size:13px"><input data-field="totalWeight" id="total-weight" readonly style="border:none;background:transparent;font-family:var(--fb);font-size:13px;font-weight:700;text-align:center;width:100%;outline:none;padding:0"></div>
+    <div class="enc-fc" style="flex:1 1 55px"><input class="fi" data-field="loadMax" style="text-align:center;font-size:9px" readonly><div class="lb">MAXIMUM = ¼</div></div>
+    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+      <span class="enc-label" style="font-size:9px;white-space:nowrap">Total Wt.</span>
+      <div class="bx" style="width:50px;height:22px;font-size:13px" id="total-weight-box" title=""><input data-field="totalWeight" id="total-weight" readonly style="border:none;background:transparent;font-family:var(--fb);font-size:13px;font-weight:700;text-align:center;width:100%;outline:none;padding:0"></div>
+      <span class="lb" style="font-size:7px;align-self:center">cn</span>
     </div>
   </div>
   <!-- ROW 2: Provisions + Water -->
@@ -1202,14 +1203,18 @@ function _sbGetSpellPool(types){
 
 function calcWeight(){
   // 1e AD&D uses coins (cn) as weight unit: 10 cn = 1 lb
-  // Item weights from ARS are in lbs, convert to cn (*10)
+  // Item weights are stored in cn
   const items=CHAR.items||[];let itemCn=0;
-  items.forEach(it=>{itemCn+=((parseFloat(it.weight)||0)*10)*(parseInt(it.qty)||1);});
+  items.forEach(it=>{itemCn+=((parseFloat(it.weight)||0))*(parseInt(it.qty)||1);});
   // Coin weight: each coin = 1 cn
   const coinCn=(+(CHAR.wealthCP||0))+(+(CHAR.wealthSP||0))+(+(CHAR.wealthEP||0))+(+(CHAR.wealthGP||0))+(+(CHAR.wealthPP||0));
   const totalCn=Math.round(itemCn+coinCn);
   document.getElementById('total-weight').value=totalCn||'';
   CHAR.totalWeight=totalCn;
+  // Tooltip: show lbs equivalent
+  const lbs=(totalCn/10);
+  const lbsStr=lbs%1===0?lbs.toFixed(0):lbs.toFixed(1);
+  document.getElementById('total-weight-box').title=totalCn+' cn = '+lbsStr+' lbs';
   // PHB Encumbrance thresholds in cn (350/700/1050/1500 cn = 35/70/105/150 lbs)
   // strAdj is the Weight Allowance from PHB Str Table II (e.g. +350, -150)
   const strAdj=+(CHAR.strAdj||0);
@@ -1413,7 +1418,7 @@ function mapARS(ars){
   const skipT=['weapon','spell','race','class','skill','ability','proficiency','currency'];
   c.items=items.filter(i=>!skipT.includes(i.type)).map(i=>{
     const is=i.system||{};
-    return{name:i.name,location:is.location?is.location.state:'',qty:is.quantity||1,weight:is.weight||'',notes:is.attributes&&is.attributes.magic?'magical':''};
+    return{name:i.name,location:is.location?is.location.state:'',qty:is.quantity||1,weight:is.weight?Math.round((+is.weight)*10):'',notes:is.attributes&&is.attributes.magic?'magical':''};
   });
   // Magic items
   c.magicItems=items.filter(i=>(i.system||{}).attributes&&(i.system||{}).attributes.magic&&i.type!=='spell').map(i=>{
