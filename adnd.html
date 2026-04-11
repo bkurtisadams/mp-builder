@@ -801,7 +801,7 @@ document.querySelectorAll('.pg-tab').forEach(tab=>{
 function autosave(){collectFields();try{localStorage.setItem(AUTOSAVE_KEY,JSON.stringify(CHAR));}catch(e){}}
 function loadAutosave(){try{return JSON.parse(localStorage.getItem(AUTOSAVE_KEY));}catch(e){return null;}}
 function collectFields(){document.querySelectorAll("[data-field]").forEach(el=>{const k=el.dataset.field;if(el.tagName==='TEXTAREA')CHAR[k]=el.value;else if(el.type==='number')CHAR[k]=el.value===''?'':Number(el.value);else CHAR[k]=el.value;});}
-function populateFields(){document.querySelectorAll("[data-field]").forEach(el=>{const v=CHAR[el.dataset.field];if(v===undefined||v===null)return;el.value=v;});}
+function populateFields(){document.querySelectorAll("[data-field]").forEach(el=>{const v=CHAR[el.dataset.field];el.value=(v===undefined||v===null)?'':v;});}
 
 // ── PHB Weapon AC Adjustment Table ──
 // ac: [AC2,AC3,AC4,AC5,AC6,AC7,AC8,AC9,AC10], spd: speed factor
