@@ -123,7 +123,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .session-sections{padding:6px 14px 6px;border-top:1px solid var(--brd)}
 .session-sec-block{margin-bottom:8px}
 .session-sec-block:last-child{margin-bottom:2px}
-.session-sec-img{max-width:45%;float:right;margin:0 0 8px 12px;border-radius:3px;border:1px solid var(--brd)}
+.session-sec-img{max-width:180px;float:right;margin:0 0 8px 12px;border-radius:3px;border:1px solid var(--brd)}
 .session-body{padding:10px 14px 6px}
 .session-text{font-size:12px;color:var(--tx2);line-height:1.5;white-space:pre-line}
 .session-section-title{font-size:11px;font-weight:700;color:var(--accent-dim);margin:0 0 3px;letter-spacing:.3px}
@@ -387,7 +387,11 @@ function buildSessionCard(s,idx,total,camp){
       if(!ch)return;
       let name=ch.name||'?',portrait='';
       const refKey=ch.storageKey||ch.listKey||'';
-      if(refKey){try{const saved=JSON.parse(localStorage.getItem(refKey))||[];const found=ch._id?saved.find(x=>x._id===ch._id):null;if(found){name=found.heroName||found.characterName||found.name||name;portrait=found.portraitData||found.portrait||found._image||''}}catch(e){}}
+      if(refKey){try{const saved=JSON.parse(localStorage.getItem(refKey))||[];
+        let found=ch._id?saved.find(x=>x._id===ch._id):null;
+        if(!found&&ch.name)found=saved.find(x=>(x.heroName||x.characterName||x.name)===ch.name);
+        if(!found)found=saved.find(x=>(x.heroName||x.characterName||x.name||'')===id);
+        if(found){name=found.heroName||found.characterName||found.name||name;portrait=found.portraitData||found.portrait||found._image||''}}catch(e){}}
       const ava=portrait?`<img src="${portrait}">`:`<span class="roster-ph">?</span>`;
       rosterHtml+=`<span class="session-roster-chip">${ava} ${ESC(name)}</span>`;
     });
