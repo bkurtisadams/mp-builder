@@ -1,5 +1,5 @@
 // gcc-data.js v1.2.0 — 2026-04-10
-// v1.2.0: Schema v3 — multi-image sections (section.images array, section.layout)
+// v1.3.0: Schema v4 — per-image pos/caption, remove section.layout
 // v1.1.0: Add lore array, enriched session schema (v2 migration),
 //         system-aware labels (sessionLabel, xpLabel, LORE_TYPES)
 // Graycloak's Campaign Corner — core data layer
@@ -137,14 +137,20 @@ const GCC = (function() {
     }
     if (entity.schemaVersion < 3) {
       // v2→v3: multi-image sections (image string → images array)
+      // v3→v4: per-image pos/caption, remove section.layout
       if (entity.sessions) {
         entity.sessions.forEach(s => {
           (s.sections || []).forEach(sec => {
             if (sec.images === undefined) {
-              sec.images = sec.image ? [{ src: sec.image, size: 'md' }] : [];
+              sec.images = sec.image ? [{ src: sec.image, size: 'md', pos: 'right', caption: '' }] : [];
               delete sec.image;
             }
-            if (sec.layout === undefined) sec.layout = sec.images.length > 1 ? 'row' : 'float';
+            // Backfill pos/caption on existing images
+            (sec.images || []).forEach(img => {
+              if (img.pos === undefined) img.pos = 'right';
+              if (img.caption === undefined) img.caption = '';
+            });
+            delete sec.layout;
           });
         });
       }

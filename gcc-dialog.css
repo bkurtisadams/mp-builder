@@ -297,14 +297,13 @@
   padding: 0 3px; border-radius: 1px; cursor: pointer;
   border: none; line-height: 1.4;
 }
-.gcc-dlg-sec-layout-btns { display: inline-flex; gap: 2px; margin-left: 5px; }
-.gcc-dlg-sec-layout-btn {
-  font-size: 8px; padding: 1px 5px;
-  border: 1px solid var(--brd, #ccc); border-radius: 2px;
-  background: none; color: var(--tx3, #999);
-  cursor: pointer; font-family: var(--fb, 'Alegreya', serif); font-weight: 700;
+.gcc-dlg-sec-img-thumb .thumb-pos {
+  position: absolute; bottom: 1px; right: 1px;
+  font-size: 7px; background: rgba(0,0,0,0.55); color: #fff;
+  padding: 0 3px; border-radius: 1px; cursor: pointer;
+  border: none; line-height: 1.4;
 }
-.gcc-dlg-sec-layout-btn.active { color: var(--accent, #5a8ab5); border-color: var(--accent-dim, #5a8ab5); }
+.gcc-dlg-sec-caption { max-width: 130px; }
 
 /* Character check chips (session roster) */
 .gcc-dlg-char-grid { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 8px; }
