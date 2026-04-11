@@ -577,8 +577,8 @@ async function render(){
   const overviewHtml=`${descHtml}<div class="details-grid">${dr('WORLD',camp.world)}${dr('GENRE',camp.genre)}${dr(gml.toUpperCase(),camp.gm)}${dr('PLAYERS',playersStr)}${dr('SCHEDULE',camp.schedule)}${dr('PLAY MODE',pm+(camp.vttLabel?' ('+camp.vttLabel+')':''))}${dr('XP METHOD',camp.xpMethod)}${dr('STARTED',camp.startDate?formatDate(camp.startDate):(camp.created?formatDate(camp.created):''))}${nextStr?`<div class="detail-row"><span class="detail-label">NEXT SESSION</span><span class="detail-value" style="color:var(--accent);font-weight:700">${ESC(nextStr)}</span></div>`:''}${dr('RULEBOOKS',camp.rulebooks)}${camp.houseRules?`<div class="detail-row detail-full"><span class="detail-label">HOUSE RULES</span><span class="detail-value">${ESC(camp.houseRules)}</span></div>`:''}</div><div class="sec-hdr"><div class="sec-title">TOOLS</div></div><div class="tools-row">${tools.map(t=>{const cls=t.href?'tool-chip':'tool-chip disabled';return`<a class="${cls}"${t.href?' href="'+ESC(t.href)+'"':''}><span class="tool-bullet">◆</span> ${ESC(t.name)}</a>`}).join('')}</div>`;
 
   // Party tab
-  let partyHtml='';
-  if(!chars.length){partyHtml=`<div class="entity-empty">No characters assigned to this campaign yet.</div>`}
+  let partyHtml=`<button class="btn-add" id="btn-edit-team">✎ Edit ${ESC(GCC.teamLabel(camp.system))}</button>`;
+  if(!chars.length){partyHtml+=`<div class="entity-empty">No characters assigned to this campaign yet.</div>`}
   else{partyHtml='<div class="entity-grid">';resolvedChars.forEach(({ch,resolved,refKey},i)=>{
     const col=PIP_COLORS[i%PIP_COLORS.length];
     const portraitHtml=resolved.portrait?`<img class="entity-portrait" src="${resolved.portrait}" alt="">`:`<div class="entity-portrait-ph">?</div>`;
@@ -658,6 +658,7 @@ function wireEvents(){
   document.getElementById('camp-notes')?.addEventListener('input',e=>{GCC.updateCampaign(campId,{notes:e.target.value})});
   document.getElementById('camp-notes-shared')?.addEventListener('input',e=>{GCC.updateCampaign(campId,{sharedNotes:e.target.value})});
   document.getElementById('btn-edit-camp')?.addEventListener('click',()=>{window.location.href='index.html'});
+  document.getElementById('btn-edit-team')?.addEventListener('click',()=>{window.location.href='index.html?editTeam='+encodeURIComponent(campId)});
   // Banner image upload/remove
   document.getElementById('btn-banner-upload')?.addEventListener('click',()=>document.getElementById('banner-img-file')?.click());
   document.getElementById('banner-img-file')?.addEventListener('change',async e=>{

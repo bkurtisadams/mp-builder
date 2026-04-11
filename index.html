@@ -860,7 +860,6 @@ async function renderCampaigns() {
       <div class="cc-expand">
         <div class="cc-bottom">
           <button class="cc-btn" data-action="edit-camp" data-camp-id="${ESC(c.id)}">Edit</button>
-          <button class="cc-btn" data-action="edit-chars" data-camp-id="${ESC(c.id)}">Edit ${ESC(GCC.teamLabel(c.system))}</button>
           <span style="flex:1"></span>
           <button class="cc-btn cc-btn-danger" data-action="del-camp" data-camp-id="${ESC(c.id)}">Delete</button>
         </div>
@@ -1427,6 +1426,9 @@ sesModal.addEventListener('click', (e) => { if (e.target === sesModal) closeSess
 
 // ── Render ──
 renderJumpback(); renderCampaigns(); renderActivity();
+
+// Auto-open chars modal if navigated from campaign-detail Edit Team
+(function(){const p=new URLSearchParams(window.location.search).get('editTeam');if(p){history.replaceState(null,'',window.location.pathname);openCharsModal(p)}})();
 
 // Re-render when cloud data arrives via sync
 window.addEventListener('gcc-sync-ready', () => {
