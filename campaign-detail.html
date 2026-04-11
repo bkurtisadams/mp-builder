@@ -88,8 +88,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .entity-name a{color:var(--accent);text-decoration:none}.entity-name a:hover{color:var(--accent-lt);text-decoration:underline}
 .entity-sub{font-size:11px;color:var(--tx2);font-family:var(--fm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .entity-player{font-size:10px;color:var(--tx3);font-style:italic}
-.entity-stats{font-family:var(--fm);font-size:9px;color:var(--tx2);margin-top:2px;display:flex;gap:2px;flex-wrap:wrap}
-.entity-stats span{white-space:nowrap;margin-right:10px}.entity-stats .ab{color:var(--accent);font-weight:700}
+.entity-stats{font-family:var(--fm);font-size:9px;color:var(--tx2);margin-top:2px;display:flex;gap:2px;flex-wrap:nowrap}
+.entity-stats span{white-space:nowrap;margin-right:4px}.entity-stats .ab{color:var(--accent);font-weight:700}
 .entity-badge{font-size:8px;font-weight:700;letter-spacing:.5px;padding:1px 5px;border-radius:3px;margin-left:6px;vertical-align:middle}
 .entity-badge.pc{background:rgba(96,160,208,0.12);color:var(--accent)}.entity-badge.npc{background:rgba(122,90,138,0.12);color:#7a5a8a}
 .entity-derived{font-size:10px;font-weight:700;color:var(--tx2);margin-top:1px;display:flex;gap:2px;flex-wrap:wrap}
@@ -338,14 +338,14 @@ function resolveChar(savedChar,systemId,storageKey){
     name=savedChar.heroName||savedChar.name||'Unnamed';player=savedChar.playerName||'';portrait=savedChar.portraitData||'';
     const ab=savedChar.abilities||{};sub=savedChar.origin||'';
     const abKeys=['fighting','agility','strength','endurance','reason','intuition','psyche'];
-    const abSpan=k=>{const a=ab[k];if(!a)return'';return`<span><span class="ab">${k.substring(0,1).toUpperCase()}</span> ${a.value!=null?a.value:''}</span>`};
+    const abSpan=k=>{const a=ab[k];if(!a)return'';return`<span><span class="ab">${k.substring(0,1).toUpperCase()}</span>${a.value!=null?a.value:''}</span>`};
     const allAb=abKeys.map(abSpan).filter(Boolean).join('');
     if(allAb)statsHtml+=`<div class="entity-stats">${allAb}</div>`;
     const derived=[];
-    if(savedChar.health)derived.push(`<span>H\u2009${savedChar.health}</span>`);
-    if(savedChar.karma)derived.push(`<span>K\u2009${savedChar.karma}</span>`);
-    if(savedChar.resourcesRank)derived.push(`<span>Res\u2009${ESC(RANK_ABBR[savedChar.resourcesRank]||savedChar.resourcesRank)}</span>`);
-    if(savedChar.popularityHero!=null)derived.push(`<span>Pop\u2009${savedChar.popularityHero}</span>`);
+    if(savedChar.health)derived.push(`<span>Health ${savedChar.health}</span>`);
+    if(savedChar.karma)derived.push(`<span>Karma ${savedChar.karma}</span>`);
+    if(savedChar.resourcesRank)derived.push(`<span>Res ${ESC(RANK_ABBR[savedChar.resourcesRank]||savedChar.resourcesRank)}</span>`);
+    if(savedChar.popularityHero!=null)derived.push(`<span>Pop ${savedChar.popularityHero}</span>`);
     if(derived.length)statsHtml+=`<div class="entity-derived">${derived.join('')}</div>`;
   }else if(systemId==='mp'){
     name=savedChar.name||'Unnamed';player=savedChar.player||'';portrait=savedChar._image||savedChar.portrait||'';

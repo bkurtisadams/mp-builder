@@ -173,8 +173,8 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-char-link:hover { color: var(--accent-lt); text-decoration: underline }
 .cc-char-player { font-size: 10px; color: var(--tx3); margin-left: 4px }
 .cc-char-sub { font-size: 10px; color: var(--tx3); font-family: var(--fm) }
-.cc-char-stats { font-family: var(--fm); font-size: 9px; color: var(--tx2); margin-top: 1px; display: flex; gap: 1px; flex-wrap: wrap }
-.cc-char-stats span { margin-right: 10px; white-space: nowrap }
+.cc-char-stats { font-family: var(--fm); font-size: 9px; color: var(--tx2); margin-top: 1px; display: flex; gap: 1px; flex-wrap: nowrap }
+.cc-char-stats span { margin-right: 4px; white-space: nowrap }
 .cc-char-stats .ab { color: var(--accent); font-weight: 700 }
 .cc-char-derived { font-size: 9px; font-weight: 700; color: var(--tx2); margin-top: 1px }
 .cc-char-derived span { margin-right: 6px; white-space: nowrap }
@@ -689,14 +689,14 @@ function _resolveChar(savedChar, systemId, storageKey) {
     sub = savedChar.origin || '';
     const ab = savedChar.abilities || {};
     const abKeys = ['fighting','agility','strength','endurance','reason','intuition','psyche'];
-    const abSpan = k => { const a = ab[k]; if (!a) return ''; return `<span><span class="ab">${k.substring(0,1).toUpperCase()}</span> ${a.value != null ? a.value : ''}</span>`; };
+    const abSpan = k => { const a = ab[k]; if (!a) return ''; return `<span><span class="ab">${k.substring(0,1).toUpperCase()}</span>${a.value != null ? a.value : ''}</span>`; };
     const allAb = abKeys.map(abSpan).filter(Boolean).join('');
     if (allAb) statsHtml += `<div class="cc-char-stats">${allAb}</div>`;
     const derived = [];
-    if (savedChar.health) derived.push('H\u2009' + savedChar.health);
-    if (savedChar.karma) derived.push('K\u2009' + savedChar.karma);
-    if (savedChar.resourcesRank) derived.push('Res\u2009' + (RANK_ABBR[savedChar.resourcesRank] || savedChar.resourcesRank));
-    if (savedChar.popularityHero != null) derived.push('Pop\u2009' + savedChar.popularityHero);
+    if (savedChar.health) derived.push('Health ' + savedChar.health);
+    if (savedChar.karma) derived.push('Karma ' + savedChar.karma);
+    if (savedChar.resourcesRank) derived.push('Res ' + (RANK_ABBR[savedChar.resourcesRank] || savedChar.resourcesRank));
+    if (savedChar.popularityHero != null) derived.push('Pop ' + savedChar.popularityHero);
     if (derived.length) statsHtml += `<div class="cc-char-derived">${derived.map(d=>'<span>'+ESC(d)+'</span>').join('')}</div>`;
   } else if (systemId === 'mp') {
     name = savedChar.name || 'Unnamed';
