@@ -423,9 +423,43 @@ function collectTagTypes(sessions){const t=new Set();(sessions||[]).forEach(s=>(
 function filterSessions(sessions,filter){if(filter==='all')return sessions;return sessions.filter(s=>(s.tags||[]).some(t=>t.type===filter))}
 
 // ── RENDER ──
+function reconcileCharRefs(camp){
+  if(!camp||!camp.characters||!camp.characters.length)return false;
+  const sys=GCC.SYSTEM_DEFS.find(s=>s.id===camp.system);
+  if(!sys)return false;
+  let changed=false;
+  // Build old→new ID map from stale character refs
+  const idMap={};
+  camp.characters.forEach(ref=>{
+    const sk=ref.storageKey||ref.listKey||'';
+    if(!sk||!ref._id)return;
+    const list=GCC.load(sk);
+    if(!list)return;
+    if(list.find(x=>x._id===ref._id))return;
+    const nameKey=camp.system==='faserip'?'heroName':'characterName';
+    const match=list.find(x=>(x[nameKey]||x.name)===(ref.name||''));
+    if(match&&match._id){
+      console.log('[GCC] Reconcile stale ref:',ref.name,ref._id,'→',match._id);
+      idMap[ref._id]=match._id;
+      ref._id=match._id;
+      changed=true;
+    }
+  });
+  // Fix stale roster IDs in sessions
+  if(Object.keys(idMap).length&&camp.sessions){
+    camp.sessions.forEach(s=>{
+      if(!s.roster)return;
+      s.roster=s.roster.map(id=>idMap[id]||id);
+    });
+  }
+  if(changed)GCC.updateCampaign(camp.id,{characters:camp.characters,sessions:camp.sessions});
+  return changed;
+}
+
 function render(){
   const camp=getCamp(),page=document.getElementById('page-content');
   if(!camp){page.innerHTML=`<div class="not-found"><div class="not-found-title">Campaign Not Found</div><div>This campaign doesn't exist or has been deleted.</div><div style="margin-top:12px"><a href="index.html">← Back to Dashboard</a></div></div>`;document.title='Not Found — GCC';return}
+  reconcileCharRefs(camp);
   document.title=camp.name+' — GCC';
   const sys=GCC.SYSTEM_DEFS.find(s=>s.id===camp.system)||{},tools=sys.tools||[],status=camp.status||'active',nextStr=formatDateTime(camp.nextSession),gml=camp.gmTitle||'GM';
 
