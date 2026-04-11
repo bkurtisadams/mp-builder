@@ -178,10 +178,16 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .notes-label{font-family:var(--fsc);font-size:9px;color:var(--tx3);letter-spacing:1.5px;margin-bottom:6px}
 .hq-img-wrap{position:relative;max-width:720px;border:1px solid var(--brd);border-radius:4px;overflow:hidden;background:var(--bg2)}
 .hq-img-wrap:hover .hq-img-controls{opacity:1}
-.hq-img{width:100%;display:block}
+.hq-img{width:100%;max-height:400px;object-fit:contain;display:block}
 .hq-img-controls{position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;transition:opacity .15s}
 .hq-img-empty{max-width:720px;min-height:120px;border:2px dashed var(--brd);border-radius:4px;display:flex;align-items:center;justify-content:center;color:var(--tx3);font-size:12px;cursor:pointer;transition:border-color .15s}
 .hq-img-empty:hover{border-color:var(--accent-dim);color:var(--tx2)}
+.hq-notes-view{font-family:var(--fb);font-size:13px;color:var(--tx);line-height:1.6;white-space:pre-wrap;background:var(--bg-card);border:1px solid var(--brd);border-radius:4px;padding:12px 14px;cursor:pointer;min-height:60px;transition:border-color .12s}
+.hq-notes-view:hover{border-color:var(--accent-dim)}
+.hq-notes-view:empty::before{content:'Click to add HQ details...';color:var(--tx3);font-style:italic}
+.hq-notes-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.hq-notes-toggle{font-family:var(--fb);font-size:10px;color:var(--accent);background:none;border:none;cursor:pointer;padding:0}
+.hq-notes-toggle:hover{color:var(--accent-lt);text-decoration:underline}
 .sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px}
 .sec-title{font-family:var(--fsc);font-size:10px;color:var(--tx3);letter-spacing:1.5px}
 .btn-add{display:inline-flex;align-items:center;gap:4px;padding:5px 14px;font-size:11px;font-family:var(--fb);font-weight:700;background:transparent;color:var(--accent);border:1px solid var(--accent-dim);border-radius:3px;cursor:pointer;transition:all .15s}
@@ -640,7 +646,7 @@ async function render(){
   // HQ tab
   const hqSrc=resolveImg(camp.hqImage,imgMap);
   const hqImgHtml=hqSrc?`<div class="hq-img-wrap"><img class="hq-img" src="${ESC(hqSrc)}" alt="HQ Map"><div class="hq-img-controls"><button class="camp-banner-btn" id="btn-hq-img-upload">Replace</button><button class="camp-banner-btn" id="btn-hq-img-remove">Remove</button></div></div>`:`<div class="hq-img-empty" id="btn-hq-img-upload-area"><span>Click or drag to add HQ image / map</span></div>`;
-  const hqHtml=`${hqImgHtml}<input type="file" id="hq-img-file" accept="image/*" style="display:none"><div style="margin-top:14px"><div class="notes-label">HQ DETAILS</div><textarea class="notes-area" id="camp-hq-notes" placeholder="Rooms, equipment, defenses, rent, packages...">${ESC(camp.hqNotes||'')}</textarea></div>`;
+  const hqHtml=`${hqImgHtml}<input type="file" id="hq-img-file" accept="image/*" style="display:none"><div style="margin-top:14px"><div class="hq-notes-header"><span class="notes-label" style="margin:0">HQ DETAILS</span><button class="hq-notes-toggle" id="btn-hq-toggle">Edit</button></div><div class="hq-notes-view" id="hq-notes-view">${ESC(camp.hqNotes||'')}</div><textarea class="notes-area" id="camp-hq-notes" style="display:none" placeholder="Rooms, equipment, defenses, rent, packages...">${ESC(camp.hqNotes||'')}</textarea></div>`;
 
   const charCount=chars.length?` (${chars.length})`:'',vehCount=vehs.length?` (${vehs.length})`:'',sesCount=sessions.length?` (${sessions.length})`:'',loreCount=lore.length?` (${lore.length})`:'';
 
@@ -719,6 +725,18 @@ function wireEvents(){
     GCC.updateCampaign(campId,{hqImage:''});render();
   });
   document.getElementById('camp-hq-notes')?.addEventListener('input',e=>{GCC.updateCampaign(campId,{hqNotes:e.target.value})});
+  // HQ notes view/edit toggle
+  const hqView=document.getElementById('hq-notes-view'),hqEdit=document.getElementById('camp-hq-notes'),hqToggle=document.getElementById('btn-hq-toggle');
+  function hqShowEdit(){
+    if(!hqView||!hqEdit||!hqToggle)return;
+    hqView.style.display='none';hqEdit.style.display='';hqToggle.textContent='Done';hqEdit.focus();
+  }
+  function hqShowView(){
+    if(!hqView||!hqEdit||!hqToggle)return;
+    hqView.textContent=hqEdit.value;hqView.style.display='';hqEdit.style.display='none';hqToggle.textContent='Edit';
+  }
+  hqToggle?.addEventListener('click',()=>{hqEdit.style.display==='none'?hqShowEdit():hqShowView()});
+  hqView?.addEventListener('click',hqShowEdit);
   document.getElementById('btn-add-session')?.addEventListener('click',()=>openSessionModal(-1,'session'));
   document.querySelectorAll('[data-ses-filter]').forEach(btn=>{btn.addEventListener('click',()=>{sessionFilter=btn.dataset.sesFilter;render()})});
   document.querySelectorAll('[data-lore-filter]').forEach(btn=>{btn.addEventListener('click',()=>{loreFilter=btn.dataset.loreFilter;render()})});
