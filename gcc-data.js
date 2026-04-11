@@ -199,6 +199,8 @@ const GCC = (function() {
       houseRules: data.houseRules || '',
       pinned: data.pinned || false,
       campaignImage: data.campaignImage || '',
+      hqImage: data.hqImage || '',
+      hqNotes: data.hqNotes || '',
       startDate: data.startDate || null,
       notes: data.notes || '',
       characters: data.characters || [],
