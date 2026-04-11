@@ -132,11 +132,12 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .session-sec-images.layout-float{display:block}
 .session-sec-images.layout-float .session-sec-img{float:right;margin:0 0 6px 10px}
 .session-sec-images.layout-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px}
-.session-sec-img{border-radius:3px;border:1px solid var(--brd);object-fit:cover;display:block}
-.session-sec-img.sz-sm{width:100px;height:75px}
-.session-sec-img.sz-md{width:160px;height:120px}
-.session-sec-img.sz-lg{width:240px;height:180px}
-.session-sec-img.sz-full{width:100%;height:auto;max-height:280px;object-fit:contain}
+.session-sec-images.layout-grid .session-sec-img{max-width:100%;width:100%}
+.session-sec-img{border-radius:3px;border:1px solid var(--brd);display:block;height:auto}
+.session-sec-img.sz-sm{max-width:120px}
+.session-sec-img.sz-md{max-width:200px}
+.session-sec-img.sz-lg{max-width:320px}
+.session-sec-img.sz-full{width:100%;max-height:400px;object-fit:contain}
 .session-body{padding:10px 14px 6px}
 .session-text{font-size:12px;color:var(--tx2);line-height:1.5;white-space:pre-line}
 .session-section-title{font-size:11px;font-weight:700;color:var(--accent-dim);margin:0 0 3px;letter-spacing:.3px}
@@ -149,7 +150,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .session-vis{font-size:9px;color:var(--tx3);display:flex;align-items:center;gap:3px}
 .session-actions{display:flex;gap:6px;opacity:0;transition:opacity .1s}
 .session-card:hover .session-actions{opacity:1}
-@media(max-width:600px){.session-recap{flex-direction:column}.session-recap-img{flex:none;max-width:60%;margin:0 auto}.session-sec-images.layout-float .session-sec-img{float:none;max-width:100%}.session-sec-img.sz-lg{width:100%}}
+@media(max-width:600px){.session-recap{flex-direction:column}.session-recap-img{flex:none;max-width:60%;margin:0 auto}.session-sec-images.layout-float .session-sec-img{float:none;max-width:100%}.session-sec-img.sz-lg,.session-sec-img.sz-md{max-width:100%}}
 .session-action-btn{background:none;border:none;color:var(--tx3);font-size:10px;cursor:pointer;padding:0 2px;font-family:var(--fb);font-weight:700}
 .session-action-btn:hover{color:var(--tx)}.session-action-btn.danger:hover{color:var(--red)}
 
