@@ -113,7 +113,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .session-date{font-family:var(--fm);font-size:10px;color:var(--tx3)}.session-date-game{color:var(--amber)}
 /* ── Recap layout: cover left + text right ── */
 .session-recap{display:flex;gap:14px;padding:12px 14px 8px;align-items:flex-start}
-.session-recap-img{flex:0 0 220px;max-width:220px}
+.session-recap-img{flex:0 0 300px;max-width:300px}
 .session-recap-img img{width:100%;border-radius:3px;border:1px solid var(--brd);display:block}
 .session-recap-text{flex:1;min-width:0}
 .session-recap-noimg{padding:10px 14px 6px}
@@ -503,7 +503,7 @@ function render(){
 
   // Sessions tab
   const sessions=camp.sessions||[],filteredSessions=filterSessions(sessions,sessionFilter),realCount=countRealSessions(sessions),tagTypes=collectTagTypes(sessions);
-  let sessHtml=`<div class="session-toolbar"><div class="session-toolbar-left"><button class="btn-add" id="btn-add-session">+ New ${ESC(GCC.sessionLabel(camp.system))}</button><button class="btn-add" id="btn-add-timeline" style="color:var(--tx3);border-color:var(--brd)">+ Timeline Entry</button></div><div class="session-toolbar-right"><button class="filter-pill${sessionFilter==='all'?' active':''}" data-ses-filter="all">All</button>${tagTypes.map(t=>`<button class="filter-pill${sessionFilter===t?' active':''}" data-ses-filter="${ESC(t)}">${ESC(GCC.LORE_TYPE_LABELS[t]||t)}</button>`).join('')}</div></div>`;
+  let sessHtml=`<div class="session-toolbar"><div class="session-toolbar-left"><button class="btn-add" id="btn-add-session">+ New ${ESC(GCC.sessionLabel(camp.system))}</button></div><div class="session-toolbar-right"><button class="filter-pill${sessionFilter==='all'?' active':''}" data-ses-filter="all">All</button>${tagTypes.map(t=>`<button class="filter-pill${sessionFilter===t?' active':''}" data-ses-filter="${ESC(t)}">${ESC(GCC.LORE_TYPE_LABELS[t]||t)}</button>`).join('')}</div></div>`;
   if(!filteredSessions.length){sessHtml+=`<div class="entity-empty">No sessions logged yet.</div>`}
   else{sessHtml+='<ul class="session-list">';filteredSessions.forEach(s=>{const origIdx=sessions.indexOf(s);sessHtml+=buildSessionCard(s,origIdx,realCount,camp)});sessHtml+='</ul>'}
 
@@ -571,7 +571,6 @@ function wireEvents(){
     GCC.updateCampaign(campId,{campaignImage:''});render();
   });
   document.getElementById('btn-add-session')?.addEventListener('click',()=>openSessionModal(-1,'session'));
-  document.getElementById('btn-add-timeline')?.addEventListener('click',()=>openSessionModal(-1,'timeline'));
   document.querySelectorAll('[data-ses-filter]').forEach(btn=>{btn.addEventListener('click',()=>{sessionFilter=btn.dataset.sesFilter;render()})});
   document.querySelectorAll('[data-lore-filter]').forEach(btn=>{btn.addEventListener('click',()=>{loreFilter=btn.dataset.loreFilter;render()})});
   document.querySelectorAll('[data-ses-edit]').forEach(btn=>{btn.addEventListener('click',()=>openSessionModal(parseInt(btn.dataset.sesEdit)))});
