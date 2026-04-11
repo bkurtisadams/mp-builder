@@ -617,6 +617,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 </div>
 
 <script src="gcc-data.js"></script>
+<script src="gcc-images.js"></script>
 <script src="gcc-header.js"></script>
 <script src="gcc-firebase-config.js"></script>
 <script src="gcc-auth.js"></script>
@@ -755,12 +756,17 @@ function _getSavedCharsForSystem(systemId) {
 }
 
 // ── Campaigns ──
-function renderCampaigns() {
+async function renderCampaigns() {
   const all = GCC.loadCampaigns();
   all.sort((a, b) => { if (a.pinned && !b.pinned) return -1; if (!a.pinned && b.pinned) return 1; return (b.lastPlayed||'').localeCompare(a.lastPlayed||''); });
   const camps = currentFilter === 'all' ? all : all.filter(c => (c.status||'active') === currentFilter);
   const grid = document.getElementById('campaign-grid');
   if (!camps.length) { grid.innerHTML = '<div style="color:var(--tx3);font-size:12px;font-style:italic;padding:12px 0">No campaigns match this filter.</div>'; return; }
+
+  // Resolve campaign images from IndexedDB
+  const imgKeys = camps.map(c => c.campaignImage).filter(v => v && GCCImages.isKey(v));
+  const imgMap = await GCCImages.getBulk(imgKeys);
+  const resolveImg = v => { if (!v) return ''; if (GCCImages.isKey(v)) return imgMap[v] || ''; return v; };
 
   grid.innerHTML = camps.map(c => {
     const sys = GCC.SYSTEM_DEFS.find(s => s.id === c.system) || {};
@@ -769,13 +775,14 @@ function renderCampaigns() {
     const gml = c.gmTitle || 'GM';
     const pm = {online:'Online','in-person':'In-Person',hybrid:'Hybrid'}[c.playMode] || '';
 
-    const thumbHtml = c.campaignImage
-      ? `<div class="cc-thumb"><img src="${ESC(c.campaignImage)}" style="width:100%;height:100%;object-fit:cover;border-radius:2px" alt=""></div>`
+    const campImgSrc = resolveImg(c.campaignImage);
+    const thumbHtml = campImgSrc
+      ? `<div class="cc-thumb"><img src="${ESC(campImgSrc)}" style="width:100%;height:100%;object-fit:cover;border-radius:2px" alt=""></div>`
       : (sys.icon ? `<div class="cc-thumb">${sys.icon}</div>` : '');
 
-    const hasImg = !!c.campaignImage;
+    const hasImg = !!campImgSrc;
     const sideImgHtml = hasImg
-      ? `<div class="cc-side-img"><img src="${ESC(c.campaignImage)}" alt=""></div>`
+      ? `<div class="cc-side-img"><img src="${ESC(campImgSrc)}" alt=""></div>`
       : '';
     const fallbackThumb = (!hasImg && sys.icon) ? `<div class="cc-thumb">${sys.icon}</div>` : '';
 
@@ -917,7 +924,7 @@ function populateSystemSelect() {
 }
 populateSystemSelect();
 
-function openEditModal(campId) {
+async function openEditModal(campId) {
   const camp = GCC.loadCampaigns().find(c => c.id === campId);
   if (!camp) return;
 
@@ -945,7 +952,12 @@ function openEditModal(campId) {
   document.getElementById('ef-houseRules').value = camp.houseRules || '';
   document.getElementById('ef-notes').value = camp.notes || '';
 
-  editImageData = camp.campaignImage || '';
+  // Resolve image from IndexedDB if it's a key
+  if (camp.campaignImage && GCCImages.isKey(camp.campaignImage)) {
+    editImageData = await GCCImages.get(camp.campaignImage) || '';
+  } else {
+    editImageData = camp.campaignImage || '';
+  }
   renderImagePreview();
 
   editModal.classList.add('open');
@@ -1004,7 +1016,7 @@ document.getElementById('ef-img-url').addEventListener('click', () => {
 document.getElementById('ef-img-remove').addEventListener('click', () => { editImageData = ''; renderImagePreview(); });
 
 // Save
-document.getElementById('ef-save').addEventListener('click', () => {
+document.getElementById('ef-save').addEventListener('click', async () => {
   const id = document.getElementById('ef-id').value;
   const updates = {
     name: document.getElementById('ef-name').value.trim() || 'Untitled',
@@ -1031,6 +1043,17 @@ document.getElementById('ef-save').addEventListener('click', () => {
     notes: document.getElementById('ef-notes').value.trim(),
     campaignImage: editImageData,
   };
+  // Store image in IndexedDB if it's a data URL
+  if (updates.campaignImage && GCCImages.isDataUrl(updates.campaignImage)) {
+    // Remove old image from IndexedDB
+    const oldCamp = GCC.getCampaign(id);
+    if (oldCamp && GCCImages.isKey(oldCamp.campaignImage)) await GCCImages.remove(oldCamp.campaignImage);
+    updates.campaignImage = await GCCImages.store(updates.campaignImage, 'img_banner');
+  } else if (!updates.campaignImage) {
+    // Removing image — clean up IndexedDB
+    const oldCamp = GCC.getCampaign(id);
+    if (oldCamp && GCCImages.isKey(oldCamp.campaignImage)) await GCCImages.remove(oldCamp.campaignImage);
+  }
   GCC.updateCampaign(id, updates);
   closeEditModal();
   renderCampaigns();
