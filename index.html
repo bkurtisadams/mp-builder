@@ -174,7 +174,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-char-player { font-size: 10px; color: var(--tx3); margin-left: 4px }
 .cc-char-sub { font-size: 10px; color: var(--tx3); font-family: var(--fm) }
 .cc-char-stats { font-family: var(--fm); font-size: 9px; color: var(--tx2); margin-top: 1px; display: flex; gap: 1px; flex-wrap: wrap }
-.cc-char-stats span { margin-right: 5px; white-space: nowrap }
+.cc-char-stats span { margin-right: 10px; white-space: nowrap }
 .cc-char-stats .ab { color: var(--accent); font-weight: 700 }
 .cc-char-derived { font-size: 9px; font-weight: 700; color: var(--tx2); margin-top: 1px }
 .cc-char-derived span { margin-right: 6px; white-space: nowrap }
@@ -689,10 +689,9 @@ function _resolveChar(savedChar, systemId, storageKey) {
     sub = savedChar.origin || '';
     const ab = savedChar.abilities || {};
     const abKeys = ['fighting','agility','strength','endurance','reason','intuition','psyche'];
-    const abSpan = k => { const a = ab[k]; if (!a) return ''; return `<span class="ab">${k.substring(0,1).toUpperCase()}</span>\u2009${a.value != null ? a.value : ''}`; };
-    const fase = abKeys.slice(0,4).map(abSpan).filter(Boolean).join(' ');
-    const rip = abKeys.slice(4).map(abSpan).filter(Boolean).join(' ');
-    if (fase || rip) statsHtml += `<div class="cc-char-stats">${fase}${rip ? '<br>' + rip : ''}</div>`;
+    const abSpan = k => { const a = ab[k]; if (!a) return ''; return `<span><span class="ab">${k.substring(0,1).toUpperCase()}</span> ${a.value != null ? a.value : ''}</span>`; };
+    const allAb = abKeys.map(abSpan).filter(Boolean).join('');
+    if (allAb) statsHtml += `<div class="cc-char-stats">${allAb}</div>`;
     const derived = [];
     if (savedChar.health) derived.push('H\u2009' + savedChar.health);
     if (savedChar.karma) derived.push('K\u2009' + savedChar.karma);
@@ -736,7 +735,8 @@ function _resolveChar(savedChar, systemId, storageKey) {
     player = savedChar.player || savedChar.playerName || '';
     sub = savedChar.sub || savedChar.class || '';
   }
-  return { name, player, sub, portrait, statsHtml, _id: savedChar._id || '', storageKey: storageKey || savedChar.storageKey || savedChar.listKey || '' };
+  const charType = savedChar.characterType === 'player' ? 'pc' : (savedChar.characterType ? 'npc' : '');
+  return { name, player, sub, portrait, statsHtml, charType, _id: savedChar._id || '', storageKey: storageKey || savedChar.storageKey || savedChar.listKey || '' };
 }
 
 function _getSavedCharsForSystem(systemId) {
@@ -786,6 +786,7 @@ async function renderCampaigns() {
       : '';
     const fallbackThumb = (!hasImg && sys.icon) ? `<div class="cc-thumb">${sys.icon}</div>` : '';
 
+    let _pcCount=0,_npcCount=0;
     const charsHtml = (c.characters||[]).map((ch,i) => {
       const col = PIP_COLORS[i % PIP_COLORS.length];
       let resolved = ch;
@@ -801,6 +802,7 @@ async function renderCampaigns() {
           }
         } catch(e) {}
       }
+      if(resolved.charType==='pc')_pcCount++;else if(resolved.charType==='npc')_npcCount++;
       const portraitHtml = resolved.portrait
         ? `<img class="cc-char-portrait" src="${resolved.portrait}" alt="">`
         : `<span class="cc-char-pip" style="background:${col}"></span>`;
@@ -822,6 +824,7 @@ async function renderCampaigns() {
       const rmId = resolved._id || ch._id || '';
       return `<div class="cc-char-card"><div class="cc-char-card-top">${portraitHtml}<div class="cc-char-info">${nameHtml}${resolved.player ? '<span class="cc-char-player">('+ESC(resolved.player)+')</span>' : ''}<div class="cc-char-sub">${ESC(resolved.sub||'')}</div>${resolved.statsHtml||''}</div></div><button class="cc-char-leave" data-rm-camp="${ESC(c.id)}" data-rm-char="${ESC(resolved.name)}" data-rm-id="${ESC(rmId)}">Leave</button></div>`;
     }).join('');
+    const _playersStr=_pcCount||_npcCount?[_pcCount?_pcCount+' Player'+(_pcCount!==1?'s':''):'',_npcCount?_npcCount+' NPC'+(_npcCount!==1?'s':''):''].filter(Boolean).join(' · '):(c.players?c.players+' players':'');
 
     const vttHtml = c.vttLabel ? `<div style="margin-bottom:10px"><a class="cc-sessions-btn" href="${ESC(c.vttUrl||'#')}" target="_blank" style="color:var(--blue);border-color:rgba(48,80,138,0.3)"><span style="font-size:11px">▶</span> ${ESC(c.vttLabel)} — ${ESC(c.name)}</a></div>` : '';
 
@@ -842,7 +845,7 @@ async function renderCampaigns() {
           <div class="cc-meta">
             ${c.gm?'<span>'+ESC(gml)+': '+ESC(c.gm)+'</span>':''}
             ${c.world?'<span>'+ESC(c.world)+'</span>':''}
-            ${c.players?'<span>'+c.players+' players</span>':''}
+            ${_playersStr?'<span>'+_playersStr+'</span>':''}
             ${c.session?'<span>Session '+c.session+'</span>':''}
           </div>
         </div>

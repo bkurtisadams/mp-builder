@@ -89,7 +89,9 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .entity-sub{font-size:11px;color:var(--tx2);font-family:var(--fm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .entity-player{font-size:10px;color:var(--tx3);font-style:italic}
 .entity-stats{font-family:var(--fm);font-size:9px;color:var(--tx2);margin-top:2px;display:flex;gap:2px;flex-wrap:wrap}
-.entity-stats span{white-space:nowrap;margin-right:4px}.entity-stats .ab{color:var(--accent);font-weight:700}
+.entity-stats span{white-space:nowrap;margin-right:10px}.entity-stats .ab{color:var(--accent);font-weight:700}
+.entity-badge{font-size:8px;font-weight:700;letter-spacing:.5px;padding:1px 5px;border-radius:3px;margin-left:6px;vertical-align:middle}
+.entity-badge.pc{background:rgba(96,160,208,0.12);color:var(--accent)}.entity-badge.npc{background:rgba(122,90,138,0.12);color:#7a5a8a}
 .entity-derived{font-size:10px;font-weight:700;color:var(--tx2);margin-top:1px;display:flex;gap:2px;flex-wrap:wrap}
 .entity-derived span{white-space:nowrap;margin-right:6px}
 .entity-pip{position:absolute;top:0;left:0;bottom:0;width:3px;border-radius:4px 0 0 4px}
@@ -324,10 +326,9 @@ function resolveChar(savedChar,systemId,storageKey){
     name=savedChar.heroName||savedChar.name||'Unnamed';player=savedChar.playerName||'';portrait=savedChar.portraitData||'';
     const ab=savedChar.abilities||{};sub=savedChar.origin||'';
     const abKeys=['fighting','agility','strength','endurance','reason','intuition','psyche'];
-    const abSpan=k=>{const a=ab[k];if(!a)return'';return`<span class="ab">${k.substring(0,1).toUpperCase()}</span>\u2009${a.value!=null?a.value:''}`};
-    const fase=abKeys.slice(0,4).map(abSpan).filter(Boolean).join(' ');
-    const rip=abKeys.slice(4).map(abSpan).filter(Boolean).join(' ');
-    if(fase||rip)statsHtml+=`<div class="entity-stats">${fase}${rip?'<br>'+rip:''}</div>`;
+    const abSpan=k=>{const a=ab[k];if(!a)return'';return`<span><span class="ab">${k.substring(0,1).toUpperCase()}</span> ${a.value!=null?a.value:''}</span>`};
+    const allAb=abKeys.map(abSpan).filter(Boolean).join('');
+    if(allAb)statsHtml+=`<div class="entity-stats">${allAb}</div>`;
     const derived=[];
     if(savedChar.health)derived.push(`<span>H\u2009${savedChar.health}</span>`);
     if(savedChar.karma)derived.push(`<span>K\u2009${savedChar.karma}</span>`);
@@ -359,7 +360,8 @@ function resolveChar(savedChar,systemId,storageKey){
     if(savedChar.xpTotal)derived.push(`<span>XP\u2009${ESC(String(savedChar.xpTotal))}</span>`);
     if(derived.length)statsHtml+=`<div class="entity-derived">${derived.join('')}</div>`;
   }
-  return{name,player,sub,portrait,statsHtml,_id:savedChar._id||'',storageKey:storageKey||''};
+  const charType=savedChar.characterType==='player'?'pc':(savedChar.characterType?'npc':'');
+  return{name,player,sub,portrait,statsHtml,charType,_id:savedChar._id||'',storageKey:storageKey||''};
 }
 
 const campId=new URLSearchParams(window.location.search).get('id');
@@ -561,19 +563,30 @@ async function render(){
   const dr=(l,v)=>v?`<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-value">${ESC(v)}</span></div>`:'';
 
   const descHtml=`<div style="margin-bottom:14px"><div class="notes-label">DESCRIPTION</div><textarea class="notes-area" id="camp-desc" style="min-height:60px" placeholder="Campaign premise, current arc, setting details...">${ESC(camp.description||'')}</textarea></div>`;
-  const overviewHtml=`${descHtml}<div class="details-grid">${dr('WORLD',camp.world)}${dr('GENRE',camp.genre)}${dr(gml.toUpperCase(),camp.gm)}${dr('PLAYERS',camp.players?camp.players+' players':'')}${dr('SCHEDULE',camp.schedule)}${dr('PLAY MODE',pm+(camp.vttLabel?' ('+camp.vttLabel+')':''))}${dr('XP METHOD',camp.xpMethod)}${dr('STARTED',camp.startDate?formatDate(camp.startDate):(camp.created?formatDate(camp.created):''))}${nextStr?`<div class="detail-row"><span class="detail-label">NEXT SESSION</span><span class="detail-value" style="color:var(--accent);font-weight:700">${ESC(nextStr)}</span></div>`:''}${dr('RULEBOOKS',camp.rulebooks)}${camp.houseRules?`<div class="detail-row detail-full"><span class="detail-label">HOUSE RULES</span><span class="detail-value">${ESC(camp.houseRules)}</span></div>`:''}</div><div class="sec-hdr"><div class="sec-title">TOOLS</div></div><div class="tools-row">${tools.map(t=>{const cls=t.href?'tool-chip':'tool-chip disabled';return`<a class="${cls}"${t.href?' href="'+ESC(t.href)+'"':''}><span class="tool-bullet">◆</span> ${ESC(t.name)}</a>`}).join('')}</div>`;
+
+  // Pre-resolve characters to count PCs vs NPCs
+  const chars=camp.characters||[];let pcCount=0,npcCount=0;
+  const resolvedChars=chars.map(ch=>{
+    let resolved=ch;const refKey=ch.storageKey||ch.listKey||'';
+    if(refKey){try{const saved=JSON.parse(localStorage.getItem(refKey))||[];let found=ch._id?saved.find(s=>s._id===ch._id):null;if(!found&&ch.name)found=saved.find(s=>(s.heroName||s.name)===ch.name);if(found){if(ch._id&&found._id&&ch._id!==found._id)ch._id=found._id;resolved=resolveChar(found,camp.system,refKey)}}catch(e){}}
+    if(resolved.charType==='pc')pcCount++;else if(resolved.charType==='npc')npcCount++;
+    return{ch,resolved,refKey};
+  });
+  const playersStr=pcCount||npcCount?[pcCount?pcCount+' Player'+(pcCount!==1?'s':''):'',npcCount?npcCount+' NPC'+(npcCount!==1?'s':''):''].filter(Boolean).join(' · '):(camp.players?camp.players+' players':'');
+
+  const overviewHtml=`${descHtml}<div class="details-grid">${dr('WORLD',camp.world)}${dr('GENRE',camp.genre)}${dr(gml.toUpperCase(),camp.gm)}${dr('PLAYERS',playersStr)}${dr('SCHEDULE',camp.schedule)}${dr('PLAY MODE',pm+(camp.vttLabel?' ('+camp.vttLabel+')':''))}${dr('XP METHOD',camp.xpMethod)}${dr('STARTED',camp.startDate?formatDate(camp.startDate):(camp.created?formatDate(camp.created):''))}${nextStr?`<div class="detail-row"><span class="detail-label">NEXT SESSION</span><span class="detail-value" style="color:var(--accent);font-weight:700">${ESC(nextStr)}</span></div>`:''}${dr('RULEBOOKS',camp.rulebooks)}${camp.houseRules?`<div class="detail-row detail-full"><span class="detail-label">HOUSE RULES</span><span class="detail-value">${ESC(camp.houseRules)}</span></div>`:''}</div><div class="sec-hdr"><div class="sec-title">TOOLS</div></div><div class="tools-row">${tools.map(t=>{const cls=t.href?'tool-chip':'tool-chip disabled';return`<a class="${cls}"${t.href?' href="'+ESC(t.href)+'"':''}><span class="tool-bullet">◆</span> ${ESC(t.name)}</a>`}).join('')}</div>`;
 
   // Party tab
-  const chars=camp.characters||[];let partyHtml='';
+  let partyHtml='';
   if(!chars.length){partyHtml=`<div class="entity-empty">No characters assigned to this campaign yet.</div>`}
-  else{partyHtml='<div class="entity-grid">';chars.forEach((ch,i)=>{
-    const col=PIP_COLORS[i%PIP_COLORS.length];let resolved=ch;const refKey=ch.storageKey||ch.listKey||'';
-    if(refKey){try{const saved=JSON.parse(localStorage.getItem(refKey))||[];let found=ch._id?saved.find(s=>s._id===ch._id):null;if(!found&&ch.name)found=saved.find(s=>(s.heroName||s.name)===ch.name);if(found){if(ch._id&&found._id&&ch._id!==found._id)ch._id=found._id;resolved=resolveChar(found,camp.system,refKey)}}catch(e){}}
+  else{partyHtml='<div class="entity-grid">';resolvedChars.forEach(({ch,resolved,refKey},i)=>{
+    const col=PIP_COLORS[i%PIP_COLORS.length];
     const portraitHtml=resolved.portrait?`<img class="entity-portrait" src="${resolved.portrait}" alt="">`:`<div class="entity-portrait-ph">?</div>`;
     let nameHtml;const charSys=GCC.SYSTEM_DEFS.find(s=>s.id===camp.system);const effectiveKey=resolved.storageKey||refKey;
     const charTool=charSys?.tools.find(t=>t.charList===effectiveKey&&t.href)||charSys?.tools.find(t=>t.charList&&t.href);
     if(charTool&&resolved.name){const linkParam=(resolved._id||ch._id)?'id='+encodeURIComponent(resolved._id||ch._id):'char='+encodeURIComponent(resolved.name);const href=charTool.href+(charTool.href.includes('?')?'&':'?')+linkParam;nameHtml=`<a href="${ESC(href+'&mode=view')}">${ESC(resolved.name)}</a> <a href="${ESC(href)}" style="font-size:9px;color:var(--tx3);text-decoration:none" title="Edit">✎</a>`}else{nameHtml=ESC(resolved.name)}
-    partyHtml+=`<div class="entity-card"><div class="entity-pip" style="background:${col}"></div>${portraitHtml}<div class="entity-info"><div class="entity-name">${nameHtml}</div><div class="entity-sub">${ESC(resolved.sub||'')}</div>${resolved.statsHtml||''}${resolved.player?'<div class="entity-player">'+ESC(resolved.player)+'</div>':''}</div></div>`;
+    const typeBadge=resolved.charType?`<span class="entity-badge ${resolved.charType}">${resolved.charType.toUpperCase()}</span>`:'';
+    partyHtml+=`<div class="entity-card"><div class="entity-pip" style="background:${col}"></div>${portraitHtml}<div class="entity-info"><div class="entity-name">${nameHtml}${typeBadge}</div><div class="entity-sub">${ESC(resolved.sub||'')}</div>${resolved.statsHtml||''}${resolved.player?'<div class="entity-player">'+ESC(resolved.player)+'</div>':''}</div></div>`;
   });partyHtml+='</div>'}
 
   // Vehicles tab
