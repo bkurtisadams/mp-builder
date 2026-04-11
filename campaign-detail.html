@@ -37,10 +37,14 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 
 .main{flex:1;padding:0 16px 40px;position:relative;z-index:1}
 .main-in{max-width:960px;margin:0 auto}
-.camp-banner{position:relative;width:100%;max-width:960px;margin:0 auto;min-height:120px;overflow:hidden;border-bottom:1px solid var(--brd)}
-.camp-banner img{width:100%;display:block;object-fit:contain}
+.camp-banner{position:relative;width:100%;max-width:960px;margin:0 auto;min-height:100px;overflow:hidden;border-bottom:1px solid var(--brd);background:var(--bg2);display:flex;align-items:center;justify-content:flex-start}
+.camp-banner img{max-width:100%;max-height:200px;display:block;object-fit:contain}
 .camp-banner-empty{width:100%;height:100%;background:var(--bg2);display:flex;align-items:center;justify-content:center;color:var(--tx3);font-size:12px}
 .camp-banner::after{content:'';position:absolute;inset:0;background:var(--banner-overlay);pointer-events:none}
+.camp-banner-controls{position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;transition:opacity .15s;z-index:3}
+.camp-banner:hover .camp-banner-controls{opacity:1}
+.camp-banner-btn{padding:3px 10px;font-size:10px;font-family:var(--fb);font-weight:700;background:rgba(0,0,0,0.6);color:#ccc;border:1px solid rgba(255,255,255,0.15);border-radius:3px;cursor:pointer;backdrop-filter:blur(4px)}
+.camp-banner-btn:hover{color:#fff;border-color:rgba(255,255,255,0.3)}
 .camp-header{position:relative;z-index:2;margin-top:-50px;padding:0 16px}
 .camp-header-in{max-width:960px;margin:0 auto;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
 .camp-title-area{flex:1;min-width:0}
@@ -463,12 +467,14 @@ function render(){
   document.title=camp.name+' — GCC';
   const sys=GCC.SYSTEM_DEFS.find(s=>s.id===camp.system)||{},tools=sys.tools||[],status=camp.status||'active',nextStr=formatDateTime(camp.nextSession),gml=camp.gmTitle||'GM';
 
-  const bannerHtml=camp.campaignImage?`<div class="camp-banner"><img src="${ESC(camp.campaignImage)}" alt=""></div>`:`<div class="camp-banner"><div class="camp-banner-empty">${sys.icon||''}</div></div>`;
+  const bannerControls=`<div class="camp-banner-controls"><button class="camp-banner-btn" id="btn-banner-upload">Upload</button>${camp.campaignImage?'<button class="camp-banner-btn" id="btn-banner-remove">Remove</button>':''}</div><input type="file" id="banner-img-file" accept="image/*" style="display:none">`;
+  const bannerHtml=camp.campaignImage?`<div class="camp-banner"><img src="${ESC(camp.campaignImage)}" alt="">${bannerControls}</div>`:`<div class="camp-banner"><div class="camp-banner-empty">${sys.icon||''} Click upload to add banner</div>${bannerControls}</div>`;
   const vttBtn=camp.vttLabel?`<a class="camp-btn camp-btn-vtt" href="${ESC(camp.vttUrl||'#')}" target="_blank">▶ ${ESC(camp.vttLabel)}</a>`:'';
   const pm={online:'Online','in-person':'In-Person',hybrid:'Hybrid'}[camp.playMode]||'';
   const dr=(l,v)=>v?`<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-value">${ESC(v)}</span></div>`:'';
 
-  const overviewHtml=`<div class="details-grid">${dr('WORLD',camp.world)}${dr('GENRE',camp.genre)}${dr(gml.toUpperCase(),camp.gm)}${dr('PLAYERS',camp.players?camp.players+' players':'')}${dr('SCHEDULE',camp.schedule)}${dr('PLAY MODE',pm+(camp.vttLabel?' ('+camp.vttLabel+')':''))}${dr('XP METHOD',camp.xpMethod)}${dr('STARTED',camp.startDate?formatDate(camp.startDate):(camp.created?formatDate(camp.created):''))}${nextStr?`<div class="detail-row"><span class="detail-label">NEXT SESSION</span><span class="detail-value" style="color:var(--accent);font-weight:700">${ESC(nextStr)}</span></div>`:''}${dr('RULEBOOKS',camp.rulebooks)}${camp.houseRules?`<div class="detail-row detail-full"><span class="detail-label">HOUSE RULES</span><span class="detail-value">${ESC(camp.houseRules)}</span></div>`:''}</div><div class="sec-hdr"><div class="sec-title">TOOLS</div></div><div class="tools-row">${tools.map(t=>{const cls=t.href?'tool-chip':'tool-chip disabled';return`<a class="${cls}"${t.href?' href="'+ESC(t.href)+'"':''}><span class="tool-bullet">◆</span> ${ESC(t.name)}</a>`}).join('')}</div>`;
+  const descHtml=`<div style="margin-bottom:14px"><div class="notes-label">DESCRIPTION</div><textarea class="notes-area" id="camp-desc" style="min-height:60px" placeholder="Campaign premise, current arc, setting details...">${ESC(camp.description||'')}</textarea></div>`;
+  const overviewHtml=`${descHtml}<div class="details-grid">${dr('WORLD',camp.world)}${dr('GENRE',camp.genre)}${dr(gml.toUpperCase(),camp.gm)}${dr('PLAYERS',camp.players?camp.players+' players':'')}${dr('SCHEDULE',camp.schedule)}${dr('PLAY MODE',pm+(camp.vttLabel?' ('+camp.vttLabel+')':''))}${dr('XP METHOD',camp.xpMethod)}${dr('STARTED',camp.startDate?formatDate(camp.startDate):(camp.created?formatDate(camp.created):''))}${nextStr?`<div class="detail-row"><span class="detail-label">NEXT SESSION</span><span class="detail-value" style="color:var(--accent);font-weight:700">${ESC(nextStr)}</span></div>`:''}${dr('RULEBOOKS',camp.rulebooks)}${camp.houseRules?`<div class="detail-row detail-full"><span class="detail-label">HOUSE RULES</span><span class="detail-value">${ESC(camp.houseRules)}</span></div>`:''}</div><div class="sec-hdr"><div class="sec-title">TOOLS</div></div><div class="tools-row">${tools.map(t=>{const cls=t.href?'tool-chip':'tool-chip disabled';return`<a class="${cls}"${t.href?' href="'+ESC(t.href)+'"':''}><span class="tool-bullet">◆</span> ${ESC(t.name)}</a>`}).join('')}</div>`;
 
   // Party tab
   const chars=camp.characters||[];let partyHtml='';
@@ -504,7 +510,7 @@ function render(){
   // Lore tab
   const lore=camp.lore||[],filteredLore=loreFilter==='all'?lore:lore.filter(l=>l.type===loreFilter);
   let loreHtml=`<div class="session-toolbar"><div class="session-toolbar-left"><button class="btn-add" id="btn-add-lore">+ New Entry</button></div><div class="session-toolbar-right"><button class="filter-pill${loreFilter==='all'?' active':''}" data-lore-filter="all">All</button>${GCC.LORE_TYPES.map(t=>{const count=lore.filter(l=>l.type===t).length;return count?`<button class="filter-pill${loreFilter===t?' active':''}" data-lore-filter="${t}">${ESC(GCC.LORE_TYPE_LABELS[t])} (${count})</button>`:''}).join('')}</div></div>`;
-  if(!filteredLore.length){loreHtml+=`<div class="entity-empty">No lore entries yet. Add NPCs, locations, factions, and items.</div>`}
+  if(!filteredLore.length){loreHtml+=`<div class="entity-empty">No wiki entries yet. Add NPCs, locations, factions, and items.</div>`}
   else{loreHtml+='<div class="lore-grid">';filteredLore.forEach((l,i)=>{
     const origIdx=lore.indexOf(l);
     const typeLabel=(GCC.LORE_TYPE_LABELS[l.type]||l.type).toUpperCase()+(l.subtype?' — '+l.subtype.toUpperCase():'');
@@ -526,8 +532,8 @@ function render(){
       <button class="tab${currentTab==='party'?' active':''}" data-tab="party">${ESC(GCC.teamLabel(camp.system).toUpperCase())}${charCount}</button>
       <button class="tab${currentTab==='vehicles'?' active':''}" data-tab="vehicles">Vehicles${vehCount}</button>
       <button class="tab${currentTab==='sessions'?' active':''}" data-tab="sessions">${ESC(GCC.sessionLabel(camp.system).toUpperCase())}S${sesCount}</button>
-      <button class="tab${currentTab==='lore'?' active':''}" data-tab="lore">Lore${loreCount}</button>
-      <button class="tab${currentTab==='players'?' active':''}" data-tab="players">Players</button>
+      <button class="tab${currentTab==='lore'?' active':''}" data-tab="lore">Wiki${loreCount}</button>
+      <button class="tab${currentTab==='players'?' active':''}" data-tab="players">Invite Players</button>
       <button class="tab${currentTab==='notes'?' active':''}" data-tab="notes">Notes</button>
     </div>
     <div class="tab-panel${currentTab==='overview'?' active':''}" data-panel="overview">${overviewHtml}</div>
@@ -546,9 +552,24 @@ function render(){
 
 function wireEvents(){
   document.getElementById('tabs')?.addEventListener('click',e=>{const tab=e.target.closest('.tab');if(!tab)return;currentTab=tab.dataset.tab;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===currentTab));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===currentTab))});
+  document.getElementById('camp-desc')?.addEventListener('input',e=>{GCC.updateCampaign(campId,{description:e.target.value})});
   document.getElementById('camp-notes')?.addEventListener('input',e=>{GCC.updateCampaign(campId,{notes:e.target.value})});
   document.getElementById('camp-notes-shared')?.addEventListener('input',e=>{GCC.updateCampaign(campId,{sharedNotes:e.target.value})});
   document.getElementById('btn-edit-camp')?.addEventListener('click',()=>{window.location.href='index.html'});
+  // Banner image upload/remove
+  document.getElementById('btn-banner-upload')?.addEventListener('click',()=>document.getElementById('banner-img-file')?.click());
+  document.getElementById('banner-img-file')?.addEventListener('change',e=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();reader.onload=ev=>{
+      compressImageData(ev.target.result,800,compressed=>{
+        GCC.updateCampaign(campId,{campaignImage:compressed});render();
+      });
+    };reader.readAsDataURL(file);
+  });
+  document.getElementById('btn-banner-remove')?.addEventListener('click',()=>{
+    if(!confirm('Remove the banner image?'))return;
+    GCC.updateCampaign(campId,{campaignImage:''});render();
+  });
   document.getElementById('btn-add-session')?.addEventListener('click',()=>openSessionModal(-1,'session'));
   document.getElementById('btn-add-timeline')?.addEventListener('click',()=>openSessionModal(-1,'timeline'));
   document.querySelectorAll('[data-ses-filter]').forEach(btn=>{btn.addEventListener('click',()=>{sessionFilter=btn.dataset.sesFilter;render()})});
@@ -705,7 +726,7 @@ sesModal.addEventListener('click',e=>{if(e.target===sesModal)closeSessionModal()
 const loreModal=document.getElementById('lore-modal');let loreEditIdx=-1;
 function openLoreModal(editIdx){
   loreEditIdx=editIdx!=null?editIdx:-1;const camp=getCamp();if(!camp)return;const isEdit=loreEditIdx>=0;
-  document.getElementById('lore-modal-title').textContent=isEdit?'EDIT LORE ENTRY':'NEW LORE ENTRY';
+  document.getElementById('lore-modal-title').textContent=isEdit?'EDIT WIKI ENTRY':'NEW WIKI ENTRY';
   const l=isEdit?(camp.lore||[])[loreEditIdx]:null;
   const typeOptions=GCC.LORE_TYPES.map(t=>`<option value="${t}"${l&&l.type===t?' selected':''}>${GCC.LORE_TYPE_LABELS[t]}</option>`).join('');
   document.getElementById('lore-modal-body').innerHTML=`<div class="mf-row"><div><label class="mf-label">TYPE</label><select class="mf-select" id="lm-type">${typeOptions}</select></div><div><label class="mf-label">SUBTYPE (optional)</label><input class="mf-input" id="lm-subtype" placeholder="e.g. Villain, HQ Room" value="${l?ESC(l.subtype||''):''}"></div></div><label class="mf-label">NAME</label><input class="mf-input" id="lm-name" placeholder="e.g. Whiplash, ESU Campus" value="${l?ESC(l.name):''}"><label class="mf-label">DESCRIPTION</label><textarea class="mf-textarea" id="lm-desc" rows="3" placeholder="Brief description...">${l?ESC(l.desc||''):''}</textarea>`;
