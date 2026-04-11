@@ -579,7 +579,7 @@ async function render(){
   // Party tab
   let partyHtml=`<button class="btn-add" id="btn-edit-team">✎ Edit ${ESC(GCC.teamLabel(camp.system))}</button>`;
   if(!chars.length){partyHtml+=`<div class="entity-empty">No characters assigned to this campaign yet.</div>`}
-  else{partyHtml='<div class="entity-grid">';resolvedChars.forEach(({ch,resolved,refKey},i)=>{
+  else{partyHtml+='<div class="entity-grid">';resolvedChars.forEach(({ch,resolved,refKey},i)=>{
     const col=PIP_COLORS[i%PIP_COLORS.length];
     const portraitHtml=resolved.portrait?`<img class="entity-portrait" src="${resolved.portrait}" alt="">`:`<div class="entity-portrait-ph">?</div>`;
     let nameHtml;const charSys=GCC.SYSTEM_DEFS.find(s=>s.id===camp.system);const effectiveKey=resolved.storageKey||refKey;
