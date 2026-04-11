@@ -279,6 +279,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 
 <script src="mp-dialog.js"></script>
 <script src="gcc-data.js"></script>
+<script src="gcc-images.js"></script>
 <script src="gcc-header.js"></script>
 <script src="gcc-firebase-config.js"></script>
 <script src="gcc-auth.js"></script>
@@ -348,7 +349,7 @@ let currentTab='overview',sessionFilter='all',loreFilter='all';
 function getCamp(){return GCC.getCampaign(campId)}
 
 // ── Build session card ──
-function buildSessionCard(s,idx,total,camp){
+function buildSessionCard(s,idx,total,camp,imgMap){
   const sesLabel=GCC.sessionLabel(camp.system),xpLbl=GCC.xpLabel(camp.system);
   const isTimeline=s.type==='timeline',isDmOnly=s.visible===false;
   // Count real session number for this entry
@@ -367,8 +368,9 @@ function buildSessionCard(s,idx,total,camp){
   // ── Recap layout: cover image left, summary text right ──
   let recapHtml='';
   const summaryHtml=s.text?`<div class="session-text">${ESC(s.text)}</div>`:'';
-  if(s.image){
-    recapHtml=`<div class="session-recap"><div class="session-recap-img"><img src="${s.image}" alt=""></div><div class="session-recap-text">${summaryHtml}</div></div>`;
+  const coverSrc=resolveImg(s.image,imgMap);
+  if(coverSrc){
+    recapHtml=`<div class="session-recap"><div class="session-recap-img"><img src="${coverSrc}" alt=""></div><div class="session-recap-text">${summaryHtml}</div></div>`;
   }else if(summaryHtml){
     recapHtml=`<div class="session-recap-noimg">${summaryHtml}</div>`;
   }
@@ -380,7 +382,8 @@ function buildSessionCard(s,idx,total,camp){
     s.sections.forEach(sec=>{
       sectionsHtml+='<div class="session-sec-block clearfix">';
       if(sec.title)sectionsHtml+=`<div class="session-section-title">${ESC(sec.title)}</div>`;
-      if(sec.image)sectionsHtml+=`<img class="session-sec-img" src="${sec.image}" alt="">`;
+      const secSrc=resolveImg(sec.image,imgMap);
+      if(secSrc)sectionsHtml+=`<img class="session-sec-img" src="${secSrc}" alt="">`;
       if(sec.text)sectionsHtml+=`<div class="session-section-text">${ESC(sec.text)}</div>`;
       sectionsHtml+='</div>';
     });
@@ -433,6 +436,32 @@ function collectTagTypes(sessions){const t=new Set();(sessions||[]).forEach(s=>(
 function filterSessions(sessions,filter){if(filter==='all')return sessions;return sessions.filter(s=>(s.tags||[]).some(t=>t.type===filter))}
 
 // ── RENDER ──
+// ── Migrate inline data URLs to IndexedDB (one-time) ──
+async function migrateImagesToIDB(camp){
+  if(!camp)return false;
+  let changed=false;
+  // Banner
+  if(camp.campaignImage&&GCCImages.isDataUrl(camp.campaignImage)){
+    camp.campaignImage=await GCCImages.store(camp.campaignImage,'img_banner');
+    changed=true;console.log('[GCC] Migrated banner image to IDB:',camp.campaignImage);
+  }
+  // Sessions
+  for(const s of(camp.sessions||[])){
+    if(s.image&&GCCImages.isDataUrl(s.image)){
+      s.image=await GCCImages.store(s.image,'img_ses');
+      changed=true;console.log('[GCC] Migrated session cover to IDB:',s.image);
+    }
+    for(const sec of(s.sections||[])){
+      if(sec.image&&GCCImages.isDataUrl(sec.image)){
+        sec.image=await GCCImages.store(sec.image,'img_sec');
+        changed=true;console.log('[GCC] Migrated section image to IDB:',sec.image);
+      }
+    }
+  }
+  if(changed)GCC.updateCampaign(camp.id,{campaignImage:camp.campaignImage,sessions:camp.sessions});
+  return changed;
+}
+
 function reconcileCharRefs(camp){
   if(!camp||!camp.characters||!camp.characters.length)return false;
   const sys=GCC.SYSTEM_DEFS.find(s=>s.id===camp.system);
@@ -466,15 +495,39 @@ function reconcileCharRefs(camp){
   return changed;
 }
 
-function render(){
+// ── Collect all image keys from campaign for bulk loading ──
+function collectImageKeys(camp){
+  const keys=[];
+  if(camp.campaignImage&&GCCImages.isKey(camp.campaignImage))keys.push(camp.campaignImage);
+  (camp.sessions||[]).forEach(s=>{
+    if(s.image&&GCCImages.isKey(s.image))keys.push(s.image);
+    (s.sections||[]).forEach(sec=>{if(sec.image&&GCCImages.isKey(sec.image))keys.push(sec.image)});
+  });
+  return keys;
+}
+// ── Resolve an image value: if it's a key, look up in map; if data URL, use directly ──
+function resolveImg(val,imgMap){
+  if(!val)return'';
+  if(GCCImages.isKey(val))return imgMap[val]||'';
+  return val; // already a data URL or URL
+}
+
+async function render(){
   const camp=getCamp(),page=document.getElementById('page-content');
   if(!camp){page.innerHTML=`<div class="not-found"><div class="not-found-title">Campaign Not Found</div><div>This campaign doesn't exist or has been deleted.</div><div style="margin-top:12px"><a href="index.html">← Back to Dashboard</a></div></div>`;document.title='Not Found — GCC';return}
   reconcileCharRefs(camp);
+  // Migrate any inline data URLs to IndexedDB (one-time per campaign)
+  await migrateImagesToIDB(camp);
+  // Bulk load all images from IndexedDB
+  const imgKeys=collectImageKeys(camp);
+  const imgMap=await GCCImages.getBulk(imgKeys);
+
   document.title=camp.name+' — GCC';
   const sys=GCC.SYSTEM_DEFS.find(s=>s.id===camp.system)||{},tools=sys.tools||[],status=camp.status||'active',nextStr=formatDateTime(camp.nextSession),gml=camp.gmTitle||'GM';
 
+  const bannerSrc=resolveImg(camp.campaignImage,imgMap);
   const bannerControls=`<div class="camp-banner-controls"><button class="camp-banner-btn" id="btn-banner-upload">Upload</button>${camp.campaignImage?'<button class="camp-banner-btn" id="btn-banner-remove">Remove</button>':''}</div><input type="file" id="banner-img-file" accept="image/*" style="display:none">`;
-  const bannerHtml=camp.campaignImage?`<div class="camp-banner"><img src="${ESC(camp.campaignImage)}" alt="">${bannerControls}</div>`:`<div class="camp-banner"><div class="camp-banner-empty">${sys.icon||''} Click upload to add banner</div>${bannerControls}</div>`;
+  const bannerHtml=bannerSrc?`<div class="camp-banner"><img src="${ESC(bannerSrc)}" alt="">${bannerControls}</div>`:`<div class="camp-banner"><div class="camp-banner-empty">${sys.icon||''} Click upload to add banner</div>${bannerControls}</div>`;
   const vttBtn=camp.vttLabel?`<a class="camp-btn camp-btn-vtt" href="${ESC(camp.vttUrl||'#')}" target="_blank">▶ ${ESC(camp.vttLabel)}</a>`:'';
   const pm={online:'Online','in-person':'In-Person',hybrid:'Hybrid'}[camp.playMode]||'';
   const dr=(l,v)=>v?`<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-value">${ESC(v)}</span></div>`:'';
@@ -513,7 +566,7 @@ function render(){
   const sessions=camp.sessions||[],filteredSessions=filterSessions(sessions,sessionFilter),realCount=countRealSessions(sessions),tagTypes=collectTagTypes(sessions);
   let sessHtml=`<div class="session-toolbar"><div class="session-toolbar-left"><button class="btn-add" id="btn-add-session">+ New ${ESC(GCC.sessionLabel(camp.system))}</button></div><div class="session-toolbar-right"><button class="filter-pill${sessionFilter==='all'?' active':''}" data-ses-filter="all">All</button>${tagTypes.map(t=>`<button class="filter-pill${sessionFilter===t?' active':''}" data-ses-filter="${ESC(t)}">${ESC(GCC.LORE_TYPE_LABELS[t]||t)}</button>`).join('')}</div></div>`;
   if(!filteredSessions.length){sessHtml+=`<div class="entity-empty">No sessions logged yet.</div>`}
-  else{sessHtml+='<ul class="session-list">';filteredSessions.forEach(s=>{const origIdx=sessions.indexOf(s);sessHtml+=buildSessionCard(s,origIdx,realCount,camp)});sessHtml+='</ul>'}
+  else{sessHtml+='<ul class="session-list">';filteredSessions.forEach(s=>{const origIdx=sessions.indexOf(s);sessHtml+=buildSessionCard(s,origIdx,realCount,camp,imgMap)});sessHtml+='</ul>'}
 
   // Lore tab
   const lore=camp.lore||[],filteredLore=loreFilter==='all'?lore:lore.filter(l=>l.type===loreFilter);
@@ -566,16 +619,21 @@ function wireEvents(){
   document.getElementById('btn-edit-camp')?.addEventListener('click',()=>{window.location.href='index.html'});
   // Banner image upload/remove
   document.getElementById('btn-banner-upload')?.addEventListener('click',()=>document.getElementById('banner-img-file')?.click());
-  document.getElementById('banner-img-file')?.addEventListener('change',e=>{
+  document.getElementById('banner-img-file')?.addEventListener('change',async e=>{
     const file=e.target.files[0];if(!file)return;
-    const reader=new FileReader();reader.onload=ev=>{
-      compressImageData(ev.target.result,800,compressed=>{
-        GCC.updateCampaign(campId,{campaignImage:compressed});render();
-      });
+    const reader=new FileReader();reader.onload=async ev=>{
+      const compressed=await new Promise(resolve=>compressImageData(ev.target.result,800,resolve));
+      const key=await GCCImages.store(compressed,'img_banner');
+      // Remove old banner image from IndexedDB if it was a key
+      const camp=getCamp();
+      if(camp&&GCCImages.isKey(camp.campaignImage))await GCCImages.remove(camp.campaignImage);
+      GCC.updateCampaign(campId,{campaignImage:key});render();
     };reader.readAsDataURL(file);
   });
-  document.getElementById('btn-banner-remove')?.addEventListener('click',()=>{
+  document.getElementById('btn-banner-remove')?.addEventListener('click',async()=>{
     if(!confirm('Remove the banner image?'))return;
+    const camp=getCamp();
+    if(camp&&GCCImages.isKey(camp.campaignImage))await GCCImages.remove(camp.campaignImage);
     GCC.updateCampaign(campId,{campaignImage:''});render();
   });
   document.getElementById('btn-add-session')?.addEventListener('click',()=>openSessionModal(-1,'session'));
@@ -658,10 +716,21 @@ function refreshModalBody(camp,isTimeline){
   restoreSessionFields(vals);wireSessionModalEvents(camp,isTimeline);
 }
 
-function openSessionModal(editIdx,typeOverride){
+async function openSessionModal(editIdx,typeOverride){
   sesEditIdx=editIdx!=null?editIdx:-1;const camp=getCamp();if(!camp)return;
   const isEdit=sesEditIdx>=0;let isTimeline=typeOverride==='timeline';
-  if(isEdit){const s=camp.sessions?.[sesEditIdx];if(s){isTimeline=s.type==='timeline';sesImageData=s.image||'';sesSections=(s.sections||[]).map(sec=>({...sec}));sesTags=(s.tags||[]).map(t=>({...t}));sesRoster=[...(s.roster||[])]}}
+  if(isEdit){const s=camp.sessions?.[sesEditIdx];if(s){
+    isTimeline=s.type==='timeline';
+    // Resolve cover image from IndexedDB if it's a key
+    sesImageData=s.image?(GCCImages.isKey(s.image)?await GCCImages.get(s.image):s.image):'';
+    // Resolve section images
+    sesSections=[];for(const sec of(s.sections||[])){
+      const copy={...sec};
+      if(copy.image&&GCCImages.isKey(copy.image))copy.image=await GCCImages.get(copy.image)||'';
+      sesSections.push(copy);
+    }
+    sesTags=(s.tags||[]).map(t=>({...t}));sesRoster=[...(s.roster||[])]
+  }}
   else{sesImageData='';sesSections=[];sesTags=[];sesRoster=[]}
   const sesLbl=GCC.sessionLabel(camp.system);
   document.getElementById('session-modal-title').textContent=isEdit?(isTimeline?'EDIT TIMELINE ENTRY':'EDIT '+sesLbl.toUpperCase()):(isTimeline?'NEW TIMELINE ENTRY':'NEW '+sesLbl.toUpperCase());
@@ -706,33 +775,39 @@ function compressImageData(dataUrl,maxKB,cb){
   };img.onerror=()=>cb(dataUrl);img.src=dataUrl;
 }
 
-document.getElementById('sm-save').addEventListener('click',()=>{
+document.getElementById('sm-save').addEventListener('click',async()=>{
   const camp=getCamp();if(!camp)return;const sessions=camp.sessions||[];captureSessionSections();
   const rawImage=sesImageData||'';
-  // Compress section images too
-  function compressAllSectionImages(idx,cb){
-    if(idx>=sesSections.length){cb();return}
-    const sec=sesSections[idx];
-    if(sec.image&&sec.image.length>400*1024){
-      compressImageData(sec.image,400,compressed=>{sec.image=compressed;compressAllSectionImages(idx+1,cb)});
-    }else{compressAllSectionImages(idx+1,cb)}
+
+  // Store cover image in IndexedDB
+  let imageKey='';
+  if(rawImage){
+    // Compress first
+    const compressed=await new Promise(resolve=>compressImageData(rawImage,800,resolve));
+    imageKey=await GCCImages.store(compressed,'img_ses');
+    console.log('[GCC] Stored cover image:',imageKey,Math.round(compressed.length/1024)+'KB');
   }
-  function doSave(finalImage){
-    compressAllSectionImages(0,()=>{
-      const entry={_id:(sesEditIdx>=0&&sessions[sesEditIdx])?sessions[sesEditIdx]._id:GCC.genId('ses'),
-        date:document.getElementById('sm-date').value||'',gameDate:document.getElementById('sm-gamedate').value.trim()||'',
-        title:document.getElementById('sm-title').value.trim()||'',text:document.getElementById('sm-text').value.trim()||'',
-        sections:sesSections.filter(s=>s.title||s.text||s.image),image:finalImage,tags:sesTags,
-        roster:sesRoster.length?sesRoster:[],
-        xp:parseInt(document.getElementById('sm-xp').value)||0,visible:document.getElementById('sm-visible').checked,
-        type:sesModal.dataset.entryType||'session'};
-      if(sesEditIdx>=0&&sessions[sesEditIdx]){entry.type=sessions[sesEditIdx].type}
-      if(sesEditIdx>=0&&sesEditIdx<sessions.length){sessions[sesEditIdx]=entry}else{sessions.unshift(entry)}
-      console.log('[GCC] Saving session, entries:',sessions.length,'image size:',Math.round((finalImage||'').length/1024)+'KB');
-      GCC.updateCampaign(campId,{sessions,session:countRealSessions(sessions)});closeSessionModal();render();
-    });
+
+  // Store section images in IndexedDB
+  for(const sec of sesSections){
+    if(sec.image&&GCCImages.isDataUrl(sec.image)){
+      const compressed=await new Promise(resolve=>compressImageData(sec.image,400,resolve));
+      sec.image=await GCCImages.store(compressed,'img_sec');
+      console.log('[GCC] Stored section image:',sec.image,Math.round(compressed.length/1024)+'KB');
+    }
   }
-  compressImageData(rawImage,800,doSave);
+
+  const entry={_id:(sesEditIdx>=0&&sessions[sesEditIdx])?sessions[sesEditIdx]._id:GCC.genId('ses'),
+    date:document.getElementById('sm-date').value||'',gameDate:document.getElementById('sm-gamedate').value.trim()||'',
+    title:document.getElementById('sm-title').value.trim()||'',text:document.getElementById('sm-text').value.trim()||'',
+    sections:sesSections.filter(s=>s.title||s.text||s.image),image:imageKey,tags:sesTags,
+    roster:sesRoster.length?sesRoster:[],
+    xp:parseInt(document.getElementById('sm-xp').value)||0,visible:document.getElementById('sm-visible').checked,
+    type:sesModal.dataset.entryType||'session'};
+  if(sesEditIdx>=0&&sessions[sesEditIdx]){entry.type=sessions[sesEditIdx].type}
+  if(sesEditIdx>=0&&sesEditIdx<sessions.length){sessions[sesEditIdx]=entry}else{sessions.unshift(entry)}
+  console.log('[GCC] Saving session, entries:',sessions.length);
+  GCC.updateCampaign(campId,{sessions,session:countRealSessions(sessions)});closeSessionModal();render();
 });
 document.getElementById('sm-cancel').addEventListener('click',closeSessionModal);
 document.getElementById('session-modal-close').addEventListener('click',closeSessionModal);
