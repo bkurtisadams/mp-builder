@@ -271,6 +271,12 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
   <div class="modal-footer"><button class="mf-btn-cancel" id="lm-cancel">Cancel</button><button class="mf-btn-save" id="lm-save">Save</button></div>
 </div></div>
 
+<div class="modal-overlay" id="veh-modal"><div class="modal">
+  <div class="modal-hdr"><div class="modal-title">ASSIGN VEHICLES</div><button class="modal-close" id="veh-modal-close">✕</button></div>
+  <div class="modal-body" id="veh-modal-body"></div>
+  <div class="modal-footer"><button class="mf-btn-cancel" id="vm-cancel">Cancel</button><button class="mf-btn-save" id="vm-save">Save</button></div>
+</div></div>
+
 <script src="mp-dialog.js"></script>
 <script src="gcc-data.js"></script>
 <script src="gcc-header.js"></script>
@@ -492,13 +498,15 @@ function render(){
   // Vehicles tab
   let vehHtml='';const vehTool=sys.tools?.find(t=>t.charList===GCC.KEYS.mpVehs);let vehs=[];
   if(vehTool){try{const allVehs=JSON.parse(localStorage.getItem(vehTool.charList))||[];vehs=allVehs.filter(v=>v._campaign===campId)}catch(e){}}
-  if(!vehs.length){vehHtml=`<div class="entity-empty">No vehicles assigned to this campaign.</div>`}
-  else{vehHtml='<div class="entity-grid">';vehs.forEach((v,i)=>{
+  if(vehTool){vehHtml+=`<button class="btn-add" id="btn-assign-veh">+ Assign Vehicle</button>`}
+  if(!vehs.length){vehHtml+=`<div class="entity-empty">No vehicles assigned to this campaign.</div>`}
+  else{vehHtml+='<div class="entity-grid">';vehs.forEach((v,i)=>{
     const col=PIP_COLORS[(i+3)%PIP_COLORS.length];const portrait=v.pictureData||v._image||'';
     const portraitHtml=portrait?`<img class="entity-portrait" src="${portrait}" alt="" style="border-radius:4px">`:`<div class="entity-portrait-ph" style="border-radius:4px">🚗</div>`;
     const sub=[v.model,v._totalCost!=null?v._totalCost+' CPs':''].filter(Boolean).join(' · ');
-    const nameHtml=vehTool.href?`<a href="${ESC(vehTool.href)}?mode=view">${ESC(v.name||'Unnamed')}</a> <a href="${ESC(vehTool.href)}" style="font-size:9px;color:var(--tx3);text-decoration:none" title="Edit">✎</a>`:ESC(v.name||'Unnamed');
-    vehHtml+=`<div class="entity-card"><div class="entity-pip" style="background:${col}"></div>${portraitHtml}<div class="entity-info"><div class="entity-name">${nameHtml}</div><div class="entity-sub">${ESC(sub)}</div>${v.operator?'<div class="entity-player">'+ESC(v.operator)+'</div>':''}</div></div>`;
+    const editLink=vehTool.href?` <a href="${ESC(vehTool.href)}" style="font-size:9px;color:var(--tx3);text-decoration:none" title="Edit">✎</a>`:'';
+    const nameHtml=vehTool.href?`<a href="${ESC(vehTool.href)}?mode=view">${ESC(v.name||'Unnamed')}</a>${editLink}`:ESC(v.name||'Unnamed');
+    vehHtml+=`<div class="entity-card"><div class="entity-pip" style="background:${col}"></div>${portraitHtml}<div class="entity-info"><div class="entity-name">${nameHtml}</div><div class="entity-sub">${ESC(sub)}</div>${v.operator?'<div class="entity-player">'+ESC(v.operator)+'</div>':''}</div><button class="session-action-btn danger" data-unassign-veh="${ESC(v._id)}" title="Unassign" style="align-self:center;font-size:12px;padding:2px 6px">✕</button></div>`;
   });vehHtml+='</div>'}
 
   // Sessions tab
@@ -578,6 +586,15 @@ function wireEvents(){
   document.getElementById('btn-add-lore')?.addEventListener('click',()=>openLoreModal(-1));
   document.querySelectorAll('[data-lore-edit]').forEach(btn=>{btn.addEventListener('click',()=>openLoreModal(parseInt(btn.dataset.loreEdit)))});
   document.querySelectorAll('[data-lore-del]').forEach(btn=>{btn.addEventListener('click',()=>{if(!confirm('Delete this lore entry?'))return;const camp=getCamp();if(!camp)return;const lore=camp.lore||[];lore.splice(parseInt(btn.dataset.loreDel),1);GCC.updateCampaign(campId,{lore});render()})});
+  // Vehicle assign/unassign
+  document.getElementById('btn-assign-veh')?.addEventListener('click',()=>openVehicleAssignModal());
+  document.querySelectorAll('[data-unassign-veh]').forEach(btn=>{btn.addEventListener('click',()=>{
+    if(!confirm('Unassign this vehicle from the campaign?'))return;
+    const vehId=btn.dataset.unassignVeh;const vehKey=GCC.KEYS.mpVehs;
+    const list=JSON.parse(localStorage.getItem(vehKey))||[];
+    const veh=list.find(v=>v._id===vehId);
+    if(veh){veh._campaign='';localStorage.setItem(vehKey,JSON.stringify(list));render()}
+  })});
 
   // Invite system
   const btnGenInvite=document.getElementById('btn-gen-invite');
@@ -739,6 +756,48 @@ document.getElementById('lm-save').addEventListener('click',()=>{const camp=getC
 document.getElementById('lm-cancel').addEventListener('click',closeLoreModal);
 document.getElementById('lore-modal-close').addEventListener('click',closeLoreModal);
 loreModal.addEventListener('click',e=>{if(e.target===loreModal)closeLoreModal()});
+
+// ═══ VEHICLE ASSIGN MODAL ═══
+const vehModal=document.getElementById('veh-modal');
+function openVehicleAssignModal(){
+  const vehKey=GCC.KEYS.mpVehs;
+  const allVehs=JSON.parse(localStorage.getItem(vehKey))||[];
+  if(!allVehs.length){alert('No vehicles found. Create vehicles in the Vehicle Builder first.');return}
+  let html='<div style="margin-bottom:8px;font-size:12px;color:var(--tx2)">Select vehicles to assign to this campaign:</div>';
+  html+='<div style="display:flex;flex-direction:column;gap:6px">';
+  allVehs.forEach(v=>{
+    const assigned=v._campaign===campId;
+    const takenElsewhere=v._campaign&&v._campaign!==campId;
+    const portrait=v.pictureData||v._image||'';
+    const ava=portrait?`<img src="${portrait}" style="width:24px;height:24px;border-radius:3px;object-fit:contain;border:1px solid var(--brd)">`:`<span style="width:24px;height:24px;border-radius:3px;background:var(--bg-section);display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:var(--tx3)">🚗</span>`;
+    const sub=[v.model,v._totalCost!=null?v._totalCost+' CPs':''].filter(Boolean).join(' · ');
+    const disabled=takenElsewhere?' disabled':'';
+    const note=takenElsewhere?' <span style="font-size:9px;color:var(--tx3)">(assigned elsewhere)</span>':'';
+    html+=`<label class="mf-char-check${assigned?' checked':''}" style="padding:6px 10px;${takenElsewhere?'opacity:0.5':''}"><input type="checkbox" data-veh-assign="${ESC(v._id)}"${assigned?' checked':''}${disabled}> ${ava} <span style="margin-left:4px"><strong>${ESC(v.name||'Unnamed')}</strong>${sub?' <span style="font-size:10px;color:var(--tx3)">'+ESC(sub)+'</span>':''}${note}</span></label>`;
+  });
+  html+='</div>';
+  document.getElementById('veh-modal-body').innerHTML=html;
+  // Wire checkbox visual toggle
+  vehModal.querySelectorAll('[data-veh-assign]').forEach(cb=>{cb.addEventListener('change',()=>{cb.closest('.mf-char-check').classList.toggle('checked',cb.checked)})});
+  vehModal.classList.add('open');
+}
+function closeVehModal(){vehModal.classList.remove('open')}
+document.getElementById('vm-save').addEventListener('click',()=>{
+  const vehKey=GCC.KEYS.mpVehs;
+  const list=JSON.parse(localStorage.getItem(vehKey))||[];
+  vehModal.querySelectorAll('[data-veh-assign]').forEach(cb=>{
+    const vehId=cb.dataset.vehAssign;
+    const veh=list.find(v=>v._id===vehId);
+    if(!veh)return;
+    if(cb.checked){veh._campaign=campId}
+    else if(veh._campaign===campId){veh._campaign=''}
+  });
+  localStorage.setItem(vehKey,JSON.stringify(list));
+  closeVehModal();render();
+});
+document.getElementById('vm-cancel').addEventListener('click',closeVehModal);
+document.getElementById('veh-modal-close').addEventListener('click',closeVehModal);
+vehModal.addEventListener('click',e=>{if(e.target===vehModal)closeVehModal()});
 
 render();
 window.addEventListener('gcc-sync-ready',()=>{render()});
