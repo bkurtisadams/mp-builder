@@ -345,7 +345,7 @@ tr.inv-nocarry td input{color:var(--ink-lt)}
   <div class="bio-field"><span class="lb">Race:</span><input class="fi" data-field="race"></div>
   <div class="bio-field"><span class="lb">Alignment:</span><input class="fi" data-field="alignment"></div>
   <div class="bio-field"><span class="lb">Deity:</span><input class="fi" data-field="deity"></div>
-  <div class="bio-field"><span class="lb">Origin:</span><input class="fi" data-field="origin"></div>
+  <div class="bio-field"><span class="lb">Hearing:</span><input class="fi" data-field="hearing"></div>
   <div class="bio-field"><span class="lb">Move Base:</span><input class="fi" data-field="moveBase"></div>
   <div class="bio-field"><span class="lb">Move Adj.:</span><input class="fi" data-field="moveAdj" readonly></div>
   <div class="bio-field"><span class="lb">Vision:</span><input class="fi" data-field="vision"></div>
@@ -2107,6 +2107,10 @@ function mapARS(ars){
   });
   if(bestProfTotal>0)c.profNumber=bestProfTotal;
   if(bestProfPenalty>-99)c.nonProfPenalty=bestProfPenalty;
+  // Non-Weapon Proficiencies — skill items with a governing ability that aren't thief skills or racial/system skills
+  const _thiefNames=new Set(Object.keys(tMap));
+  const nwpItems=items.filter(i=>{if(i.type!=='skill'||_thiefNames.has(i.name))return false;const f=(i.system||{}).features||{};const ab=f.ability||'';return ab&&ab!=='none';});
+  if(nwpItems.length)c.skills=nwpItems.map(sk=>sk.name).join(', ');
   // Special Abilities — PHB racial abilities
   const race=(c.race||'').toLowerCase().trim();
   c.specialAbilities=_phbRacialAbilities(race);
