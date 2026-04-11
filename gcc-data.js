@@ -1,4 +1,5 @@
-// gcc-data.js v1.1.0 — 2026-04-10
+// gcc-data.js v1.2.0 — 2026-04-10
+// v1.2.0: Schema v3 — multi-image sections (section.images array, section.layout)
 // v1.1.0: Add lore array, enriched session schema (v2 migration),
 //         system-aware labels (sessionLabel, xpLabel, LORE_TYPES)
 // Graycloak's Campaign Corner — core data layer
@@ -134,6 +135,21 @@ const GCC = (function() {
       if (!entity.lore) entity.lore = [];
       entity.schemaVersion = 2;
     }
+    if (entity.schemaVersion < 3) {
+      // v2→v3: multi-image sections (image string → images array)
+      if (entity.sessions) {
+        entity.sessions.forEach(s => {
+          (s.sections || []).forEach(sec => {
+            if (sec.images === undefined) {
+              sec.images = sec.image ? [{ src: sec.image, size: 'md' }] : [];
+              delete sec.image;
+            }
+            if (sec.layout === undefined) sec.layout = sec.images.length > 1 ? 'row' : 'float';
+          });
+        });
+      }
+      entity.schemaVersion = 3;
+    }
     return entity;
   }
 
@@ -142,7 +158,7 @@ const GCC = (function() {
     const list = load(KEYS.campaigns) || [];
     let dirty = false;
     list.forEach((c, i) => {
-      if (!c.schemaVersion || c.schemaVersion < 2) {
+      if (!c.schemaVersion || c.schemaVersion < 3) {
         list[i] = migrateEntity(c);
         dirty = true;
       }
