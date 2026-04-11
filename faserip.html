@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700;900&family=Bitter:wght@400;700&family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Cinzel:wght@500;700&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="gcc-header.css">
 <link rel="stylesheet" href="gcc-auth.css">
-<link rel="stylesheet" href="mp-dialog.css">
+<link rel="stylesheet" href="gcc-dialog.css">
 <style>
 /* ── FASERIP Theme Vars ── */
 :root {
@@ -300,7 +300,7 @@ body.view-mode .hdr-btn-edit-view{display:none}
 /* ── Print ── */
 @media print{
   .gcc-bar,.fas-hdr,.fas-ftr,.chargen-panel,.hdr-btn,
-  .list-add,.item-del,.item-info,.feat-btn,.mp-modal-overlay,.bio-toggle{display:none!important}
+  .list-add,.item-del,.item-info,.feat-btn,.gcc-dlg-overlay,.bio-toggle{display:none!important}
   .sheet-wrap{padding:0}
   .sheet{border:none;max-width:100%;box-shadow:none}
   .si{border-bottom-color:#999!important}
@@ -608,7 +608,7 @@ body.view-mode .hdr-btn-edit-view{display:none}
 
 <input type="file" id="file-import" accept=".json" style="display:none">
 
-<script src="mp-dialog.js"></script>
+<script src="gcc-dialog.js"></script>
 <script src="gcc-data.js"></script>
 <script src="gcc-header.js"></script>
 <script src="gcc-firebase-config.js"></script>

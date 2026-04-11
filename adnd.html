@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&family=Oswald:wght@400;600;700&family=Bitter:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="gcc-header.css">
 <link rel="stylesheet" href="gcc-auth.css">
-<link rel="stylesheet" href="mp-dialog.css">
+<link rel="stylesheet" href="gcc-dialog.css">
 <style>
 :root {
   --paper:#f0dca0;--paper-lt:#f8ecc0;--paper-dk:#e0c880;
@@ -729,7 +729,7 @@ tr.inv-nocarry td input{color:var(--ink-lt)}
 <script src="gcc-firebase-config.js"></script>
 <script src="gcc-auth.js"></script>
 <script src="gcc-sync.js"></script>
-<script src="mp-dialog.js"></script>
+<script src="gcc-dialog.js"></script>
 <script>
 const STORAGE_KEY=GCC.KEYS.add1eChars;
 const AUTOSAVE_KEY='gcc_add1e_autosave';
@@ -1768,16 +1768,16 @@ function loadChar(){
         const idx=+el.dataset.loadidx;
         const fresh=getAllChars();
         if(fresh[idx]){CHAR=JSON.parse(JSON.stringify(fresh[idx]));populateAll();}
-        document.querySelector('.mp-dlg-overlay')?.click();
+        document.querySelector('.gcc-dlg-overlay')?.click();
       });
     });
     list.querySelectorAll('[data-delidx]').forEach(el=>{
-      el.addEventListener('click',e=>{
+      el.addEventListener('click',async e=>{
         e.stopPropagation();
         const idx=+el.dataset.delidx;
         const fresh=getAllChars();
         const name=fresh[idx]?fresh[idx].characterName||'Unnamed':'?';
-        if(!confirm('Delete "'+name+'"?'))return;
+        if(!(await GCCDialog.confirm('Delete character','Delete "'+name+'"?',{okText:'Delete',danger:true})))return;
         fresh.splice(idx,1);
         localStorage.setItem(STORAGE_KEY,JSON.stringify(fresh));
         if(typeof GCCSync!=='undefined'&&GCCSync.notifySync)GCCSync.notifySync(STORAGE_KEY);

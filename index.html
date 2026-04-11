@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+SC:wght@700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="gcc-header.css">
 <link rel="stylesheet" href="gcc-auth.css">
+<link rel="stylesheet" href="gcc-dialog.css">
 <style>
 /* ── Theme: Slate & Ice (dark) ── */
 [data-gcc-theme="dark"] {
@@ -261,7 +262,6 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .dice-log-item .dl-total { color: var(--tx); font-weight: 700 }
 
 /* ── Character Edit Modal ── */
-.chars-modal-body { padding: 14px 18px; max-height: 70vh; overflow-y: auto; scrollbar-width: thin }
 .chars-picker-info { font-size: 11px; color: var(--tx3); margin-bottom: 10px }
 .chars-picker { display: flex; flex-direction: column; gap: 2px }
 .chars-picker-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--brd); border-radius: 4px; cursor: pointer; transition: all 0.12s; user-select: none }
@@ -288,49 +288,10 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .ftr { padding: 10px 16px; font-size: 10px; color: var(--tx3); border-top: 1px solid var(--brd); background: var(--bg-section); position: relative; z-index: 1 }
 .ftr-inner { max-width: 960px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px }
 
-/* ── Edit Campaign Modal ── */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 500; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto }
-.modal-overlay.open { display: flex }
-.modal { background: var(--bg-card); border: 1px solid var(--brd-lt); border-radius: 6px; box-shadow: var(--dd-shadow); width: 100%; max-width: 560px; position: relative }
-.modal-hdr { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 12px; border-bottom: 1px solid var(--brd) }
-.modal-title { font-family: var(--fd); font-size: 14px; font-weight: 700; color: var(--tx); letter-spacing: 1.5px }
-.modal-close { background: none; border: none; color: var(--tx3); font-size: 18px; cursor: pointer; padding: 2px 6px; line-height: 1 }
-.modal-close:hover { color: var(--tx) }
-.modal-body { padding: 16px 18px; max-height: 70vh; overflow-y: auto; scrollbar-width: thin }
-.modal-body::-webkit-scrollbar { width: 4px }
-.modal-body::-webkit-scrollbar-thumb { background: var(--brd-lt); border-radius: 2px }
-
-.mf-fieldset { border: 1px solid var(--brd); border-radius: 4px; padding: 12px 14px 10px; margin-bottom: 14px }
-.mf-legend { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 1.5px; padding: 0 6px }
-.mf-row { display: flex; gap: 10px; margin-bottom: 8px; align-items: flex-start }
-.mf-row:last-child { margin-bottom: 0 }
-.mf-field { flex: 1; min-width: 0 }
-.mf-field-sm { flex: 0 0 120px }
-.mf-field-xs { flex: 0 0 90px }
-.mf-label { display: block; font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 0.5px; margin-bottom: 3px }
-.mf-input, .mf-select, .mf-textarea { width: 100%; font-family: var(--fb); font-size: 13px; color: var(--tx); background: var(--bg2); border: 1px solid var(--brd); border-radius: 3px; padding: 5px 8px; outline: none; transition: border-color 0.12s }
-.mf-input:focus, .mf-select:focus, .mf-textarea:focus { border-color: var(--accent-dim) }
-.mf-select { cursor: pointer; appearance: auto }
-.mf-textarea { resize: vertical; min-height: 48px; line-height: 1.35 }
-.mf-checkbox-row { display: flex; align-items: center; gap: 6px; padding: 4px 0 }
-.mf-checkbox-row input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer }
-.mf-checkbox-row label { font-size: 12px; color: var(--tx2); cursor: pointer }
-
-/* Image upload area */
-.mf-img-area { display: flex; align-items: center; gap: 12px; padding: 4px 0 }
-.mf-img-preview { width: 64px; height: 64px; border-radius: 4px; border: 1px solid var(--brd); background: var(--bg2); object-fit: cover }
-.mf-img-placeholder { width: 64px; height: 64px; border-radius: 4px; border: 1px dashed var(--brd-lt); display: flex; align-items: center; justify-content: center; color: var(--tx3); font-size: 22px; background: var(--bg2) }
-.mf-img-btns { display: flex; flex-direction: column; gap: 4px }
-.mf-img-btn { font-size: 10px; font-family: var(--fb); font-weight: 700; color: var(--tx2); background: transparent; border: 1px solid var(--brd); border-radius: 2px; padding: 3px 10px; cursor: pointer; transition: all 0.12s }
-.mf-img-btn:hover { border-color: var(--tx3); color: var(--tx) }
-.mf-img-btn-rm { color: var(--red); border-color: rgba(192,48,48,0.2) }
-.mf-img-btn-rm:hover { border-color: var(--red) }
-
-.modal-footer { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--brd) }
-.mf-btn-save { padding: 6px 20px; font-size: 12px; font-family: var(--fb); font-weight: 700; background: var(--accent); color: var(--bg); border: none; border-radius: 3px; cursor: pointer; transition: all 0.12s }
-.mf-btn-save:hover { opacity: 0.9 }
-.mf-btn-cancel { padding: 6px 16px; font-size: 12px; font-family: var(--fb); font-weight: 700; background: transparent; color: var(--tx2); border: 1px solid var(--brd); border-radius: 3px; cursor: pointer; transition: all 0.12s }
-.mf-btn-cancel:hover { border-color: var(--tx3); color: var(--tx) }
+/* ── Edit Campaign Modal — uses gcc-dialog.css classes ── */
+/* Form-specific overrides (fieldsets, image area, checkbox) that live only on this page */
+.gcc-dlg-fieldset { border: 1px solid var(--brd); border-radius: 3px; padding: 8px 10px 6px; margin-bottom: 10px }
+.gcc-dlg-legend { font-family: var(--fsc); font-size: 9px; color: var(--tx3); letter-spacing: 1px; padding: 0 5px }
 
 /* ── Responsive ── */
 @media (max-width: 700px) {
@@ -340,10 +301,8 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   .cc-char-grid { grid-template-columns: repeat(2, 1fr); }
   .cc-details { grid-template-columns: 1fr }
   .jb-card { width: 180px }
-  .modal { max-width: 100% }
-  .mf-row { flex-direction: column; gap: 6px }
-  .mf-field-sm, .mf-field-xs { flex: 1 }
-  .modal-overlay { padding: 20px 8px }
+  .gcc-dlg-row { flex-direction: column; gap: 4px }
+  .gcc-dlg-field-sm, .gcc-dlg-field-xs { flex: 1 }
   .dice-tray { right: 10px; bottom: 70px; width: 240px }
   .dice-fab { bottom: 14px; right: 14px; width: 42px; height: 42px; font-size: 18px }
   .chars-item { flex-wrap: wrap }
@@ -433,133 +392,133 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 </div>
 
 <!-- Edit Campaign Modal -->
-<div class="modal-overlay" id="edit-modal">
-  <div class="modal">
-    <div class="modal-hdr">
-      <div class="modal-title">EDIT CAMPAIGN</div>
-      <button class="modal-close" id="edit-modal-close">✕</button>
+<div class="gcc-dlg-overlay" id="edit-modal">
+  <div class="gcc-dlg">
+    <div class="gcc-dlg-header">
+      <div class="gcc-dlg-title">Edit campaign</div>
+      <button class="gcc-dlg-close" id="edit-modal-close">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="gcc-dlg-body">
       <input type="hidden" id="ef-id">
 
-      <fieldset class="mf-fieldset">
-        <legend class="mf-legend">IDENTITY</legend>
-        <div class="mf-row">
-          <div class="mf-field"><label class="mf-label">CAMPAIGN NAME</label><input class="mf-input" id="ef-name"></div>
+      <fieldset class="gcc-dlg-fieldset">
+        <legend class="gcc-dlg-legend">Identity</legend>
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">Campaign name</label><input class="gcc-dlg-input" id="ef-name"></div>
         </div>
-        <div class="mf-row">
-          <div class="mf-field"><label class="mf-label">GAME SYSTEM</label><select class="mf-select" id="ef-system"></select></div>
-          <div class="mf-field-sm"><label class="mf-label">STATUS</label><select class="mf-select" id="ef-status">
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">Game system</label><select class="gcc-dlg-select" id="ef-system"></select></div>
+          <div class="gcc-dlg-field-sm"><label class="gcc-dlg-label">Status</label><select class="gcc-dlg-select" id="ef-status">
             <option value="active">Active</option><option value="hiatus">On Hiatus</option><option value="completed">Completed</option><option value="archived">Archived</option>
           </select></div>
         </div>
-        <div class="mf-checkbox-row"><input type="checkbox" id="ef-pinned"><label for="ef-pinned">★ Pin to top</label></div>
+        <div class="gcc-dlg-check"><input type="checkbox" id="ef-pinned"><label for="ef-pinned">★ Pin to top</label></div>
       </fieldset>
 
-      <fieldset class="mf-fieldset">
-        <legend class="mf-legend">SETTING & TONE</legend>
-        <div class="mf-row">
-          <div class="mf-field"><label class="mf-label">CAMPAIGN WORLD</label><input class="mf-input" id="ef-world" placeholder="e.g. Greyhawk, Earth-676"></div>
-          <div class="mf-field"><label class="mf-label">GENRE / TONE</label><input class="mf-input" id="ef-genre" placeholder="e.g. Dungeon Crawl, Bronze Age Superhero"></div>
+      <fieldset class="gcc-dlg-fieldset">
+        <legend class="gcc-dlg-legend">SETTING & TONE</legend>
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">Campaign world</label><input class="gcc-dlg-input" id="ef-world" placeholder="e.g. Greyhawk, Earth-676"></div>
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">Genre / tone</label><input class="gcc-dlg-input" id="ef-genre" placeholder="e.g. Dungeon Crawl, Bronze Age Superhero"></div>
         </div>
-        <div class="mf-row">
-          <div class="mf-field"><label class="mf-label">PITCH</label><input class="mf-input" id="ef-pitch" placeholder="One-line description"></div>
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">Pitch</label><input class="gcc-dlg-input" id="ef-pitch" placeholder="One-line description"></div>
         </div>
-        <div class="mf-row">
-          <div class="mf-field"><label class="mf-label">DESCRIPTION</label><textarea class="mf-textarea" id="ef-description" rows="3" placeholder="Campaign premise, current arc, setting details..."></textarea></div>
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">Description</label><textarea class="gcc-dlg-ta" id="ef-description" rows="3" placeholder="Campaign premise, current arc, setting details..."></textarea></div>
         </div>
       </fieldset>
 
-      <fieldset class="mf-fieldset">
-        <legend class="mf-legend">PEOPLE</legend>
-        <div class="mf-row">
-          <div class="mf-field"><label class="mf-label">GM / DM / JUDGE NAME</label><input class="mf-input" id="ef-gm"></div>
-          <div class="mf-field-xs"><label class="mf-label">TITLE</label><select class="mf-select" id="ef-gmTitle">
+      <fieldset class="gcc-dlg-fieldset">
+        <legend class="gcc-dlg-legend">People</legend>
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">GM / DM / Judge name</label><input class="gcc-dlg-input" id="ef-gm"></div>
+          <div class="gcc-dlg-field-xs"><label class="gcc-dlg-label">Title</label><select class="gcc-dlg-select" id="ef-gmTitle">
             <option value="GM">GM</option><option value="DM">DM</option><option value="Judge">Judge</option><option value="Referee">Referee</option><option value="Keeper">Keeper</option><option value="MC">MC</option>
           </select></div>
-          <div class="mf-field-xs"><label class="mf-label">PLAYERS</label><input class="mf-input" id="ef-players" type="number" min="0" max="20"></div>
+          <div class="gcc-dlg-field-xs"><label class="gcc-dlg-label">Players</label><input class="gcc-dlg-input" id="ef-players" type="number" min="0" max="20"></div>
         </div>
       </fieldset>
 
-      <fieldset class="mf-fieldset">
-        <legend class="mf-legend">SCHEDULE & PLATFORM</legend>
-        <div class="mf-row">
-          <div class="mf-field"><label class="mf-label">DATE STARTED</label><input class="mf-input" id="ef-startDate" type="date"></div>
-          <div class="mf-field"><label class="mf-label">NEXT SESSION</label><input class="mf-input" id="ef-nextSession" type="datetime-local"></div>
+      <fieldset class="gcc-dlg-fieldset">
+        <legend class="gcc-dlg-legend">SCHEDULE & PLATFORM</legend>
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">Date started</label><input class="gcc-dlg-input" id="ef-startDate" type="date"></div>
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">Next session</label><input class="gcc-dlg-input" id="ef-nextSession" type="datetime-local"></div>
         </div>
-        <div class="mf-row">
-          <div class="mf-field"><label class="mf-label">RECURRING SCHEDULE</label><input class="mf-input" id="ef-schedule" placeholder="e.g. Bi-weekly Fri 7–10:30pm CT"></div>
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">Recurring schedule</label><input class="gcc-dlg-input" id="ef-schedule" placeholder="e.g. Bi-weekly Fri 7–10:30pm CT"></div>
         </div>
-        <div class="mf-row">
-          <div class="mf-field-sm"><label class="mf-label">PLAY MODE</label><select class="mf-select" id="ef-playMode">
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field-sm"><label class="gcc-dlg-label">Play mode</label><select class="gcc-dlg-select" id="ef-playMode">
             <option value="online">Online</option><option value="in-person">In-Person</option><option value="hybrid">Hybrid</option>
           </select></div>
-          <div class="mf-field-sm"><label class="mf-label">VTT PLATFORM</label><select class="mf-select" id="ef-vttPlatform">
+          <div class="gcc-dlg-field-sm"><label class="gcc-dlg-label">VTT platform</label><select class="gcc-dlg-select" id="ef-vttPlatform">
             <option value="">None</option><option value="foundry">Foundry</option><option value="roll20">Roll20</option><option value="fg">Fantasy Grounds</option><option value="other">Other</option>
           </select></div>
         </div>
-        <div class="mf-row">
-          <div class="mf-field"><label class="mf-label">VTT DISPLAY NAME</label><input class="mf-input" id="ef-vttLabel" placeholder="e.g. Foundry, Roll20"></div>
-          <div class="mf-field"><label class="mf-label">VTT URL</label><input class="mf-input" id="ef-vttUrl" placeholder="https://..."></div>
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">VTT display name</label><input class="gcc-dlg-input" id="ef-vttLabel" placeholder="e.g. Foundry, Roll20"></div>
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">VTT URL</label><input class="gcc-dlg-input" id="ef-vttUrl" placeholder="https://..."></div>
         </div>
       </fieldset>
 
-      <fieldset class="mf-fieldset">
-        <legend class="mf-legend">RULES</legend>
-        <div class="mf-row">
-          <div class="mf-field"><label class="mf-label">XP / ADVANCEMENT METHOD</label><input class="mf-input" id="ef-xpMethod" placeholder="e.g. Karma, Gold=XP, Milestone"></div>
+      <fieldset class="gcc-dlg-fieldset">
+        <legend class="gcc-dlg-legend">Rules</legend>
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">XP / advancement method</label><input class="gcc-dlg-input" id="ef-xpMethod" placeholder="e.g. Karma, Gold=XP, Milestone"></div>
         </div>
-        <div class="mf-row">
-          <div class="mf-field"><label class="mf-label">RULEBOOKS / SOURCES</label><input class="mf-input" id="ef-rulebooks" placeholder="e.g. PHB, DMG, UA, Dragon #68–120"></div>
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">Rulebooks / sources</label><input class="gcc-dlg-input" id="ef-rulebooks" placeholder="e.g. PHB, DMG, UA, Dragon #68–120"></div>
         </div>
-        <div class="mf-row">
-          <div class="mf-field"><label class="mf-label">HOUSE RULES</label><textarea class="mf-textarea" id="ef-houseRules" rows="2" placeholder="Freeform notes on house rules"></textarea></div>
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field"><label class="gcc-dlg-label">House rules</label><textarea class="gcc-dlg-ta" id="ef-houseRules" rows="2" placeholder="Freeform notes on house rules"></textarea></div>
         </div>
       </fieldset>
 
-      <fieldset class="mf-fieldset">
-        <legend class="mf-legend">IMAGE</legend>
-        <div class="mf-img-area">
+      <fieldset class="gcc-dlg-fieldset">
+        <legend class="gcc-dlg-legend">Image</legend>
+        <div class="gcc-dlg-img-area">
           <div id="ef-img-wrap"></div>
-          <div class="mf-img-btns">
-            <button class="mf-img-btn" id="ef-img-upload">Upload</button>
-            <button class="mf-img-btn" id="ef-img-url">Paste URL</button>
-            <button class="mf-img-btn mf-img-btn-rm" id="ef-img-remove" style="display:none">Remove</button>
+          <div class="gcc-dlg-img-btns">
+            <button class="gcc-dlg-img-btn" id="ef-img-upload">Upload</button>
+            <button class="gcc-dlg-img-btn" id="ef-img-url">Paste URL</button>
+            <button class="gcc-dlg-img-btn danger" id="ef-img-remove" style="display:none">Remove</button>
           </div>
           <input type="file" id="ef-img-file" accept="image/*" style="display:none">
         </div>
       </fieldset>
 
-      <fieldset class="mf-fieldset">
-        <legend class="mf-legend">NOTES</legend>
-        <div class="mf-row">
-          <div class="mf-field"><textarea class="mf-textarea" id="ef-notes" rows="3" placeholder="Campaign notes, links, reminders..."></textarea></div>
+      <fieldset class="gcc-dlg-fieldset">
+        <legend class="gcc-dlg-legend">Notes</legend>
+        <div class="gcc-dlg-row">
+          <div class="gcc-dlg-field"><textarea class="gcc-dlg-ta" id="ef-notes" rows="3" placeholder="Campaign notes, links, reminders..."></textarea></div>
         </div>
       </fieldset>
 
     </div>
-    <div class="modal-footer">
-      <button class="mf-btn-cancel" id="ef-cancel">Cancel</button>
-      <button class="mf-btn-save" id="ef-save">Save</button>
+    <div class="gcc-dlg-footer">
+      <button class="gcc-dlg-btn" id="ef-cancel">Cancel</button>
+      <button class="gcc-dlg-btn primary" id="ef-save">Save</button>
     </div>
   </div>
 </div>
 
 <!-- Character Edit Modal -->
-<div class="modal-overlay" id="chars-modal">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-hdr">
-      <div class="modal-title" id="chars-modal-title">EDIT TEAM</div>
-      <button class="modal-close" id="chars-modal-close">✕</button>
+<div class="gcc-dlg-overlay" id="chars-modal">
+  <div class="gcc-dlg" style="max-width:480px">
+    <div class="gcc-dlg-header">
+      <div class="gcc-dlg-title" id="chars-modal-title">Edit team</div>
+      <button class="gcc-dlg-close" id="chars-modal-close">✕</button>
     </div>
-    <div class="chars-modal-body">
+    <div class="gcc-dlg-body">
       <input type="hidden" id="cf-camp-id">
       <div class="chars-picker-info" id="chars-picker-info"></div>
       <div class="chars-picker" id="chars-picker"></div>
     </div>
-    <div class="modal-footer">
-      <button class="mf-btn-cancel" id="cf-cancel">Cancel</button>
-      <button class="mf-btn-save" id="cf-save">Save</button>
+    <div class="gcc-dlg-footer">
+      <button class="gcc-dlg-btn" id="cf-cancel">Cancel</button>
+      <button class="gcc-dlg-btn primary" id="cf-save">Save</button>
     </div>
   </div>
 </div>
@@ -591,20 +550,20 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 </div>
 
 <!-- Session Modal -->
-<div class="modal-overlay" id="session-modal">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-hdr">
-      <div class="modal-title" id="session-modal-title">NEW SESSION</div>
-      <button class="modal-close" id="session-modal-close">✕</button>
+<div class="gcc-dlg-overlay" id="session-modal">
+  <div class="gcc-dlg" style="max-width:480px">
+    <div class="gcc-dlg-header">
+      <div class="gcc-dlg-title" id="session-modal-title">New session</div>
+      <button class="gcc-dlg-close" id="session-modal-close">✕</button>
     </div>
-    <div class="modal-body">
-      <div class="mf-row"><div class="mf-field"><label class="mf-label">DATE</label><input class="mf-input" id="sm-date" type="date"></div><div class="mf-field-xs"><label class="mf-label">XP / KARMA</label><input class="mf-input" id="sm-xp" type="number" placeholder="0"></div></div>
-      <div class="mf-row"><div class="mf-field"><label class="mf-label">TITLE (optional)</label><input class="mf-input" id="sm-title" placeholder="e.g. The Warehouse Ambush"></div></div>
-      <div class="mf-row"><div class="mf-field"><label class="mf-label">SUMMARY</label><textarea class="mf-textarea" id="sm-text" rows="3" placeholder="What happened this session..."></textarea></div></div>
+    <div class="gcc-dlg-body">
+      <div class="gcc-dlg-row"><div class="gcc-dlg-field"><label class="gcc-dlg-label">Date</label><input class="gcc-dlg-input" id="sm-date" type="date"></div><div class="gcc-dlg-field-xs"><label class="gcc-dlg-label">XP / Karma</label><input class="gcc-dlg-input" id="sm-xp" type="number" placeholder="0"></div></div>
+      <div class="gcc-dlg-row"><div class="gcc-dlg-field"><label class="gcc-dlg-label">Title (optional)</label><input class="gcc-dlg-input" id="sm-title" placeholder="e.g. The Warehouse Ambush"></div></div>
+      <div class="gcc-dlg-row"><div class="gcc-dlg-field"><label class="gcc-dlg-label">Summary</label><textarea class="gcc-dlg-ta" id="sm-text" rows="3" placeholder="What happened this session..."></textarea></div></div>
     </div>
-    <div class="modal-footer">
-      <button class="mf-btn-cancel" id="sm-cancel">Cancel</button>
-      <button class="mf-btn-save" id="sm-save">Save</button>
+    <div class="gcc-dlg-footer">
+      <button class="gcc-dlg-btn" id="sm-cancel">Cancel</button>
+      <button class="gcc-dlg-btn primary" id="sm-save">Save</button>
     </div>
   </div>
 </div>
@@ -616,6 +575,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
   </div>
 </div>
 
+<script src="gcc-dialog.js"></script>
 <script src="gcc-data.js"></script>
 <script src="gcc-images.js"></script>
 <script src="gcc-header.js"></script>
@@ -897,9 +857,10 @@ document.getElementById('activity-list').addEventListener('click', (e) => {
 });
 
 // Activity clear all — delegate since element is dynamic
-document.querySelector('.activity-wrap').addEventListener('click', (e) => {
+document.querySelector('.activity-wrap').addEventListener('click', async (e) => {
   if (!e.target.closest('.activity-clear')) return;
-  if (!confirm('Clear all activity history?')) return;
+  const ok = await GCCDialog.confirm('Clear activity', 'Clear all activity history?', {okText:'Clear', danger:true});
+  if (!ok) return;
   GCC.save(GCC.KEYS.activity, []);
   renderActivity();
 });
@@ -973,10 +934,10 @@ function renderImagePreview() {
   const wrap = document.getElementById('ef-img-wrap');
   const rmBtn = document.getElementById('ef-img-remove');
   if (editImageData) {
-    wrap.innerHTML = `<img class="mf-img-preview" src="${ESC(editImageData)}" alt="">`;
+    wrap.innerHTML = `<img class="gcc-dlg-img-preview" src="${ESC(editImageData)}" alt="">`;
     rmBtn.style.display = '';
   } else {
-    wrap.innerHTML = '<div class="mf-img-placeholder">🖼</div>';
+    wrap.innerHTML = '<div class="gcc-dlg-img-ph">🖼</div>';
     rmBtn.style.display = 'none';
   }
 }
@@ -1064,7 +1025,7 @@ document.getElementById('edit-modal-close').addEventListener('click', closeEditM
 editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEditModal(); });
 
 // ── Wire edit button in campaign grid ──
-document.getElementById('campaign-grid').addEventListener('click', (e) => {
+document.getElementById('campaign-grid').addEventListener('click', async (e) => {
   const summary = e.target.closest('.cc-summary') || e.target.closest('.cc-side-img');
   if (summary) {
     const card = summary.closest('.campaign-card');
@@ -1080,7 +1041,9 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
   if (delBtn) {
     const id = delBtn.dataset.campId;
     const camp = GCC.loadCampaigns().find(c => c.id === id);
-    if (!camp || !confirm('Delete campaign "'+camp.name+'"? This cannot be undone.')) return;
+    if (!camp) return;
+    const ok = await GCCDialog.confirm('Delete campaign', 'Delete "'+camp.name+'"? This cannot be undone.', {okText:'Delete', danger:true});
+    if (!ok) return;
     GCC.deleteCampaign(id);
     renderCampaigns();
     return;
@@ -1097,7 +1060,7 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
     const campId = leaveBtn.dataset.rmCamp;
     const charName = leaveBtn.dataset.rmChar;
     const rmId = leaveBtn.dataset.rmId;
-    if (!confirm('Remove "' + charName + '" from this campaign?')) return;
+    if (!(await GCCDialog.confirm('Remove character', 'Remove "' + charName + '" from this campaign?', {okText:'Remove', danger:true}))) return;
     const camp = GCC.getCampaign(campId);
     if (!camp) return;
     const chars = (camp.characters || []).filter(ch =>
@@ -1138,7 +1101,7 @@ function openCharsModal(campId) {
   charsCampId = campId;
   charsCampSystem = camp.system || 'mp';
   document.getElementById('cf-camp-id').value = campId;
-  document.getElementById('chars-modal-title').textContent = 'EDIT ' + GCC.teamLabel(charsCampSystem).toUpperCase();
+  document.getElementById('chars-modal-title').textContent = 'Edit ' + GCC.teamLabel(charsCampSystem);
 
   // Build selected set from current campaign characters
   // Resolve against saved chars to handle stale _ids from previous imports
@@ -1245,11 +1208,11 @@ function renderCharsPicker() {
 
   // Delete saved character permanently
   picker.querySelectorAll('.cp-del-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const idx = parseInt(btn.dataset.cpDel);
       const sc = saved[idx];
-      const ok = confirm('Permanently delete "' + sc.name + '"? This cannot be undone.');
+      const ok = await GCCDialog.confirm('Delete character', 'Permanently delete "' + sc.name + '"? This cannot be undone.', {okText:'Delete', danger:true});
       if (!ok) return;
       const storageKey = sc.storageKey;
       if (!storageKey) return;
@@ -1393,7 +1356,7 @@ let sesCampId = '';
 
 function openSessionModal(campId) {
   sesCampId = campId;
-  document.getElementById('session-modal-title').textContent = 'NEW SESSION';
+  document.getElementById('session-modal-title').textContent = 'New session';
   document.getElementById('sm-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('sm-title').value = '';
   document.getElementById('sm-text').value = '';
