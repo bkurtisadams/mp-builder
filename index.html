@@ -984,17 +984,14 @@ function resizeImageToThumb(file, cb) {
   reader.onload = (e) => {
     const img = new Image();
     img.onload = () => {
-      const tw = 120, th = 160;
       const canvas = document.createElement('canvas');
-      canvas.width = tw; canvas.height = th;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#2a2a2e';
-      ctx.fillRect(0, 0, tw, th);
       let w = img.width, h = img.height;
-      if (w > tw) { h *= tw / w; w = tw; }
-      if (h > th) { w *= th / h; h = th; }
-      ctx.drawImage(img, (tw - w) / 2, (th - h) / 2, w, h);
-      cb(canvas.toDataURL('image/jpeg', 0.7));
+      const maxDim = 1600;
+      if (w > maxDim || h > maxDim) { const r = Math.min(maxDim / w, maxDim / h); w = Math.round(w * r); h = Math.round(h * r); }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      cb(canvas.toDataURL('image/jpeg', 0.85));
     };
     img.src = e.target.result;
   };
