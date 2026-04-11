@@ -135,7 +135,7 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-status-dot.archived { background: var(--brd) }
 .cc-status-label { color: var(--tx3); white-space: nowrap }
 .cc-chevron { color: var(--tx3); font-size: 10px; transition: transform 0.2s; flex-shrink: 0 }
-.campaign-card.open .cc-chevron { transform: rotate(180deg) }
+.cc-chevron { display: none }
 
 .cc-info { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; flex-wrap: wrap }
 .cc-system-badge { display: inline-block; font-family: var(--fsc); font-size: 8px; font-weight: 700; padding: 1px 6px; border-radius: 2px; letter-spacing: 1px; white-space: nowrap; flex-shrink: 0 }
@@ -146,9 +146,9 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 .cc-meta2 span { white-space: nowrap }
 .cc-next { color: var(--accent); font-weight: 700 }
 
-.cc-expand { display: none; border-top: 1px solid var(--brd); background: var(--bg-expand); padding: 14px 18px 14px }
-.campaign-card.open .cc-expand { display: block }
-.campaign-card.open { grid-column: 1 / -1 }
+.cc-expand { border-top: 1px solid var(--brd); background: var(--bg-expand); padding: 6px 12px }
+.cc-bottom { display: flex; gap: 6px; align-items: center }
+
 
 .cc-details { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 24px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--brd) }
 .cc-detail-row { display: flex; gap: 6px; padding: 2px 0; font-size: 11px; align-items: baseline }
@@ -335,7 +335,6 @@ body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-i
 /* ── Responsive ── */
 @media (max-width: 700px) {
   .campaign-grid { grid-template-columns: 1fr }
-  .campaign-card.open { grid-column: 1 }
   .main { padding: 10px 10px 30px }
   .cc-grid { grid-template-columns: 1fr; gap: 12px }
   .cc-char-grid { grid-template-columns: repeat(2, 1fr); }
@@ -849,32 +848,6 @@ function renderCampaigns() {
       </div>
       </div>
       <div class="cc-expand">
-        <a class="cc-sessions-btn" href="campaign-detail.html?id=${ESC(c.id)}">Campaign Details ▶</a>
-        <div class="cc-details">
-          ${c.pitch?'<div class="cc-pitch">"'+ESC(c.pitch)+'"</div>':''}
-          ${dr('WORLD',c.world)}
-          ${dr('GENRE',c.genre)}
-          ${dr(gml.toUpperCase(),c.gm)}
-          ${dr('SCHEDULE',c.schedule)}
-          ${dr('PLAY MODE',pm+(c.vttLabel?' ('+c.vttLabel+')':''))}
-          ${dr('XP METHOD',c.xpMethod)}
-          ${dr('RULEBOOKS',c.rulebooks)}
-          ${dr('HOUSE RULES',c.houseRules)}
-          ${dr('STARTED',formatDateYear(c.startDate||c.created))}
-        </div>
-        <div class="cc-desc-section">
-          <div class="cc-col-title">DESCRIPTION</div>
-          <textarea class="cc-desc-area" data-desc-camp="${ESC(c.id)}" placeholder="Campaign premise, current arc, setting details...">${ESC(c.description||'')}</textarea>
-        </div>
-        <div class="cc-col-title">${ESC(GCC.teamLabel(c.system).toUpperCase())}</div>
-        <div class="cc-char-grid">
-          ${charsHtml||'<div class="cc-char-empty">No characters yet</div>'}
-        </div>
-        <div class="cc-notes-section">
-          <div class="cc-col-title">DM NOTES</div>
-          <textarea class="cc-notes-area" data-notes-camp="${ESC(c.id)}" placeholder="Private notes, reminders, plot hooks...">${ESC(c.notes||'')}</textarea>
-        </div>
-        ${vttHtml}
         <div class="cc-bottom">
           <button class="cc-btn" data-action="edit-camp" data-camp-id="${ESC(c.id)}">Edit</button>
           <button class="cc-btn" data-action="edit-chars" data-camp-id="${ESC(c.id)}">Edit ${ESC(GCC.teamLabel(c.system))}</button>
@@ -885,14 +858,6 @@ function renderCampaigns() {
     </div>`;
   }).join('');
 
-  // Restore persisted open card
-  try {
-    const openId = localStorage.getItem('gcc-open-card');
-    if (openId) {
-      const card = grid.querySelector(`[data-camp-id="${openId}"]`);
-      if (card) card.classList.add('open');
-    }
-  } catch(e) {}
 }
 
 // ── Activity ──
@@ -1081,14 +1046,8 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
   const summary = e.target.closest('.cc-summary') || e.target.closest('.cc-side-img');
   if (summary) {
     const card = summary.closest('.campaign-card');
-    document.querySelectorAll('.campaign-card.open').forEach(c => { if (c !== card) c.classList.remove('open'); });
-    card.classList.toggle('open');
     const campId = card.dataset.campId;
-    if (card.classList.contains('open')) {
-      try { localStorage.setItem('gcc-open-card', campId); } catch(e) {}
-    } else {
-      try { localStorage.removeItem('gcc-open-card'); } catch(e) {}
-    }
+    window.location.href = 'campaign-detail.html?id=' + encodeURIComponent(campId);
     return;
   }
   const editBtn = e.target.closest('[data-action="edit-camp"]');
@@ -1123,18 +1082,9 @@ document.getElementById('campaign-grid').addEventListener('click', (e) => {
       rmId ? ch._id !== rmId : ch.name !== charName
     );
     GCC.updateCampaign(campId, { characters: chars, players: chars.length });
-    try { localStorage.setItem('gcc-open-card', campId); } catch(e) {}
     renderCampaigns();
     return;
   }
-});
-
-// Auto-save description and notes
-document.getElementById('campaign-grid').addEventListener('input', e => {
-  const descArea = e.target.closest('[data-desc-camp]');
-  if (descArea) { GCC.updateCampaign(descArea.dataset.descCamp, { description: descArea.value }); }
-  const notesArea = e.target.closest('[data-notes-camp]');
-  if (notesArea) { GCC.updateCampaign(notesArea.dataset.notesCamp, { notes: notesArea.value }); }
 });
 
 document.getElementById('btn-new-campaign').addEventListener('click', () => {
@@ -1446,7 +1396,6 @@ document.getElementById('sm-save').addEventListener('click', () => {
   const label = title || text || ('Session ' + camp.session);
   GCC.logActivity({ campaign: sesCampId, system: camp.system, text: camp.name + ' — ' + label });
   closeSessionModal();
-  try { localStorage.setItem('gcc-open-card', sesCampId); } catch(e) {}
   renderCampaigns(); renderActivity();
 });
 document.getElementById('sm-cancel').addEventListener('click', closeSessionModal);
