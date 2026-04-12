@@ -146,17 +146,38 @@ const GCCBackup = (function() {
       req.onerror = () => resolve(0);
       req.onsuccess = e => {
         const db = e.target.result;
-        const tx = db.transaction(storeName, 'readwrite');
-        const store = tx.objectStore(storeName);
-        let count = 0;
-        Object.keys(imageMap).forEach(key => {
-          store.put({ key: key, data: imageMap[key] });
-          count++;
-        });
-        tx.oncomplete = () => resolve(count);
-        tx.onerror = () => resolve(count);
+        if (!db.objectStoreNames.contains(storeName)) {
+          // DB exists but store is missing — need a version bump to create it
+          db.close();
+          const ver = db.version + 1;
+          const req2 = indexedDB.open(dbName, ver);
+          req2.onupgradeneeded = e2 => {
+            const db2 = e2.target.result;
+            if (!db2.objectStoreNames.contains(storeName)) {
+              db2.createObjectStore(storeName, { keyPath: 'key' });
+            }
+          };
+          req2.onerror = () => resolve(0);
+          req2.onsuccess = e2 => {
+            writeImages(e2.target.result, storeName, imageMap, resolve);
+          };
+          return;
+        }
+        writeImages(db, storeName, imageMap, resolve);
       };
     });
+  }
+
+  function writeImages(db, storeName, imageMap, resolve) {
+    const tx = db.transaction(storeName, 'readwrite');
+    const store = tx.objectStore(storeName);
+    let count = 0;
+    Object.keys(imageMap).forEach(key => {
+      store.put({ key: key, data: imageMap[key] });
+      count++;
+    });
+    tx.oncomplete = () => resolve(count);
+    tx.onerror = () => resolve(count);
   }
 
   // ── Stats (for display in settings dialog) ──
