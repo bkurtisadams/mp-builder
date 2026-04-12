@@ -1408,13 +1408,13 @@ window.addEventListener('gcc-sync-ready', () => {
   banner.innerHTML = '<div class="invite-banner"><div class="invite-banner-title">CAMPAIGN INVITE</div><div class="invite-banner-sub">Looking up invite...</div></div>';
 
   async function processInvite() {
-    // Wait for Firebase to be ready
-    const waitForAuth = () => new Promise(resolve => {
-      if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth()) {
+    // Wait for Firebase SDK + Firestore to be ready
+    const waitForSdk = () => new Promise(resolve => {
+      if (typeof firebase !== 'undefined' && firebase.auth && firebase.firestore) {
         resolve();
       } else {
         const check = setInterval(() => {
-          if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth()) {
+          if (typeof firebase !== 'undefined' && firebase.auth && firebase.firestore) {
             clearInterval(check);
             resolve();
           }
@@ -1422,23 +1422,16 @@ window.addEventListener('gcc-sync-ready', () => {
         setTimeout(() => { clearInterval(check); resolve(); }, 5000);
       }
     });
-    await waitForAuth();
+    await waitForSdk();
 
-    // Also wait for Firestore
-    const waitForDb = () => new Promise(resolve => {
-      if (typeof firebase !== 'undefined' && firebase.firestore) {
+    // Wait for auth state to actually resolve (persisted session restore)
+    await new Promise(resolve => {
+      const unsub = firebase.auth().onAuthStateChanged(() => {
+        unsub();
         resolve();
-      } else {
-        const check = setInterval(() => {
-          if (typeof firebase !== 'undefined' && firebase.firestore) {
-            clearInterval(check);
-            resolve();
-          }
-        }, 200);
-        setTimeout(() => { clearInterval(check); resolve(); }, 5000);
-      }
+      });
+      setTimeout(resolve, 5000);
     });
-    await waitForDb();
 
     const invite = await GCCInvite.lookupInvite(inviteCode);
     if (!invite) {
@@ -1460,7 +1453,7 @@ window.addEventListener('gcc-sync-ready', () => {
         GCCAuth.showModal('register');
       });
       // Re-check after auth change
-      GCCAuth.onAuthChange(u => { if (u) joinWithCode(invite); });
+      GCCAuth.onAuthChange(u => { if (u && !banner._joined) { banner._joined = true; joinWithCode(invite); } });
       return;
     }
 
