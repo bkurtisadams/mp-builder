@@ -323,13 +323,16 @@ const GCCSync = (function() {
 
   async function pullCloudData() {
     if (!_db || !_uid) return;
-    console.log('[GCCSync] Pulling missing keys from cloud...');
+    console.log('[GCCSync] Pulling from cloud (missing or corrupt keys)...');
     let count = 0;
     for (const key of ALL_SYNC_KEYS) {
       try {
-        // Only pull from cloud if localStorage has no data for this key
         const local = localStorage.getItem(key);
-        if (local !== null) continue;
+        // Skip if local data exists and is valid JSON
+        if (local !== null) {
+          try { JSON.parse(local); continue; }
+          catch(e) { console.warn('[GCCSync] Corrupt local data for', key, '— will overwrite from cloud'); }
+        }
         const val = await cloudLoad(key);
         if (val !== undefined) {
           if (isListKey(key) && Array.isArray(val)) {
