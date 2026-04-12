@@ -1,4 +1,4 @@
-// gcc-backup.js v1.0.0 — 2026-04-12
+// gcc-backup.js v1.1.0 — 2026-04-12
 // Full data export/import for Graycloak's Campaign Corner
 // Captures: all localStorage sync keys + IndexedDB images
 // Requires: gcc-data.js, gcc-images.js, gcc-dialog.js
@@ -27,21 +27,22 @@ const GCCBackup = (function() {
   async function getAllImages() {
     const dbName = 'gcc-images';
     const storeName = 'images';
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const req = indexedDB.open(dbName, 1);
       req.onerror = () => resolve({});
       req.onsuccess = e => {
         const db = e.target.result;
-        if (!db.objectStoreNames.contains(storeName)) { resolve({}); return; }
+        if (!db.objectStoreNames.contains(storeName)) { db.close(); resolve({}); return; }
         const tx = db.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
         const getAll = store.getAll();
         getAll.onsuccess = () => {
           const map = {};
           (getAll.result || []).forEach(row => { map[row.key] = row.data; });
+          db.close();
           resolve(map);
         };
-        getAll.onerror = () => resolve({});
+        getAll.onerror = () => { db.close(); resolve({}); };
       };
     });
   }
@@ -102,6 +103,7 @@ const GCCBackup = (function() {
   }
 
   async function importAll(file) {
+    console.log('[GCCBackup] Starting import...');
     const backup = await readFile(file);
 
     if (!backup._gccBackup) {
@@ -117,67 +119,25 @@ const GCCBackup = (function() {
         keyCount++;
       });
     }
+    console.log('[GCCBackup] Restored', keyCount, 'localStorage keys');
 
-    // Restore IndexedDB images
+    // Restore IndexedDB images via GCCImages.put (reuses its connection)
     let imgCount = 0;
-    if (backup.images && Object.keys(backup.images).length > 0) {
-      imgCount = await restoreImages(backup.images);
-    }
-
-    // Trigger cloud sync if available
-    if (typeof GCCSync !== 'undefined' && GCCSync.pushAll) {
-      try { await GCCSync.pushAll(); } catch(e) {}
+    if (backup.images) {
+      const imgKeys = Object.keys(backup.images);
+      console.log('[GCCBackup] Restoring', imgKeys.length, 'images...');
+      for (const key of imgKeys) {
+        try {
+          await GCCImages.put(key, backup.images[key]);
+          imgCount++;
+        } catch(e) {
+          console.warn('[GCCBackup] Image restore failed for', key, e);
+        }
+      }
+      console.log('[GCCBackup] Restored', imgCount, 'images');
     }
 
     return { ok: true, keys: keyCount, images: imgCount, created: backup.created };
-  }
-
-  async function restoreImages(imageMap) {
-    const dbName = 'gcc-images';
-    const storeName = 'images';
-    return new Promise((resolve) => {
-      const req = indexedDB.open(dbName, 1);
-      req.onupgradeneeded = e => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains(storeName)) {
-          db.createObjectStore(storeName, { keyPath: 'key' });
-        }
-      };
-      req.onerror = () => resolve(0);
-      req.onsuccess = e => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains(storeName)) {
-          // DB exists but store is missing — need a version bump to create it
-          db.close();
-          const ver = db.version + 1;
-          const req2 = indexedDB.open(dbName, ver);
-          req2.onupgradeneeded = e2 => {
-            const db2 = e2.target.result;
-            if (!db2.objectStoreNames.contains(storeName)) {
-              db2.createObjectStore(storeName, { keyPath: 'key' });
-            }
-          };
-          req2.onerror = () => resolve(0);
-          req2.onsuccess = e2 => {
-            writeImages(e2.target.result, storeName, imageMap, resolve);
-          };
-          return;
-        }
-        writeImages(db, storeName, imageMap, resolve);
-      };
-    });
-  }
-
-  function writeImages(db, storeName, imageMap, resolve) {
-    const tx = db.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    let count = 0;
-    Object.keys(imageMap).forEach(key => {
-      store.put({ key: key, data: imageMap[key] });
-      count++;
-    });
-    tx.oncomplete = () => resolve(count);
-    tx.onerror = () => resolve(count);
   }
 
   // ── Stats (for display in settings dialog) ──
@@ -220,14 +180,6 @@ const GCCBackup = (function() {
 
   async function showSettingsDialog() {
     const stats = await getStats();
-    const overlay = document.getElementById('gcc-dlg-overlay');
-    const dlg = document.getElementById('gcc-dlg');
-    const titleEl = document.getElementById('gcc-dlg-title');
-    const body = document.getElementById('gcc-dlg-body');
-    const footer = document.getElementById('gcc-dlg-footer');
-
-    titleEl.innerHTML = '⚙ Settings &amp; Backup';
-    dlg.classList.add('wide');
 
     const charCounts = [];
     try {
@@ -244,6 +196,31 @@ const GCCBackup = (function() {
     } catch(e) {}
 
     const campCount = (JSON.parse(localStorage.getItem('gcc-campaigns') || '[]')).length;
+
+    // Build a standalone overlay so we don't conflict with gcc-dlg
+    let el = document.getElementById('gcc-bk-overlay');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'gcc-bk-overlay';
+      el.className = 'gcc-dlg-overlay';
+      el.innerHTML =
+        '<div class="gcc-dlg wide" id="gcc-bk-dlg">' +
+          '<div class="gcc-dlg-header">' +
+            '<span class="gcc-dlg-title">⚙ Settings &amp; Backup</span>' +
+            '<button class="gcc-dlg-close" id="gcc-bk-close">&times;</button>' +
+          '</div>' +
+          '<div class="gcc-dlg-body" id="gcc-bk-body"></div>' +
+          '<div class="gcc-dlg-footer" id="gcc-bk-footer"></div>' +
+        '</div>';
+      document.body.appendChild(el);
+
+      // Close on overlay click or X
+      el.addEventListener('click', (e) => { if (e.target === el) closeBkDialog(); });
+      document.getElementById('gcc-bk-close').addEventListener('click', closeBkDialog);
+    }
+
+    const body = document.getElementById('gcc-bk-body');
+    const footer = document.getElementById('gcc-bk-footer');
 
     body.innerHTML =
       '<div style="margin-bottom:16px">' +
@@ -263,7 +240,7 @@ const GCCBackup = (function() {
       '</div>' +
       '<div>' +
         '<div class="gcc-bk-section-title">IMPORT BACKUP</div>' +
-        '<p class="gcc-bk-desc">Restore from a previously exported backup file. This will merge with existing data.</p>' +
+        '<p class="gcc-bk-desc">Restore from a previously exported backup file. This will overwrite existing data for the same keys.</p>' +
         '<label class="gcc-dlg-btn" id="gcc-bk-import-label" style="cursor:pointer">⬆ Import Backup File' +
           '<input type="file" accept=".json" id="gcc-bk-import-file" style="display:none">' +
         '</label>' +
@@ -274,7 +251,7 @@ const GCCBackup = (function() {
     const btnClose = document.createElement('button');
     btnClose.className = 'gcc-dlg-btn';
     btnClose.textContent = 'Close';
-    btnClose.onclick = () => { overlay.classList.remove('open'); dlg.classList.remove('wide'); };
+    btnClose.onclick = closeBkDialog;
     footer.appendChild(btnClose);
 
     // Wire export
@@ -298,9 +275,9 @@ const GCCBackup = (function() {
     document.getElementById('gcc-bk-import-file').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      if (!window.confirm('Import data from "' + file.name + '"?\n\nThis will overwrite any existing data for the same keys. Make sure you have a current backup first.')) return;
       const msgEl = document.getElementById('gcc-bk-import-msg');
-      msgEl.innerHTML = '<span style="color:var(--tx2)">Importing...</span>';
+      msgEl.innerHTML = '<span style="color:var(--tx2)">Reading file...</span>';
+
       try {
         const result = await importAll(file);
         if (result.ok) {
@@ -308,14 +285,22 @@ const GCCBackup = (function() {
             '<span style="color:var(--green,#2a8a3a)"> ✓ Restored ' + result.keys + ' data keys, ' + result.images + ' images. Reloading...</span>';
           setTimeout(() => window.location.reload(), 1500);
         } else {
-          msgEl.innerHTML = '<span style="color:var(--red,#cc3333)"> ✗ ' + GCCBackup._esc(result.reason) + '</span>';
+          msgEl.innerHTML = '<span style="color:var(--red,#cc3333)"> ✗ ' + _esc(result.reason) + '</span>';
         }
       } catch(err) {
-        msgEl.innerHTML = '<span style="color:var(--red,#cc3333)"> ✗ ' + GCCBackup._esc(err.message || 'Import failed') + '</span>';
+        console.error('[GCCBackup] Import error:', err);
+        msgEl.innerHTML = '<span style="color:var(--red,#cc3333)"> ✗ ' + _esc(err.message || 'Import failed') + '</span>';
       }
+      // Reset file input so same file can be re-selected
+      e.target.value = '';
     });
 
-    overlay.classList.add('open');
+    el.classList.add('open');
+  }
+
+  function closeBkDialog() {
+    const el = document.getElementById('gcc-bk-overlay');
+    if (el) el.classList.remove('open');
   }
 
   // HTML escape helper
