@@ -360,7 +360,11 @@ function resolveChar(savedChar,systemId,storageKey){
 
 const campId=new URLSearchParams(window.location.search).get('id');
 let currentTab='overview',sessionFilter='all',loreFilter='all';
-function getCamp(){return GCC.getCampaign(campId)}
+let _isPlayerMode=false,_sharedCamp=null;
+function getCamp(){
+  if(_isPlayerMode&&_sharedCamp)return _sharedCamp;
+  return GCC.getCampaign(campId);
+}
 
 // ── Build session card ──
 function buildSessionCard(s,idx,total,camp,imgMap){
@@ -557,30 +561,31 @@ function resolveImg(val,imgMap){
 async function render(){
   const camp=getCamp(),page=document.getElementById('page-content');
   if(!camp){page.innerHTML=`<div class="not-found"><div class="not-found-title">Campaign Not Found</div><div>This campaign doesn't exist or has been deleted.</div><div style="margin-top:12px"><a href="index.html">← Back to Dashboard</a></div></div>`;document.title='Not Found — GCC';return}
-  reconcileCharRefs(camp);
-  // Migrate any inline data URLs to IndexedDB (one-time per campaign)
-  await migrateImagesToIDB(camp);
-  // Bulk load all images from IndexedDB
-  const imgKeys=collectImageKeys(camp);
-  const imgMap=await GCCImages.getBulk(imgKeys);
+  const pm_=_isPlayerMode;
+  if(!pm_){reconcileCharRefs(camp);await migrateImagesToIDB(camp)}
+  // Bulk load all images from IndexedDB (player mode may have no local images)
+  const imgKeys=pm_?[]:collectImageKeys(camp);
+  const imgMap=pm_?{}:await GCCImages.getBulk(imgKeys);
 
   document.title=camp.name+' — GCC';
   const sys=GCC.SYSTEM_DEFS.find(s=>s.id===camp.system)||{},tools=sys.tools||[],status=camp.status||'active',nextStr=formatDateTime(camp.nextSession),gml=camp.gmTitle||'GM';
 
-  const bannerSrc=resolveImg(camp.campaignImage,imgMap);
-  const bannerControls=`<div class="camp-banner-controls"><button class="camp-banner-btn" id="btn-banner-upload">Upload</button>${camp.campaignImage?'<button class="camp-banner-btn" id="btn-banner-remove">Remove</button>':''}</div><input type="file" id="banner-img-file" accept="image/*" style="display:none">`;
-  const bannerHtml=bannerSrc?`<div class="camp-banner"><img src="${ESC(bannerSrc)}" alt="">${bannerControls}</div>`:`<div class="camp-banner"><div class="camp-banner-empty">${sys.icon||''} Click upload to add banner</div>${bannerControls}</div>`;
+  const bannerSrc=pm_?(camp.campaignImage&&!GCCImages.isKey(camp.campaignImage)?camp.campaignImage:''):resolveImg(camp.campaignImage,imgMap);
+  const bannerControls=pm_?'':`<div class="camp-banner-controls"><button class="camp-banner-btn" id="btn-banner-upload">Upload</button>${camp.campaignImage?'<button class="camp-banner-btn" id="btn-banner-remove">Remove</button>':''}</div><input type="file" id="banner-img-file" accept="image/*" style="display:none">`;
+  const bannerHtml=bannerSrc?`<div class="camp-banner"><img src="${ESC(bannerSrc)}" alt="">${bannerControls}</div>`:(pm_?'':`<div class="camp-banner"><div class="camp-banner-empty">${sys.icon||''} Click upload to add banner</div>${bannerControls}</div>`);
   const vttBtn=camp.vttLabel?`<a class="camp-btn camp-btn-vtt" href="${ESC(camp.vttUrl||'#')}" target="_blank">▶ ${ESC(camp.vttLabel)}</a>`:'';
   const pm={online:'Online','in-person':'In-Person',hybrid:'Hybrid'}[camp.playMode]||'';
   const dr=(l,v)=>v?`<div class="detail-row"><span class="detail-label">${l}</span><span class="detail-value">${ESC(v)}</span></div>`:'';
 
-  const descHtml=`<div style="margin-bottom:14px"><div class="notes-label">DESCRIPTION</div><textarea class="notes-area" id="camp-desc" style="min-height:60px" placeholder="Campaign premise, current arc, setting details...">${ESC(camp.description||'')}</textarea></div>`;
+  const descHtml=pm_
+    ?(camp.description?`<div style="margin-bottom:14px"><div class="notes-label">DESCRIPTION</div><div class="notes-area" style="min-height:40px;white-space:pre-wrap">${ESC(camp.description)}</div></div>`:'')
+    :`<div style="margin-bottom:14px"><div class="notes-label">DESCRIPTION</div><textarea class="notes-area" id="camp-desc" style="min-height:60px" placeholder="Campaign premise, current arc, setting details...">${ESC(camp.description||'')}</textarea></div>`;
 
   // Pre-resolve characters to count PCs vs NPCs
   const chars=camp.characters||[];let pcCount=0,npcCount=0;
   const resolvedChars=chars.map(ch=>{
     let resolved=ch;const refKey=ch.storageKey||ch.listKey||'';
-    if(refKey){try{const saved=JSON.parse(localStorage.getItem(refKey))||[];let found=ch._id?saved.find(s=>s._id===ch._id):null;if(!found&&ch.name)found=saved.find(s=>(s.heroName||s.name)===ch.name);if(found){if(ch._id&&found._id&&ch._id!==found._id)ch._id=found._id;resolved=resolveChar(found,camp.system,refKey)}}catch(e){}}
+    if(!pm_&&refKey){try{const saved=JSON.parse(localStorage.getItem(refKey))||[];let found=ch._id?saved.find(s=>s._id===ch._id):null;if(!found&&ch.name)found=saved.find(s=>(s.heroName||s.name)===ch.name);if(found){if(ch._id&&found._id&&ch._id!==found._id)ch._id=found._id;resolved=resolveChar(found,camp.system,refKey)}}catch(e){}}
     if(resolved.charType==='pc')pcCount++;else if(resolved.charType==='npc')npcCount++;
     return{ch,resolved,refKey};
   });
@@ -589,7 +594,7 @@ async function render(){
   const overviewHtml=`${descHtml}<div class="details-grid">${dr('WORLD',camp.world)}${dr('GENRE',camp.genre)}${dr(gml.toUpperCase(),camp.gm)}${dr('PLAYERS',playersStr)}${dr('SCHEDULE',camp.schedule)}${dr('PLAY MODE',pm+(camp.vttLabel?' ('+camp.vttLabel+')':''))}${dr('XP METHOD',camp.xpMethod)}${dr('STARTED',camp.startDate?formatDate(camp.startDate):(camp.created?formatDate(camp.created):''))}${nextStr?`<div class="detail-row"><span class="detail-label">NEXT SESSION</span><span class="detail-value" style="color:var(--accent);font-weight:700">${ESC(nextStr)}</span></div>`:''}${dr('RULEBOOKS',camp.rulebooks)}${camp.houseRules?`<div class="detail-row detail-full"><span class="detail-label">HOUSE RULES</span><span class="detail-value">${ESC(camp.houseRules)}</span></div>`:''}</div><div class="sec-hdr"><div class="sec-title">TOOLS</div></div><div class="tools-row">${tools.map(t=>{const cls=t.href?'tool-chip':'tool-chip disabled';return`<a class="${cls}"${t.href?' href="'+ESC(t.href)+'"':''}><span class="tool-bullet">◆</span> ${ESC(t.name)}</a>`}).join('')}</div>`;
 
   // Party tab
-  let partyHtml=`<button class="btn-add" id="btn-edit-team">✎ Edit ${ESC(GCC.teamLabel(camp.system))}</button>`;
+  let partyHtml=pm_?'':`<button class="btn-add" id="btn-edit-team">✎ Edit ${ESC(GCC.teamLabel(camp.system))}</button>`;
   if(!chars.length){partyHtml+=`<div class="entity-empty">No characters assigned to this campaign yet.</div>`}
   else{partyHtml+='<div class="entity-grid">';resolvedChars.forEach(({ch,resolved,refKey},i)=>{
     const col=PIP_COLORS[i%PIP_COLORS.length];
@@ -616,14 +621,20 @@ async function render(){
   });vehHtml+='</div>'}
 
   // Sessions tab
-  const sessions=camp.sessions||[],filteredSessions=filterSessions(sessions,sessionFilter),realCount=countRealSessions(sessions),tagTypes=collectTagTypes(sessions);
-  let sessHtml=`<div class="session-toolbar"><div class="session-toolbar-left"><button class="btn-add" id="btn-add-session">+ New ${ESC(GCC.sessionLabel(camp.system))}</button><button class="btn-add" id="btn-export-journal" style="background:none;border:1px solid var(--brd);color:var(--tx2)">Export Journal</button></div><div class="session-toolbar-right"><button class="filter-pill${sessionFilter==='all'?' active':''}" data-ses-filter="all">All</button>${tagTypes.map(t=>`<button class="filter-pill${sessionFilter===t?' active':''}" data-ses-filter="${ESC(t)}">${ESC(GCC.LORE_TYPE_LABELS[t]||t)}</button>`).join('')}</div></div>`;
+  const allSessions=camp.sessions||[];
+  const sessions=pm_?allSessions.filter(s=>s.visible!==false):allSessions;
+  const filteredSessions=filterSessions(sessions,sessionFilter),realCount=countRealSessions(sessions),tagTypes=collectTagTypes(sessions);
+  let sessHtml=pm_
+    ?`<div class="session-toolbar"><div class="session-toolbar-right"><button class="filter-pill${sessionFilter==='all'?' active':''}" data-ses-filter="all">All</button>${tagTypes.map(t=>`<button class="filter-pill${sessionFilter===t?' active':''}" data-ses-filter="${ESC(t)}">${ESC(GCC.LORE_TYPE_LABELS[t]||t)}</button>`).join('')}</div></div>`
+    :`<div class="session-toolbar"><div class="session-toolbar-left"><button class="btn-add" id="btn-add-session">+ New ${ESC(GCC.sessionLabel(camp.system))}</button><button class="btn-add" id="btn-export-journal" style="background:none;border:1px solid var(--brd);color:var(--tx2)">Export Journal</button></div><div class="session-toolbar-right"><button class="filter-pill${sessionFilter==='all'?' active':''}" data-ses-filter="all">All</button>${tagTypes.map(t=>`<button class="filter-pill${sessionFilter===t?' active':''}" data-ses-filter="${ESC(t)}">${ESC(GCC.LORE_TYPE_LABELS[t]||t)}</button>`).join('')}</div></div>`;
   if(!filteredSessions.length){sessHtml+=`<div class="entity-empty">No sessions logged yet.</div>`}
-  else{sessHtml+='<ul class="session-list">';filteredSessions.forEach(s=>{const origIdx=sessions.indexOf(s);sessHtml+=buildSessionCard(s,origIdx,realCount,camp,imgMap)});sessHtml+='</ul>'}
+  else{sessHtml+='<ul class="session-list">';filteredSessions.forEach(s=>{const origIdx=allSessions.indexOf(s);sessHtml+=buildSessionCard(s,origIdx,realCount,camp,imgMap)});sessHtml+='</ul>'}
 
   // Lore tab
   const lore=camp.lore||[],filteredLore=loreFilter==='all'?lore:lore.filter(l=>l.type===loreFilter);
-  let loreHtml=`<div class="session-toolbar"><div class="session-toolbar-left"><button class="btn-add" id="btn-add-lore">+ New Entry</button><button class="btn-add" id="btn-import-lore" style="background:none;border:1px solid var(--brd);color:var(--tx2)">Import JSON</button></div><div class="session-toolbar-right"><button class="filter-pill${loreFilter==='all'?' active':''}" data-lore-filter="all">All</button>${GCC.LORE_TYPES.map(t=>{const count=lore.filter(l=>l.type===t).length;return count?`<button class="filter-pill${loreFilter===t?' active':''}" data-lore-filter="${t}">${ESC(GCC.LORE_TYPE_LABELS[t])} (${count})</button>`:''}).join('')}</div></div>`;
+  let loreHtml=pm_
+    ?`<div class="session-toolbar"><div class="session-toolbar-right"><button class="filter-pill${loreFilter==='all'?' active':''}" data-lore-filter="all">All</button>${GCC.LORE_TYPES.map(t=>{const count=lore.filter(l=>l.type===t).length;return count?`<button class="filter-pill${loreFilter===t?' active':''}" data-lore-filter="${t}">${ESC(GCC.LORE_TYPE_LABELS[t])} (${count})</button>`:''}).join('')}</div></div>`
+    :`<div class="session-toolbar"><div class="session-toolbar-left"><button class="btn-add" id="btn-add-lore">+ New Entry</button><button class="btn-add" id="btn-import-lore" style="background:none;border:1px solid var(--brd);color:var(--tx2)">Import JSON</button></div><div class="session-toolbar-right"><button class="filter-pill${loreFilter==='all'?' active':''}" data-lore-filter="all">All</button>${GCC.LORE_TYPES.map(t=>{const count=lore.filter(l=>l.type===t).length;return count?`<button class="filter-pill${loreFilter===t?' active':''}" data-lore-filter="${t}">${ESC(GCC.LORE_TYPE_LABELS[t])} (${count})</button>`:''}).join('')}</div></div>`;
   if(!filteredLore.length){loreHtml+=`<div class="entity-empty">No wiki entries yet. Add NPCs, locations, factions, and items.</div>`}
   else{loreHtml+='<div class="lore-grid">';filteredLore.forEach((l,i)=>{
     const origIdx=lore.indexOf(l);
@@ -633,44 +644,62 @@ async function render(){
     const refsText=mentions.join(', ');
     const loreSrc=resolveImg(l.image,imgMap);
     const loreImgHtml=loreSrc?`<img class="lore-thumb" src="${loreSrc}" alt="">`:'';
-    loreHtml+=`<div class="lore-card" data-lore-type="${ESC(l.type)}"><div class="lore-actions"><button class="session-action-btn" data-lore-edit="${origIdx}">Edit</button><button class="session-action-btn danger" data-lore-del="${origIdx}">Del</button></div>${loreImgHtml}<div class="lore-type-label">${ESC(typeLabel)}</div><div class="lore-name">${ESC(l.name)}</div>${l.desc?`<div class="lore-desc">${ESC(l.desc)}</div>`:''}${refsText?`<div class="lore-refs">${ESC(refsText)}</div>`:''}</div>`;
+    loreHtml+=`<div class="lore-card" data-lore-type="${ESC(l.type)}">${pm_?'':`<div class="lore-actions"><button class="session-action-btn" data-lore-edit="${origIdx}">Edit</button><button class="session-action-btn danger" data-lore-del="${origIdx}">Del</button></div>`}${loreImgHtml}<div class="lore-type-label">${ESC(typeLabel)}</div><div class="lore-name">${ESC(l.name)}</div>${l.desc?`<div class="lore-desc">${ESC(l.desc)}</div>`:''}${refsText?`<div class="lore-refs">${ESC(refsText)}</div>`:''}</div>`;
   });loreHtml+='</div>'}
 
   // Notes tab
-  const notesHtml=`<div class="notes-label">DM NOTES (private)</div><textarea class="notes-area" id="camp-notes" placeholder="Campaign notes, reminders, links...">${ESC(camp.notes||'')}</textarea><div style="margin-top:16px"><div class="notes-label">SHARED NOTES (visible to players)</div><textarea class="notes-area" id="camp-notes-shared" placeholder="Notes your players can see...">${ESC(camp.sharedNotes||'')}</textarea></div>`;
+  const notesHtml=pm_
+    ?(camp.sharedNotes?`<div class="notes-label">SHARED NOTES</div><div class="notes-area" style="white-space:pre-wrap">${ESC(camp.sharedNotes)}</div>`:`<div class="entity-empty">No shared notes yet.</div>`)
+    :`<div class="notes-label">DM NOTES (private)</div><textarea class="notes-area" id="camp-notes" placeholder="Campaign notes, reminders, links...">${ESC(camp.notes||'')}</textarea><div style="margin-top:16px"><div class="notes-label">SHARED NOTES (visible to players)</div><textarea class="notes-area" id="camp-notes-shared" placeholder="Notes your players can see...">${ESC(camp.sharedNotes||'')}</textarea></div>`;
 
   // HQ tab
-  const hqSrc=resolveImg(camp.hqImage,imgMap);
-  const hqImgHtml=hqSrc?`<div class="hq-img-wrap"><img class="hq-img" src="${ESC(hqSrc)}" alt="HQ Map"><div class="hq-img-controls"><button class="camp-banner-btn" id="btn-hq-img-upload">Replace</button><button class="camp-banner-btn" id="btn-hq-img-remove">Remove</button></div></div>`:`<div class="hq-img-empty" id="btn-hq-img-upload-area"><span>Click or drag to add HQ image / map</span></div>`;
-  const hqHtml=`${hqImgHtml}<input type="file" id="hq-img-file" accept="image/*" style="display:none"><div style="margin-top:14px"><div class="hq-notes-header"><span class="notes-label" style="margin:0">HQ DETAILS</span><button class="hq-notes-toggle" id="btn-hq-toggle">Edit</button></div><div class="hq-notes-view" id="hq-notes-view">${ESC(camp.hqNotes||'')}</div><textarea class="notes-area" id="camp-hq-notes" style="display:none" placeholder="Rooms, equipment, defenses, rent, packages...">${ESC(camp.hqNotes||'')}</textarea></div>`;
+  const hqSrc=pm_?(camp.hqImage&&!GCCImages.isKey(camp.hqImage)?camp.hqImage:''):resolveImg(camp.hqImage,imgMap);
+  const hqImgHtml=pm_
+    ?(hqSrc?`<div class="hq-img-wrap"><img class="hq-img" src="${ESC(hqSrc)}" alt="HQ Map"></div>`:'')
+    :(hqSrc?`<div class="hq-img-wrap"><img class="hq-img" src="${ESC(hqSrc)}" alt="HQ Map"><div class="hq-img-controls"><button class="camp-banner-btn" id="btn-hq-img-upload">Replace</button><button class="camp-banner-btn" id="btn-hq-img-remove">Remove</button></div></div>`:`<div class="hq-img-empty" id="btn-hq-img-upload-area"><span>Click or drag to add HQ image / map</span></div>`);
+  const hqHtml=pm_
+    ?`${hqImgHtml}${camp.hqNotes?`<div style="margin-top:14px"><div class="notes-label">HQ DETAILS</div><div class="notes-area" style="white-space:pre-wrap">${ESC(camp.hqNotes)}</div></div>`:''}`
+    :`${hqImgHtml}<input type="file" id="hq-img-file" accept="image/*" style="display:none"><div style="margin-top:14px"><div class="hq-notes-header"><span class="notes-label" style="margin:0">HQ DETAILS</span><button class="hq-notes-toggle" id="btn-hq-toggle">Edit</button></div><div class="hq-notes-view" id="hq-notes-view">${ESC(camp.hqNotes||'')}</div><textarea class="notes-area" id="camp-hq-notes" style="display:none" placeholder="Rooms, equipment, defenses, rent, packages...">${ESC(camp.hqNotes||'')}</textarea></div>`;
 
   const charCount=chars.length?` (${chars.length})`:'',vehCount=vehs.length?` (${vehs.length})`:'',sesCount=sessions.length?` (${sessions.length})`:'',loreCount=lore.length?` (${lore.length})`:'';
 
-  page.innerHTML=`${bannerHtml}<div class="camp-header"><div class="camp-header-in"><div class="camp-title-area"><div class="camp-name">${ESC(camp.name)}</div><div class="camp-meta"><span class="camp-system-badge" style="${sysColorCSS(camp.system)}">${ESC(sys.name||camp.system)}</span><span class="camp-status"><span class="camp-status-dot ${status}"></span> ${statusLabel(status)}</span></div>${camp.pitch?'<div class="camp-pitch">"'+ESC(camp.pitch)+'"</div>':''}</div><div class="camp-header-btns">${vttBtn}<a class="camp-btn" href="index.html">← Dashboard</a><button class="camp-btn" id="btn-edit-camp">Edit</button></div></div></div>
+  const headerBtns=pm_
+    ?`${vttBtn}<a class="camp-btn" href="index.html">\u2190 Dashboard</a>`
+    :`${vttBtn}<a class="camp-btn" href="index.html">\u2190 Dashboard</a><button class="camp-btn" id="btn-edit-camp">Edit</button>`;
+  const tabsHtml=pm_
+    ?'<button class="tab'+(currentTab==='overview'?' active':'')+'" data-tab="overview">Overview</button>'+
+     '<button class="tab'+(currentTab==='party'?' active':'')+'" data-tab="party">'+ESC(GCC.teamLabel(camp.system).toUpperCase())+charCount+'</button>'+
+     '<button class="tab'+(currentTab==='sessions'?' active':'')+'" data-tab="sessions">'+ESC(GCC.sessionLabel(camp.system).toUpperCase())+'S'+sesCount+'</button>'+
+     '<button class="tab'+(currentTab==='lore'?' active':'')+'" data-tab="lore">Wiki'+loreCount+'</button>'+
+     '<button class="tab'+(currentTab==='hq'?' active':'')+'" data-tab="hq">HQ</button>'+
+     '<button class="tab'+(currentTab==='players'?' active':'')+'" data-tab="players">Players</button>'+
+     '<button class="tab'+(currentTab==='notes'?' active':'')+'" data-tab="notes">Notes</button>'
+    :'<button class="tab'+(currentTab==='overview'?' active':'')+'" data-tab="overview">Overview</button>'+
+     '<button class="tab'+(currentTab==='party'?' active':'')+'" data-tab="party">'+ESC(GCC.teamLabel(camp.system).toUpperCase())+charCount+'</button>'+
+     '<button class="tab'+(currentTab==='vehicles'?' active':'')+'" data-tab="vehicles">Vehicles'+vehCount+'</button>'+
+     '<button class="tab'+(currentTab==='sessions'?' active':'')+'" data-tab="sessions">'+ESC(GCC.sessionLabel(camp.system).toUpperCase())+'S'+sesCount+'</button>'+
+     '<button class="tab'+(currentTab==='lore'?' active':'')+'" data-tab="lore">Wiki'+loreCount+'</button>'+
+     '<button class="tab'+(currentTab==='hq'?' active':'')+'" data-tab="hq">HQ</button>'+
+     '<button class="tab'+(currentTab==='players'?' active':'')+'" data-tab="players">Invite Players</button>'+
+     '<button class="tab'+(currentTab==='notes'?' active':'')+'" data-tab="notes">Notes</button>';
+  const playersTabHtml=pm_?'<div class="sec-hdr"><div class="sec-title">PLAYER ROSTER</div></div><div id="player-roster"><div class="entity-empty">Loading...</div></div>':'<div class="invite-section" id="invite-section"><div class="sec-hdr"><div class="sec-title">INVITE PLAYERS</div></div><div id="invite-area"><button class="invite-btn" id="btn-gen-invite">Generate Invite Link</button></div><div id="invite-msg"></div></div><div class="sec-hdr"><div class="sec-title">PLAYER ROSTER</div></div><div id="player-roster"><div class="entity-empty">Loading...</div></div>';
+
+  page.innerHTML=`${bannerHtml}<div class="camp-header"><div class="camp-header-in"><div class="camp-title-area"><div class="camp-name">${ESC(camp.name)}</div><div class="camp-meta"><span class="camp-system-badge" style="${sysColorCSS(camp.system)}">${ESC(sys.name||camp.system)}</span><span class="camp-status"><span class="camp-status-dot ${status}"></span> ${statusLabel(status)}</span></div>${camp.pitch?'<div class="camp-pitch">"'+ESC(camp.pitch)+'"</div>':''}</div><div class="camp-header-btns">${headerBtns}</div></div></div>
   <div class="main"><div class="main-in">
-    <div class="tabs" id="tabs">
-      <button class="tab${currentTab==='overview'?' active':''}" data-tab="overview">Overview</button>
-      <button class="tab${currentTab==='party'?' active':''}" data-tab="party">${ESC(GCC.teamLabel(camp.system).toUpperCase())}${charCount}</button>
-      <button class="tab${currentTab==='vehicles'?' active':''}" data-tab="vehicles">Vehicles${vehCount}</button>
-      <button class="tab${currentTab==='sessions'?' active':''}" data-tab="sessions">${ESC(GCC.sessionLabel(camp.system).toUpperCase())}S${sesCount}</button>
-      <button class="tab${currentTab==='lore'?' active':''}" data-tab="lore">Wiki${loreCount}</button>
-      <button class="tab${currentTab==='hq'?' active':''}" data-tab="hq">HQ</button>
-      <button class="tab${currentTab==='players'?' active':''}" data-tab="players">Invite Players</button>
-      <button class="tab${currentTab==='notes'?' active':''}" data-tab="notes">Notes</button>
-    </div>
+    <div class="tabs" id="tabs">${tabsHtml}</div>
+  page.innerHTML=`${bannerHtml}<div class="camp-header"><div class="camp-header-in"><div class="camp-title-area"><div class="camp-name">${ESC(camp.name)}</div><div class="camp-meta"><span class="camp-system-badge" style="${sysColorCSS(camp.system)}">${ESC(sys.name||camp.system)}</span><span class="camp-status"><span class="camp-status-dot ${status}"></span> ${statusLabel(status)}</span></div>${camp.pitch?'<div class="camp-pitch">"'+ESC(camp.pitch)+'"</div>':''}</div><div class="camp-header-btns">${vttBtn}<a class="camp-btn" href="index.html">← Dashboard</a><button class="camp-btn" id="btn-edit-camp">Edit</button></div></div></div>
     <div class="tab-panel${currentTab==='overview'?' active':''}" data-panel="overview">${overviewHtml}</div>
     <div class="tab-panel${currentTab==='party'?' active':''}" data-panel="party">${partyHtml}</div>
-    <div class="tab-panel${currentTab==='vehicles'?' active':''}" data-panel="vehicles">${vehHtml}</div>
+    ${pm_?'':`<div class="tab-panel${currentTab==='vehicles'?' active':''}" data-panel="vehicles">${vehHtml}</div>`}
     <div class="tab-panel${currentTab==='sessions'?' active':''}" data-panel="sessions">${sessHtml}</div>
     <div class="tab-panel${currentTab==='lore'?' active':''}" data-panel="lore">${loreHtml}</div>
     <div class="tab-panel${currentTab==='hq'?' active':''}" data-panel="hq">${hqHtml}</div>
-    <div class="tab-panel${currentTab==='players'?' active':''}" data-panel="players">
-      <div class="invite-section" id="invite-section"><div class="sec-hdr"><div class="sec-title">INVITE PLAYERS</div></div><div id="invite-area"><button class="invite-btn" id="btn-gen-invite">Generate Invite Link</button></div><div id="invite-msg"></div></div>
-      <div class="sec-hdr"><div class="sec-title">PLAYER ROSTER</div></div><div id="player-roster"><div class="entity-empty">Loading...</div></div>
-    </div>
+    <div class="tab-panel${currentTab==='players'?' active':''}" data-panel="players">${playersTabHtml}</div>
     <div class="tab-panel${currentTab==='notes'?' active':''}" data-panel="notes">${notesHtml}</div>
   </div></div>`;
   wireEvents();
+  // GM mode: debounce push shared data to Firestore after edits
+  if(!pm_){clearTimeout(render._pushTimer);render._pushTimer=setTimeout(()=>{const c=getCamp();if(c&&GCCAuth?.getUser())GCCInvite.pushSharedData(campId,c)},2000)}
 }
 
 function wireEvents(){
@@ -1236,7 +1265,34 @@ document.getElementById('vm-cancel').addEventListener('click',closeVehModal);
 document.getElementById('veh-modal-close').addEventListener('click',closeVehModal);
 vehModal.addEventListener('click',e=>{if(e.target===vehModal)closeVehModal()});
 
-render();
+// Detect player mode: if local campaign exists and user is not the owner, fetch shared data
+(async function initPage(){
+  // Try local render first (works for GM or offline)
+  const localCamp=GCC.getCampaign(campId);
+  if(localCamp){render()}
+  else{document.getElementById('page-content').innerHTML='<div class="not-found"><div class="not-found-title">Loading...</div></div>'}
+
+  // Wait for auth+firestore, then check ownership
+  if(typeof GCCAuth==='undefined'||typeof GCCInvite==='undefined'){return}
+  await new Promise(r=>{GCCAuth.onAuthChange(()=>r())});
+  if(!GCCAuth.getUser()){return}
+
+  const owner=await GCCInvite.isOwner(campId);
+  if(!owner){
+    // Player mode: fetch shared campaign data from Firestore
+    console.log('[GCC] Player mode — fetching shared campaign data');
+    const shared=await GCCInvite.getSharedData(campId);
+    if(shared){
+      _isPlayerMode=true;
+      _sharedCamp=Object.assign({id:campId},shared);
+      render();
+    }
+  } else {
+    // GM mode: push current data to shared doc so players can see it
+    const camp=GCC.getCampaign(campId);
+    if(camp){GCCInvite.pushSharedData(campId,camp)}
+  }
+})();
 window.addEventListener('gcc-sync-ready',()=>{render()});
 </script>
 </body>

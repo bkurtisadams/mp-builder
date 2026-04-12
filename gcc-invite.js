@@ -189,6 +189,62 @@ const GCCInvite = (function() {
   }
 
   // ══════════════════════════════════════
+  // ── Shared Campaign Data ──
+  // ══════════════════════════════════════
+
+  // Fields the GM pushes to Firestore for players to see
+  const SHARED_FIELDS = [
+    'name', 'system', 'status', 'gm', 'gmTitle', 'world', 'genre',
+    'pitch', 'description', 'schedule', 'playMode', 'vttLabel', 'vttUrl',
+    'nextSession', 'startDate', 'xpMethod', 'rulebooks', 'houseRules',
+    'sharedNotes', 'sessions', 'lore', 'campaignImage', 'hqImage', 'hqNotes',
+    'characters',
+  ];
+
+  async function pushSharedData(campaignId, camp) {
+    const db = getDb();
+    const uid = getUid();
+    if (!db || !uid) return;
+    try {
+      const shared = { _updated: new Date().toISOString() };
+      SHARED_FIELDS.forEach(f => {
+        if (camp[f] !== undefined) shared[f] = camp[f];
+      });
+      // Strip private notes
+      delete shared.notes;
+      await db.collection('campaigns').doc(campaignId).set(shared, { merge: true });
+    } catch(e) {
+      console.warn('[GCCInvite] pushSharedData failed:', e);
+    }
+  }
+
+  async function getSharedData(campaignId) {
+    const db = getDb();
+    if (!db) return null;
+    try {
+      const snap = await db.collection('campaigns').doc(campaignId).get();
+      if (!snap.exists) return null;
+      return snap.data();
+    } catch(e) {
+      console.warn('[GCCInvite] getSharedData failed:', e);
+      return null;
+    }
+  }
+
+  async function isOwner(campaignId) {
+    const db = getDb();
+    const uid = getUid();
+    if (!db || !uid) return false;
+    try {
+      const snap = await db.collection('campaigns').doc(campaignId).get();
+      if (!snap.exists) return false;
+      return snap.data().ownerUid === uid;
+    } catch(e) {
+      return false;
+    }
+  }
+
+  // ══════════════════════════════════════
   // ── Invite Link Helpers ──
   // ══════════════════════════════════════
 
@@ -214,6 +270,9 @@ const GCCInvite = (function() {
     joinCampaign,
     getPlayers,
     removePlayer,
+    pushSharedData,
+    getSharedData,
+    isOwner,
     buildInviteUrl,
     getInviteCodeFromUrl,
   };
