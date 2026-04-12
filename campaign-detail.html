@@ -1264,16 +1264,25 @@ document.getElementById('vm-cancel').addEventListener('click',closeVehModal);
 document.getElementById('veh-modal-close').addEventListener('click',closeVehModal);
 vehModal.addEventListener('click',e=>{if(e.target===vehModal)closeVehModal()});
 
-// Detect player mode: if local campaign exists and user is not the owner, fetch shared data
+// Detect player mode: if user is not the owner, fetch shared data from Firestore
 (async function initPage(){
   // Try local render first (works for GM or offline)
   const localCamp=GCC.getCampaign(campId);
   if(localCamp){render()}
   else{document.getElementById('page-content').innerHTML='<div class="not-found"><div class="not-found-title">Loading...</div></div>'}
 
-  // Wait for auth+firestore, then check ownership
+  // Wait for auth+firestore to be fully ready (Firestore SDK loads async in gcc-sync)
   if(typeof GCCAuth==='undefined'||typeof GCCInvite==='undefined'){return}
-  await new Promise(r=>{GCCAuth.onAuthChange(()=>r())});
+
+  // Wait for sync-ready (fires after auth + Firestore SDK loaded + initial sync)
+  // or fall back to just auth if sync never fires (e.g. not signed in)
+  const ready=await Promise.race([
+    new Promise(r=>{window.addEventListener('gcc-sync-ready',()=>r('sync'),{once:true})}),
+    new Promise(r=>{GCCAuth.onAuthChange(u=>{if(!u)r('noauth')})}),
+    new Promise(r=>{setTimeout(()=>r('timeout'),8000)})
+  ]);
+
+  if(ready==='noauth'||ready==='timeout'){return}
   if(!GCCAuth.getUser()){return}
 
   const owner=await GCCInvite.isOwner(campId);
@@ -1288,6 +1297,7 @@ vehModal.addEventListener('click',e=>{if(e.target===vehModal)closeVehModal()});
     }
   } else {
     // GM mode: push current data to shared doc so players can see it
+    console.log('[GCC] GM mode — pushing shared campaign data');
     const camp=GCC.getCampaign(campId);
     if(camp){GCCInvite.pushSharedData(campId,camp)}
   }
