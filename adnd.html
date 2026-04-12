@@ -522,7 +522,7 @@ tr.inv-nocarry td input{color:var(--ink-lt)}
   <div class="full cls-sec" id="section-turning">
     <div class="sec" style="margin-top:2px">Turning Undead</div>
     <table class="turn-tbl"><thead><tr><th>Skeleton</th><th>Zombie</th><th>Ghoul</th><th>Shadow</th><th>Wight</th><th>Ghast</th><th>Wraith</th><th>Mummy</th><th>Spectre</th><th>Vampire</th><th>Ghost</th><th>Lich</th><th>Special</th></tr></thead>
-    <tbody><tr><td><input data-field="turnSkeleton"></td><td><input data-field="turnZombie"></td><td><input data-field="turnGhoul"></td><td><input data-field="turnShadow"></td><td><input data-field="turnWight"></td><td><input data-field="turnGhast"></td><td><input data-field="turnWraith"></td><td><input data-field="turnMummy"></td><td><input data-field="turnSpectre"></td><td><input data-field="turnVampire"></td><td><input data-field="turnGhost"></td><td><input data-field="turnLich"></td><td><input data-field="turnSpecial"></td></tr></tbody></table>
+    <tbody><tr><td><input data-field="turnSkeleton" readonly></td><td><input data-field="turnZombie" readonly></td><td><input data-field="turnGhoul" readonly></td><td><input data-field="turnShadow" readonly></td><td><input data-field="turnWight" readonly></td><td><input data-field="turnGhast" readonly></td><td><input data-field="turnWraith" readonly></td><td><input data-field="turnMummy" readonly></td><td><input data-field="turnSpectre" readonly></td><td><input data-field="turnVampire" readonly></td><td><input data-field="turnGhost" readonly></td><td><input data-field="turnLich" readonly></td><td><input data-field="turnSpecial" readonly></td></tr></tbody></table>
   </div>
 
   <div class="full cls-sec" id="section-thief">
@@ -2221,8 +2221,8 @@ document.getElementById('btn-import-ars').addEventListener('click',importARS);
 
 // Class detection
 const classField=document.querySelector('[data-field="characterClass"]');
-classField.addEventListener('change',()=>{CHAR.characterClass=classField.value;updateClassSections();calcThiefSkills();calcProfSlots();autosave();});
-classField.addEventListener('input',()=>{CHAR.characterClass=classField.value;updateClassSections();calcThiefSkills();calcProfSlots();});
+classField.addEventListener('change',()=>{CHAR.characterClass=classField.value;updateClassSections();calcThiefSkills();calcProfSlots();calcTurnUndead();autosave();});
+classField.addEventListener('input',()=>{CHAR.characterClass=classField.value;updateClassSections();calcThiefSkills();calcProfSlots();calcTurnUndead();});
 
 // Wire all fields
 const _encFields=new Set(['wealthCP','wealthSP','wealthEP','wealthGP','wealthPP','strAdj','moveBase']);
@@ -2232,7 +2232,7 @@ const _spellSlotFields=new Set(['spellSlot1','spellSlot2','spellSlot3','spellSlo
 const _acFields=new Set(['acBase','acDexAdj','acMagAdj','acShieldAdj']);
 document.querySelectorAll('[data-field]').forEach(el=>{
   const ev=el.tagName==='TEXTAREA'?'input':'change';
-  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_abilityFields.has(el.dataset.field))calcAbilitySubs();if(_thiefFields.has(el.dataset.field))calcThiefSkills();if(_spellSlotFields.has(el.dataset.field))updateSpellCounter();if(el.dataset.field==='level')calcProfSlots();if(_acFields.has(el.dataset.field))calcAC();autosave();});
+  el.addEventListener(ev,()=>{CHAR[el.dataset.field]=el.value;if(_encFields.has(el.dataset.field))calcWeight();if(_abilityFields.has(el.dataset.field))calcAbilitySubs();if(_thiefFields.has(el.dataset.field))calcThiefSkills();if(_spellSlotFields.has(el.dataset.field))updateSpellCounter();if(el.dataset.field==='level'){calcProfSlots();calcTurnUndead();}if(_acFields.has(el.dataset.field))calcAC();autosave();});
 });
 
 function _setField(f,v){CHAR[f]=v;const el=document.querySelector('[data-field="'+f+'"]');if(el)el.value=v;}
@@ -2245,6 +2245,45 @@ function calcAC(){
   _setField('ac',base+dex+mag+shld);
   _setField('acShieldless',base+dex+mag);
   _setField('acRear',base+mag);
+}
+
+function calcTurnUndead(){
+  const rawCls=(CHAR.characterClass||'').toLowerCase().trim();
+  const rawLvl=(CHAR.level||'').trim();
+  const clsParts=rawCls.includes('/')?rawCls.split('/').map(s=>s.trim()):[rawCls];
+  const lvlParts=rawLvl.includes('/')?rawLvl.split('/').map(s=>s.trim()):[rawLvl];
+  const turnKeys=['turnSkeleton','turnZombie','turnGhoul','turnShadow','turnWight','turnGhast','turnWraith','turnMummy','turnSpectre','turnVampire','turnGhost','turnLich','turnSpecial'];
+  let effLvl=0;
+  clsParts.forEach((cls,i)=>{
+    let lv=Math.max(1,+(lvlParts[i]||lvlParts[0]||1));
+    if(cls==='cleric')effLvl=Math.max(effLvl,lv);
+    else if(cls==='paladin')effLvl=Math.max(effLvl,Math.max(0,lv-2));
+  });
+  if(!effLvl){turnKeys.forEach(k=>_setField(k,''));return;}
+  // DMG Table III columns: levels 1-8, 9-13, 14+
+  // Rows: Skeleton,Zombie,Ghoul,Shadow,Wight,Ghast,Wraith,Mummy,Spectre,Vampire,Ghost,Lich,Special
+  // Values: 0=no effect, 1-20=number needed, 21=T, 22=D, 23=D*
+  const TBL=[
+    [10,7,4,21,21,22,22,23,23,23],
+    [13,10,7,21,21,22,22,22,23,23],
+    [16,13,10,4,21,21,22,22,22,23],
+    [19,16,13,7,4,21,21,22,22,23],
+    [20,19,16,10,7,4,21,21,22,22],
+    [0,20,19,13,10,7,4,21,21,22],
+    [0,0,20,16,13,10,7,4,21,22],
+    [0,0,0,20,16,13,10,7,4,21],
+    [0,0,0,0,20,16,13,10,7,21],
+    [0,0,0,0,0,20,16,13,10,4],
+    [0,0,0,0,0,0,20,16,13,7],
+    [0,0,0,0,0,0,0,19,16,10],
+    [0,0,0,0,0,0,0,20,19,13]
+  ];
+  var col=effLvl<=8?effLvl-1:effLvl<=13?8:9;
+  TBL.forEach((row,ri)=>{
+    var v=row[col];
+    var txt=v===0?'--':v===21?'T':v===22?'D':v===23?'D*':String(v);
+    _setField(turnKeys[ri],txt);
+  });
 }
 
 function calcProfSlots(){
@@ -2459,7 +2498,7 @@ const _thiefFieldToSkill={thiefPP:'PP',thiefOL:'OL',thiefFRT:'FRT',thiefMS:'MS',
 })();
 
 function populateAll(){
-  populateFields();updateClassSections();showPortrait();renderWeapons();calcAbilitySubs();calcThiefSkills();calcProfSlots();
+  populateFields();updateClassSections();showPortrait();renderWeapons();calcAbilitySubs();calcThiefSkills();calcProfSlots();calcTurnUndead();
   renderInlineList('proficiencies','prof-list','add-prof');
   renderInventory();
   renderTableRows('associates','assoc-list','add-assoc',[{key:'num',center:true},{key:'name'},{key:'cls'},{key:'level',center:true},{key:'race'},{key:'notes'},{key:'num2',center:true},{key:'name2'},{key:'cls2'},{key:'level2',center:true},{key:'race2'},{key:'notes2'}]);
