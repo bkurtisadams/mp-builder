@@ -220,14 +220,20 @@ const GCCInvite = (function() {
     return await GCCStorage.uploadCampaignImage(val, storagePath, idbGet);
   }
 
-  // Run upload tasks with limited concurrency
+  // Run upload tasks with limited concurrency and pacing
   async function batchUpload(tasks, concurrency) {
     const results = new Array(tasks.length);
     let idx = 0;
+    let completed = 0;
+    const total = tasks.length;
     async function worker() {
       while (idx < tasks.length) {
         const i = idx++;
         results[i] = await tasks[i]();
+        completed++;
+        if (completed % 20 === 0) console.log('[GCCInvite] Uploaded', completed, '/', total);
+        // Pace to avoid 429s
+        await new Promise(r => setTimeout(r, 200));
       }
     }
     const workers = [];
@@ -339,7 +345,7 @@ const GCCInvite = (function() {
             const url = await uploadImg(u.val, u.path);
             if (url) u.apply(url);
           });
-          await batchUpload(tasks, 5);
+          await batchUpload(tasks, 2);
           console.log('[GCCInvite] Image uploads complete');
 
           // Write Storage URLs back to local campaign data so future pushes skip them
@@ -414,7 +420,7 @@ const GCCInvite = (function() {
         }
       }
       if (charUploads.length) {
-        await batchUpload(charUploads, 5);
+        await batchUpload(charUploads, 2);
       }
       shared.characters = snapshots;
 
