@@ -698,7 +698,7 @@ async function render(){
   </div></div>`;
   wireEvents();
   // GM mode: debounce push shared data to Firestore after edits
-  if(!pm_){clearTimeout(render._pushTimer);render._pushTimer=setTimeout(()=>{const c=getCamp();if(c&&GCCAuth?.getUser())GCCInvite.pushSharedData(campId,c)},2000)}
+  if(!_isPlayerMode){clearTimeout(render._pushTimer);render._pushTimer=setTimeout(()=>{const c=getCamp();if(c&&GCCAuth?.getUser())GCCInvite.pushSharedData(campId,c)},2000)}
 }
 
 function wireEvents(){
