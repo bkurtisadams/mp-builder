@@ -1083,19 +1083,32 @@ sesModal.addEventListener('click',e=>{if(e.target===sesModal)closeSessionModal()
 
 // ═══ LORE MODAL ═══
 const loreModal=document.getElementById('lore-modal');let loreEditIdx=-1,loreImageData='';
+function captureLoreFields(){return{type:document.getElementById('lm-type')?.value||'npc',subtype:document.getElementById('lm-subtype')?.value||'',name:document.getElementById('lm-name')?.value||'',desc:document.getElementById('lm-desc')?.value||''}}
+function restoreLoreFields(v){if(!v)return;const f=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||''};f('lm-subtype',v.subtype);f('lm-name',v.name);f('lm-desc',v.desc);const sel=document.getElementById('lm-type');if(sel)sel.value=v.type||'npc'}
+function buildLoreModalBody(l){
+  const typeOptions=GCC.LORE_TYPES.map(t=>`<option value="${t}"${l&&l.type===t?' selected':''}>${GCC.LORE_TYPE_LABELS[t]}</option>`).join('');
+  const imgPreview=loreImageData?`<img class="gcc-dlg-img-preview" src="${loreImageData}">`:'';
+  return`<div class="gcc-dlg-row"><div><label class="gcc-dlg-label">TYPE</label><select class="gcc-dlg-select" id="lm-type">${typeOptions}</select></div><div><label class="gcc-dlg-label">SUBTYPE (optional)</label><input class="gcc-dlg-input" id="lm-subtype" placeholder="e.g. Villain, HQ Room" value="${l?ESC(l.subtype||''):''}"></div></div><label class="gcc-dlg-label">NAME</label><input class="gcc-dlg-input" id="lm-name" placeholder="e.g. Whiplash, ESU Campus" value="${l?ESC(l.name):''}"><label class="gcc-dlg-label">DESCRIPTION</label><textarea class="gcc-dlg-ta" id="lm-desc" rows="3" placeholder="Brief description...">${l?ESC(l.desc||''):''}</textarea><label class="gcc-dlg-label">IMAGE</label><div class="gcc-dlg-img-area" id="lm-img-area">${imgPreview}<div class="gcc-dlg-img-btns"><button class="gcc-dlg-img-btn" id="lm-img-upload">Upload</button><button class="gcc-dlg-img-btn" id="lm-img-paste">Paste</button>${loreImageData?'<button class="gcc-dlg-img-btn danger" id="lm-img-clear">Remove</button>':''}</div><input type="file" id="lm-img-file" accept="image/*" style="display:none"></div>`;
+}
+function wireLoreModalEvents(){
+  document.getElementById('lm-img-upload')?.addEventListener('click',()=>document.getElementById('lm-img-file').click());
+  document.getElementById('lm-img-file')?.addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{loreImageData=ev.target.result;refreshLoreModalBody()};reader.readAsDataURL(file)});
+  document.getElementById('lm-img-paste')?.addEventListener('click',async()=>{try{const items=await navigator.clipboard.read();let found=false;for(const item of items){const imgType=item.types.find(t=>t.startsWith('image/'));if(imgType){const blob=await item.getType(imgType);const reader=new FileReader();reader.onload=ev=>{loreImageData=ev.target.result;refreshLoreModalBody()};reader.readAsDataURL(blob);found=true;break}}if(!found){const btn=document.getElementById('lm-img-paste');if(btn){btn.textContent='No image on clipboard';setTimeout(()=>{btn.textContent='Paste'},2000)}}}catch(e){console.warn('Clipboard paste failed:',e);const btn=document.getElementById('lm-img-paste');if(btn){btn.textContent='Paste blocked';setTimeout(()=>{btn.textContent='Paste'},2000)}}});
+  document.getElementById('lm-img-clear')?.addEventListener('click',()=>{loreImageData='';refreshLoreModalBody()});
+}
+function refreshLoreModalBody(){
+  const vals=captureLoreFields();
+  const camp=getCamp();const l=loreEditIdx>=0?(camp?.lore||[])[loreEditIdx]:null;
+  document.getElementById('lore-modal-body').innerHTML=buildLoreModalBody(l);
+  restoreLoreFields(vals);wireLoreModalEvents();
+}
 async function openLoreModal(editIdx){
   loreEditIdx=editIdx!=null?editIdx:-1;const camp=getCamp();if(!camp)return;const isEdit=loreEditIdx>=0;
   document.getElementById('lore-modal-title').textContent=isEdit?'Edit wiki entry':'New wiki entry';
   const l=isEdit?(camp.lore||[])[loreEditIdx]:null;
   if(isEdit&&l&&l.image){loreImageData=GCCImages.isKey(l.image)?await GCCImages.get(l.image):l.image}else{loreImageData=''}
-  const typeOptions=GCC.LORE_TYPES.map(t=>`<option value="${t}"${l&&l.type===t?' selected':''}>${GCC.LORE_TYPE_LABELS[t]}</option>`).join('');
-  const imgPreview=loreImageData?`<img class="gcc-dlg-img-preview" src="${loreImageData}">`:'';
-  document.getElementById('lore-modal-body').innerHTML=`<div class="gcc-dlg-row"><div><label class="gcc-dlg-label">TYPE</label><select class="gcc-dlg-select" id="lm-type">${typeOptions}</select></div><div><label class="gcc-dlg-label">SUBTYPE (optional)</label><input class="gcc-dlg-input" id="lm-subtype" placeholder="e.g. Villain, HQ Room" value="${l?ESC(l.subtype||''):''}"></div></div><label class="gcc-dlg-label">NAME</label><input class="gcc-dlg-input" id="lm-name" placeholder="e.g. Whiplash, ESU Campus" value="${l?ESC(l.name):''}"><label class="gcc-dlg-label">DESCRIPTION</label><textarea class="gcc-dlg-ta" id="lm-desc" rows="3" placeholder="Brief description...">${l?ESC(l.desc||''):''}</textarea><label class="gcc-dlg-label">IMAGE</label><div class="gcc-dlg-img-area" id="lm-img-area">${imgPreview}<div class="gcc-dlg-img-btns"><button class="gcc-dlg-img-btn" id="lm-img-upload">Upload</button><button class="gcc-dlg-img-btn" id="lm-img-paste">Paste</button>${loreImageData?'<button class="gcc-dlg-img-btn danger" id="lm-img-clear">Remove</button>':''}</div><input type="file" id="lm-img-file" accept="image/*" style="display:none"></div>`;
-  // Wire image events
-  document.getElementById('lm-img-upload')?.addEventListener('click',()=>document.getElementById('lm-img-file').click());
-  document.getElementById('lm-img-file')?.addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{loreImageData=ev.target.result;openLoreModal(loreEditIdx)};reader.readAsDataURL(file)});
-  document.getElementById('lm-img-paste')?.addEventListener('click',async()=>{try{const items=await navigator.clipboard.read();for(const item of items){const imgType=item.types.find(t=>t.startsWith('image/'));if(imgType){const blob=await item.getType(imgType);const reader=new FileReader();reader.onload=ev=>{loreImageData=ev.target.result;openLoreModal(loreEditIdx)};reader.readAsDataURL(blob);return}}}catch(e){console.warn('Clipboard paste failed:',e)}});
-  document.getElementById('lm-img-clear')?.addEventListener('click',()=>{loreImageData='';openLoreModal(loreEditIdx)});
+  document.getElementById('lore-modal-body').innerHTML=buildLoreModalBody(l);
+  wireLoreModalEvents();
   loreModal.classList.add('open');
 }
 function closeLoreModal(){loreModal.classList.remove('open');loreEditIdx=-1;loreImageData=''}
