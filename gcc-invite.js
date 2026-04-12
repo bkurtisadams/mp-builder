@@ -201,6 +201,60 @@ const GCCInvite = (function() {
     'characters',
   ];
 
+  // Helper: resolve IDB image key to data URL
+  async function idbGet(key) {
+    return (typeof GCCImages !== 'undefined') ? await GCCImages.get(key) : null;
+  }
+
+  // Helper: upload an image field to Storage, return download URL
+  async function uploadImg(val, storagePath) {
+    if (typeof GCCStorage === 'undefined') return val || '';
+    return await GCCStorage.uploadCampaignImage(val, storagePath, idbGet);
+  }
+
+  // Build a lightweight character snapshot from the full saved character data.
+  // Uses the same resolveChar logic as campaign-detail but produces a plain object.
+  function buildCharSnapshot(savedChar, systemId) {
+    const snap = { _id: savedChar._id || '' };
+    if (systemId === 'faserip') {
+      snap.heroName = savedChar.heroName || savedChar.name || '';
+      snap.playerName = savedChar.playerName || '';
+      snap.origin = savedChar.origin || '';
+      snap.characterType = savedChar.characterType || '';
+      snap.abilities = savedChar.abilities || {};
+      snap.health = savedChar.health || '';
+      snap.karma = savedChar.karma || '';
+      snap.resourcesRank = savedChar.resourcesRank || '';
+      snap.popularityHero = savedChar.popularityHero;
+      snap.portraitData = savedChar.portraitData || '';
+    } else if (systemId === 'mp') {
+      snap.name = savedChar.name || '';
+      snap.player = savedChar.player || '';
+      snap.archetype = savedChar.archetype || savedChar.className || '';
+      snap.stats = savedChar.stats || {};
+      snap.abilities = savedChar.abilities || [];
+      snap.power = savedChar.power || '';
+      snap.hitPts = savedChar.hitPts || '';
+      snap.initiative = savedChar.initiative || '';
+      snap.characterType = savedChar.characterType || '';
+      snap._image = savedChar._image || savedChar.portrait || '';
+    } else if (systemId === 'add1e') {
+      snap.characterName = savedChar.characterName || savedChar.name || '';
+      snap.player = savedChar.player || savedChar.playerName || '';
+      snap.characterClass = savedChar.characterClass || '';
+      snap.level = savedChar.level || '';
+      snap.race = savedChar.race || '';
+      snap.str = savedChar.str; snap.strPct = savedChar.strPct;
+      snap.int = savedChar.int; snap.wis = savedChar.wis;
+      snap.dex = savedChar.dex; snap.con = savedChar.con; snap.cha = savedChar.cha;
+      snap.ac = savedChar.ac; snap.hpCurrent = savedChar.hpCurrent;
+      snap.hpMax = savedChar.hpMax; snap.xpTotal = savedChar.xpTotal;
+      snap.characterType = savedChar.characterType || '';
+      snap.portrait = savedChar.portrait || '';
+    }
+    return snap;
+  }
+
   async function pushSharedData(campaignId, camp) {
     const db = getDb();
     const uid = getUid();
@@ -210,9 +264,85 @@ const GCCInvite = (function() {
       SHARED_FIELDS.forEach(f => {
         if (camp[f] !== undefined) shared[f] = camp[f];
       });
-      // Strip private notes
       delete shared.notes;
+
+      const hasStorage = typeof GCCStorage !== 'undefined';
+      const sp = `campaigns/${campaignId}/`;
+
+      // ── Upload images to Firebase Storage ──
+      if (hasStorage) {
+        await GCCStorage.init().catch(() => null);
+
+        // Banner
+        if (shared.campaignImage) {
+          shared.campaignImage = await uploadImg(shared.campaignImage, sp + 'banner');
+        }
+        // HQ image
+        if (shared.hqImage) {
+          shared.hqImage = await uploadImg(shared.hqImage, sp + 'hq');
+        }
+        // Session images
+        if (shared.sessions) {
+          for (let i = 0; i < shared.sessions.length; i++) {
+            const s = shared.sessions[i];
+            if (s.image) {
+              s.image = await uploadImg(s.image, sp + 'ses_' + (s._id || i));
+            }
+            for (const sec of (s.sections || [])) {
+              for (let j = 0; j < (sec.images || []).length; j++) {
+                const img = sec.images[j];
+                if (img.src) {
+                  img.src = await uploadImg(img.src, sp + 'sec_' + (s._id || i) + '_' + j);
+                }
+              }
+            }
+          }
+        }
+        // Lore images
+        if (shared.lore) {
+          for (let i = 0; i < shared.lore.length; i++) {
+            const l = shared.lore[i];
+            if (l.image) {
+              l.image = await uploadImg(l.image, sp + 'lore_' + (l._id || i));
+            }
+          }
+        }
+      }
+
+      // ── Build character snapshots ──
+      const chars = camp.characters || [];
+      const snapshots = [];
+      for (const ch of chars) {
+        const refKey = ch.storageKey || ch.listKey || '';
+        let saved = null;
+        if (refKey) {
+          try {
+            const list = JSON.parse(localStorage.getItem(refKey)) || [];
+            saved = ch._id ? list.find(x => x._id === ch._id) : null;
+            if (!saved && ch.name) saved = list.find(x =>
+              (x.heroName || x.characterName || x.name) === ch.name);
+          } catch(e) {}
+        }
+        if (saved) {
+          const snap = buildCharSnapshot(saved, camp.system);
+          // Upload character portrait to Storage
+          const portraitField = camp.system === 'faserip' ? 'portraitData'
+            : camp.system === 'mp' ? '_image' : 'portrait';
+          if (hasStorage && snap[portraitField]) {
+            snap[portraitField] = await uploadImg(
+              snap[portraitField], sp + 'char_' + (snap._id || ch.name));
+          }
+          snap._ref = { storageKey: refKey, name: ch.name, _id: ch._id };
+          snapshots.push(snap);
+        } else {
+          // Can't resolve — push stub
+          snapshots.push({ _id: ch._id || '', name: ch.name || '', _ref: ch });
+        }
+      }
+      shared.characters = snapshots;
+
       await db.collection('campaigns').doc(campaignId).set(shared, { merge: true });
+      console.log('[GCCInvite] Shared data pushed (' + (hasStorage ? 'with' : 'without') + ' Storage)');
     } catch(e) {
       console.warn('[GCCInvite] pushSharedData failed:', e);
     }

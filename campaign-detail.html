@@ -298,6 +298,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 <script src="gcc-firebase-config.js"></script>
 <script src="gcc-auth.js"></script>
 <script src="gcc-sync.js"></script>
+<script src="gcc-storage.js"></script>
 <script src="gcc-invite.js"></script>
 <script>
 GCC.init();
@@ -428,13 +429,13 @@ function buildSessionCard(s,idx,total,camp,imgMap){
     s.roster.forEach(id=>{
       const ch=chars.find(c=>(c._id||c.name)===id);
       if(!ch)return;
-      let name=ch.name||'?',portrait='';
-      const refKey=ch.storageKey||ch.listKey||'';
+      let name=ch.heroName||ch.characterName||ch.name||'?',portrait=ch.portraitData||ch.portrait||ch._image||'';
+      const refKey=ch.storageKey||ch.listKey||(ch._ref?ch._ref.storageKey:'')||'';
       if(refKey){try{const saved=JSON.parse(localStorage.getItem(refKey))||[];
         let found=ch._id?saved.find(x=>x._id===ch._id):null;
         if(!found&&ch.name)found=saved.find(x=>(x.heroName||x.characterName||x.name)===ch.name);
         if(!found)found=saved.find(x=>(x.heroName||x.characterName||x.name||'')===id);
-        if(found){name=found.heroName||found.characterName||found.name||name;portrait=found.portraitData||found.portrait||found._image||''}}catch(e){}}
+        if(found){name=found.heroName||found.characterName||found.name||name;portrait=found.portraitData||found.portrait||found._image||portrait}}catch(e){}}
       const ava=portrait?`<img src="${portrait}">`:`<span class="roster-ph">?</span>`;
       rosterHtml+=`<span class="session-roster-chip">${ava} ${ESC(name)}</span>`;
     });
@@ -563,14 +564,14 @@ async function render(){
   if(!camp){page.innerHTML=`<div class="not-found"><div class="not-found-title">Campaign Not Found</div><div>This campaign doesn't exist or has been deleted.</div><div style="margin-top:12px"><a href="index.html">← Back to Dashboard</a></div></div>`;document.title='Not Found — GCC';return}
   const pm_=_isPlayerMode;
   if(!pm_){reconcileCharRefs(camp);await migrateImagesToIDB(camp)}
-  // Bulk load all images from IndexedDB (player mode may have no local images)
+  // Bulk load images from IndexedDB (GM mode); player mode uses Storage URLs directly
   const imgKeys=pm_?[]:collectImageKeys(camp);
   const imgMap=pm_?{}:await GCCImages.getBulk(imgKeys);
 
   document.title=camp.name+' — GCC';
   const sys=GCC.SYSTEM_DEFS.find(s=>s.id===camp.system)||{},tools=sys.tools||[],status=camp.status||'active',nextStr=formatDateTime(camp.nextSession),gml=camp.gmTitle||'GM';
 
-  const bannerSrc=pm_?(camp.campaignImage&&!GCCImages.isKey(camp.campaignImage)?camp.campaignImage:''):resolveImg(camp.campaignImage,imgMap);
+  const bannerSrc=pm_?(camp.campaignImage||''):resolveImg(camp.campaignImage,imgMap);
   const bannerControls=pm_?'':`<div class="camp-banner-controls"><button class="camp-banner-btn" id="btn-banner-upload">Upload</button>${camp.campaignImage?'<button class="camp-banner-btn" id="btn-banner-remove">Remove</button>':''}</div><input type="file" id="banner-img-file" accept="image/*" style="display:none">`;
   const bannerHtml=bannerSrc?`<div class="camp-banner"><img src="${ESC(bannerSrc)}" alt="">${bannerControls}</div>`:(pm_?'':`<div class="camp-banner"><div class="camp-banner-empty">${sys.icon||''} Click upload to add banner</div>${bannerControls}</div>`);
   const vttBtn=camp.vttLabel?`<a class="camp-btn camp-btn-vtt" href="${ESC(camp.vttUrl||'#')}" target="_blank">▶ ${ESC(camp.vttLabel)}</a>`:'';
@@ -584,8 +585,13 @@ async function render(){
   // Pre-resolve characters to count PCs vs NPCs
   const chars=camp.characters||[];let pcCount=0,npcCount=0;
   const resolvedChars=chars.map(ch=>{
-    let resolved=ch;const refKey=ch.storageKey||ch.listKey||'';
-    if(!pm_&&refKey){try{const saved=JSON.parse(localStorage.getItem(refKey))||[];let found=ch._id?saved.find(s=>s._id===ch._id):null;if(!found&&ch.name)found=saved.find(s=>(s.heroName||s.name)===ch.name);if(found){if(ch._id&&found._id&&ch._id!==found._id)ch._id=found._id;resolved=resolveChar(found,camp.system,refKey)}}catch(e){}}
+    let resolved=ch;const refKey=ch.storageKey||ch.listKey||(ch._ref?ch._ref.storageKey:'')||'';
+    if(pm_){
+      // Player mode: characters are snapshots from Firestore, resolve directly
+      resolved=resolveChar(ch,camp.system,refKey);
+    } else if(refKey){
+      try{const saved=JSON.parse(localStorage.getItem(refKey))||[];let found=ch._id?saved.find(s=>s._id===ch._id):null;if(!found&&ch.name)found=saved.find(s=>(s.heroName||s.name)===ch.name);if(found){if(ch._id&&found._id&&ch._id!==found._id)ch._id=found._id;resolved=resolveChar(found,camp.system,refKey)}}catch(e){}
+    }
     if(resolved.charType==='pc')pcCount++;else if(resolved.charType==='npc')npcCount++;
     return{ch,resolved,refKey};
   });
@@ -653,7 +659,7 @@ async function render(){
     :`<div class="notes-label">DM NOTES (private)</div><textarea class="notes-area" id="camp-notes" placeholder="Campaign notes, reminders, links...">${ESC(camp.notes||'')}</textarea><div style="margin-top:16px"><div class="notes-label">SHARED NOTES (visible to players)</div><textarea class="notes-area" id="camp-notes-shared" placeholder="Notes your players can see...">${ESC(camp.sharedNotes||'')}</textarea></div>`;
 
   // HQ tab
-  const hqSrc=pm_?(camp.hqImage&&!GCCImages.isKey(camp.hqImage)?camp.hqImage:''):resolveImg(camp.hqImage,imgMap);
+  const hqSrc=pm_?(camp.hqImage||''):resolveImg(camp.hqImage,imgMap);
   const hqImgHtml=pm_
     ?(hqSrc?`<div class="hq-img-wrap"><img class="hq-img" src="${ESC(hqSrc)}" alt="HQ Map"></div>`:'')
     :(hqSrc?`<div class="hq-img-wrap"><img class="hq-img" src="${ESC(hqSrc)}" alt="HQ Map"><div class="hq-img-controls"><button class="camp-banner-btn" id="btn-hq-img-upload">Replace</button><button class="camp-banner-btn" id="btn-hq-img-remove">Remove</button></div></div>`:`<div class="hq-img-empty" id="btn-hq-img-upload-area"><span>Click or drag to add HQ image / map</span></div>`);
