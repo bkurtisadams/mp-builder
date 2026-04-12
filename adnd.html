@@ -122,15 +122,15 @@ body{min-height:100vh;background:var(--bg);color:var(--ink);font-family:var(--fb
 .ca-labels{display:flex;gap:2px}
 .ca-labels .lb{line-height:1}
 /* Combat: bottom 2-col grid */
-.combat-bot{display:grid;grid-template-columns:170px 1fr;gap:4px 10px;margin-top:2px}
+.combat-bot{display:grid;grid-template-columns:130px 1fr;gap:4px 8px;margin-top:2px}
 .combat-bot>div{min-width:0}
 /* Weaponless compact */
 .wlc-title{font-family:var(--fh);font-size:9px;font-weight:700;text-transform:uppercase;text-align:center;letter-spacing:.5px;border-bottom:1.5px solid var(--ink);padding-bottom:1px;margin-bottom:1px}
 .wlc-hdr{font-family:var(--fh);font-size:7px;font-weight:700;text-transform:uppercase;text-align:center;letter-spacing:.2px;margin-bottom:3px;color:var(--ink-md)}
-.wlc-row{margin-bottom:4px}
+.wlc-row{margin-bottom:3px}
 .wlc-row-label{font-family:var(--fh);font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
 .wlc-row-fields{display:flex;gap:2px;align-items:baseline}
-.wlc-row-fields input{flex:1;border:none;border-bottom:1px solid var(--ink);background:transparent;font-family:var(--fb);font-size:10px;height:14px;min-width:0;outline:none;padding:0 2px}
+.wlc-row-fields input{flex:1;border:none;border-bottom:1px solid var(--ink);background:transparent;font-family:var(--fb);font-size:9px;height:13px;min-width:0;outline:none;padding:0 1px}
 .wlc-row-fields input:focus{border-bottom-color:var(--accent)}
 .wlc-row-fields .sep{font-size:8px;color:var(--ink-lt);flex-shrink:0}
 .w-tbl td.w-ac{font-size:8px}
@@ -468,18 +468,18 @@ tr.inv-nocarry td input{color:var(--ink-lt)}
         <input class="fi" data-field="numAttacks" style="width:50px;text-align:center;border-bottom:1px solid var(--ink)">
         <div class="lb"># Attacks</div>
       </div>
-      <div class="wlc-title">Weaponless Combat:</div>
-      <div class="wlc-hdr">Attack Adj.—Damage Adj.—Defense Adj.</div>
+      <div class="wlc-title">Weaponless Combat</div>
+      <div class="wlc-hdr">Attack / Damage / Defense</div>
       <div class="wlc-row">
-        <div class="wlc-row-fields"><input data-field="pummelAtk"><span class="sep">-</span><input data-field="pummelDam"><span class="sep">-</span><input data-field="pummelDef"></div>
+        <div class="wlc-row-fields"><input data-field="pummelAtk"><input data-field="pummelDam"><input data-field="pummelDef"></div>
         <div class="wlc-row-label">Pummeling</div>
       </div>
       <div class="wlc-row">
-        <div class="wlc-row-fields"><input data-field="grappleAtk"><span class="sep">-</span><input data-field="grappleDam"><span class="sep">-</span><input data-field="grappleDef"></div>
+        <div class="wlc-row-fields"><input data-field="grappleAtk"><input data-field="grappleDam"><input data-field="grappleDef"></div>
         <div class="wlc-row-label">Grappling</div>
       </div>
       <div class="wlc-row">
-        <div class="wlc-row-fields"><input data-field="overbearAtk"><span class="sep">-</span><input data-field="overbearDam"><span class="sep">-</span><input data-field="overbearDef"></div>
+        <div class="wlc-row-fields"><input data-field="overbearAtk"><input data-field="overbearDam"><input data-field="overbearDef"></div>
         <div class="wlc-row-label">Overbearing</div>
       </div>
     </div>
@@ -487,12 +487,12 @@ tr.inv-nocarry td input{color:var(--ink-lt)}
     <div>
       <table class="w-tbl"><thead>
         <tr>
-          <th style="width:20%">Weapon</th>
+          <th style="width:24%">Weapon</th>
           <th style="width:5%">Mag.</th>
-          <th style="width:10%">Spc/<br>Rng</th>
+          <th style="width:9%">Spc/<br>Rng</th>
           <th style="width:5%">Spd</th>
           <th style="width:4.5%">10</th><th style="width:4.5%">9</th><th style="width:4.5%">8</th><th style="width:4.5%">7</th><th style="width:4.5%">6</th><th style="width:4.5%">5</th><th style="width:4.5%">4</th><th style="width:4.5%">3</th><th style="width:4.5%">2</th>
-          <th style="width:13.5%">Dmg<br>S-M/L</th>
+          <th style="width:13%">Dmg<br>S-M/L</th>
           <th style="width:3%"><button class="add-sm" id="add-weapon" title="Add weapon">+</button></th>
         </tr>
       </thead><tbody id="weapon-list"></tbody></table>
