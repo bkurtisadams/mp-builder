@@ -338,3 +338,12 @@
 
 /* ── Print ── */
 @media print { .gcc-dlg-overlay { display: none !important; } }
+
+/* ── Backup / Settings dialog ── */
+.gcc-bk-section-title { font-family: var(--fsc, sans-serif); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--tx2, #888); margin-bottom: 8px }
+.gcc-bk-stats { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px }
+.gcc-bk-stat { display: flex; flex-direction: column; background: var(--bg-card, #f5f5f5); border: 1px solid var(--brd, #ddd); border-radius: 4px; padding: 8px 14px; min-width: 100px }
+.gcc-bk-stat-val { font-family: var(--fb, sans-serif); font-size: 14px; font-weight: 700; color: var(--tx, #333) }
+.gcc-bk-stat-label { font-family: var(--fm, sans-serif); font-size: 10px; color: var(--tx3, #999); margin-top: 2px }
+.gcc-bk-desc { font-family: var(--fm, sans-serif); font-size: 12px; color: var(--tx2, #666); margin-bottom: 10px }
+.gcc-bk-msg { font-family: var(--fm, sans-serif); font-size: 11px; margin-left: 10px }
