@@ -206,14 +206,37 @@ const GCCInvite = (function() {
     return (typeof GCCImages !== 'undefined') ? await GCCImages.get(key) : null;
   }
 
+  // Check if a value needs uploading (IDB key or data URL, but not already a Storage/web URL)
+  function needsUpload(val) {
+    if (!val) return false;
+    if (val.startsWith('http://') || val.startsWith('https://')) return false;
+    return true; // IDB key or data URL
+  }
+
   // Helper: upload an image field to Storage, return download URL
   async function uploadImg(val, storagePath) {
     if (typeof GCCStorage === 'undefined') return val || '';
+    if (!needsUpload(val)) return val;
     return await GCCStorage.uploadCampaignImage(val, storagePath, idbGet);
   }
 
+  // Run upload tasks with limited concurrency
+  async function batchUpload(tasks, concurrency) {
+    const results = new Array(tasks.length);
+    let idx = 0;
+    async function worker() {
+      while (idx < tasks.length) {
+        const i = idx++;
+        results[i] = await tasks[i]();
+      }
+    }
+    const workers = [];
+    for (let w = 0; w < Math.min(concurrency, tasks.length); w++) workers.push(worker());
+    await Promise.all(workers);
+    return results;
+  }
+
   // Build a lightweight character snapshot from the full saved character data.
-  // Uses the same resolveChar logic as campaign-detail but produces a plain object.
   function buildCharSnapshot(savedChar, systemId) {
     const snap = { _id: savedChar._id || '' };
     if (systemId === 'faserip') {
@@ -265,45 +288,95 @@ const GCCInvite = (function() {
         if (camp[f] !== undefined) shared[f] = camp[f];
       });
       delete shared.notes;
+      // Deep-clone sessions and lore so uploads don't mutate local data mid-render
+      if (shared.sessions) shared.sessions = JSON.parse(JSON.stringify(shared.sessions));
+      if (shared.lore) shared.lore = JSON.parse(JSON.stringify(shared.lore));
 
       const hasStorage = typeof GCCStorage !== 'undefined';
       const sp = `campaigns/${campaignId}/`;
 
-      // ── Upload images to Firebase Storage ──
+      // ── Upload images to Firebase Storage (batched, skip already-uploaded) ──
       if (hasStorage) {
         await GCCStorage.init().catch(() => null);
 
-        // Banner
-        if (shared.campaignImage) {
-          shared.campaignImage = await uploadImg(shared.campaignImage, sp + 'banner');
+        // Collect all upload tasks: { setter, val, path }
+        const uploads = [];
+
+        if (needsUpload(shared.campaignImage)) {
+          uploads.push({ path: sp + 'banner', val: shared.campaignImage,
+            apply: url => { shared.campaignImage = url; } });
         }
-        // HQ image
-        if (shared.hqImage) {
-          shared.hqImage = await uploadImg(shared.hqImage, sp + 'hq');
+        if (needsUpload(shared.hqImage)) {
+          uploads.push({ path: sp + 'hq', val: shared.hqImage,
+            apply: url => { shared.hqImage = url; } });
         }
-        // Session images
-        if (shared.sessions) {
-          for (let i = 0; i < shared.sessions.length; i++) {
-            const s = shared.sessions[i];
-            if (s.image) {
-              s.image = await uploadImg(s.image, sp + 'ses_' + (s._id || i));
-            }
-            for (const sec of (s.sections || [])) {
-              for (let j = 0; j < (sec.images || []).length; j++) {
-                const img = sec.images[j];
-                if (img.src) {
-                  img.src = await uploadImg(img.src, sp + 'sec_' + (s._id || i) + '_' + j);
-                }
+        for (const s of (shared.sessions || [])) {
+          if (needsUpload(s.image)) {
+            const sid = s._id || '';
+            uploads.push({ path: sp + 'ses_' + sid, val: s.image,
+              apply: url => { s.image = url; } });
+          }
+          for (const sec of (s.sections || [])) {
+            for (let j = 0; j < (sec.images || []).length; j++) {
+              const img = sec.images[j];
+              if (needsUpload(img.src)) {
+                uploads.push({ path: sp + 'sec_' + (s._id || '') + '_' + j, val: img.src,
+                  apply: url => { img.src = url; } });
               }
             }
           }
         }
-        // Lore images
-        if (shared.lore) {
-          for (let i = 0; i < shared.lore.length; i++) {
-            const l = shared.lore[i];
-            if (l.image) {
-              l.image = await uploadImg(l.image, sp + 'lore_' + (l._id || i));
+        for (const l of (shared.lore || [])) {
+          if (needsUpload(l.image)) {
+            uploads.push({ path: sp + 'lore_' + (l._id || ''), val: l.image,
+              apply: url => { l.image = url; } });
+          }
+        }
+
+        if (uploads.length) {
+          console.log('[GCCInvite] Uploading', uploads.length, 'images to Storage...');
+          const tasks = uploads.map(u => async () => {
+            const url = await uploadImg(u.val, u.path);
+            if (url) u.apply(url);
+          });
+          await batchUpload(tasks, 5);
+          console.log('[GCCInvite] Image uploads complete');
+
+          // Write Storage URLs back to local campaign data so future pushes skip them
+          const localCamp = (typeof GCC !== 'undefined') ? GCC.getCampaign(campaignId) : null;
+          if (localCamp) {
+            let dirty = false;
+            if (shared.campaignImage && shared.campaignImage !== localCamp.campaignImage) {
+              localCamp.campaignImage = shared.campaignImage; dirty = true;
+            }
+            if (shared.hqImage && shared.hqImage !== localCamp.hqImage) {
+              localCamp.hqImage = shared.hqImage; dirty = true;
+            }
+            (shared.sessions || []).forEach((s, i) => {
+              const ls = (localCamp.sessions || [])[i];
+              if (!ls) return;
+              if (s.image && s.image !== ls.image) { ls.image = s.image; dirty = true; }
+              (s.sections || []).forEach((sec, si) => {
+                const lsec = (ls.sections || [])[si];
+                if (!lsec) return;
+                (sec.images || []).forEach((img, j) => {
+                  const limg = (lsec.images || [])[j];
+                  if (limg && img.src && img.src !== limg.src) { limg.src = img.src; dirty = true; }
+                });
+              });
+            });
+            (shared.lore || []).forEach((l, i) => {
+              const ll = (localCamp.lore || [])[i];
+              if (ll && l.image && l.image !== ll.image) { ll.image = l.image; dirty = true; }
+            });
+            if (dirty) {
+              GCC.updateCampaign(campaignId, {
+                campaignImage: localCamp.campaignImage,
+                hqImage: localCamp.hqImage,
+                sessions: localCamp.sessions,
+                lore: localCamp.lore,
+              });
+              console.log('[GCCInvite] Cached Storage URLs in local campaign data');
             }
           }
         }
@@ -312,6 +385,7 @@ const GCCInvite = (function() {
       // ── Build character snapshots ──
       const chars = camp.characters || [];
       const snapshots = [];
+      const charUploads = [];
       for (const ch of chars) {
         const refKey = ch.storageKey || ch.listKey || '';
         let saved = null;
@@ -325,19 +399,22 @@ const GCCInvite = (function() {
         }
         if (saved) {
           const snap = buildCharSnapshot(saved, camp.system);
-          // Upload character portrait to Storage
           const portraitField = camp.system === 'faserip' ? 'portraitData'
             : camp.system === 'mp' ? '_image' : 'portrait';
-          if (hasStorage && snap[portraitField]) {
-            snap[portraitField] = await uploadImg(
-              snap[portraitField], sp + 'char_' + (snap._id || ch.name));
+          if (hasStorage && needsUpload(snap[portraitField])) {
+            const field = portraitField, s = snap;
+            charUploads.push(async () => {
+              s[field] = await uploadImg(s[field], sp + 'char_' + (s._id || ch.name));
+            });
           }
           snap._ref = { storageKey: refKey, name: ch.name, _id: ch._id };
           snapshots.push(snap);
         } else {
-          // Can't resolve — push stub
           snapshots.push({ _id: ch._id || '', name: ch.name || '', _ref: ch });
         }
+      }
+      if (charUploads.length) {
+        await batchUpload(charUploads, 5);
       }
       shared.characters = snapshots;
 
