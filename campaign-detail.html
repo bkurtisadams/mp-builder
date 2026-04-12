@@ -182,6 +182,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .lore-refs{font-family:var(--fm);font-size:9px;color:var(--tx3);margin-top:4px}
 .lore-actions{display:flex;gap:6px;position:absolute;top:8px;right:8px;opacity:0;transition:opacity .1s}
 .lore-card:hover .lore-actions{opacity:1}
+.lore-thumb{width:48px;height:48px;border-radius:3px;border:1px solid var(--brd);object-fit:cover;float:right;margin:0 0 4px 8px}
 
 .notes-area{width:100%;min-height:200px;font-family:var(--fb);font-size:13px;color:var(--tx);background:var(--bg-card);border:1px solid var(--brd);border-radius:4px;padding:12px 14px;outline:none;resize:vertical;line-height:1.5;transition:border-color .12s}
 .notes-area:focus{border-color:var(--accent-dim)}
@@ -468,7 +469,14 @@ async function migrateImagesToIDB(camp){
     camp.hqImage=await GCCImages.store(camp.hqImage,'img_hq');
     changed=true;console.log('[GCC] Migrated HQ image to IDB:',camp.hqImage);
   }
-  if(changed)GCC.updateCampaign(camp.id,{campaignImage:camp.campaignImage,sessions:camp.sessions,hqImage:camp.hqImage});
+  // Lore images
+  for(const l of(camp.lore||[])){
+    if(l.image&&GCCImages.isDataUrl(l.image)){
+      l.image=await GCCImages.store(l.image,'img_lore');
+      changed=true;console.log('[GCC] Migrated lore image to IDB:',l.image);
+    }
+  }
+  if(changed)GCC.updateCampaign(camp.id,{campaignImage:camp.campaignImage,sessions:camp.sessions,hqImage:camp.hqImage,lore:camp.lore});
   return changed;
 }
 
@@ -514,6 +522,7 @@ function collectImageKeys(camp){
     if(s.image&&GCCImages.isKey(s.image))keys.push(s.image);
     (s.sections||[]).forEach(sec=>{(sec.images||[]).forEach(img=>{if(img.src&&GCCImages.isKey(img.src))keys.push(img.src)})});
   });
+  (camp.lore||[]).forEach(l=>{if(l.image&&GCCImages.isKey(l.image))keys.push(l.image)});
   return keys;
 }
 // ── Resolve an image value: if it's a key, look up in map; if data URL, use directly ──
@@ -600,7 +609,9 @@ async function render(){
     const sesLbl=GCC.sessionLabel(camp.system);let realNum=0;const mentions=[];
     sessions.forEach(s=>{if(s.type!=='timeline')realNum++;if((s.tags||[]).some(t=>t.name===l.name))mentions.push(s.type==='timeline'?'Timeline':`${sesLbl} #${realNum}`)});
     const refsText=mentions.join(', ');
-    loreHtml+=`<div class="lore-card" data-lore-type="${ESC(l.type)}"><div class="lore-actions"><button class="session-action-btn" data-lore-edit="${origIdx}">Edit</button><button class="session-action-btn danger" data-lore-del="${origIdx}">Del</button></div><div class="lore-type-label">${ESC(typeLabel)}</div><div class="lore-name">${ESC(l.name)}</div>${l.desc?`<div class="lore-desc">${ESC(l.desc)}</div>`:''}${refsText?`<div class="lore-refs">${ESC(refsText)}</div>`:''}</div>`;
+    const loreSrc=resolveImg(l.image,imgMap);
+    const loreImgHtml=loreSrc?`<img class="lore-thumb" src="${loreSrc}" alt="">`:'';
+    loreHtml+=`<div class="lore-card" data-lore-type="${ESC(l.type)}"><div class="lore-actions"><button class="session-action-btn" data-lore-edit="${origIdx}">Edit</button><button class="session-action-btn danger" data-lore-del="${origIdx}">Del</button></div>${loreImgHtml}<div class="lore-type-label">${ESC(typeLabel)}</div><div class="lore-name">${ESC(l.name)}</div>${l.desc?`<div class="lore-desc">${ESC(l.desc)}</div>`:''}${refsText?`<div class="lore-refs">${ESC(refsText)}</div>`:''}</div>`;
   });loreHtml+='</div>'}
 
   // Notes tab
@@ -1049,18 +1060,32 @@ document.getElementById('session-modal-close').addEventListener('click',closeSes
 sesModal.addEventListener('click',e=>{if(e.target===sesModal)closeSessionModal()});
 
 // ═══ LORE MODAL ═══
-const loreModal=document.getElementById('lore-modal');let loreEditIdx=-1;
-function openLoreModal(editIdx){
+const loreModal=document.getElementById('lore-modal');let loreEditIdx=-1,loreImageData='';
+async function openLoreModal(editIdx){
   loreEditIdx=editIdx!=null?editIdx:-1;const camp=getCamp();if(!camp)return;const isEdit=loreEditIdx>=0;
   document.getElementById('lore-modal-title').textContent=isEdit?'Edit wiki entry':'New wiki entry';
   const l=isEdit?(camp.lore||[])[loreEditIdx]:null;
+  if(isEdit&&l&&l.image){loreImageData=GCCImages.isKey(l.image)?await GCCImages.get(l.image):l.image}else{loreImageData=''}
   const typeOptions=GCC.LORE_TYPES.map(t=>`<option value="${t}"${l&&l.type===t?' selected':''}>${GCC.LORE_TYPE_LABELS[t]}</option>`).join('');
-  document.getElementById('lore-modal-body').innerHTML=`<div class="gcc-dlg-row"><div><label class="gcc-dlg-label">TYPE</label><select class="gcc-dlg-select" id="lm-type">${typeOptions}</select></div><div><label class="gcc-dlg-label">SUBTYPE (optional)</label><input class="gcc-dlg-input" id="lm-subtype" placeholder="e.g. Villain, HQ Room" value="${l?ESC(l.subtype||''):''}"></div></div><label class="gcc-dlg-label">NAME</label><input class="gcc-dlg-input" id="lm-name" placeholder="e.g. Whiplash, ESU Campus" value="${l?ESC(l.name):''}"><label class="gcc-dlg-label">DESCRIPTION</label><textarea class="gcc-dlg-ta" id="lm-desc" rows="3" placeholder="Brief description...">${l?ESC(l.desc||''):''}</textarea>`;
+  const imgPreview=loreImageData?`<img class="gcc-dlg-img-preview" src="${loreImageData}">`:'';
+  document.getElementById('lore-modal-body').innerHTML=`<div class="gcc-dlg-row"><div><label class="gcc-dlg-label">TYPE</label><select class="gcc-dlg-select" id="lm-type">${typeOptions}</select></div><div><label class="gcc-dlg-label">SUBTYPE (optional)</label><input class="gcc-dlg-input" id="lm-subtype" placeholder="e.g. Villain, HQ Room" value="${l?ESC(l.subtype||''):''}"></div></div><label class="gcc-dlg-label">NAME</label><input class="gcc-dlg-input" id="lm-name" placeholder="e.g. Whiplash, ESU Campus" value="${l?ESC(l.name):''}"><label class="gcc-dlg-label">DESCRIPTION</label><textarea class="gcc-dlg-ta" id="lm-desc" rows="3" placeholder="Brief description...">${l?ESC(l.desc||''):''}</textarea><label class="gcc-dlg-label">IMAGE</label><div class="gcc-dlg-img-area" id="lm-img-area">${imgPreview}<div class="gcc-dlg-img-btns"><button class="gcc-dlg-img-btn" id="lm-img-upload">Upload</button><button class="gcc-dlg-img-btn" id="lm-img-paste">Paste</button>${loreImageData?'<button class="gcc-dlg-img-btn danger" id="lm-img-clear">Remove</button>':''}</div><input type="file" id="lm-img-file" accept="image/*" style="display:none"></div>`;
+  // Wire image events
+  document.getElementById('lm-img-upload')?.addEventListener('click',()=>document.getElementById('lm-img-file').click());
+  document.getElementById('lm-img-file')?.addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{loreImageData=ev.target.result;openLoreModal(loreEditIdx)};reader.readAsDataURL(file)});
+  document.getElementById('lm-img-paste')?.addEventListener('click',async()=>{try{const items=await navigator.clipboard.read();for(const item of items){const imgType=item.types.find(t=>t.startsWith('image/'));if(imgType){const blob=await item.getType(imgType);const reader=new FileReader();reader.onload=ev=>{loreImageData=ev.target.result;openLoreModal(loreEditIdx)};reader.readAsDataURL(blob);return}}}catch(e){console.warn('Clipboard paste failed:',e)}});
+  document.getElementById('lm-img-clear')?.addEventListener('click',()=>{loreImageData='';openLoreModal(loreEditIdx)});
   loreModal.classList.add('open');
 }
-function closeLoreModal(){loreModal.classList.remove('open');loreEditIdx=-1}
-document.getElementById('lm-save').addEventListener('click',()=>{const camp=getCamp();if(!camp)return;const lore=camp.lore||[];
-  const entry={_id:(loreEditIdx>=0&&lore[loreEditIdx])?lore[loreEditIdx]._id:GCC.genId('lore'),type:document.getElementById('lm-type').value,subtype:document.getElementById('lm-subtype').value.trim(),name:document.getElementById('lm-name').value.trim()||'Unnamed',desc:document.getElementById('lm-desc').value.trim()};
+function closeLoreModal(){loreModal.classList.remove('open');loreEditIdx=-1;loreImageData=''}
+document.getElementById('lm-save').addEventListener('click',async()=>{const camp=getCamp();if(!camp)return;const lore=camp.lore||[];
+  let imageKey='';
+  if(loreImageData){
+    const compressed=await new Promise(resolve=>compressImageData(loreImageData,400,resolve));
+    imageKey=await GCCImages.store(compressed,'img_lore');
+  } else if(loreEditIdx>=0&&lore[loreEditIdx]&&lore[loreEditIdx].image){
+    // Image was removed — leave imageKey empty
+  }
+  const entry={_id:(loreEditIdx>=0&&lore[loreEditIdx])?lore[loreEditIdx]._id:GCC.genId('lore'),type:document.getElementById('lm-type').value,subtype:document.getElementById('lm-subtype').value.trim(),name:document.getElementById('lm-name').value.trim()||'Unnamed',desc:document.getElementById('lm-desc').value.trim(),image:imageKey};
   if(loreEditIdx>=0&&loreEditIdx<lore.length){lore[loreEditIdx]=entry}else{lore.push(entry)}
   GCC.updateCampaign(campId,{lore});closeLoreModal();render()});
 document.getElementById('lm-cancel').addEventListener('click',closeLoreModal);
