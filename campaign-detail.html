@@ -269,6 +269,27 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
   <div class="gcc-dlg-footer"><button class="gcc-dlg-btn" id="vm-cancel">Cancel</button><button class="gcc-dlg-btn primary" id="vm-save">Save</button></div>
 </div></div>
 
+<div class="gcc-dlg-overlay cd-modal" id="lore-import-modal"><div class="gcc-dlg">
+  <div class="gcc-dlg-header"><div class="gcc-dlg-title">Import wiki entries</div><button class="gcc-dlg-close" id="lim-close">✕</button></div>
+  <div class="gcc-dlg-body">
+    <label class="gcc-dlg-label">PASTE JSON OR UPLOAD A .JSON FILE</label>
+    <textarea class="gcc-dlg-ta" id="lim-json" rows="10" placeholder='[
+  { "type": "npc", "subtype": "Villain", "name": "Mister Fear", "desc": "Larry Cranston..." },
+  { "type": "location", "name": "Washington Square Park", "desc": "..." }
+]' style="min-height:140px;font-family:var(--font-mono);font-size:11px"></textarea>
+    <div style="margin-top:6px;display:flex;gap:8px;align-items:center">
+      <button class="gcc-dlg-img-btn" id="lim-file-btn">Upload .json</button>
+      <input type="file" id="lim-file" accept=".json,application/json" style="display:none">
+      <span class="gcc-dlg-label" style="margin:0;font-size:9px;color:var(--tx3)" id="lim-status"></span>
+    </div>
+    <div style="margin-top:8px">
+      <label class="gcc-dlg-label">VALID TYPES: npc, location, faction, item, other</label>
+      <label class="gcc-dlg-check" style="margin-top:4px"><input type="checkbox" id="lim-skip-dupes" checked> Skip entries whose name already exists</label>
+    </div>
+  </div>
+  <div class="gcc-dlg-footer"><button class="gcc-dlg-btn" id="lim-cancel">Cancel</button><button class="gcc-dlg-btn primary" id="lim-import">Import</button></div>
+</div></div>
+
 <script src="gcc-dialog.js"></script>
 <script src="gcc-data.js"></script>
 <script src="gcc-images.js"></script>
@@ -601,7 +622,7 @@ async function render(){
 
   // Lore tab
   const lore=camp.lore||[],filteredLore=loreFilter==='all'?lore:lore.filter(l=>l.type===loreFilter);
-  let loreHtml=`<div class="session-toolbar"><div class="session-toolbar-left"><button class="btn-add" id="btn-add-lore">+ New Entry</button></div><div class="session-toolbar-right"><button class="filter-pill${loreFilter==='all'?' active':''}" data-lore-filter="all">All</button>${GCC.LORE_TYPES.map(t=>{const count=lore.filter(l=>l.type===t).length;return count?`<button class="filter-pill${loreFilter===t?' active':''}" data-lore-filter="${t}">${ESC(GCC.LORE_TYPE_LABELS[t])} (${count})</button>`:''}).join('')}</div></div>`;
+  let loreHtml=`<div class="session-toolbar"><div class="session-toolbar-left"><button class="btn-add" id="btn-add-lore">+ New Entry</button><button class="btn-add" id="btn-import-lore" style="background:none;border:1px solid var(--brd);color:var(--tx2)">Import JSON</button></div><div class="session-toolbar-right"><button class="filter-pill${loreFilter==='all'?' active':''}" data-lore-filter="all">All</button>${GCC.LORE_TYPES.map(t=>{const count=lore.filter(l=>l.type===t).length;return count?`<button class="filter-pill${loreFilter===t?' active':''}" data-lore-filter="${t}">${ESC(GCC.LORE_TYPE_LABELS[t])} (${count})</button>`:''}).join('')}</div></div>`;
   if(!filteredLore.length){loreHtml+=`<div class="entity-empty">No wiki entries yet. Add NPCs, locations, factions, and items.</div>`}
   else{loreHtml+='<div class="lore-grid">';filteredLore.forEach((l,i)=>{
     const origIdx=lore.indexOf(l);
@@ -737,6 +758,7 @@ function wireEvents(){
       GCC.updateCampaign(campId,{sessions});render()});
   });
   document.getElementById('btn-add-lore')?.addEventListener('click',()=>openLoreModal(-1));
+  document.getElementById('btn-import-lore')?.addEventListener('click',openLoreImportModal);
   document.querySelectorAll('[data-lore-edit]').forEach(btn=>{btn.addEventListener('click',()=>openLoreModal(parseInt(btn.dataset.loreEdit)))});
   document.querySelectorAll('[data-lore-del]').forEach(btn=>{btn.addEventListener('click',async()=>{const ok=await GCCDialog.confirm('Delete entry','Delete this lore entry?',{okText:'Delete',danger:true});if(!ok)return;const camp=getCamp();if(!camp)return;const lore=camp.lore||[];lore.splice(parseInt(btn.dataset.loreDel),1);GCC.updateCampaign(campId,{lore});render()})});
   // Vehicle assign/unassign
@@ -1091,6 +1113,64 @@ document.getElementById('lm-save').addEventListener('click',async()=>{const camp
 document.getElementById('lm-cancel').addEventListener('click',closeLoreModal);
 document.getElementById('lore-modal-close').addEventListener('click',closeLoreModal);
 loreModal.addEventListener('click',e=>{if(e.target===loreModal)closeLoreModal()});
+
+// ═══ LORE IMPORT MODAL ═══
+const loreImportModal=document.getElementById('lore-import-modal');
+function openLoreImportModal(){
+  document.getElementById('lim-json').value='';
+  document.getElementById('lim-status').textContent='';
+  document.getElementById('lim-skip-dupes').checked=true;
+  loreImportModal.classList.add('open');
+}
+function closeLoreImportModal(){loreImportModal.classList.remove('open')}
+document.getElementById('lim-close').addEventListener('click',closeLoreImportModal);
+document.getElementById('lim-cancel').addEventListener('click',closeLoreImportModal);
+loreImportModal.addEventListener('click',e=>{if(e.target===loreImportModal)closeLoreImportModal()});
+document.getElementById('lim-file-btn').addEventListener('click',()=>document.getElementById('lim-file').click());
+document.getElementById('lim-file').addEventListener('change',e=>{
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{document.getElementById('lim-json').value=ev.target.result;document.getElementById('lim-status').textContent=file.name+' loaded'};
+  reader.readAsText(file);
+});
+document.getElementById('lim-import').addEventListener('click',()=>{
+  const camp=getCamp();if(!camp)return;
+  const raw=document.getElementById('lim-json').value.trim();
+  if(!raw){document.getElementById('lim-status').textContent='Paste or upload JSON first.';return}
+  let arr;
+  try{arr=JSON.parse(raw)}catch(e){document.getElementById('lim-status').textContent='Invalid JSON: '+e.message;return}
+  if(!Array.isArray(arr)){document.getElementById('lim-status').textContent='JSON must be an array of objects.';return}
+  const validTypes=GCC.LORE_TYPES;
+  const lore=camp.lore||[];
+  const existingNames=new Set(lore.map(l=>l.name.toLowerCase()));
+  const skipDupes=document.getElementById('lim-skip-dupes').checked;
+  let added=0,skipped=0,invalid=0;
+  arr.forEach(item=>{
+    if(!item||typeof item!=='object'){invalid++;return}
+    const name=(item.name||'').trim();
+    if(!name){invalid++;return}
+    let type=(item.type||'other').toLowerCase().trim();
+    if(!validTypes.includes(type)){type='other'}
+    if(skipDupes&&existingNames.has(name.toLowerCase())){skipped++;return}
+    lore.push({
+      _id:GCC.genId('lore'),
+      type:type,
+      subtype:(item.subtype||'').trim(),
+      name:name,
+      desc:(item.desc||item.description||'').trim(),
+      image:''
+    });
+    existingNames.add(name.toLowerCase());
+    added++;
+  });
+  if(added>0){GCC.updateCampaign(campId,{lore})}
+  const parts=[];
+  if(added)parts.push(added+' imported');
+  if(skipped)parts.push(skipped+' duplicates skipped');
+  if(invalid)parts.push(invalid+' invalid entries');
+  document.getElementById('lim-status').textContent=parts.join(', ')+'.';
+  if(added>0){setTimeout(()=>{closeLoreImportModal();render()},1200)}
+});
 
 // ═══ VEHICLE ASSIGN MODAL ═══
 const vehModal=document.getElementById('veh-modal');
