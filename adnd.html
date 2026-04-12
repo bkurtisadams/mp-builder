@@ -201,6 +201,9 @@ tr.inv-nocarry td input{color:var(--ink-lt)}
 .thief-callout-close:hover{color:var(--accent)}
 .thief-callout-breakdown{font-family:var(--fh);font-size:8px;color:var(--ink-lt);margin-top:4px;border-top:1px solid var(--paper-dk);padding-top:3px}
 .turn-tbl td input{font-size:9px}
+.turn-info{display:inline-block;position:relative;font-size:10px;color:var(--accent);cursor:help;margin-left:4px;vertical-align:middle}
+.turn-info .turn-tip{display:none;position:absolute;bottom:120%;left:50%;transform:translateX(-50%);width:220px;padding:6px 8px;background:var(--paper-dk);border:1px solid var(--ink);border-radius:4px;font-family:var(--fb);font-size:8px;font-weight:400;line-height:1.4;color:var(--ink);z-index:99;white-space:normal;box-shadow:1px 1px 3px rgba(0,0,0,.2)}
+.turn-info:hover .turn-tip{display:block}
 .wealth-grid{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:2px 6px;margin-bottom:4px;align-items:baseline}
 /* Encumbrance box */
 .enc-box{border:1.5px solid var(--ink);padding:6px 8px 4px;margin-bottom:4px}
@@ -520,7 +523,7 @@ tr.inv-nocarry td input{color:var(--ink-lt)}
   </div>
 
   <div class="full cls-sec" id="section-turning">
-    <div class="sec" style="margin-top:2px">Turning Undead</div>
+    <div class="sec" style="margin-top:2px">Turning Undead<span class="turn-info">ⓘ<span class="turn-tip"><b>#</b> = d20 roll needed to turn 1-12 undead<br><b>T</b> = automatic turn (no roll)<br><b>D</b> = automatically destroyed (1-12)<br><b>D*</b> = automatically destroyed (7-12)<br><b>--</b> = no effect possible<br>Paladins turn as cleric 2 levels lower.</span></span></div>
     <table class="turn-tbl"><thead><tr><th>Skeleton</th><th>Zombie</th><th>Ghoul</th><th>Shadow</th><th>Wight</th><th>Ghast</th><th>Wraith</th><th>Mummy</th><th>Spectre</th><th>Vampire</th><th>Ghost</th><th>Lich</th><th>Special</th></tr></thead>
     <tbody><tr><td><input data-field="turnSkeleton" readonly></td><td><input data-field="turnZombie" readonly></td><td><input data-field="turnGhoul" readonly></td><td><input data-field="turnShadow" readonly></td><td><input data-field="turnWight" readonly></td><td><input data-field="turnGhast" readonly></td><td><input data-field="turnWraith" readonly></td><td><input data-field="turnMummy" readonly></td><td><input data-field="turnSpectre" readonly></td><td><input data-field="turnVampire" readonly></td><td><input data-field="turnGhost" readonly></td><td><input data-field="turnLich" readonly></td><td><input data-field="turnSpecial" readonly></td></tr></tbody></table>
   </div>
