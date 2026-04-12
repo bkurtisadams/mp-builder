@@ -20,7 +20,25 @@ const GCCImages = (function() {
           db.createObjectStore(STORE_NAME, { keyPath: 'key' });
         }
       };
-      req.onsuccess = e => { _db = e.target.result; resolve(_db); };
+      req.onsuccess = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          // DB exists at this version but store is missing — version bump to create it
+          db.close();
+          const req2 = indexedDB.open(DB_NAME, db.version + 1);
+          req2.onupgradeneeded = e2 => {
+            const db2 = e2.target.result;
+            if (!db2.objectStoreNames.contains(STORE_NAME)) {
+              db2.createObjectStore(STORE_NAME, { keyPath: 'key' });
+            }
+          };
+          req2.onsuccess = e2 => { _db = e2.target.result; resolve(_db); };
+          req2.onerror = e2 => { console.warn('[GCCImages] DB upgrade failed:', e2); reject(e2); };
+          return;
+        }
+        _db = db;
+        resolve(_db);
+      };
       req.onerror = e => { console.warn('[GCCImages] DB open failed:', e); reject(e); };
     });
   }
