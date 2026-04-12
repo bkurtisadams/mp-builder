@@ -2115,7 +2115,7 @@ function mapARS(ars){
   const nwpItems=items.filter(i=>{if(i.type!=='skill'||_thiefNames.has(i.name))return false;const f=(i.system||{}).features||{};const ab=f.ability||'';return ab&&ab!=='none';});
   if(nwpItems.length)c.skills=nwpItems.map(sk=>sk.name).join(', ');
   // Special Abilities — PHB racial abilities
-  const race=(c.race||'').toLowerCase().trim();
+  const race=(c.race||'').toLowerCase().trim().replace(/\s+/g,'-');
   c.specialAbilities=_phbRacialAbilities(race);
   // Vision — from race
   const _infraRaces={'elf':'Infravision 60\'','dwarf':'Infravision 60\'','gnome':'Infravision 60\'','half-elf':'Infravision 60\'','half-orc':'Infravision 60\'','halfling':'Infravision 30\''};
@@ -2159,6 +2159,7 @@ function _phbRacialAbilities(race){
       'Infravision 60\'',
       '30% resist sleep/charm',
       'Secret doors 1in6 (passing), 2in6 (searching)',
+      'Concealed doors 3in6',
     ],
     'halfling':[
       'Infravision 30\'',
@@ -2439,7 +2440,7 @@ function calcThiefSkills(){
   const base=_thiefBase[lvl]||_thiefBase[1];
   const dv=+(CHAR.dex||0);
   const dexAdj=_thiefDex[Math.max(9,Math.min(25,dv))]||[0,0,0,0,0];
-  const raceKey=(CHAR.race||'').toLowerCase().trim();
+  const raceKey=(CHAR.race||'').toLowerCase().trim().replace(/\s+/g,'-');
   const raceAdj=_thiefRace[raceKey]||[0,0,0,0,0,0,0,0];
   _thiefSkillKeys.forEach((k,i)=>{
     const b=base[i],r=raceAdj[i],d=i<5?dexAdj[i]:0;
