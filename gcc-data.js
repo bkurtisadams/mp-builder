@@ -181,7 +181,7 @@ const GCC = (function() {
   function addCampaign(data) {
     const list = loadCampaigns();
     const camp = {
-      id: 'camp-' + Date.now(),
+      id: data.id || ('camp-' + Date.now()),
       schemaVersion: 1,
       name: data.name || 'Untitled',
       system: data.system || 'mp',

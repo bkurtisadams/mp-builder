@@ -1476,12 +1476,17 @@ window.addEventListener('gcc-sync-ready', () => {
       btn.textContent = 'JOINING...';
       const result = await GCCInvite.joinCampaign(inviteCode);
       if (result.ok) {
+        // Create local campaign stub if player doesn't already have one
+        if (!GCC.getCampaign(result.campaignId)) {
+          GCC.addCampaign({ id: result.campaignId, name: result.campaignName, system: result.system || 'mp', status: 'active' });
+        }
+        renderCampaigns();
         banner.innerHTML =
           '<div class="invite-banner">' +
             '<div class="invite-banner-title">WELCOME!</div>' +
             '<div class="invite-banner-sub">You\'ve joined <strong>' + ESC(result.campaignName) + '</strong></div>' +
             '<div class="invite-banner-msg success">You\'re now part of this campaign.</div>' +
-            '<div style="margin-top:10px"><button class="invite-banner-btn secondary" onclick="document.getElementById(\'invite-banner\').style.display=\'none\';history.replaceState(null,\'\',\'index.html\')">Continue</button></div>' +
+            '<div style="margin-top:10px"><button class="invite-banner-btn" onclick="window.location.href=\'campaign-detail.html?id=' + encodeURIComponent(result.campaignId) + '\'">View Campaign</button> <button class="invite-banner-btn secondary" onclick="document.getElementById(\'invite-banner\').style.display=\'none\';history.replaceState(null,\'\',\'index.html\')">Dismiss</button></div>' +
           '</div>';
       } else {
         banner.innerHTML =

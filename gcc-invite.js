@@ -150,7 +150,7 @@ const GCCInvite = (function() {
         joined: new Date().toISOString(),
       }, { merge: true });
 
-      return { ok: true, campaignId: invite.campaignId, campaignName: invite.campaignName };
+      return { ok: true, campaignId: invite.campaignId, campaignName: invite.campaignName, system: invite.system };
     } catch(e) {
       console.error('[GCCInvite] joinCampaign failed:', e);
       return { ok: false, reason: e.message };
