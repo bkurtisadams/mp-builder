@@ -1030,10 +1030,18 @@ function compressImageData(dataUrl,maxKB,cb){
     const canvas=document.createElement('canvas');let w=img.width,h=img.height;
     const maxDim=1600;if(w>maxDim||h>maxDim){const r=Math.min(maxDim/w,maxDim/h);w=Math.round(w*r);h=Math.round(h*r)}
     canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,w,h);
-    let quality=0.85,result=canvas.toDataURL('image/jpeg',quality);
-    while(result.length>maxKB*1024&&quality>0.4){quality-=0.05;result=canvas.toDataURL('image/jpeg',quality)}
-    console.log('[GCC] Image compressed:',Math.round(dataUrl.length/1024)+'KB →',Math.round(result.length/1024)+'KB','q='+quality.toFixed(2));
-    cb(result);
+    // Detect alpha: sample corners + center edge pixels
+    const hasAlpha=(()=>{try{const spots=[[0,0],[w-1,0],[0,h-1],[w-1,h-1],[Math.floor(w/2),0],[0,Math.floor(h/2)]];for(const[x,y]of spots){if(ctx.getImageData(x,y,1,1).data[3]<250)return true}return false}catch(e){return false}})();
+    if(hasAlpha){
+      let result=canvas.toDataURL('image/png');
+      console.log('[GCC] Image compressed (PNG, alpha preserved):',Math.round(dataUrl.length/1024)+'KB →',Math.round(result.length/1024)+'KB');
+      cb(result);
+    }else{
+      let quality=0.85,result=canvas.toDataURL('image/jpeg',quality);
+      while(result.length>maxKB*1024&&quality>0.4){quality-=0.05;result=canvas.toDataURL('image/jpeg',quality)}
+      console.log('[GCC] Image compressed (JPEG):',Math.round(dataUrl.length/1024)+'KB →',Math.round(result.length/1024)+'KB','q='+quality.toFixed(2));
+      cb(result);
+    }
   };img.onerror=()=>cb(dataUrl);img.src=dataUrl;
 }
 
