@@ -697,8 +697,8 @@ async function render(){
     <div class="tab-panel${currentTab==='notes'?' active':''}" data-panel="notes">${notesHtml}</div>
   </div></div>`;
   wireEvents();
-  // GM mode: debounce push shared data to Firestore after edits
-  if(!_isPlayerMode){clearTimeout(render._pushTimer);render._pushTimer=setTimeout(()=>{const c=getCamp();if(c&&GCCAuth?.getUser())GCCInvite.pushSharedData(campId,c)},2000)}
+  // GM mode: debounce push shared data to Firestore after edits (only after initPage confirms GM)
+  if(render._gmConfirmed){clearTimeout(render._pushTimer);render._pushTimer=setTimeout(()=>{const c=getCamp();if(c&&GCCAuth?.getUser())GCCInvite.pushSharedData(campId,c)},2000)}
 }
 
 function wireEvents(){
@@ -1298,6 +1298,7 @@ vehModal.addEventListener('click',e=>{if(e.target===vehModal)closeVehModal()});
   } else {
     // GM mode: push current data to shared doc so players can see it
     console.log('[GCC] GM mode — pushing shared campaign data');
+    render._gmConfirmed=true;
     const camp=GCC.getCampaign(campId);
     if(camp){GCCInvite.pushSharedData(campId,camp)}
   }
