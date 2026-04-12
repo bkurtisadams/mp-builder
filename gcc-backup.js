@@ -277,11 +277,7 @@ const GCCBackup = (function() {
     document.getElementById('gcc-bk-import-file').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      const ok = await GCCDialog.confirm('Restore Backup',
-        'Import data from <strong>' + GCCBackup._esc(file.name) + '</strong>?<br><br>' +
-        'This will overwrite any existing data for the same keys. Make sure you have a current backup first.',
-        { okText: 'Restore', danger: true });
-      if (!ok) return;
+      if (!window.confirm('Import data from "' + file.name + '"?\n\nThis will overwrite any existing data for the same keys. Make sure you have a current backup first.')) return;
       const msgEl = document.getElementById('gcc-bk-import-msg');
       msgEl.innerHTML = '<span style="color:var(--tx2)">Importing...</span>';
       try {
