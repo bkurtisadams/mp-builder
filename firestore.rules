@@ -35,7 +35,8 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null
-        && resource.data.ownerUid == request.auth.uid;
+        && (resource.data.ownerUid == request.auth.uid
+            || !('ownerUid' in resource.data));
 
       // Player roster: owner can manage all, players can add/read themselves
       match /players/{playerId} {
