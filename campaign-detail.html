@@ -1652,7 +1652,9 @@ document.getElementById('sim-import').addEventListener('click',()=>{
   const skipDupes=document.getElementById('sim-skip-dupes').checked;
   const daysAsSections=document.getElementById('sim-days-as-sections').checked;
   let added=0,skipped=0;
-  episodes.forEach(ep=>{
+  // Reverse: sessions array is newest-first, so highest episode number goes first
+  const sorted=[...episodes].reverse();
+  sorted.forEach(ep=>{
     if(skipDupes&&existingTitles.has(ep.title.toLowerCase())){skipped++;return}
     const entry={
       _id:GCC.genId('ses'),
