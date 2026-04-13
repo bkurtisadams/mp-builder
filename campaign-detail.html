@@ -1571,11 +1571,11 @@ sesImportModal.addEventListener('click',e=>{if(e.target===sesImportModal)closeSe
 
 function parseEpisodeText(raw){
   const episodes=[];
-  const epRe=/Episode\s+(\d+)\s*:\s*["\u201c\u201d\u201e](.+?)["\u201c\u201d\u201e]\s*\(real\s*world\s*date\s*:\s*(.+?)\)/gi;
+  const epRe=/Episode\s+(\d+)\s*:\s*(?:["\u201c\u201d\u201e]\s*(.+?)\s*["\u201c\u201d\u201e]|([^(]*?))\s*\(real\s*world\s*date\s*:\s*(.+?)\)/gi;
   const chunks=[];
   let match;
   const matches=[];
-  while((match=epRe.exec(raw))!==null)matches.push({idx:match.index,num:parseInt(match[1]),title:match[2].trim(),realDate:match[3].trim()});
+  while((match=epRe.exec(raw))!==null)matches.push({idx:match.index,num:parseInt(match[1]),title:(match[2]||match[3]||'').trim(),realDate:(match[4]||'').trim()});
   if(!matches.length)return[];
   for(let i=0;i<matches.length;i++){
     const start=matches[i].idx;
