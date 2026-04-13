@@ -893,7 +893,7 @@ function wireEvents(){
   document.getElementById('btn-add-session')?.addEventListener('click',()=>openSessionModal(-1,'session'));
   document.getElementById('btn-export-journal')?.addEventListener('click',exportJournal);
   document.getElementById('btn-import-sessions')?.addEventListener('click',openSesImportModal);
-  document.getElementById('btn-delete-all-sessions')?.addEventListener('click',async()=>{const camp=getCamp();if(!camp)return;const count=(camp.sessions||[]).length;const ok=await GCCDialog.confirm('Delete all sessions','Delete all '+count+' sessions? This cannot be undone.',{okText:'Delete All',danger:true});if(!ok)return;GCC.updateCampaign(campId,{sessions:[],session:0});render()});
+  document.getElementById('btn-delete-all-sessions')?.addEventListener('click',async()=>{const camp=getCamp();if(!camp)return;const count=(camp.sessions||[]).length;const ok=await GCCDialog.confirm('Delete all sessions','Delete all '+count+' sessions? This cannot be undone.',{okText:'Delete All',danger:true});if(!ok)return;GCC.updateCampaign(campId,{sessions:[],session:0});if(GCCAuth?.getUser())GCCInvite.pushSharedData(campId,GCC.getCampaign(campId));render()});
   document.querySelectorAll('[data-ses-filter]').forEach(btn=>{btn.addEventListener('click',()=>{sessionFilter=btn.dataset.sesFilter;render()})});
   document.querySelectorAll('[data-lore-filter]').forEach(btn=>{btn.addEventListener('click',()=>{loreFilter=btn.dataset.loreFilter;render()})});
   document.querySelectorAll('[data-ses-edit]').forEach(btn=>{btn.addEventListener('click',()=>openSessionModal(parseInt(btn.dataset.sesEdit)))});
