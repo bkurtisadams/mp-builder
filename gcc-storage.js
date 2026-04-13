@@ -45,9 +45,13 @@ const GCCStorage = (function() {
   async function upload(path, dataUrl) {
     if (!_storage) await init();
     if (!_storage) return null;
+    // Safety: only accept actual data URLs
+    if (!dataUrl || !dataUrl.startsWith('data:')) {
+      if (dataUrl && (dataUrl.startsWith('http://') || dataUrl.startsWith('https://'))) return dataUrl;
+      return null;
+    }
     try {
       const ref = _storage.ref(path);
-      // Convert data URL to Blob
       const resp = await fetch(dataUrl);
       const blob = await resp.blob();
       const snap = await ref.put(blob, { contentType: blob.type });
