@@ -665,8 +665,8 @@ async function render(){
 
   // Party tab
   let partyHtml=pm_?'':`<button class="btn-add" id="btn-edit-team">✎ Edit ${ESC(GCC.teamLabel(camp.system))}</button>`;
-  if(!chars.length){partyHtml+=`<div class="entity-empty">No characters assigned to this campaign yet.</div>`}
-  else{partyHtml+='<div class="entity-grid">';resolvedChars.forEach(({ch,resolved,refKey},i)=>{
+  if(!chars.length&&!pm_){partyHtml+=`<div class="entity-empty">No characters assigned to this campaign yet.</div>`}
+  else if(chars.length){partyHtml+='<div class="entity-grid">';resolvedChars.forEach(({ch,resolved,refKey},i)=>{
     const col=PIP_COLORS[i%PIP_COLORS.length];
     const portraitHtml=resolved.portrait?`<img class="entity-portrait" src="${resolved.portrait}" alt="">`:`<div class="entity-portrait-ph">?</div>`;
     let nameHtml;const charSys=GCC.SYSTEM_DEFS.find(s=>s.id===camp.system);const effectiveKey=resolved.storageKey||refKey;
@@ -675,6 +675,7 @@ async function render(){
     const typeBadge=resolved.charType?`<span class="entity-badge ${resolved.charType}">${resolved.charType.toUpperCase()}</span>`:'';
     partyHtml+=`<div class="entity-card"><div class="entity-pip" style="background:${col}"></div>${portraitHtml}<div class="entity-info"><div class="entity-name">${nameHtml}${typeBadge}</div><div class="entity-sub">${ESC(resolved.sub||'')}</div>${resolved.statsHtml||''}${resolved.player?'<div class="entity-player">'+ESC(resolved.player)+'</div>':''}</div></div>`;
   });partyHtml+='</div>'}
+  if(pm_)partyHtml+=`<div id="player-chars-grid"><div class="entity-empty">Loading player characters...</div></div>`;
 
   // Vehicles tab
   let vehHtml='';const vehTool=sys.tools?.find(t=>t.charList===GCC.KEYS.mpVehs);let vehs=[];
@@ -752,7 +753,7 @@ async function render(){
      '<button class="tab'+(currentTab==='hq'?' active':'')+'" data-tab="hq">HQ</button>'+
      '<button class="tab'+(currentTab==='players'?' active':'')+'" data-tab="players">Invite Players</button>'+
      '<button class="tab'+(currentTab==='notes'?' active':'')+'" data-tab="notes">Notes</button>';
-  const playersTabHtml=pm_?'<div class="sec-hdr"><div class="sec-title">PLAYER ROSTER</div></div><div id="player-roster"><div class="entity-empty">Loading...</div></div>':'<div class="invite-section" id="invite-section"><div class="sec-hdr"><div class="sec-title">INVITE PLAYERS</div></div><div id="invite-area"><button class="invite-btn" id="btn-gen-invite">Generate Invite Link</button></div><div id="invite-msg"></div></div><div class="sec-hdr"><div class="sec-title">PLAYER ROSTER</div></div><div id="player-roster"><div class="entity-empty">Loading...</div></div>';
+  const playersTabHtml=pm_?'<div class="sec-hdr"><div class="sec-title">MY CHARACTER</div></div><div id="my-char-slot"><div class="entity-empty">Loading...</div></div><div style="margin-top:20px"><div class="sec-hdr"><div class="sec-title">PLAYER ROSTER</div></div></div><div id="player-roster"><div class="entity-empty">Loading...</div></div>':'<div class="invite-section" id="invite-section"><div class="sec-hdr"><div class="sec-title">INVITE PLAYERS</div></div><div id="invite-area"><button class="invite-btn" id="btn-gen-invite">Generate Invite Link</button></div><div id="invite-msg"></div></div><div class="sec-hdr"><div class="sec-title">PLAYER ROSTER</div></div><div id="player-roster"><div class="entity-empty">Loading...</div></div>';
 
   page.innerHTML=`${bannerHtml}<div class="camp-header"><div class="camp-header-in"><div class="camp-title-area"><div class="camp-name">${ESC(camp.name)}</div><div class="camp-meta"><span class="camp-system-badge" style="${sysColorCSS(camp.system)}">${ESC(sys.name||camp.system)}</span><span class="camp-status"><span class="camp-status-dot ${status}"></span> ${statusLabel(status)}</span></div>${camp.pitch?'<div class="camp-pitch">"'+ESC(camp.pitch)+'"</div>':''}</div><div class="camp-header-btns">${headerBtns}</div></div></div>
   <div class="main"><div class="main-in">
@@ -880,7 +881,7 @@ function wireEvents(){
     if(result.ok){showInviteCode(result.code);loadPlayerRoster()}else{document.getElementById('invite-msg').innerHTML='<span style="color:var(--red)">Failed: '+ESC(result.reason||'unknown error')+'</span>'}
     btnGenInvite.disabled=false;btnGenInvite.textContent='Generate Invite Link';
   })}
-  loadExistingInvites();loadPlayerRoster();
+  loadExistingInvites();loadPlayerRoster();if(_isPlayerMode){loadMyCharSlot();loadPlayerChars()}
 }
 
 async function loadExistingInvites(){if(!GCCAuth.getUser())return;const invites=await GCCInvite.getInvitesForCampaign(campId);const active=invites.filter(i=>i.active);if(active.length>0)showInviteCode(active[0].code)}
@@ -888,8 +889,98 @@ function showInviteCode(code){const area=document.getElementById('invite-area');
   document.getElementById('btn-copy-invite').addEventListener('click',()=>{navigator.clipboard.writeText(url).then(()=>{document.getElementById('invite-msg').innerHTML='<span class="invite-msg">Link copied to clipboard!</span>';setTimeout(()=>{const m=document.getElementById('invite-msg');if(m)m.innerHTML=''},3000)})});
   document.getElementById('btn-revoke-invite').addEventListener('click',async()=>{const okR=await GCCDialog.confirm('Revoke invite','Revoke this invite code?',{okText:'Revoke',danger:true});if(!okR)return;await GCCInvite.deactivateInvite(code);area.innerHTML='<button class="invite-btn" id="btn-gen-invite">Generate Invite Link</button>';document.getElementById('invite-msg').innerHTML='<span class="invite-msg">Invite revoked.</span>';const nb=document.getElementById('btn-gen-invite');if(nb){nb.addEventListener('click',async()=>{const camp=getCamp();if(!camp)return;if(!GCCAuth.getUser()){document.getElementById('invite-msg').innerHTML='<span style="color:var(--red)">Sign in to generate invites.</span>';return}nb.disabled=true;nb.textContent='Generating...';const r=await GCCInvite.createInvite(campId,camp.name,camp.system);if(r.ok){showInviteCode(r.code);loadPlayerRoster()}else{document.getElementById('invite-msg').innerHTML='<span style="color:var(--red)">Failed: '+ESC(r.reason||'unknown error')+'</span>'}nb.disabled=false;nb.textContent='Generate Invite Link'})}});
 }
-async function loadPlayerRoster(){const roster=document.getElementById('player-roster');if(!roster)return;if(!GCCAuth.getUser()){roster.innerHTML='<div class="entity-empty">Sign in to see the player roster.</div>';return}const players=await GCCInvite.getPlayers(campId);if(!players.length){roster.innerHTML='<div class="entity-empty">No players have joined yet.</div>';return}const uid=GCCAuth.getUser().uid;let html='<ul class="player-list">';players.forEach(p=>{const initials=(p.displayName||'?').split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);const roleLabel=p.role==='gm'?'GM':'PLAYER';const removeBtn=(p.uid!==uid&&p.role!=='gm')?' <button class="invite-btn danger player-remove" data-remove-uid="'+ESC(p.uid)+'">Remove</button>':'';html+='<li class="player-item"><div class="player-info"><div class="player-avatar">'+ESC(initials)+'</div><div><div class="player-name">'+ESC(p.displayName||'Unknown')+'<span class="player-role">'+roleLabel+'</span></div><div class="player-email">'+ESC(p.email||'')+'</div></div></div>'+removeBtn+'</li>'});html+='</ul>';roster.innerHTML=html;
+async function loadPlayerRoster(){const roster=document.getElementById('player-roster');if(!roster)return;if(!GCCAuth.getUser()){roster.innerHTML='<div class="entity-empty">Sign in to see the player roster.</div>';return}const players=await GCCInvite.getPlayers(campId);if(!players.length){roster.innerHTML='<div class="entity-empty">No players have joined yet.</div>';return}const uid=GCCAuth.getUser().uid;const camp=getCamp();const sys=camp?camp.system:'';let html='<ul class="player-list">';for(const p of players){const initials=(p.displayName||'?').split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);const roleLabel=p.role==='gm'?'GM':'PLAYER';const removeBtn=(!_isPlayerMode&&p.uid!==uid&&p.role!=='gm')?' <button class="invite-btn danger player-remove" data-remove-uid="'+ESC(p.uid)+'">Remove</button>':'';let charInfo='';if(p.charId){const ch=await GCCInvite.getPlayerCharacter(p.uid,p.listKey,p.charId);if(ch){const name=ch.heroName||ch.characterName||ch.name||'Unnamed';const cls=ch.characterClass?ch.characterClass+(ch.level?' '+ch.level:''):(ch.origin||ch.archetype||'');charInfo='<div class="player-email" style="color:var(--accent)">'+ESC(name)+(cls?' · '+ESC(cls):'')+'</div>'}}html+='<li class="player-item"><div class="player-info"><div class="player-avatar">'+ESC(initials)+'</div><div><div class="player-name">'+ESC(p.displayName||'Unknown')+'<span class="player-role">'+roleLabel+'</span></div><div class="player-email">'+ESC(p.email||'')+'</div>'+charInfo+'</div></div>'+removeBtn+'</li>'}html+='</ul>';roster.innerHTML=html;
   roster.querySelectorAll('[data-remove-uid]').forEach(btn=>{btn.addEventListener('click',async()=>{const okP=await GCCDialog.confirm('Remove player','Remove this player?',{okText:'Remove',danger:true});if(!okP)return;await GCCInvite.removePlayer(campId,btn.dataset.removeUid);loadPlayerRoster()})});
+}
+
+// ── Player mode: "My Character" slot ──
+async function loadMyCharSlot(){
+  const slot=document.getElementById('my-char-slot');
+  if(!slot)return;
+  const user=GCCAuth?.getUser();
+  if(!user){slot.innerHTML='<div class="entity-empty">Sign in to assign a character.</div>';return}
+  const players=await GCCInvite.getPlayers(campId);
+  const me=players.find(p=>p.uid===user.uid);
+  if(!me){slot.innerHTML='<div class="entity-empty">You haven\'t joined this campaign yet.</div>';return}
+  const camp=getCamp();
+  const sys=camp?camp.system:'';
+  // Find the charList key for this system
+  const sysDef=(typeof GCC!=='undefined')?GCC.SYSTEM_DEFS.find(s=>s.id===sys):null;
+  const charTool=sysDef?.tools.find(t=>t.charList);
+  const listKey=charTool?charTool.charList:'';
+
+  if(me.charId){
+    // Already assigned — show the character with Change/Remove buttons
+    const ch=await GCCInvite.getPlayerCharacter(user.uid,me.listKey,me.charId);
+    if(ch){
+      const resolved=resolveChar(ch,sys,me.listKey);
+      const portraitHtml=resolved.portrait?`<img class="entity-portrait" src="${resolved.portrait}" alt="">`:`<div class="entity-portrait-ph">?</div>`;
+      const editHref=charTool?charTool.href+'?id='+encodeURIComponent(me.charId):'';
+      const editLink=editHref?` <a href="${ESC(editHref)}" style="font-size:9px;color:var(--tx3);text-decoration:none" title="Edit">✎</a>`:'';
+      slot.innerHTML=`<div class="entity-grid"><div class="entity-card"><div class="entity-pip" style="background:${PIP_COLORS[0]}"></div>${portraitHtml}<div class="entity-info"><div class="entity-name">${ESC(resolved.name)}${editLink}</div><div class="entity-sub">${ESC(resolved.sub||'')}</div>${resolved.statsHtml||''}${resolved.player?'<div class="entity-player">'+ESC(resolved.player)+'</div>':''}</div></div></div><div style="margin-top:8px;display:flex;gap:6px"><button class="invite-btn" id="btn-change-char">Change Character</button><button class="invite-btn danger" id="btn-remove-char">Remove</button></div>`;
+    } else {
+      slot.innerHTML='<div class="entity-empty">Character not found (may have been deleted).</div><button class="invite-btn danger" id="btn-remove-char" style="margin-top:6px">Remove Assignment</button>';
+    }
+    document.getElementById('btn-change-char')?.addEventListener('click',()=>openCharPickerModal(sys,listKey));
+    document.getElementById('btn-remove-char')?.addEventListener('click',async()=>{
+      const ok=await GCCDialog.confirm('Remove character','Remove your character from this campaign?',{okText:'Remove',danger:true});
+      if(!ok)return;
+      await GCCInvite.unassignCharacter(campId);
+      loadMyCharSlot();loadPlayerRoster();
+    });
+  } else {
+    // Not assigned — show picker button
+    slot.innerHTML=`<div class="entity-empty">You haven't assigned a character to this campaign yet.</div><button class="btn-add" id="btn-pick-char" style="margin-top:8px">Join with Character</button>`;
+    document.getElementById('btn-pick-char')?.addEventListener('click',()=>openCharPickerModal(sys,listKey));
+  }
+}
+
+// ── Player mode: load player-assigned characters for party tab ──
+async function loadPlayerChars(){
+  const grid=document.getElementById('player-chars-grid');
+  if(!grid)return;
+  const camp=getCamp();
+  if(!camp){grid.innerHTML='';return}
+  const players=await GCCInvite.getPlayers(campId);
+  const withChars=players.filter(p=>p.charId&&p.listKey);
+  if(!withChars.length){grid.innerHTML='<div class="entity-empty">No players have assigned characters yet.</div>';return}
+  let html='<div class="entity-grid">';
+  for(let i=0;i<withChars.length;i++){
+    const p=withChars[i];
+    const ch=await GCCInvite.getPlayerCharacter(p.uid,p.listKey,p.charId);
+    if(!ch)continue;
+    const resolved=resolveChar(ch,camp.system,p.listKey);
+    const col=PIP_COLORS[i%PIP_COLORS.length];
+    const portraitHtml=resolved.portrait?`<img class="entity-portrait" src="${resolved.portrait}" alt="">`:`<div class="entity-portrait-ph">?</div>`;
+    const nameHtml=ESC(resolved.name||'Unnamed');
+    const typeBadge=resolved.charType?`<span class="entity-badge ${resolved.charType}">${resolved.charType.toUpperCase()}</span>`:'';
+    const playerLabel=p.displayName?`<div class="entity-player">${ESC(p.displayName)}</div>`:'';
+    html+=`<div class="entity-card"><div class="entity-pip" style="background:${col}"></div>${portraitHtml}<div class="entity-info"><div class="entity-name">${nameHtml}${typeBadge}</div><div class="entity-sub">${ESC(resolved.sub||'')}</div>${resolved.statsHtml||''}${playerLabel}</div></div>`;
+  }
+  html+='</div>';
+  grid.innerHTML=html;
+}
+
+async function openCharPickerModal(sys,listKey){
+  if(!listKey){alert('No character list found for this system.');return}
+  const list=JSON.parse(localStorage.getItem(listKey))||[];
+  if(!list.length){
+    await GCCDialog.alert('No characters','You don\'t have any characters yet. Create one first using the character sheet tool.');
+    return;
+  }
+  const items=list.map(ch=>{
+    const name=ch.heroName||ch.characterName||ch.name||'Unnamed';
+    const cls=ch.characterClass?ch.characterClass+(ch.level?' '+ch.level:''):(ch.origin||ch.archetype||'');
+    const portrait=ch.portraitData||ch.portrait||ch._image||'';
+    return{name,sub:cls,image:portrait||null,_id:ch._id};
+  });
+  const idx=await GCCDialog.listPick('Join with Character',items,{emptyText:'No characters found.'});
+  if(idx===null||idx===undefined)return;
+  const picked=list[idx];
+  if(!picked||!picked._id)return;
+  const r=await GCCInvite.assignCharacter(campId,picked._id,listKey);
+  if(r.ok){loadMyCharSlot();loadPlayerRoster()}
+  else{alert('Failed: '+(r.reason||'unknown error'))}
 }
 
 // ═══ EXPORT JOURNAL ═══

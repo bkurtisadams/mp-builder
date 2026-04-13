@@ -458,6 +458,96 @@ const GCCInvite = (function() {
   }
 
   // ══════════════════════════════════════
+  // ── Player Character Assignment ──
+  // ══════════════════════════════════════
+
+  // Player assigns one of their own characters to this campaign
+  async function assignCharacter(campaignId, charId, listKey) {
+    const db = getDb();
+    const user = getUserInfo();
+    if (!db || !user) return { ok: false, reason: 'Not signed in' };
+    try {
+      await db.collection('campaigns').doc(campaignId)
+        .collection('players').doc(user.uid)
+        .set({ charId, listKey, charUpdated: new Date().toISOString() }, { merge: true });
+      return { ok: true };
+    } catch(e) {
+      console.warn('[GCCInvite] assignCharacter failed:', e);
+      return { ok: false, reason: e.message };
+    }
+  }
+
+  // Player removes their character from this campaign
+  async function unassignCharacter(campaignId) {
+    const db = getDb();
+    const uid = getUid();
+    if (!db || !uid) return { ok: false, reason: 'Not signed in' };
+    try {
+      const ref = db.collection('campaigns').doc(campaignId)
+        .collection('players').doc(uid);
+      // Use FieldValue.delete() to remove the fields
+      await ref.update({
+        charId: firebase.firestore.FieldValue.delete(),
+        listKey: firebase.firestore.FieldValue.delete(),
+        charUpdated: firebase.firestore.FieldValue.delete(),
+      });
+      return { ok: true };
+    } catch(e) {
+      console.warn('[GCCInvite] unassignCharacter failed:', e);
+      return { ok: false, reason: e.message };
+    }
+  }
+
+  // Fetch a character from another user's Firestore data
+  async function getPlayerCharacter(playerUid, listKey, charId) {
+    const db = getDb();
+    if (!db || !playerUid || !listKey || !charId) return null;
+    try {
+      const ref = db.collection('users').doc(playerUid)
+        .collection('lists').doc(listKey)
+        .collection('items').doc(charId);
+      const snap = await ref.get();
+      if (!snap.exists) return null;
+      const data = snap.data();
+      return data.json ? JSON.parse(data.json) : null;
+    } catch(e) {
+      console.warn('[GCCInvite] getPlayerCharacter failed:', e);
+      return null;
+    }
+  }
+
+  // Fetch characters for all players who have assigned one
+  async function getPlayerCharacters(campaignId, system) {
+    const db = getDb();
+    if (!db) return [];
+    try {
+      const players = await getPlayers(campaignId);
+      const results = [];
+      // Find the listKey for this system
+      const sysDef = (typeof GCC !== 'undefined')
+        ? GCC.SYSTEM_DEFS.find(s => s.id === system) : null;
+      for (const p of players) {
+        if (!p.charId || !p.listKey) continue;
+        const char = await getPlayerCharacter(p.uid, p.listKey, p.charId);
+        if (char) {
+          results.push({
+            uid: p.uid,
+            playerName: p.displayName,
+            playerRole: p.role,
+            charId: p.charId,
+            listKey: p.listKey,
+            char: char,
+          });
+        }
+      }
+      return results;
+    } catch(e) {
+      console.warn('[GCCInvite] getPlayerCharacters failed:', e);
+      return [];
+    }
+  }
+
+  // ══════════════════════════════════════
   // ── Invite Link Helpers ──
   // ══════════════════════════════════════
 
@@ -488,6 +578,10 @@ const GCCInvite = (function() {
     isOwner,
     buildInviteUrl,
     getInviteCodeFromUrl,
+    assignCharacter,
+    unassignCharacter,
+    getPlayerCharacter,
+    getPlayerCharacters,
   };
 
 })();
