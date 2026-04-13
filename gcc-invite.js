@@ -502,18 +502,95 @@ const GCCInvite = (function() {
   // Fetch a character from another user's Firestore data
   async function getPlayerCharacter(playerUid, listKey, charId) {
     const db = getDb();
-    if (!db || !playerUid || !listKey || !charId) return null;
+    if (!db || !playerUid || !charId) return null;
+    // Try the player's own synced data first
+    if (listKey) {
+      try {
+        const ref = db.collection('users').doc(playerUid)
+          .collection('lists').doc(listKey)
+          .collection('items').doc(charId);
+        const snap = await ref.get();
+        if (snap.exists) {
+          const data = snap.data();
+          return data.json ? JSON.parse(data.json) : null;
+        }
+      } catch(e) {
+        console.warn('[GCCInvite] getPlayerCharacter user-data lookup failed:', e);
+      }
+    }
+    // Fallback: check for GM-assigned snapshot on the player doc
     try {
-      const ref = db.collection('users').doc(playerUid)
-        .collection('lists').doc(listKey)
-        .collection('items').doc(charId);
-      const snap = await ref.get();
-      if (!snap.exists) return null;
-      const data = snap.data();
-      return data.json ? JSON.parse(data.json) : null;
+      const camps = db.collection('campaigns');
+      // We need the campaignId — scan parent path from context or try charSnapshot
+      // The player doc itself may have charSnapshot stored by gmAssignCharacter
+      return null; // caller will check charSnapshot from getPlayers() data
     } catch(e) {
-      console.warn('[GCCInvite] getPlayerCharacter failed:', e);
       return null;
+    }
+  }
+
+  // Fetch a player character, with campaign context for GM-snapshot fallback
+  async function getPlayerCharacterWithFallback(campaignId, playerUid, listKey, charId) {
+    // Try normal path first
+    const ch = await getPlayerCharacter(playerUid, listKey, charId);
+    if (ch) return ch;
+    // Fallback: read charSnapshot from the player's campaign doc
+    const db = getDb();
+    if (!db || !campaignId || !playerUid) return null;
+    try {
+      const doc = await db.collection('campaigns').doc(campaignId)
+        .collection('players').doc(playerUid).get();
+      if (doc.exists && doc.data().charSnapshot) {
+        return doc.data().charSnapshot;
+      }
+    } catch(e) {
+      console.warn('[GCCInvite] charSnapshot fallback failed:', e);
+    }
+    return null;
+  }
+
+  // GM assigns a character to a player (writes to player's campaign doc)
+  async function gmAssignCharacter(campaignId, playerUid, charId, listKey, charSnapshot) {
+    const db = getDb();
+    const uid = getUid();
+    if (!db || !uid) return { ok: false, reason: 'Not signed in' };
+    try {
+      const data = {
+        charId,
+        listKey: listKey || '',
+        charUpdated: new Date().toISOString(),
+        gmAssigned: true,
+      };
+      if (charSnapshot) data.charSnapshot = charSnapshot;
+      await db.collection('campaigns').doc(campaignId)
+        .collection('players').doc(playerUid)
+        .set(data, { merge: true });
+      return { ok: true };
+    } catch(e) {
+      console.warn('[GCCInvite] gmAssignCharacter failed:', e);
+      return { ok: false, reason: e.message };
+    }
+  }
+
+  // GM removes a character assignment from a player
+  async function gmUnassignCharacter(campaignId, playerUid) {
+    const db = getDb();
+    const uid = getUid();
+    if (!db || !uid) return { ok: false, reason: 'Not signed in' };
+    try {
+      await db.collection('campaigns').doc(campaignId)
+        .collection('players').doc(playerUid)
+        .update({
+          charId: firebase.firestore.FieldValue.delete(),
+          listKey: firebase.firestore.FieldValue.delete(),
+          charUpdated: firebase.firestore.FieldValue.delete(),
+          charSnapshot: firebase.firestore.FieldValue.delete(),
+          gmAssigned: firebase.firestore.FieldValue.delete(),
+        });
+      return { ok: true };
+    } catch(e) {
+      console.warn('[GCCInvite] gmUnassignCharacter failed:', e);
+      return { ok: false, reason: e.message };
     }
   }
 
@@ -524,19 +601,17 @@ const GCCInvite = (function() {
     try {
       const players = await getPlayers(campaignId);
       const results = [];
-      // Find the listKey for this system
-      const sysDef = (typeof GCC !== 'undefined')
-        ? GCC.SYSTEM_DEFS.find(s => s.id === system) : null;
       for (const p of players) {
-        if (!p.charId || !p.listKey) continue;
-        const char = await getPlayerCharacter(p.uid, p.listKey, p.charId);
+        if (!p.charId) continue;
+        const char = await getPlayerCharacterWithFallback(campaignId, p.uid, p.listKey, p.charId);
         if (char) {
           results.push({
             uid: p.uid,
             playerName: p.displayName,
             playerRole: p.role,
             charId: p.charId,
-            listKey: p.listKey,
+            listKey: p.listKey || '',
+            gmAssigned: !!p.gmAssigned,
             char: char,
           });
         }
@@ -581,8 +656,12 @@ const GCCInvite = (function() {
     getInviteCodeFromUrl,
     assignCharacter,
     unassignCharacter,
+    gmAssignCharacter,
+    gmUnassignCharacter,
     getPlayerCharacter,
+    getPlayerCharacterWithFallback,
     getPlayerCharacters,
+    buildCharSnapshot,
   };
 
 })();
