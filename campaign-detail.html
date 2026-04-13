@@ -359,6 +359,25 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
   <div class="gcc-dlg-footer"><button class="gcc-dlg-btn" id="lim-cancel">Cancel</button><button class="gcc-dlg-btn primary" id="lim-import">Import</button></div>
 </div></div>
 
+<div class="gcc-dlg-overlay cd-modal" id="ses-import-modal"><div class="gcc-dlg" style="max-width:640px">
+  <div class="gcc-dlg-header"><div class="gcc-dlg-title">Import sessions from text</div><button class="gcc-dlg-close" id="sim-close">✕</button></div>
+  <div class="gcc-dlg-body">
+    <label class="gcc-dlg-label">PASTE EPISODE TEXT</label>
+    <textarea class="gcc-dlg-ta" id="sim-text" rows="14" placeholder='Paste your recap document here. Expected format:
+
+Episode 1: "Title" (real world date: March 14, 2023)
+Needfest 1, 567 CY – Narrative text...
+End of episode 1. Total xp = 71.' style="min-height:200px;font-family:var(--fm,monospace);font-size:11px"></textarea>
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label class="gcc-dlg-check"><input type="checkbox" id="sim-days-as-sections" checked> Split days into sections</label>
+      <label class="gcc-dlg-check"><input type="checkbox" id="sim-skip-dupes" checked> Skip episodes that match existing titles</label>
+    </div>
+    <div style="margin-top:8px"><span class="gcc-dlg-label" style="margin:0;font-size:10px;color:var(--tx3)" id="sim-status"></span></div>
+    <div id="sim-preview" style="margin-top:10px;max-height:200px;overflow-y:auto;font-size:11px;color:var(--tx2);display:none"></div>
+  </div>
+  <div class="gcc-dlg-footer"><button class="gcc-dlg-btn" id="sim-cancel">Cancel</button><button class="gcc-dlg-btn" id="sim-preview-btn" style="border-color:var(--accent-dim);color:var(--accent)">Preview</button><button class="gcc-dlg-btn primary" id="sim-import">Import</button></div>
+</div></div>
+
 <script src="gcc-dialog.js"></script>
 <script src="gcc-data.js"></script>
 <script src="gcc-images.js"></script>
@@ -736,7 +755,7 @@ async function render(){
   const filteredSessions=filterSessions(sessions,sessionFilter),realCount=countRealSessions(sessions),tagTypes=collectTagTypes(sessions);
   let sessHtml=pm_
     ?`<div class="session-toolbar"><div class="session-toolbar-right"><button class="filter-pill${sessionFilter==='all'?' active':''}" data-ses-filter="all">All</button>${tagTypes.map(t=>`<button class="filter-pill${sessionFilter===t?' active':''}" data-ses-filter="${ESC(t)}">${ESC(GCC.LORE_TYPE_LABELS[t]||t)}</button>`).join('')}</div></div>`
-    :`<div class="session-toolbar"><div class="session-toolbar-left"><button class="btn-add" id="btn-add-session">+ New ${ESC(GCC.sessionLabel(camp.system))}</button><button class="btn-add" id="btn-export-journal" style="background:none;border:1px solid var(--brd);color:var(--tx2)">Export Journal</button></div><div class="session-toolbar-right"><button class="filter-pill${sessionFilter==='all'?' active':''}" data-ses-filter="all">All</button>${tagTypes.map(t=>`<button class="filter-pill${sessionFilter===t?' active':''}" data-ses-filter="${ESC(t)}">${ESC(GCC.LORE_TYPE_LABELS[t]||t)}</button>`).join('')}</div></div>`;
+    :`<div class="session-toolbar"><div class="session-toolbar-left"><button class="btn-add" id="btn-add-session">+ New ${ESC(GCC.sessionLabel(camp.system))}</button><button class="btn-add" id="btn-export-journal" style="background:none;border:1px solid var(--brd);color:var(--tx2)">Export Journal</button><button class="btn-add" id="btn-import-sessions" style="background:none;border:1px solid var(--brd);color:var(--tx2)">Import Text</button></div><div class="session-toolbar-right"><button class="filter-pill${sessionFilter==='all'?' active':''}" data-ses-filter="all">All</button>${tagTypes.map(t=>`<button class="filter-pill${sessionFilter===t?' active':''}" data-ses-filter="${ESC(t)}">${ESC(GCC.LORE_TYPE_LABELS[t]||t)}</button>`).join('')}</div></div>`;
   if(!filteredSessions.length){sessHtml+=`<div class="entity-empty">No sessions logged yet.</div>`}
   else{sessHtml+='<ul class="session-list">';filteredSessions.forEach(s=>{const origIdx=allSessions.indexOf(s);sessHtml+=buildSessionCard(s,origIdx,realCount,camp,imgMap)});sessHtml+='</ul>'}
 
@@ -873,6 +892,7 @@ function wireEvents(){
   hqView?.addEventListener('click',hqShowEdit);
   document.getElementById('btn-add-session')?.addEventListener('click',()=>openSessionModal(-1,'session'));
   document.getElementById('btn-export-journal')?.addEventListener('click',exportJournal);
+  document.getElementById('btn-import-sessions')?.addEventListener('click',openSesImportModal);
   document.querySelectorAll('[data-ses-filter]').forEach(btn=>{btn.addEventListener('click',()=>{sessionFilter=btn.dataset.sesFilter;render()})});
   document.querySelectorAll('[data-lore-filter]').forEach(btn=>{btn.addEventListener('click',()=>{loreFilter=btn.dataset.loreFilter;render()})});
   document.querySelectorAll('[data-ses-edit]').forEach(btn=>{btn.addEventListener('click',()=>openSessionModal(parseInt(btn.dataset.sesEdit)))});
@@ -1533,6 +1553,131 @@ document.getElementById('lim-import').addEventListener('click',()=>{
   if(invalid)parts.push(invalid+' invalid entries');
   document.getElementById('lim-status').textContent=parts.join(', ')+'.';
   if(added>0){setTimeout(()=>{closeLoreImportModal();render()},1200)}
+});
+
+// ═══ SESSION TEXT IMPORT ═══
+const sesImportModal=document.getElementById('ses-import-modal');
+function openSesImportModal(){
+  document.getElementById('sim-text').value='';
+  document.getElementById('sim-status').textContent='';
+  document.getElementById('sim-preview').style.display='none';
+  document.getElementById('sim-preview').innerHTML='';
+  sesImportModal.classList.add('open');
+}
+function closeSesImportModal(){sesImportModal.classList.remove('open')}
+document.getElementById('sim-close').addEventListener('click',closeSesImportModal);
+document.getElementById('sim-cancel').addEventListener('click',closeSesImportModal);
+sesImportModal.addEventListener('click',e=>{if(e.target===sesImportModal)closeSesImportModal()});
+
+function parseEpisodeText(raw){
+  const episodes=[];
+  const epRe=/Episode\s+(\d+)\s*:\s*["\u201c\u201d\u201e](.+?)["\u201c\u201d\u201e]\s*\(real\s*world\s*date\s*:\s*(.+?)\)/gi;
+  const chunks=[];
+  let match;
+  const matches=[];
+  while((match=epRe.exec(raw))!==null)matches.push({idx:match.index,num:parseInt(match[1]),title:match[2].trim(),realDate:match[3].trim()});
+  if(!matches.length)return[];
+  for(let i=0;i<matches.length;i++){
+    const start=matches[i].idx;
+    const end=i+1<matches.length?matches[i+1].idx:raw.length;
+    chunks.push({...matches[i],body:raw.substring(start,end)});
+  }
+  chunks.forEach(ch=>{
+    const lines=ch.body.split('\n').map(l=>l.trim()).filter(Boolean);
+    const headerLine=lines[0];
+    const bodyLines=lines.slice(1);
+    let xp=0;
+    const endMatch=bodyLines.findLast(l=>/end\s+of\s+episode/i.test(l));
+    if(endMatch){const xpM=endMatch.match(/(?:total\s+(?:earned\s+)?xp|total\s+xp\s+(?:earned\s+)?|xp)\s*=\s*([\d,]+)/i);if(xpM)xp=parseInt(xpM[1].replace(/,/g,''))||0}
+    const contentLines=bodyLines.filter(l=>!/^end\s+of\s+episode/i.test(l)&&!/^figure\s+\d+/i.test(l));
+    const dayRe=/^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+\d{1,2}(?:\s*(?:–|-|to)\s*(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+)?\d{1,2})?\s*,\s*\d{2,4}\s*CY)\s*(?:–|--|—|-)\s*/;
+    const sections=[];
+    let summary='';
+    let currentDay=null;
+    let currentText=[];
+    contentLines.forEach(line=>{
+      const dm=line.match(dayRe);
+      if(dm){
+        if(currentDay){sections.push({title:currentDay,text:currentText.join('\n')})}
+        else if(currentText.length){summary=currentText.join('\n')}
+        currentDay=dm[1];
+        currentText=[line.substring(dm[0].length).trim()];
+      } else {
+        currentText.push(line);
+      }
+    });
+    if(currentDay){sections.push({title:currentDay,text:currentText.join('\n')})}
+    else if(currentText.length){summary+=((summary?'\n':'')+currentText.join('\n'))}
+    if(!summary&&sections.length){
+      summary=sections[0].text.length>200?sections[0].text.substring(0,200)+'...':sections[0].text;
+    }
+    let gameDate='';
+    if(sections.length){
+      const first=sections[0].title;
+      const last=sections[sections.length-1].title;
+      gameDate=first===last?first:first+' to '+last;
+    }
+    let isoDate='';
+    try{const d=new Date(ch.realDate);if(!isNaN(d))isoDate=d.toISOString().split('T')[0]}catch(e){}
+    episodes.push({num:ch.num,title:ch.title,date:isoDate,gameDate,summary,sections,xp});
+  });
+  episodes.sort((a,b)=>a.num-b.num);
+  return episodes;
+}
+
+document.getElementById('sim-preview-btn').addEventListener('click',()=>{
+  const raw=document.getElementById('sim-text').value.trim();
+  if(!raw){document.getElementById('sim-status').textContent='Paste episode text first.';return}
+  const episodes=parseEpisodeText(raw);
+  if(!episodes.length){document.getElementById('sim-status').textContent='No episodes found. Check the format.';return}
+  const prev=document.getElementById('sim-preview');
+  prev.style.display='block';
+  prev.innerHTML='<div style="font-family:var(--fsc);font-size:9px;color:var(--tx3);letter-spacing:1px;margin-bottom:6px">PREVIEW ('+episodes.length+' episodes)</div>'+
+    episodes.map(e=>'<div style="padding:3px 0;border-bottom:1px solid var(--brd)"><span style="color:var(--accent);font-weight:700">'+
+      ESC(GCC.sessionLabel(getCamp()?.system||'add1e'))+' #'+e.num+'</span> — '+ESC(e.title)+
+      (e.gameDate?' <span style="color:var(--amber)">'+ESC(e.gameDate)+'</span>':'')+
+      (e.date?' <span style="color:var(--tx3)">'+ESC(e.date)+'</span>':'')+
+      ' <span style="color:var(--tx3)">('+e.sections.length+' days'+(e.xp?', '+e.xp+' XP':'')+')</span></div>').join('');
+  document.getElementById('sim-status').textContent=episodes.length+' episodes parsed.';
+});
+
+document.getElementById('sim-import').addEventListener('click',()=>{
+  const raw=document.getElementById('sim-text').value.trim();
+  if(!raw){document.getElementById('sim-status').textContent='Paste episode text first.';return}
+  const camp=getCamp();if(!camp)return;
+  const episodes=parseEpisodeText(raw);
+  if(!episodes.length){document.getElementById('sim-status').textContent='No episodes found.';return}
+  const sessions=camp.sessions||[];
+  const existingTitles=new Set(sessions.map(s=>(s.title||'').toLowerCase()));
+  const skipDupes=document.getElementById('sim-skip-dupes').checked;
+  const daysAsSections=document.getElementById('sim-days-as-sections').checked;
+  let added=0,skipped=0;
+  episodes.forEach(ep=>{
+    if(skipDupes&&existingTitles.has(ep.title.toLowerCase())){skipped++;return}
+    const entry={
+      _id:GCC.genId('ses'),
+      date:ep.date,
+      gameDate:ep.gameDate,
+      title:ep.title,
+      text:ep.summary,
+      sections:daysAsSections?ep.sections.map(s=>({title:s.title,text:s.text,images:[]})):[],
+      image:'',
+      tags:[],
+      roster:[],
+      xp:ep.xp,
+      visible:true,
+      type:'session'
+    };
+    sessions.push(entry);
+    existingTitles.add(ep.title.toLowerCase());
+    added++;
+  });
+  if(added>0){GCC.updateCampaign(campId,{sessions,session:countRealSessions(sessions)})}
+  const parts=[];
+  if(added)parts.push(added+' sessions imported');
+  if(skipped)parts.push(skipped+' duplicates skipped');
+  document.getElementById('sim-status').textContent=parts.join(', ')+'.';
+  if(added>0){setTimeout(()=>{closeSesImportModal();render()},1200)}
 });
 
 // ═══ VEHICLE ASSIGN MODAL ═══
