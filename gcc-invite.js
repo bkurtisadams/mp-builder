@@ -289,7 +289,7 @@ const GCCInvite = (function() {
     const uid = getUid();
     if (!db || !uid) return;
     try {
-      const shared = { _updated: new Date().toISOString() };
+      const shared = { _updated: new Date().toISOString(), ownerUid: uid };
       SHARED_FIELDS.forEach(f => {
         if (camp[f] !== undefined) shared[f] = camp[f];
       });
@@ -452,7 +452,9 @@ const GCCInvite = (function() {
     try {
       const snap = await db.collection('campaigns').doc(campaignId).get();
       if (!snap.exists) return true;
-      return snap.data().ownerUid === uid;
+      const data = snap.data();
+      if (!data.ownerUid) return true;
+      return data.ownerUid === uid;
     } catch(e) {
       return false;
     }
