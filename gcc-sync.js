@@ -276,6 +276,14 @@ const GCCSync = (function() {
 
   const SYNC_FORMAT_VERSION = 4; // v1=raw, v2=JSON strings, v3=per-entity, v4=portrait stripping
 
+  // Check if a parsed value is effectively empty (not worth uploading/keeping)
+  function isEmpty(val) {
+    if (val === null || val === undefined) return true;
+    if (Array.isArray(val) && val.length === 0) return true;
+    if (typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length === 0) return true;
+    return false;
+  }
+
   async function uploadLocalData() {
     if (!_db || !_uid) return;
     console.log('[GCCSync] Pushing local data to cloud...');
@@ -285,6 +293,8 @@ const GCCSync = (function() {
         const raw = localStorage.getItem(key);
         if (raw !== null) {
           const val = JSON.parse(raw);
+          // Don't upload empty data — would stomp real cloud data
+          if (isEmpty(val)) continue;
           await cloudSave(key, val);
           count++;
         }
@@ -293,7 +303,6 @@ const GCCSync = (function() {
       }
     }
     console.log('[GCCSync] Pushed', count, 'keys to cloud');
-    // Mark format version for any future migration checks
     try { localStorage.setItem('gcc-sync-uploaded-' + _uid, String(SYNC_FORMAT_VERSION)); } catch(e) {}
   }
 
@@ -323,16 +332,25 @@ const GCCSync = (function() {
 
   async function pullCloudData() {
     if (!_db || !_uid) return;
-    console.log('[GCCSync] Pulling from cloud (missing or corrupt keys)...');
+    console.log('[GCCSync] Pulling from cloud (missing or empty keys)...');
     let count = 0;
     for (const key of ALL_SYNC_KEYS) {
       try {
         const local = localStorage.getItem(key);
-        // Skip if local data exists and is valid JSON
-        if (local !== null) {
-          try { JSON.parse(local); continue; }
-          catch(e) { console.warn('[GCCSync] Corrupt local data for', key, '— will overwrite from cloud'); }
+        let needsPull = false;
+        if (local === null) {
+          needsPull = true;
+        } else {
+          try {
+            const parsed = JSON.parse(local);
+            // Treat empty arrays/objects as missing — pull from cloud
+            if (isEmpty(parsed)) needsPull = true;
+          } catch(e) {
+            console.warn('[GCCSync] Corrupt local data for', key, '— will overwrite from cloud');
+            needsPull = true;
+          }
         }
+        if (!needsPull) continue;
         const val = await cloudLoad(key);
         if (val !== undefined) {
           if (isListKey(key) && Array.isArray(val)) {
