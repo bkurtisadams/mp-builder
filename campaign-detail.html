@@ -115,14 +115,12 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .session-card{background:var(--bg-card);border:1px solid var(--brd);border-radius:4px;margin-bottom:12px;overflow:hidden;box-shadow:var(--card-shadow)}
 .session-card.timeline-entry{opacity:.75}
 .session-card.dm-only{border-left:2px solid var(--amber)}
-.session-card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 6px;gap:8px;border-bottom:1px solid var(--brd)}
-.session-num{font-family:var(--fsc);font-size:11px;color:var(--accent);letter-spacing:.5px;font-weight:700;flex:1;min-width:0}
-.session-num-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
-.session-dates{display:flex;gap:10px;align-items:center;flex-shrink:0}
-.session-date-pair{display:flex;flex-direction:column;align-items:flex-end;gap:0}
-.session-date-micro{font-family:var(--fsc);font-size:7px;letter-spacing:1px;color:var(--tx3);line-height:1}
-.session-date-val{font-family:var(--fm);font-size:10px;color:var(--tx3);line-height:1.3}
-.session-date-val.game{color:var(--amber)}
+.session-card-header{display:flex;align-items:center;padding:10px 14px 6px;gap:10px;border-bottom:1px solid var(--brd)}
+.session-num{font-family:var(--fd);font-size:15px;font-weight:700;color:var(--tx);flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.session-num-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.session-date-game{font-family:var(--fm);font-size:12px;color:var(--amber);white-space:nowrap}
+.session-date-real{font-family:var(--fm);font-size:12px;color:var(--tx3);white-space:nowrap;padding-right:10px;margin-right:4px;border-right:1px solid var(--brd)}
+.session-hdr-right{display:flex;align-items:center;flex-shrink:0}
 /* ── Recap layout: cover left + text right ── */
 .session-recap{display:flex;gap:14px;padding:12px 14px 8px;align-items:flex-start}
 .session-recap-img{flex:0 0 300px;max-width:300px}
@@ -165,8 +163,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .session-actions{display:flex;gap:6px;opacity:0;transition:opacity .1s}
 .session-card:hover .session-actions{opacity:1}
 @media(max-width:600px){.session-recap{flex-direction:column}.session-recap-img{flex:none;max-width:60%;margin:0 auto}.session-sec-img-wrap.pos-left,.session-sec-img-wrap.pos-right{float:none;margin:0 auto 6px;display:block;text-align:center}.session-sec-img.sz-lg,.session-sec-img.sz-md{max-width:100%}}
-.session-action-btn{background:none;border:none;color:var(--tx3);font-size:10px;cursor:pointer;padding:0 2px;font-family:var(--fb);font-weight:700}
-.session-action-btn:hover{color:var(--tx)}.session-action-btn.danger:hover{color:var(--red)}
+.session-action-btn{background:none;border:none;color:var(--tx2);font-size:12px;cursor:pointer;padding:4px 8px;font-family:var(--fb);font-weight:700}
+.session-action-btn:hover{color:var(--tx)}.session-action-btn.danger{color:var(--red)}.session-action-btn.danger:hover{color:var(--red-lt)}
 .ses-drag-handle{cursor:grab;color:var(--tx3);font-size:12px;opacity:0;transition:opacity .15s;padding:0 4px 0 0;user-select:none;flex-shrink:0}
 .session-card:hover .ses-drag-handle{opacity:.4}
 .ses-drag-handle:hover{opacity:1!important;color:var(--tx2)}
@@ -451,9 +449,8 @@ function buildSessionCard(s,idx,total,camp,imgMap){
     ?`<span class="session-num"><span class="session-num-text" style="color:var(--tx3)">Timeline${titlePart}</span></span>`
     :`<span class="session-num"><span class="session-num-text">${ESC(sesLabel)} #${realNum}${titlePart}</span></span>`;
 
-  let datesHtml='';
-  if(s.gameDate)datesHtml+=`<span class="session-date-pair"><span class="session-date-micro">IN-GAME</span><span class="session-date-val game">${ESC(s.gameDate)}</span></span>`;
-  if(s.date)datesHtml+=`<span class="session-date-pair"><span class="session-date-micro">PLAYED</span><span class="session-date-val">${formatDate(s.date)}</span></span>`;
+  let gameDateHtml=s.gameDate?`<span class="session-date-game">${ESC(s.gameDate)}</span>`:'';
+  let realDateHtml=s.date?`<span class="session-date-real">${formatDate(s.date)}</span>`:'';
 
   // ── Recap layout: cover image left, summary text right ──
   let recapHtml='';
@@ -524,8 +521,7 @@ function buildSessionCard(s,idx,total,camp,imgMap){
   const cardClass='session-card'+(isTimeline?' timeline-entry':'')+(isDmOnly?' dm-only':'');
 
   return`<li class="${cardClass}" data-ses-idx="${idx}" draggable="true">
-    <div class="session-card-header"><span class="ses-drag-handle" title="Drag to reorder">⠿</span>${numLabel}<div style="display:flex;align-items:center;gap:8px"><div class="session-dates">${datesHtml}</div>
-      <div class="session-actions"><button class="session-action-btn" data-ses-edit="${idx}">Edit</button><button class="session-action-btn danger" data-ses-del="${idx}">Del</button></div>
+    <div class="session-card-header"><span class="ses-drag-handle" title="Drag to reorder">⠿</span>${numLabel}${gameDateHtml}<div class="session-hdr-right">${realDateHtml}<div class="session-actions"><button class="session-action-btn" data-ses-edit="${idx}">Edit</button><button class="session-action-btn danger" data-ses-del="${idx}">Del</button></div>
     </div></div>
     ${recapHtml}
     ${rosterHtml}
