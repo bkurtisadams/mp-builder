@@ -198,7 +198,7 @@ const GCCInvite = (function() {
     'pitch', 'description', 'schedule', 'playMode', 'vttLabel', 'vttUrl',
     'nextSession', 'startDate', 'xpMethod', 'rulebooks', 'houseRules',
     'sharedNotes', 'sessions', 'lore', 'campaignImage', 'hqImage', 'hqNotes',
-    'characters',
+    'characters', 'promotedPlayers', 'teamName',
   ];
 
   // Helper: resolve IDB image key to data URL
@@ -414,9 +414,10 @@ const GCCInvite = (function() {
             });
           }
           snap._ref = { storageKey: refKey, name: ch.name, _id: ch._id };
+          if (ch.isTeam) snap.isTeam = true;
           snapshots.push(snap);
         } else {
-          snapshots.push({ _id: ch._id || '', name: ch.name || '', _ref: ch });
+          snapshots.push({ _id: ch._id || '', name: ch.name || '', isTeam: !!ch.isTeam, _ref: ch });
         }
       }
       if (charUploads.length) {
