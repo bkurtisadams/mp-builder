@@ -451,7 +451,7 @@ const GCCInvite = (function() {
     if (!db || !uid) return false;
     try {
       const snap = await db.collection('campaigns').doc(campaignId).get();
-      if (!snap.exists) return false;
+      if (!snap.exists) return true;
       return snap.data().ownerUid === uid;
     } catch(e) {
       return false;
