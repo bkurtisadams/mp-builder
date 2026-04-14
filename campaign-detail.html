@@ -360,8 +360,15 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 </div></div>
 
 <div class="gcc-dlg-overlay cd-modal" id="ses-import-modal"><div class="gcc-dlg" style="max-width:640px">
-  <div class="gcc-dlg-header"><div class="gcc-dlg-title">Import sessions from text</div><button class="gcc-dlg-close" id="sim-close">✕</button></div>
+  <div class="gcc-dlg-header"><div class="gcc-dlg-title">Import sessions</div><button class="gcc-dlg-close" id="sim-close">✕</button></div>
   <div class="gcc-dlg-body">
+    <label class="gcc-dlg-label">IMPORT HTML JOURNAL</label>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <button class="gcc-dlg-img-btn" id="sim-html-btn">Upload .html journal</button>
+      <input type="file" id="sim-html-file" accept=".html,.htm" style="display:none">
+      <span style="font-size:9px;color:var(--tx3)" id="sim-html-status"></span>
+    </div>
+    <div style="border-top:1px solid var(--brd);margin:8px 0 12px;position:relative"><span style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:var(--bg-card);padding:0 8px;font-size:9px;color:var(--tx3);letter-spacing:1px">OR</span></div>
     <label class="gcc-dlg-label">PASTE EPISODE TEXT</label>
     <textarea class="gcc-dlg-ta" id="sim-text" rows="14" placeholder='Paste your recap document here. Expected format:
 
@@ -1612,6 +1619,7 @@ const sesImportModal=document.getElementById('ses-import-modal');
 function openSesImportModal(){
   document.getElementById('sim-text').value='';
   document.getElementById('sim-status').textContent='';
+  document.getElementById('sim-html-status').textContent='';
   document.getElementById('sim-preview').style.display='none';
   document.getElementById('sim-preview').innerHTML='';
   sesImportModal.classList.add('open');
@@ -1620,6 +1628,130 @@ function closeSesImportModal(){sesImportModal.classList.remove('open')}
 document.getElementById('sim-close').addEventListener('click',closeSesImportModal);
 document.getElementById('sim-cancel').addEventListener('click',closeSesImportModal);
 sesImportModal.addEventListener('click',e=>{if(e.target===sesImportModal)closeSesImportModal()});
+
+// ── HTML Journal Parser ──
+function parseHtmlJournal(html){
+  const parser=new DOMParser();
+  const doc=parser.parseFromString(html,'text/html');
+  const entries=doc.querySelectorAll('.j-entry');
+  if(!entries.length)return[];
+  const results=[];
+  entries.forEach(entry=>{
+    const heading=entry.querySelector('.j-heading')?.textContent?.trim()||'';
+    // Parse heading: "Session #N — Title" or "Timeline — Title"
+    let title='';const hm=heading.match(/(?:Session|Issue|Episode)\s*#?\d+\s*(?:—|–|-)\s*(.+)/i);
+    if(hm)title=hm[1].trim();
+    else{const tm=heading.match(/Timeline\s*(?:—|–|-)\s*(.+)/i);title=tm?tm[1].trim():heading}
+    const isTimeline=/^Timeline/i.test(heading);
+    // Dates
+    const gameDateEl=entry.querySelector('.j-date-game');
+    let gameDate='';if(gameDateEl){gameDate=gameDateEl.textContent.replace(/^IN-GAME:\s*/i,'').trim()}
+    const playedEl=entry.querySelector('.j-date-played');
+    let date='';if(playedEl){const raw=playedEl.textContent.replace(/^PLAYED:\s*/i,'').trim();try{const d=new Date(raw);if(!isNaN(d))date=d.toISOString().split('T')[0]}catch(e){}}
+    // DM only
+    const isDmOnly=entry.classList.contains('j-dm-only');
+    // Summary
+    const summary=entry.querySelector('.j-summary')?.textContent?.trim()||'';
+    // Cover image
+    const coverImg=entry.querySelector('.j-cover img');
+    const coverSrc=coverImg?coverImg.getAttribute('src'):'';
+    // Sections
+    const sections=[];
+    entry.querySelectorAll('.j-section').forEach(secEl=>{
+      const secTitle=secEl.querySelector('.j-sec-title')?.textContent?.trim()||'';
+      const secText=secEl.querySelector('.j-sec-text')?.textContent?.trim()||'';
+      const images=[];
+      secEl.querySelectorAll('.j-img-wrap').forEach(wrap=>{
+        const img=wrap.querySelector('.j-img');if(!img)return;
+        const src=img.getAttribute('src')||'';if(!src)return;
+        let pos='right',size='md';
+        if(wrap.classList.contains('j-pos-left'))pos='left';
+        else if(wrap.classList.contains('j-pos-center'))pos='center';
+        else if(wrap.classList.contains('j-pos-inline'))pos='inline';
+        if(img.classList.contains('j-sz-sm'))size='sm';
+        else if(img.classList.contains('j-sz-lg'))size='lg';
+        else if(img.classList.contains('j-sz-full'))size='full';
+        const caption=wrap.querySelector('.j-caption')?.textContent?.trim()||'';
+        images.push({src,size,pos,caption});
+      });
+      sections.push({title:secTitle,text:secText,images});
+    });
+    // Tags
+    const tags=[];
+    entry.querySelectorAll('.j-tag').forEach(tagEl=>{tags.push({name:tagEl.textContent.trim(),type:'other'})});
+    // XP
+    let xp=0;const xpEl=entry.querySelector('.j-xp');
+    if(xpEl){const xpM=xpEl.textContent.match(/\+?([\d,]+)/);if(xpM)xp=parseInt(xpM[1].replace(/,/g,''))||0}
+    results.push({title,date,gameDate,text:summary,image:coverSrc,sections,tags,xp,visible:!isDmOnly,type:isTimeline?'timeline':'session'});
+  });
+  return results;
+}
+
+async function importHtmlSessions(parsed){
+  const camp=getCamp();if(!camp)return 0;
+  const sessions=camp.sessions||[];
+  const existingTitles=new Set(sessions.map(s=>(s.title||'').toLowerCase()));
+  const skipDupes=document.getElementById('sim-skip-dupes').checked;
+  let added=0,skipped=0;
+  // Journal is oldest-first; sessions array is newest-first, so reverse
+  const reversed=[...parsed].reverse();
+  for(const ep of reversed){
+    if(skipDupes&&existingTitles.has(ep.title.toLowerCase())){skipped++;continue}
+    // Store cover image in IDB if it's a data URL
+    let imageKey='';
+    if(ep.image){
+      if(GCCImages.isDataUrl(ep.image)){
+        const compressed=await new Promise(r=>compressImageData(ep.image,800,r));
+        imageKey=await GCCImages.store(compressed,'img_ses');
+      }else{imageKey=ep.image}// already a URL
+    }
+    // Store section images in IDB if data URLs
+    for(const sec of ep.sections){
+      for(const img of(sec.images||[])){
+        if(img.src&&GCCImages.isDataUrl(img.src)){
+          const compressed=await new Promise(r=>compressImageData(img.src,400,r));
+          img.src=await GCCImages.store(compressed,'img_sec');
+        }
+      }
+    }
+    const entry={_id:GCC.genId('ses'),date:ep.date,gameDate:ep.gameDate,title:ep.title,text:ep.text,
+      sections:ep.sections,image:imageKey,tags:ep.tags,roster:[],xp:ep.xp,visible:ep.visible,type:ep.type};
+    sessions.push(entry);
+    existingTitles.add(ep.title.toLowerCase());
+    added++;
+  }
+  if(added>0)GCC.updateCampaign(campId,{sessions,session:countRealSessions(sessions)});
+  return{added,skipped};
+}
+
+// Wire HTML upload
+document.getElementById('sim-html-btn').addEventListener('click',()=>document.getElementById('sim-html-file').click());
+document.getElementById('sim-html-file').addEventListener('change',e=>{
+  const file=e.target.files[0];if(!file)return;
+  const status=document.getElementById('sim-html-status');
+  status.textContent='Reading...';
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    const parsed=parseHtmlJournal(ev.target.result);
+    if(!parsed.length){status.textContent='No journal entries found in file.';return}
+    // Show preview
+    const prev=document.getElementById('sim-preview');
+    prev.style.display='block';
+    const sesLbl=GCC.sessionLabel(getCamp()?.system||'add1e');
+    prev.innerHTML='<div style="font-family:var(--fsc);font-size:9px;color:var(--tx3);letter-spacing:1px;margin-bottom:6px">PREVIEW ('+parsed.length+' entries from HTML)</div>'+
+      parsed.map((e,i)=>'<div style="padding:3px 0;border-bottom:1px solid var(--brd)"><span style="color:var(--accent);font-weight:700">'+
+        ESC(e.type==='timeline'?'Timeline':sesLbl+' #'+(i+1))+'</span> — '+ESC(e.title)+
+        (e.gameDate?' <span style="color:var(--amber)">'+ESC(e.gameDate)+'</span>':'')+
+        (e.date?' <span style="color:var(--tx3)">'+ESC(e.date)+'</span>':'')+
+        ' <span style="color:var(--tx3)">('+e.sections.length+' sec'+(e.xp?', '+e.xp+' XP':'')+(e.image?', cover':'')+')</span>'+
+        (!e.visible?' <span style="color:var(--amber)">DM</span>':'')+
+        '</div>').join('');
+    status.textContent=parsed.length+' entries parsed. Click Import to add them.';
+    // Stash parsed data for import button
+    sesImportModal._htmlParsed=parsed;
+  };
+  reader.readAsText(file);
+});
 
 function parseEpisodeText(raw){
   const episodes=[];
@@ -1693,7 +1825,21 @@ document.getElementById('sim-preview-btn').addEventListener('click',()=>{
   document.getElementById('sim-status').textContent=episodes.length+' episodes parsed.';
 });
 
-document.getElementById('sim-import').addEventListener('click',()=>{
+document.getElementById('sim-import').addEventListener('click',async()=>{
+  // HTML journal path
+  if(sesImportModal._htmlParsed&&sesImportModal._htmlParsed.length){
+    const status=document.getElementById('sim-html-status');
+    status.textContent='Importing...';
+    const{added,skipped}=await importHtmlSessions(sesImportModal._htmlParsed);
+    const parts=[];
+    if(added)parts.push(added+' sessions imported');
+    if(skipped)parts.push(skipped+' duplicates skipped');
+    status.textContent=parts.join(', ')+'.';
+    delete sesImportModal._htmlParsed;
+    if(added>0){setTimeout(()=>{closeSesImportModal();render()},1200)}
+    return;
+  }
+  // Text path
   const raw=document.getElementById('sim-text').value.trim();
   if(!raw){document.getElementById('sim-status').textContent='Paste episode text first.';return}
   const camp=getCamp();if(!camp)return;
