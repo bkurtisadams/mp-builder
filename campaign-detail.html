@@ -449,6 +449,7 @@ function resolveChar(savedChar,systemId,storageKey){
 
 const campId=new URLSearchParams(window.location.search).get('id');
 let currentTab='overview',sessionFilter='all',loreFilter='all';
+let _sesImageOrigKey=''; // track original IDB key for cover image to avoid orphaning
 let _isPlayerMode=false,_sharedCamp=null;
 function getCamp(){
   if(_isPlayerMode&&_sharedCamp)return _sharedCamp;
@@ -1339,18 +1340,19 @@ async function openSessionModal(editIdx,typeOverride){
   if(isEdit){const s=camp.sessions?.[sesEditIdx];if(s){
     isTimeline=s.type==='timeline';
     // Resolve cover image from IndexedDB if it's a key
+    _sesImageOrigKey=s.image&&GCCImages.isKey(s.image)?s.image:'';
     sesImageData=s.image?(GCCImages.isKey(s.image)?await GCCImages.get(s.image):s.image):'';
     // Resolve section images array
     sesSections=[];for(const sec of(s.sections||[])){
       const copy={...sec,images:[...(sec.images||[])].map(img=>({...img}))};
       for(const img of copy.images){
-        if(img.src&&GCCImages.isKey(img.src))img.src=await GCCImages.get(img.src)||'';
+        if(img.src&&GCCImages.isKey(img.src)){img._origKey=img.src;img.src=await GCCImages.get(img.src)||''}
       }
       sesSections.push(copy);
     }
     sesTags=(s.tags||[]).map(t=>({...t}));sesRoster=[...(s.roster||[])]
   }}
-  else{sesImageData='';sesSections=[];sesTags=[];sesRoster=[]}
+  else{sesImageData='';sesSections=[];sesTags=[];sesRoster=[];_sesImageOrigKey=''}
   const sesLbl=GCC.sessionLabel(camp.system);
   document.getElementById('session-modal-title').textContent=isEdit?(isTimeline?'Edit timeline entry':'Edit '+sesLbl):(isTimeline?'New timeline entry':'New '+sesLbl);
   document.getElementById('session-modal-body').innerHTML=buildSessionModalBody(camp,isTimeline);
@@ -1415,20 +1417,44 @@ document.getElementById('sm-save').addEventListener('click',async()=>{
   // Store cover image in IndexedDB
   let imageKey='';
   if(rawImage){
-    // Compress first
-    const compressed=await new Promise(resolve=>compressImageData(rawImage,800,resolve));
-    imageKey=await GCCImages.store(compressed,'img_ses');
-    console.log('[GCC] Stored cover image:',imageKey,Math.round(compressed.length/1024)+'KB');
+    if(_sesImageOrigKey&&!GCCImages.isDataUrl(rawImage)){
+      // Image wasn't changed (still the resolved data URL from the original key)
+      imageKey=_sesImageOrigKey;
+    }else if(_sesImageOrigKey){
+      // Image was replaced — update existing key, compress first
+      const compressed=await new Promise(resolve=>compressImageData(rawImage,800,resolve));
+      await GCCImages.put(_sesImageOrigKey,compressed);
+      imageKey=_sesImageOrigKey;
+      console.log('[GCC] Updated cover image:',imageKey,Math.round(compressed.length/1024)+'KB');
+    }else{
+      // New image — store with new key
+      const compressed=await new Promise(resolve=>compressImageData(rawImage,800,resolve));
+      imageKey=await GCCImages.store(compressed,'img_ses');
+      console.log('[GCC] Stored new cover image:',imageKey,Math.round(compressed.length/1024)+'KB');
+    }
   }
 
   // Store section images in IndexedDB
   for(const sec of sesSections){
     for(const img of(sec.images||[])){
       if(img.src&&GCCImages.isDataUrl(img.src)){
-        const compressed=await new Promise(resolve=>compressImageData(img.src,400,resolve));
-        img.src=await GCCImages.store(compressed,'img_sec');
-        console.log('[GCC] Stored section image:',img.src,Math.round(compressed.length/1024)+'KB');
+        if(img._origKey){
+          // Image was replaced — update existing key
+          const compressed=await new Promise(resolve=>compressImageData(img.src,400,resolve));
+          await GCCImages.put(img._origKey,compressed);
+          img.src=img._origKey;
+          console.log('[GCC] Updated section image:',img.src,Math.round(compressed.length/1024)+'KB');
+        }else{
+          // New image
+          const compressed=await new Promise(resolve=>compressImageData(img.src,400,resolve));
+          img.src=await GCCImages.store(compressed,'img_sec');
+          console.log('[GCC] Stored new section image:',img.src,Math.round(compressed.length/1024)+'KB');
+        }
+      }else if(img._origKey&&!GCCImages.isDataUrl(img.src)){
+        // Unchanged — restore original key
+        img.src=img._origKey;
       }
+      delete img._origKey;
     }
   }
 
