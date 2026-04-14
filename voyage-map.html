@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Voyage Simulator — Greyhawk</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+/* ── Reset & base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;color:#c8ccd4;font-family:'Segoe UI',sans-serif;font-size:13px}
+
+/* ── Layout ── */
+#app{display:flex;height:100vh}
+#map-wrap{flex:1;position:relative;overflow:hidden}
+#map{width:100%;height:100%}
+#sidebar{width:300px;flex-shrink:0;background:#161a20;border-left:1px solid #252a34;display:flex;flex-direction:column;overflow:hidden}
+@media(max-width:600px){
+  #app{flex-direction:column}
+  #map-wrap{flex:1;min-height:0}
+  #sidebar{width:100%;height:50px;border-left:none;border-top:1px solid #252a34;transition:height .25s ease;flex-shrink:0}
+  #sidebar.open{height:55vh}
+  #sb-pullbar{display:flex !important}
+  #sb-header{display:none}
+}
+
+/* ── Sidebar header ── */
+#sb-header{padding:12px 14px 10px;border-bottom:1px solid #252a34;background:#0d1117}
+.sb-title{font-family:'Palatino Linotype','Book Antiqua',serif;font-size:15px;font-weight:700;color:#c8ccd4;letter-spacing:1.5px;text-transform:uppercase}
+.sb-subtitle{font-size:10px;color:#4a5464;letter-spacing:1px;margin-top:2px;font-family:monospace}
+
+/* ── Tabs ── */
+#sb-tabs{display:flex;border-bottom:1px solid #252a34;background:#0d1117}
+.sb-tab{flex:1;padding:7px 4px;font-size:10px;letter-spacing:1px;text-align:center;cursor:pointer;color:#4a5464;border-bottom:2px solid transparent;transition:all .12s;font-family:monospace;text-transform:uppercase}
+.sb-tab:hover{color:#7a8494}
+.sb-tab.active{color:#60a0d0;border-bottom-color:#60a0d0}
+
+/* ── Sidebar panels ── */
+.sb-panel{display:none;flex:1;overflow-y:auto;overflow-x:hidden}
+.sb-panel.active{display:flex;flex-direction:column}
+.sb-panel::-webkit-scrollbar{width:4px}
+.sb-panel::-webkit-scrollbar-thumb{background:#252a34;border-radius:2px}
+
+/* ── Form elements ── */
+.sb-section{padding:10px 14px;border-bottom:1px solid #1e2430}
+.sb-section-title{font-size:9px;letter-spacing:1.5px;color:#4a5464;font-family:monospace;text-transform:uppercase;margin-bottom:8px}
+.field{margin-bottom:8px}
+.field label{display:block;font-size:10px;color:#7a8494;letter-spacing:.5px;margin-bottom:3px;font-family:monospace}
+.field select,.field input[type=text],.field input[type=number]{width:100%;background:#0d1117;border:1px solid #252a34;color:#c8ccd4;padding:5px 8px;font-size:16px;border-radius:3px;outline:none;font-family:'Segoe UI',sans-serif}@media(min-width:601px){.field select,.field input[type=text],.field input[type=number]{font-size:12px}}
+.field select:focus,.field input:focus{border-color:#3a6a90}
+.field select option{background:#0d1117}
+.field-row{display:flex;gap:6px}
+.field-row .field{flex:1}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:6px 12px;font-size:11px;font-family:monospace;letter-spacing:.5px;border:1px solid #3a6a90;color:#60a0d0;background:transparent;border-radius:3px;cursor:pointer;transition:all .12s;text-transform:uppercase}
+.btn:hover{background:#1a2a3a;color:#78b8e8}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:#1a3a5a;border-color:#60a0d0;color:#78b8e8}
+.btn-primary:hover{background:#244a72}
+.btn-danger{border-color:#703030;color:#d04848}
+.btn-danger:hover{background:#2a1a1a}
+.btn:disabled{opacity:.4;cursor:default;pointer-events:none}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap}
+
+/* ── Day log ── */
+#day-log{flex:1;padding:8px 0;overflow-y:auto}
+#day-log::-webkit-scrollbar{width:4px}
+#day-log::-webkit-scrollbar-thumb{background:#252a34}
+.day-entry{padding:8px 14px;border-bottom:1px solid #1a1e26;cursor:pointer;transition:background .1s}
+.day-entry:hover{background:#1a1e26}
+.day-entry.active{background:#1a2a3a;border-left:2px solid #60a0d0}
+.day-entry.current{background:#1a2030}
+.de-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:3px}
+.de-day{font-family:monospace;font-size:10px;color:#60a0d0;font-weight:700}
+.de-date{font-family:monospace;font-size:9px;color:#4a5464}
+.de-dist{font-size:10px;color:#48a858;font-family:monospace}
+.de-weather{font-size:11px;color:#7a8494;line-height:1.4;margin-bottom:2px}
+.de-events{display:flex;flex-direction:column;gap:2px;margin-top:3px}
+.de-event{font-size:10px;padding:2px 6px;border-radius:2px;border-left:2px solid}
+.de-event.encounter{color:#d0a040;border-color:#a07818;background:rgba(160,120,24,.08)}
+.de-event.damage{color:#d04848;border-color:#a03030;background:rgba(160,48,48,.08)}
+.de-event.becalmed{color:#7a8494;border-color:#4a5464;background:rgba(74,84,100,.08)}
+.de-event.navigation{color:#7a5a8a;border-color:#5a3a6a;background:rgba(90,58,106,.08)}
+.de-event.port{color:#60a0d0;border-color:#3a6a90;background:rgba(58,106,144,.08)}
+.de-event.crew{color:#d04848;border-color:#a03030;background:rgba(160,48,48,.08)}
+
+/* ── Detail panel ── */
+#detail-panel{padding:14px;flex:1}
+.detail-title{font-family:'Palatino Linotype',serif;font-size:14px;color:#c8ccd4;margin-bottom:10px;letter-spacing:.5px}
+.detail-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1e2430;font-size:11px}
+.detail-label{color:#4a5464;font-family:monospace;font-size:9px;letter-spacing:.5px;text-transform:uppercase;align-self:center}
+.detail-val{color:#c8ccd4;text-align:right;max-width:180px}
+.detail-section{margin:12px 0 6px;font-size:9px;letter-spacing:1.5px;color:#4a5464;font-family:monospace;text-transform:uppercase}
+.stat-bar{height:4px;background:#1e2430;border-radius:2px;margin-top:4px}
+.stat-bar-fill{height:100%;border-radius:2px;background:#60a0d0;transition:width .3s}
+.stat-bar-fill.hull{background:#48a858}
+.stat-bar-fill.hull.warn{background:#d0a040}
+.stat-bar-fill.hull.crit{background:#d04848}
+
+/* ── Status bar ── */
+#status-bar{padding:6px 14px;border-top:1px solid #252a34;background:#0d1117;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.status-chip{font-size:9px;font-family:monospace;letter-spacing:.5px;color:#4a5464}
+.status-chip span{color:#60a0d0}
+#sim-status{font-size:10px;color:#48a858;font-family:monospace;margin-left:auto}
+
+/* ── Map overlays ── */
+.leaflet-container{background:#0d1520}
+.hex-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:200}
+.hex-cell{fill:none;stroke:#1e3a5a;stroke-width:.5;transition:fill .15s}
+.hex-cell.water{stroke:#1e3a5a;stroke-opacity:.6}
+.hex-cell.hover{fill:rgba(96,160,208,.12);stroke:#60a0d0}
+.hex-cell.selected{fill:rgba(96,160,208,.18);stroke:#60a0d0;stroke-width:1}
+.hex-label{font-size:7px;fill:#2a4a6a;font-family:monospace;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+
+/* ── Leaflet custom markers ── */
+.port-icon{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer}
+.port-icon-inner{width:10px;height:10px;border-radius:50%;border:2px solid #60a0d0;background:#0d1520;transition:all .15s}
+.port-icon-inner.major{width:13px;height:13px;background:#1a2a3a}
+.port-label{background:rgba(13,21,32,.85);color:#60a0d0;border:1px solid #1e3a5a;border-radius:2px;padding:2px 6px;font-size:10px;font-family:monospace;white-space:nowrap;pointer-events:none}
+.ship-marker{font-size:20px;filter:drop-shadow(0 0 4px rgba(96,160,208,.8));animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{filter:drop-shadow(0 0 4px rgba(96,160,208,.8))}50%{filter:drop-shadow(0 0 8px rgba(96,160,208,1))}}
+.event-marker{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer}
+
+/* ── Tooltip ── */
+.leaflet-tooltip{background:rgba(13,17,23,.95);border:1px solid #252a34;color:#c8ccd4;font-family:'Segoe UI',sans-serif;font-size:11px;border-radius:3px;padding:6px 10px;box-shadow:0 4px 16px rgba(0,0,0,.5);max-width:220px}
+.leaflet-tooltip-top::before{border-top-color:#252a34}
+
+/* ── Empty state ── */
+.empty-state{padding:30px 14px;text-align:center;color:#4a5464}
+.empty-icon{font-size:28px;margin-bottom:8px;opacity:.5}
+.empty-text{font-size:11px;line-height:1.6}
+
+/* ── Map controls ── */
+#map-controls{position:absolute;bottom:12px;left:12px;z-index:1000;display:flex;gap:6px}
+.map-btn{padding:5px 10px;font-size:10px;font-family:monospace;background:rgba(13,17,23,.9);border:1px solid #252a34;color:#7a8494;border-radius:3px;cursor:pointer;transition:all .12s;text-transform:uppercase;letter-spacing:.5px}
+.map-btn:hover{color:#c8ccd4;border-color:#3a6a90}
+.map-btn.active{color:#60a0d0;border-color:#60a0d0;background:rgba(26,42,58,.9)}
+
+/* ── Route line ── */
+.route-line{stroke:#2a4a6a;stroke-width:1.5;stroke-dasharray:4,3;fill:none;opacity:.7}
+.route-line.active{stroke:#60a0d0;stroke-width:2;stroke-dasharray:none;opacity:1}
+.trail-line{stroke:#48a858;stroke-width:2;fill:none;opacity:.8}
+
+/* ── Loading overlay ── */
+#loading{position:fixed;inset:0;background:rgba(13,17,23,.95);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;transition:opacity .4s}
+#loading.hidden{opacity:0;pointer-events:none}
+.loading-text{font-family:monospace;font-size:11px;letter-spacing:2px;color:#60a0d0;text-transform:uppercase}
+.loading-sub{font-family:monospace;font-size:9px;color:#4a5464;letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div style="font-size:32px">⚓</div>
+  <div class="loading-text">Voyage Simulator</div>
+  <div class="loading-sub" id="loading-sub">Initialising charts...</div>
+</div>
+
+<div id="app">
+  <!-- MAP -->
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="map-controls">
+      <button class="map-btn active" id="btn-hexes" onclick="toggleHexes()">Hexes</button>
+      <button class="map-btn" id="btn-coords" onclick="toggleCoords()">Coords</button>
+      <button class="map-btn" id="btn-labels" onclick="toggleLabels()">Labels</button>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div id="sb-pullbar" style="display:none;justify-content:center;padding:6px 0;cursor:pointer;background:#0d1117;border-bottom:1px solid #252a34" onclick="toggleSidebar()"><div style="width:36px;height:4px;background:#303848;border-radius:2px"></div></div>
+<div id="sb-header">
+      <div class="sb-title">⚓ Voyage Planner</div>
+      <div class="sb-subtitle" id="sb-subtitle">Greyhawk Waters · 6-mile hex</div>
+    </div>
+
+    <div id="sb-tabs">
+      <div class="sb-tab active" data-panel="setup" onclick="switchTab('setup')">Setup</div>
+      <div class="sb-tab" data-panel="log" onclick="switchTab('log')">Log</div>
+      <div class="sb-tab" data-panel="ship" onclick="switchTab('ship')">Ship</div>
+      <div class="sb-tab" data-panel="about" onclick="switchTab('about')">Help</div>
+    </div>
+
+    <!-- SETUP PANEL -->
+    <div id="panel-setup" class="sb-panel active">
+      <div class="sb-section">
+        <div class="sb-section-title">Route</div>
+        <div class="field">
+          <label>Origin</label>
+          <select id="sel-origin"></select>
+        </div>
+        <div class="field">
+          <label>Destination</label>
+          <select id="sel-dest"></select>
+        </div>
+        <div class="field">
+          <label>Water Type</label>
+          <select id="sel-water">
+            <option value="coastal">Coastal</option>
+            <option value="openWater">Open Water</option>
+            <option value="lake">Lake / Inland Sea</option>
+            <option value="river">River</option>
+          </select>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="addLeg()">+ Add Leg</button>
+          <button class="btn btn-danger" onclick="clearRoute()">Clear</button>
+        </div>
+        <div id="legs-list" style="margin-top:8px"></div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-section-title">Vessel</div>
+        <div class="field">
+          <label>Ship Type</label>
+          <select id="sel-ship"></select>
+        </div>
+        <div class="field">
+          <label>Ship Name</label>
+          <input type="text" id="inp-ship-name" value="Fortune's Wake" placeholder="Ship name">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Hull HP</label>
+            <input type="number" id="inp-hull" value="21" min="1" max="200">
+          </div>
+          <div class="field">
+            <label>Daily Speed (mi)</label>
+            <input type="number" id="inp-speed" value="36" min="1" max="200">
+          </div>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-section-title">Crew & Proficiency</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Crew Quality</label>
+            <select id="sel-crew-quality">
+              <option value="green">Green</option>
+              <option value="average" selected>Average</option>
+              <option value="experienced">Experienced</option>
+              <option value="veteran">Veteran</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Navigator Skill</label>
+            <input type="number" id="inp-nav-skill" value="12" min="3" max="18">
+          </div>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-section-title">Calendar</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Start Day</label>
+            <input type="number" id="inp-start-day" value="1" min="1" max="28">
+          </div>
+          <div class="field">
+            <label>Month</label>
+            <select id="sel-start-month"></select>
+          </div>
+          <div class="field">
+            <label>Year</label>
+            <input type="number" id="inp-start-year" value="569" min="1">
+          </div>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="btn-row" style="justify-content:center">
+          <button class="btn btn-primary" id="btn-start" onclick="startVoyage()" style="flex:1">⚓ Begin Voyage</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOG PANEL -->
+    <div id="panel-log" class="sb-panel">
+      <div id="day-log-wrap" style="flex:1;display:flex;flex-direction:column;min-height:0">
+        <div id="day-log">
+          <div class="empty-state"><div class="empty-icon">📜</div><div class="empty-text">No voyage in progress.<br>Configure a route and begin.</div></div>
+        </div>
+      </div>
+      <div style="padding:10px 14px;border-top:1px solid #252a34;display:flex;gap:6px">
+        <button class="btn" id="btn-advance" onclick="advanceDay()" disabled>▶ Advance Day</button>
+        <button class="btn btn-danger" id="btn-end-voyage" onclick="endVoyage()" disabled>End</button>
+      </div>
+    </div>
+
+    <!-- SHIP PANEL -->
+    <div id="panel-ship" class="sb-panel">
+      <div id="detail-panel">
+        <div class="empty-state"><div class="empty-icon">🚢</div><div class="empty-text">Start a voyage to see ship status.</div></div>
+      </div>
+    </div>
+
+    <!-- HELP PANEL -->
+    <div id="panel-about" class="sb-panel">
+      <div style="padding:14px;color:#7a8494;font-size:11px;line-height:1.7">
+        <div style="color:#c8ccd4;font-size:13px;margin-bottom:10px;font-family:'Palatino Linotype',serif">Using the Voyage Map</div>
+        <p><strong style="color:#c8ccd4">Setup:</strong> Choose origin and destination ports, add legs to build a route. Each leg can have a different water type.</p>
+        <p style="margin-top:8px"><strong style="color:#c8ccd4">Hexes:</strong> Each hex is 6 miles across. Click any hex to see its coordinates. The ship icon shows current position.</p>
+        <p style="margin-top:8px"><strong style="color:#c8ccd4">Advancing Days:</strong> Switch to the Log tab and click Advance Day. Each press simulates one day of sailing — weather is rolled, encounters checked, distance calculated.</p>
+        <p style="margin-top:8px"><strong style="color:#c8ccd4">Events:</strong> Coloured markers appear on the map where encounters or damage occurred. Click a marker for details.</p>
+        <p style="margin-top:8px"><strong style="color:#c8ccd4">Map Image:</strong> Place a file named <code style="background:#1a1e26;padding:1px 4px;border-radius:2px">greyhawk-map.jpg</code> in the same folder to use a background map image. The hex grid is calibrated to standard Greyhawk geography.</p>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid #252a34;font-size:10px;color:#4a5464">
+          Distances from AD&D 1e Greyhawk sources.<br>
+          Weather &amp; encounter rules: DMG 1e / Seafaring supplement.<br>
+          6-mile hex standard from the DMG wilderness travel rules.
+        </div>
+      </div>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div id="status-bar">
+      <div class="status-chip">Day <span id="st-day">—</span></div>
+      <div class="status-chip">Hull <span id="st-hull">—</span></div>
+      <div class="status-chip">Dist <span id="st-dist">—</span></div>
+      <div id="sim-status">Ready</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DATA — Ports with pixel coordinates on a notional map
+// Calibrated so:
+//   Greyhawk City ≈ centre-east
+//   Dyvers ≈ northwest on Nyr Dyv
+//   Hardby ≈ south of Greyhawk on the Woolly Bay coast
+//   Gradsul / Rel Mord ≈ far south, Relmor Bay
+// 1 hex = 6 miles; positions in hex col/row units.
+// ============================================================
+
+const PORTS = {
+  greyhawk_city: { name:"City of Greyhawk", size:"major", col:52, row:40, connections:{ dyvers:390, verbobonc:600, leukish:420, hardby:180, safeton:240, fax:480, port_elredd:480, nessermouth:870 } },
+  dyvers:        { name:"Dyvers",            size:"port",  col:30, row:26, connections:{ greyhawk_city:390, verbobonc:210, leukish:570, hardby:570, safeton:630 } },
+  verbobonc:     { name:"Verbobonc",         size:"port",  col:17, row:20, connections:{ greyhawk_city:600, dyvers:210, leukish:780 } },
+  leukish:       { name:"Leukish",           size:"minor", col:42, row:20, connections:{ greyhawk_city:420, dyvers:570, verbobonc:780, port_elredd:350 } },
+  hardby:        { name:"Hardby",            size:"major", col:60, row:56, connections:{ rel_mord:150, gradsul:200, greyhawk_city:650, fax:300, port_elredd:600 } },
+  safeton:       { name:"Safeton",           size:"port",  col:46, row:30, connections:{ greyhawk_city:250, dyvers:200, nessermouth:100 } },
+  fax:           { name:"Fax",               size:"minor", col:58, row:44, connections:{ greyhawk_city:180, hardby:300, rel_mord:400 } },
+  port_elredd:   { name:"Port Elredd",       size:"major", col:34, row:50, connections:{ greyhawk_city:500, leukish:350, hardby:600, rel_mord:700 } },
+  nessermouth:   { name:"Nessermouth",       size:"minor", col:36, row:32, connections:{ safeton:100, greyhawk_city:200 } },
+  rel_mord:      { name:"Rel Mord",          size:"port",  col:70, row:62, connections:{ hardby:150, gradsul:100, fax:400, port_elredd:700 } },
+  gradsul:       { name:"Gradsul",           size:"port",  col:64, row:70, connections:{ hardby:200, rel_mord:100 } },
+};
+
+const SHIP_TEMPLATES = [
+  { id:"cog",           name:"Cog",                 dailySail:36,  hull:21 },
+  { id:"caravel",       name:"Caravel",              dailySail:48,  hull:18 },
+  { id:"sailing_ship",  name:"Sailing Ship",         dailySail:30,  hull:25 },
+  { id:"galley_large",  name:"Large Galley",         dailySail:50,  hull:10 },
+  { id:"galley_war",    name:"War Galley",            dailySail:36,  hull:18 },
+  { id:"sailing_boat",  name:"Sailing Boat (Fishing)",dailySail:60,  hull:14 },
+  { id:"keelboat",      name:"Keelboat",             dailySail:20,  hull:9  },
+  { id:"longship",      name:"Longship",             dailySail:50,  hull:7  },
+  { id:"merchantman",   name:"Merchantman",          dailySail:24,  hull:34 },
+  { id:"dromond",       name:"Dromond",              dailySail:36,  hull:30 },
+  { id:"rowboat",       name:"Rowboat / Skiff",      dailySail:18,  hull:3  },
+  { id:"outrigger",     name:"Outrigger",            dailySail:24,  hull:6  },
+];
+
+const MONTHS_GREYHAWK = [
+  "Needfest","Fireseek","Readying","Coldeven",
+  "Planting","Flocktime","Wealsun","Richfest",
+  "Reaping","Goodmonth","Harvester","Brewfest",
+  "Patchwall","Ready'reat","Sunsebb"
+];
+
+const CREW_QUALITY_MOD = { green:-2, average:0, experienced:1, veteran:2 };
+
+// ── Hex geometry (flat-top) ──
+const HEX_SIZE = 28; // pixels per hex at zoom 0 — adjusted by Leaflet zoom
+const MILES_PER_HEX = 6;
+const SAILING_HOURS = 10;
+
+// ── Application state ──
+let voyage = null;      // active voyage object
+let routeLegs = [];     // [{from, to, waterType, distance}]
+let mapLayers = {
+  hexSvg: null,
+  portMarkers: [],
+  shipMarker: null,
+  routeLines: [],
+  trailLine: null,
+  eventMarkers: [],
+  portLabels: [],
+};
+let showHexes = true;
+let showCoords = false;
+let showLabels = true;
+let activeTab = 'setup';
+let selectedDay = -1;
+
+// ============================================================
+// MAP SETUP
+// ============================================================
+
+// Use a simple CRS so pixel coords map directly to hex grid
+// Map bounds: 100 cols × 90 rows of hexes
+const MAP_COLS = 100;
+const MAP_ROWS = 90;
+
+// Flat-top hex: width = sqrt(3)*size, height = 2*size
+// We use size=28px → hex is ~48.5 × 56 px
+const HS = 30; // half-size
+const HW = Math.round(Math.sqrt(3) * HS); // hex width ~52px
+const HH = 2 * HS;                        // hex height = 60px
+
+// Canvas dimensions at 1:1
+const CANVAS_W = MAP_COLS * HW + HW/2;
+const CANVAS_H = MAP_ROWS * (HH * 0.75) + HH * 0.25;
+
+function hexToPixel(col, row) {
+  // Flat-top offset grid (even-col offset)
+  const x = col * HW + HW/2;
+  const y = row * (HH * 0.75) + (col % 2 === 0 ? 0 : HH * 0.375) + HH/2;
+  return { x, y };
+}
+
+function pixelToHex(x, y) {
+  // Approximate inverse — good enough for click detection
+  const col = Math.round((x - HW/2) / HW);
+  const rowOffset = col % 2 === 0 ? 0 : HH * 0.375;
+  const row = Math.round((y - HH/2 - rowOffset) / (HH * 0.75));
+  return { col: Math.max(0, Math.min(MAP_COLS-1, col)), row: Math.max(0, Math.min(MAP_ROWS-1, row)) };
+}
+
+// Convert hex col/row to Leaflet latlng (inverted y)
+function hexToLatLng(col, row) {
+  const { x, y } = hexToPixel(col, row);
+  return L.latLng(-y, x);
+}
+
+function latLngToHex(latlng) {
+  return pixelToHex(latlng.lng, -latlng.lat);
+}
+
+const CRS = L.CRS.Simple;
+
+const map = L.map('map', {
+  crs: CRS,
+  minZoom: -2,
+  maxZoom: 2,
+  zoomSnap: 0.5,
+  attributionControl: false,
+  zoomControl: false,
+});
+
+L.control.zoom({ position: 'topright' }).addTo(map);
+
+// Try to load background map image
+const imgBounds = [[-CANVAS_H, 0], [0, CANVAS_W]];
+const bgLayer = L.imageOverlay('greyhawk-map.jpg', imgBounds, { opacity: 0.45 }).addTo(map);
+bgLayer.on('error', () => { /* silently fail if no image */ });
+
+map.fitBounds(imgBounds, { padding: [20, 20] });
+
+// ============================================================
+// HEX GRID (SVG overlay)
+// ============================================================
+
+function hexPath(cx, cy, size) {
+  const pts = [];
+  for (let i = 0; i < 6; i++) {
+    const angle = Math.PI / 180 * (60 * i); // flat-top
+    pts.push(`${cx + size * Math.cos(angle)},${cy + size * Math.sin(angle)}`);
+  }
+  return `M${pts.join('L')}Z`;
+}
+
+let hexSvgEl = null;
+
+let _hexOverlay = null;
+
+function renderHexGrid() {
+  if (_hexOverlay) { _hexOverlay.remove(); _hexOverlay = null; }
+  if (!showHexes) return;
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('xmlns', svgNS);
+  svg.setAttribute('width', String(CANVAS_W));
+  svg.setAttribute('height', String(CANVAS_H));
+  svg.setAttribute('viewBox', `0 0 ${CANVAS_W} ${CANVAS_H}`);
+  svg.style.pointerEvents = 'none';
+
+  const g = document.createElementNS(svgNS, 'g');
+
+  for (let col = 0; col < MAP_COLS; col++) {
+    for (let row = 0; row < MAP_ROWS; row++) {
+      const { x, y } = hexToPixel(col, row);
+      // Use polygon instead of path - more reliable cross-browser
+      const pts = [];
+      for (let i = 0; i < 6; i++) {
+        const angle = Math.PI / 180 * (60 * i);
+        pts.push(`${x + (HS-1) * Math.cos(angle)},${y + (HS-1) * Math.sin(angle)}`);
+      }
+      const poly = document.createElementNS(svgNS, 'polygon');
+      poly.setAttribute('points', pts.join(' '));
+      poly.setAttribute('fill', 'none');
+      poly.setAttribute('stroke', '#1e3a5a');
+      poly.setAttribute('stroke-width', '0.6');
+      g.appendChild(poly);
+
+      if (showCoords && col % 5 === 0 && row % 5 === 0) {
+        const txt = document.createElementNS(svgNS, 'text');
+        txt.setAttribute('x', String(x));
+        txt.setAttribute('y', String(y));
+        txt.setAttribute('font-size', '7');
+        txt.setAttribute('fill', '#2a4a6a');
+        txt.setAttribute('font-family', 'monospace');
+        txt.setAttribute('text-anchor', 'middle');
+        txt.setAttribute('dominant-baseline', 'central');
+        txt.setAttribute('pointer-events', 'none');
+        txt.textContent = `${col},${row}`;
+        g.appendChild(txt);
+      }
+    }
+  }
+
+  svg.appendChild(g);
+  // L.svgOverlay renders SVG element directly - no blob URL, works on all mobile browsers
+  _hexOverlay = L.svgOverlay(svg, imgBounds, { interactive: false }).addTo(map);
+}
+
+// ============================================================
+// PORT MARKERS
+// ============================================================
+
+function clearMapLayers() {
+  mapLayers.portMarkers.forEach(m => m.remove());
+  mapLayers.portMarkers = [];
+  mapLayers.portLabels.forEach(m => m.remove());
+  mapLayers.portLabels = [];
+  mapLayers.routeLines.forEach(l => l.remove());
+  mapLayers.routeLines = [];
+  if (mapLayers.trailLine) { mapLayers.trailLine.remove(); mapLayers.trailLine = null; }
+  if (mapLayers.shipMarker) { mapLayers.shipMarker.remove(); mapLayers.shipMarker = null; }
+  mapLayers.eventMarkers.forEach(m => m.remove());
+  mapLayers.eventMarkers = [];
+}
+
+function renderPorts() {
+  Object.entries(PORTS).forEach(([id, port]) => {
+    const latlng = hexToLatLng(port.col, port.row);
+    const major = port.size === 'major';
+    const icon = L.divIcon({
+      className: '',
+      html: `<div class="port-icon"><div class="port-icon-inner${major?' major':''}"></div></div>`,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11],
+    });
+    const marker = L.marker(latlng, { icon, zIndexOffset: 100 }).addTo(map);
+    marker.bindTooltip(port.name, { className: 'port-label', direction: 'top', permanent: false });
+    marker.on('click', () => onPortClick(id));
+    mapLayers.portMarkers.push(marker);
+
+    if (showLabels) {
+      const label = L.marker(latlng, {
+        icon: L.divIcon({
+          className: '',
+          html: `<div class="port-label" style="margin-top:14px">${port.name}</div>`,
+          iconAnchor: [-4, 0],
+        }),
+        interactive: false,
+        zIndexOffset: 50,
+      }).addTo(map);
+      mapLayers.portLabels.push(label);
+    }
+  });
+}
+
+function onPortClick(id) {
+  const port = PORTS[id];
+  if (!voyage) {
+    document.getElementById('sel-origin').value = id;
+    updateDestOptions();
+  }
+}
+
+// ============================================================
+// ROUTE RENDERING
+// ============================================================
+
+function renderRoute() {
+  mapLayers.routeLines.forEach(l => l.remove());
+  mapLayers.routeLines = [];
+
+  routeLegs.forEach((leg, i) => {
+    const from = PORTS[leg.from];
+    const to = PORTS[leg.to];
+    if (!from || !to) return;
+    const line = L.polyline(
+      [hexToLatLng(from.col, from.row), hexToLatLng(to.col, to.row)],
+      { className: `route-line${voyage ? ' active' : ''}`, color: '#2a4a6a', weight: 2, dashArray: voyage ? null : '5,4', opacity: 0.8 }
+    ).addTo(map);
+    mapLayers.routeLines.push(line);
+  });
+}
+
+function renderLegsUI() {
+  const el = document.getElementById('legs-list');
+  if (!routeLegs.length) { el.innerHTML = ''; return; }
+  el.innerHTML = routeLegs.map((leg, i) => `
+    <div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:10px;font-family:monospace;color:#7a8494;border-bottom:1px solid #1e2430">
+      <span style="color:#60a0d0">${PORTS[leg.from]?.name.split(' ').pop()}</span>
+      <span>→</span>
+      <span style="color:#60a0d0">${PORTS[leg.to]?.name.split(' ').pop()}</span>
+      <span style="color:#4a5464;flex:1">${leg.distance}mi</span>
+      <span style="font-size:9px;color:#3a6a90">${leg.waterType}</span>
+      <span style="cursor:pointer;color:#703030;padding:0 4px" onclick="removeLeg(${i})">✕</span>
+    </div>`).join('');
+}
+
+// ============================================================
+// SIMULATION ENGINE (extracted from VoyageSimulator)
+// ============================================================
+
+function rollD(sides) { return Math.floor(Math.random() * sides) + 1; }
+function rollDN(n, sides) { let t=0; for(let i=0;i<n;i++) t+=rollD(sides); return t; }
+
+function generateWeather() {
+  const windSpeed = rollDN(2, 10) + 5; // 2d10+5: range 7-25, avg ~16
+  const directions = ['N','NE','E','SE','S','SW','W','NW'];
+  const dir = directions[rollD(8)-1];
+  const skyRoll = rollD(10);
+  const sky = skyRoll <= 2 ? 'overcast' : skyRoll <= 4 ? 'partly cloudy' : skyRoll <= 6 ? 'clear' : skyRoll <= 8 ? 'clear' : skyRoll === 9 ? 'fog' : 'heavy fog';
+  const precipRoll = rollD(20);
+  let precip = 'none';
+  if (precipRoll <= 3) precip = 'rainstorm-light';
+  else if (precipRoll <= 5) precip = 'rainstorm-heavy';
+  else if (precipRoll === 6) precip = 'hailstorm';
+  else if (precipRoll >= 18) precip = 'drizzle';
+  if (windSpeed >= 50) precip = 'gale';
+  if (windSpeed >= 75) precip = 'hurricane';
+
+  return {
+    wind: { speed: windSpeed, direction: dir },
+    sky,
+    precipitation: { type: precip, duration: precip !== 'none' ? rollD(6)+2 : 0 },
+    temperature: { high: 65 + rollD(20) - 10, low: 45 + rollD(10) }
+  };
+}
+
+function calculateSailingSpeed(baseSpeed, weather) {
+  const w = weather.wind.speed;
+  let speed = baseSpeed;
+  let note = '';
+
+  if (w < 5) {
+    return { speed: 0, note: 'Becalmed — wind too light.', becalmed: true };
+  } else if (w < 20) {
+    const penalty = Math.floor((20 - w) / 10) * 8;
+    speed = Math.max(1, baseSpeed - penalty);
+    note = `Light winds (${w} mph). −${penalty} mi/day.`;
+  } else if (w <= 30) {
+    note = `Good sailing winds (${w} mph).`;
+  } else {
+    const bonus = Math.floor((w - 30) / 10) * 16;
+    speed += bonus;
+    note = `Strong winds (${w} mph). +${bonus} mi/day.`;
+  }
+
+  const wetPrecip = ['drizzle','rainstorm-light','rainstorm-heavy','hailstorm'];
+  if (wetPrecip.includes(weather.precipitation.type)) {
+    const pct = Math.floor(Math.random()*6)+5;
+    const bonus = Math.floor(speed * pct / 100);
+    speed += bonus;
+    note += ` Wet sails +${bonus} mi.`;
+  }
+
+  return { speed, note, becalmed: false };
+}
+
+function checkEncounter(waterType) {
+  // DMG encounter check by water type
+  const thresholds = { coastal: 3, openWater: 4, lake: 3, river: 2 };
+  const threshold = thresholds[waterType] || 3;
+  if (rollD(20) > threshold) return null;
+
+  const ENCOUNTERS = {
+    coastal: [
+      'Pirate vessel (1d4+1 ships)','Merchant convoy (2d6 ships)','Fishing fleet',
+      'Naval patrol','Sea serpent','Giant shark','Stranded sailors',
+      'Wreck (salvageable)','Storm-damaged vessel needing aid','Smugglers',
+    ],
+    openWater: [
+      'Pirate squadron','Merchant vessel','Sea dragon','School of sea horses',
+      'Giant squid','Whale pod','Floating wreckage','Ghost ship','Sea elves',
+      'Merfolk delegation',
+    ],
+    lake: [
+      'Fishermen','River traders','Lake monster','Bandit raft','Elvish vessel',
+      'Dwarven barge','Sunken ruins visible','Fog bank (navigation hazard)','Water weird','Lake hermit',
+    ],
+    river: [
+      'River pirates','Ferry barge','Crocodiles','Giant catfish','Bandits on shore',
+      'Sunken barge (obstacle)','River toll collectors','Nixies','River troll','Log jam',
+    ],
+  };
+  const list = ENCOUNTERS[waterType] || ENCOUNTERS.coastal;
+  const enc = list[Math.floor(Math.random() * list.length)];
+  const hostile = ['Pirate','pirate','Dragon','dragon','Serpent','serpent','Bandits','bandit','Troll','troll','Squid'].some(k => enc.includes(k));
+  return { name: enc, hostile, distance: (rollD(6)*10) + 'yds' };
+}
+
+function rollNavigationCheck(navSkill, crewQualMod, weather, waterType) {
+  if (waterType !== 'openWater') return null;
+  const roll = rollD(20);
+  const hazardMod = weather.wind.speed >= 50 ? 5 : weather.wind.speed >= 30 ? 2 : 0;
+  const target = navSkill + crewQualMod - hazardMod;
+  if (roll <= target) return null; // success
+  const lostPct = (roll - target) * 5;
+  return { failed: true, roll, target, lostPct: Math.min(50, lostPct) };
+}
+
+function assessWeatherHazard(weather) {
+  const w = weather.wind.speed;
+  const p = weather.precipitation.type;
+  if (p === 'hurricane' || w >= 75) return { type: 'Critical', mod: 10, desc: 'Hurricane' };
+  if (p === 'gale' || w >= 50) return { type: 'Major', mod: 5, desc: 'Gale Force Winds' };
+  if (p === 'thunderstorm' || w >= 35) return { type: 'Minor', mod: 2, desc: 'Thunderstorm' };
+  if (weather.sky.includes('fog')) return { type: 'Minor', mod: 3, desc: weather.sky.includes('heavy') ? 'Heavy Fog' : 'Fog' };
+  return null;
+}
+
+// ============================================================
+// CALENDAR
+// ============================================================
+
+function calendarAdvance(cal, days=1) {
+  const DAYS_PER_MONTH = { Needfest:7, Richfest:7, Brewfest:7, default:28 };
+  let { day, month, year } = cal;
+  for (let i = 0; i < days; i++) {
+    const dpm = DAYS_PER_MONTH[MONTHS_GREYHAWK[month]] || 28;
+    day++;
+    if (day > dpm) { day = 1; month++; }
+    if (month >= MONTHS_GREYHAWK.length) { month = 0; year++; }
+  }
+  return { day, month, year };
+}
+
+function formatDate(cal) {
+  return `${cal.day} ${MONTHS_GREYHAWK[cal.month]} ${cal.year} CY`;
+}
+
+// ============================================================
+// VOYAGE STATE
+// ============================================================
+
+function buildVoyageState() {
+  const shipTpl = SHIP_TEMPLATES.find(s => s.id === document.getElementById('sel-ship').value) || SHIP_TEMPLATES[0];
+  const hullMax = parseInt(document.getElementById('inp-hull').value) || shipTpl.hull;
+  const dailySail = parseInt(document.getElementById('inp-speed').value) || shipTpl.dailySail;
+  const crewQuality = document.getElementById('sel-crew-quality').value;
+  const navSkill = parseInt(document.getElementById('inp-nav-skill').value) || 12;
+  const startDay = parseInt(document.getElementById('inp-start-day').value) || 1;
+  const startMonth = parseInt(document.getElementById('sel-start-month').value) || 0;
+  const startYear = parseInt(document.getElementById('inp-start-year').value) || 569;
+  const shipName = document.getElementById('inp-ship-name').value || 'Fortune\'s Wake';
+
+  // Build leg list with cumulative distances
+  const legs = [];
+  let totalDist = 0;
+  routeLegs.forEach(leg => {
+    totalDist += leg.distance;
+    legs.push({ ...leg, cumDist: totalDist });
+  });
+
+  return {
+    shipName,
+    shipType: shipTpl.name,
+    hullMax,
+    hullCurrent: hullMax,
+    dailySail,
+    crewQuality,
+    crewQualMod: CREW_QUALITY_MOD[crewQuality] || 0,
+    navSkill,
+    calendar: { day: startDay, month: startMonth, year: startYear },
+    legs,
+    totalDistance: totalDist,
+    distanceCovered: 0,
+    currentLegIdx: 0,
+    milesOnLeg: 0,
+    dayNumber: 0,
+    finished: false,
+    shipSank: false,
+    log: [],          // [{day, date, weather, miles, events:[]}]
+    hexTrail: [],     // [{col,row}] ship positions
+    events: [],       // all events for marker display
+  };
+}
+
+function currentLegWaterType() {
+  if (!voyage) return 'coastal';
+  const leg = voyage.legs[voyage.currentLegIdx];
+  return leg ? leg.waterType : 'coastal';
+}
+
+function shipHexPosition() {
+  if (!voyage) return null;
+  const leg = voyage.legs[voyage.currentLegIdx];
+  if (!leg) {
+    // finished - at destination of last leg
+    const lastLeg = voyage.legs[voyage.legs.length - 1];
+    return lastLeg ? PORTS[lastLeg.to] : null;
+  }
+  const from = PORTS[leg.from];
+  const to = PORTS[leg.to];
+  if (!from || !to) return null;
+
+  const progress = voyage.milesOnLeg / leg.distance;
+  const col = Math.round(from.col + (to.col - from.col) * progress);
+  const row = Math.round(from.row + (to.row - from.row) * progress);
+  return { col, row };
+}
+
+// ============================================================
+// DAY SIMULATION
+// ============================================================
+
+function simulateOneDay() {
+  if (!voyage || voyage.finished || voyage.shipSank) return;
+
+  voyage.dayNumber++;
+  voyage.calendar = calendarAdvance(voyage.calendar, 1);
+  const dateStr = formatDate(voyage.calendar);
+  const waterType = currentLegWaterType();
+  const weather = generateWeather();
+  const speedInfo = calculateSailingSpeed(voyage.dailySail, weather);
+  const events = [];
+
+  let milesThisDay = 0;
+
+  if (speedInfo.becalmed) {
+    events.push({ type: 'becalmed', text: 'Becalmed — no progress.' });
+  } else {
+    // Navigation check (open water)
+    const navCheck = rollNavigationCheck(voyage.navSkill, voyage.crewQualMod, weather, waterType);
+    let navMiles = speedInfo.speed;
+    if (navCheck) {
+      const lost = Math.floor(navMiles * navCheck.lostPct / 100);
+      navMiles = Math.max(0, navMiles - lost);
+      events.push({ type: 'navigation', text: `Navigation error — lost ${lost} mi (rolled ${navCheck.roll}, needed ≤${navCheck.target}).` });
+    }
+
+    // Weather hazard
+    const hazard = assessWeatherHazard(weather);
+    if (hazard) {
+      const pilotRoll = rollD(20);
+      const target = voyage.navSkill + voyage.crewQualMod - hazard.mod;
+      if (pilotRoll > target) {
+        const dmg = hazard.type === 'Critical' ? rollDN(1,6)+4 : hazard.type === 'Major' ? rollDN(1,4)+2 : rollDN(1,3)+1;
+        voyage.hullCurrent -= dmg;
+        events.push({ type: 'damage', text: `${hazard.desc}! Piloting failed (${pilotRoll} > ${target}). Hull −${dmg} HP. (${voyage.hullCurrent}/${voyage.hullMax} remaining)` });
+        voyage.events.push({ type:'damage', day:voyage.dayNumber, ...shipHexPosition(), text: events[events.length-1].text });
+      }
+    }
+
+    // Encounter
+    const enc = checkEncounter(waterType);
+    if (enc) {
+      if (enc.hostile) {
+        const crewLoss = rollD(3) - 1;
+        const hullDmg = rollD(4);
+        voyage.hullCurrent -= hullDmg;
+        if (crewLoss > 0) events.push({ type:'crew', text:`${enc.name} at ${enc.distance}! ${crewLoss} crew lost.` });
+        events.push({ type:'encounter', text:`${enc.name} — hull −${hullDmg} HP.` });
+        voyage.events.push({ type:'encounter', day:voyage.dayNumber, ...shipHexPosition(), text: enc.name, hostile: true });
+      } else {
+        events.push({ type:'encounter', text:`${enc.name} at ${enc.distance}.` });
+        voyage.events.push({ type:'encounter', day:voyage.dayNumber, ...shipHexPosition(), text: enc.name, hostile: false });
+      }
+    }
+
+    milesThisDay = navMiles;
+    voyage.distanceCovered += milesThisDay;
+    voyage.milesOnLeg += milesThisDay;
+
+    // Advance through legs
+    while (voyage.currentLegIdx < voyage.legs.length) {
+      const leg = voyage.legs[voyage.currentLegIdx];
+      if (voyage.milesOnLeg >= leg.distance) {
+        const overflow = voyage.milesOnLeg - leg.distance;
+        voyage.currentLegIdx++;
+        voyage.milesOnLeg = overflow;
+        if (voyage.currentLegIdx < voyage.legs.length) {
+          const nextPort = PORTS[voyage.legs[voyage.currentLegIdx].from];
+          if (nextPort) {
+            events.push({ type:'port', text:`Arrived at ${PORTS[leg.to]?.name || leg.to}.` });
+            voyage.events.push({ type:'port', day:voyage.dayNumber, col: PORTS[leg.to]?.col, row: PORTS[leg.to]?.row, text:`Arrived: ${PORTS[leg.to]?.name}` });
+          }
+        } else {
+          // Voyage complete
+          voyage.finished = true;
+          const dest = PORTS[voyage.legs[voyage.legs.length-1].to];
+          events.push({ type:'port', text:`Arrived at ${dest?.name || 'destination'}. Voyage complete!` });
+          voyage.events.push({ type:'port', day:voyage.dayNumber, col: dest?.col, row: dest?.row, text:`Voyage complete: ${dest?.name}` });
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+
+    if (voyage.hullCurrent <= 0) {
+      voyage.shipSank = true;
+      voyage.finished = true;
+      events.push({ type:'damage', text:'☠️ Ship sank!' });
+    }
+  }
+
+  // Record hex position
+  const pos = shipHexPosition();
+  if (pos) voyage.hexTrail.push(pos);
+
+  // Build log entry
+  const entry = {
+    day: voyage.dayNumber,
+    date: dateStr,
+    weather,
+    speedInfo,
+    miles: milesThisDay,
+    distTotal: voyage.distanceCovered,
+    events,
+    hexPos: pos,
+  };
+  voyage.log.push(entry);
+
+  return entry;
+}
+
+// ============================================================
+// UI — VOYAGE CONTROL
+// ============================================================
+
+function startVoyage() {
+  if (!routeLegs.length) {
+    setStatus('Add at least one route leg first.', 'warn');
+    return;
+  }
+  voyage = buildVoyageState();
+  renderRoute();
+  placeShipMarker();
+  updateShipPanel();
+  updateStatusBar();
+  switchTab('log');
+  renderDayLog();
+  document.getElementById('btn-advance').disabled = false;
+  document.getElementById('btn-end-voyage').disabled = false;
+  setStatus('Voyage started — advance days to simulate.', 'ok');
+  document.getElementById('btn-start').disabled = true;
+}
+
+function advanceDay() {
+  if (!voyage) return;
+  const entry = simulateOneDay();
+  if (!entry) return;
+  renderDayLog();
+  updateShipMarker();
+  renderTrail();
+  placeEventMarkers();
+  updateStatusBar();
+  updateShipPanel();
+  if (voyage.finished) {
+    document.getElementById('btn-advance').disabled = true;
+    setStatus(voyage.shipSank ? '☠️ Ship sank!' : '⚓ Voyage complete!', voyage.shipSank ? 'danger' : 'ok');
+  }
+  // Auto-scroll log
+  setTimeout(() => {
+    const log = document.getElementById('day-log');
+    const entries = log.querySelectorAll('.day-entry');
+    if (entries.length) entries[entries.length-1].scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }, 50);
+}
+
+function endVoyage() {
+  if (!voyage) return;
+  voyage.finished = true;
+  voyage = null;
+  routeLegs = [];
+  clearMapLayers();
+  renderPorts();
+  renderRoute();
+  renderDayLog();
+  updateStatusBar();
+  updateShipPanel();
+  document.getElementById('btn-advance').disabled = true;
+  document.getElementById('btn-end-voyage').disabled = true;
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('legs-list').innerHTML = '';
+  setStatus('Voyage ended.', 'ok');
+}
+
+// ============================================================
+// UI — ROUTE BUILDING
+// ============================================================
+
+function addLeg() {
+  const from = document.getElementById('sel-origin').value;
+  const to = document.getElementById('sel-dest').value;
+  const waterType = document.getElementById('sel-water').value;
+
+  if (!from || !to || from === to) { setStatus('Select different origin and destination.', 'warn'); return; }
+
+  const fromPort = PORTS[from];
+  const dist = fromPort?.connections[to];
+  if (!dist) { setStatus('No direct connection between those ports.', 'warn'); return; }
+
+  routeLegs.push({ from, to, waterType, distance: dist });
+  // Auto-chain: next leg starts where this one ended
+  document.getElementById('sel-origin').value = to;
+  updateDestOptions();
+  renderLegsUI();
+  renderRoute();
+}
+
+function removeLeg(i) {
+  routeLegs.splice(i, 1);
+  renderLegsUI();
+  renderRoute();
+}
+
+function clearRoute() {
+  routeLegs = [];
+  renderLegsUI();
+  renderRoute();
+}
+
+function updateDestOptions() {
+  const from = document.getElementById('sel-origin').value;
+  const fromPort = PORTS[from];
+  const sel = document.getElementById('sel-dest');
+  const prevVal = sel.value;
+  sel.innerHTML = fromPort
+    ? Object.keys(fromPort.connections).map(id => `<option value="${id}">${PORTS[id]?.name||id}</option>`).join('')
+    : Object.entries(PORTS).filter(([id]) => id !== from).map(([id,p]) => `<option value="${id}">${p.name}</option>`).join('');
+  if ([...sel.options].some(o => o.value === prevVal)) sel.value = prevVal;
+}
+
+// ============================================================
+// UI — MAP MARKERS
+// ============================================================
+
+function placeShipMarker() {
+  if (mapLayers.shipMarker) { mapLayers.shipMarker.remove(); mapLayers.shipMarker = null; }
+  const pos = shipHexPosition();
+  if (!pos) return;
+  const icon = L.divIcon({ className:'', html:'<div class="ship-marker">⛵</div>', iconSize:[24,24], iconAnchor:[12,12] });
+  mapLayers.shipMarker = L.marker(hexToLatLng(pos.col, pos.row), { icon, zIndexOffset: 500 }).addTo(map);
+}
+
+function updateShipMarker() {
+  const pos = shipHexPosition();
+  if (!pos || !mapLayers.shipMarker) { placeShipMarker(); return; }
+  mapLayers.shipMarker.setLatLng(hexToLatLng(pos.col, pos.row));
+}
+
+function renderTrail() {
+  if (mapLayers.trailLine) { mapLayers.trailLine.remove(); mapLayers.trailLine = null; }
+  if (!voyage || voyage.hexTrail.length < 2) return;
+  const pts = voyage.hexTrail.map(p => hexToLatLng(p.col, p.row));
+  mapLayers.trailLine = L.polyline(pts, { color:'#48a858', weight:2, opacity:.7, dashArray: null }).addTo(map);
+}
+
+function placeEventMarkers() {
+  // Clear old
+  mapLayers.eventMarkers.forEach(m => m.remove());
+  mapLayers.eventMarkers = [];
+  if (!voyage) return;
+
+  voyage.events.forEach(ev => {
+    if (ev.col == null || ev.row == null) return;
+    const emoji = ev.type === 'encounter' ? (ev.hostile ? '⚔️' : '👁') : ev.type === 'damage' ? '💥' : ev.type === 'port' ? '⚓' : '⚠️';
+    const icon = L.divIcon({ className:'', html:`<div class="event-marker">${emoji}</div>`, iconSize:[20,20], iconAnchor:[10,10] });
+    const marker = L.marker(hexToLatLng(ev.col, ev.row), { icon, zIndexOffset: 200 }).addTo(map);
+    marker.bindTooltip(`Day ${ev.day}: ${ev.text}`, { className:'port-label', direction:'top' });
+    mapLayers.eventMarkers.push(marker);
+  });
+}
+
+// ============================================================
+// UI — LOG & PANELS
+// ============================================================
+
+function renderDayLog() {
+  const el = document.getElementById('day-log');
+  if (!voyage || !voyage.log.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📜</div><div class="empty-text">No voyage in progress.<br>Configure a route and begin.</div></div>';
+    return;
+  }
+
+  el.innerHTML = voyage.log.map((entry, i) => {
+    const evHtml = entry.events.map(ev =>
+      `<div class="de-event ${ev.type}">${ev.text}</div>`
+    ).join('');
+    const milesStr = entry.miles > 0 ? `+${entry.miles} mi` : 'Becalmed';
+    const windStr = `${entry.weather.wind.speed}mph ${entry.weather.wind.direction}`;
+    const precipStr = entry.weather.precipitation.type !== 'none' ? `, ${entry.weather.precipitation.type}` : '';
+    const isCurrent = i === voyage.log.length - 1;
+    return `<div class="day-entry${isCurrent ? ' current' : ''}" onclick="selectDay(${i})">
+      <div class="de-header">
+        <span class="de-day">Day ${entry.day}</span>
+        <span class="de-date">${entry.date}</span>
+        <span class="de-dist">${milesStr}</span>
+      </div>
+      <div class="de-weather">${entry.weather.sky} · ${windStr}${precipStr}</div>
+      ${evHtml ? `<div class="de-events">${evHtml}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function selectDay(i) {
+  selectedDay = i;
+  if (!voyage || !voyage.log[i]) return;
+  const entry = voyage.log[i];
+  // Pan map to hex position
+  if (entry.hexPos) map.panTo(hexToLatLng(entry.hexPos.col, entry.hexPos.row));
+  document.querySelectorAll('.day-entry').forEach((el, idx) => el.classList.toggle('active', idx === i));
+}
+
+function updateShipPanel() {
+  const el = document.getElementById('detail-panel');
+  if (!voyage) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🚢</div><div class="empty-text">Start a voyage to see ship status.</div></div>';
+    return;
+  }
+
+  const hullPct = (voyage.hullCurrent / voyage.hullMax) * 100;
+  const hullClass = hullPct > 60 ? 'hull' : hullPct > 30 ? 'hull warn' : 'hull crit';
+  const legStr = voyage.currentLegIdx < voyage.legs.length
+    ? `${PORTS[voyage.legs[voyage.currentLegIdx].from]?.name} → ${PORTS[voyage.legs[voyage.currentLegIdx].to]?.name}`
+    : 'Voyage complete';
+  const remaining = voyage.legs.reduce((sum, l) => sum + l.distance, 0) - voyage.distanceCovered;
+  const pos = shipHexPosition();
+
+  el.innerHTML = `
+    <div class="detail-title">${voyage.shipName}</div>
+    <div class="detail-row"><span class="detail-label">Type</span><span class="detail-val">${voyage.shipType}</span></div>
+    <div class="detail-row"><span class="detail-label">Day</span><span class="detail-val">${voyage.dayNumber}</span></div>
+    <div class="detail-row"><span class="detail-label">Date</span><span class="detail-val">${formatDate(voyage.calendar)}</span></div>
+    <div class="detail-row"><span class="detail-label">Position</span><span class="detail-val">${pos ? `Hex ${pos.col},${pos.row}` : '—'}</span></div>
+
+    <div class="detail-section">Hull</div>
+    <div class="detail-row"><span class="detail-label">HP</span><span class="detail-val" style="color:${hullPct>60?'#48a858':hullPct>30?'#d0a040':'#d04848'}">${voyage.hullCurrent} / ${voyage.hullMax}</span></div>
+    <div class="stat-bar"><div class="stat-bar-fill ${hullClass}" style="width:${hullPct}%"></div></div>
+
+    <div class="detail-section">Voyage Progress</div>
+    <div class="detail-row"><span class="detail-label">Covered</span><span class="detail-val">${voyage.distanceCovered} mi</span></div>
+    <div class="detail-row"><span class="detail-label">Remaining</span><span class="detail-val">${Math.max(0,remaining)} mi</span></div>
+    <div class="detail-row"><span class="detail-label">Current Leg</span><span class="detail-val" style="font-size:10px">${legStr}</span></div>
+    <div class="stat-bar"><div class="stat-bar-fill" style="width:${Math.min(100,(voyage.distanceCovered/voyage.totalDistance)*100)}%"></div></div>
+
+    <div class="detail-section">Crew</div>
+    <div class="detail-row"><span class="detail-label">Quality</span><span class="detail-val">${voyage.crewQuality}</span></div>
+    <div class="detail-row"><span class="detail-label">Nav Skill</span><span class="detail-val">${voyage.navSkill}</span></div>
+    <div class="detail-row"><span class="detail-label">Base Speed</span><span class="detail-val">${voyage.dailySail} mi/day</span></div>
+  `;
+}
+
+function updateStatusBar() {
+  document.getElementById('st-day').textContent = voyage ? voyage.dayNumber : '—';
+  document.getElementById('st-hull').textContent = voyage ? `${voyage.hullCurrent}/${voyage.hullMax}` : '—';
+  document.getElementById('st-dist').textContent = voyage ? `${voyage.distanceCovered}mi` : '—';
+}
+
+// ============================================================
+// UI — GENERAL
+// ============================================================
+
+function switchTab(name) {
+  activeTab = name;
+  document.querySelectorAll('.sb-tab').forEach(t => t.classList.toggle('active', t.dataset.panel === name));
+  document.querySelectorAll('.sb-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${name}`));
+}
+
+function toggleHexes() {
+  showHexes = !showHexes;
+  document.getElementById('btn-hexes').classList.toggle('active', showHexes);
+  renderHexGrid();
+}
+
+function toggleCoords() {
+  showCoords = !showCoords;
+  document.getElementById('btn-coords').classList.toggle('active', showCoords);
+  renderHexGrid();
+}
+
+function toggleLabels() {
+  showLabels = !showLabels;
+  document.getElementById('btn-labels').classList.toggle('active', showLabels);
+  clearMapLayers();
+  renderPorts();
+  if (voyage) {
+    renderRoute();
+    updateShipMarker();
+    renderTrail();
+    placeEventMarkers();
+  }
+}
+
+function setStatus(msg, type='ok') {
+  const el = document.getElementById('sim-status');
+  el.textContent = msg;
+  el.style.color = type === 'ok' ? '#48a858' : type === 'warn' ? '#d0a040' : '#d04848';
+}
+
+// ============================================================
+// INIT
+// ============================================================
+
+function populateSelects() {
+  const portOptions = Object.entries(PORTS)
+    .map(([id, p]) => `<option value="${id}">${p.name}</option>`).join('');
+
+  document.getElementById('sel-origin').innerHTML = portOptions;
+  updateDestOptions();
+
+  document.getElementById('sel-ship').innerHTML = SHIP_TEMPLATES
+    .map(s => `<option value="${s.id}">${s.name} (${s.dailySail}mi/day)</option>`).join('');
+
+  document.getElementById('sel-start-month').innerHTML = MONTHS_GREYHAWK
+    .map((m, i) => `<option value="${i}">${m}</option>`).join('');
+  document.getElementById('sel-start-month').value = 2; // Readying
+
+  // When ship changes, update hull/speed defaults
+  document.getElementById('sel-ship').addEventListener('change', function() {
+    const tpl = SHIP_TEMPLATES.find(s => s.id === this.value);
+    if (tpl) {
+      document.getElementById('inp-hull').value = tpl.hull;
+      document.getElementById('inp-speed').value = tpl.dailySail;
+    }
+  });
+
+  document.getElementById('sel-origin').addEventListener('change', updateDestOptions);
+}
+
+function init() {
+  document.getElementById('loading-sub').textContent = 'Building hex grid...';
+  populateSelects();
+  setTimeout(() => {
+    renderHexGrid();
+    document.getElementById('loading-sub').textContent = 'Placing ports...';
+    setTimeout(() => {
+      renderPorts();
+      document.getElementById('loading').classList.add('hidden');
+    }, 100);
+  }, 50);
+}
+
+init();
+function toggleSidebar(){
+  document.getElementById("sidebar").classList.toggle("open");
+}
+</script>
+</body>
+</html>
