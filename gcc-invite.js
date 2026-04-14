@@ -322,11 +322,12 @@ const GCCInvite = (function() {
             uploads.push({ path: sp + 'ses_' + sid, val: s.image,
               apply: url => { s.image = url; } });
           }
-          for (const sec of (s.sections || [])) {
+          for (let si = 0; si < (s.sections || []).length; si++) {
+            const sec = s.sections[si];
             for (let j = 0; j < (sec.images || []).length; j++) {
               const img = sec.images[j];
               if (needsUpload(img.src)) {
-                uploads.push({ path: sp + 'sec_' + (s._id || '') + '_' + j, val: img.src,
+                uploads.push({ path: sp + 'sec_' + (s._id || '') + '_' + si + '_' + j, val: img.src,
                   apply: url => { img.src = url; } });
               }
             }
