@@ -337,17 +337,17 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
 // ============================================================
 
 const PORTS = {
-  greyhawk_city: { name:"City of Greyhawk", size:"major", col:52, row:40, connections:{ dyvers:390, verbobonc:600, leukish:420, hardby:180, safeton:240, fax:480, port_elredd:480, nessermouth:870 } },
-  dyvers:        { name:"Dyvers",            size:"port",  col:30, row:26, connections:{ greyhawk_city:390, verbobonc:210, leukish:570, hardby:570, safeton:630 } },
-  verbobonc:     { name:"Verbobonc",         size:"port",  col:17, row:20, connections:{ greyhawk_city:600, dyvers:210, leukish:780 } },
-  leukish:       { name:"Leukish",           size:"minor", col:42, row:20, connections:{ greyhawk_city:420, dyvers:570, verbobonc:780, port_elredd:350 } },
-  hardby:        { name:"Hardby",            size:"major", col:60, row:56, connections:{ rel_mord:150, gradsul:200, greyhawk_city:650, fax:300, port_elredd:600 } },
-  safeton:       { name:"Safeton",           size:"port",  col:46, row:30, connections:{ greyhawk_city:250, dyvers:200, nessermouth:100 } },
-  fax:           { name:"Fax",               size:"minor", col:58, row:44, connections:{ greyhawk_city:180, hardby:300, rel_mord:400 } },
-  port_elredd:   { name:"Port Elredd",       size:"major", col:34, row:50, connections:{ greyhawk_city:500, leukish:350, hardby:600, rel_mord:700 } },
-  nessermouth:   { name:"Nessermouth",       size:"minor", col:36, row:32, connections:{ safeton:100, greyhawk_city:200 } },
-  rel_mord:      { name:"Rel Mord",          size:"port",  col:70, row:62, connections:{ hardby:150, gradsul:100, fax:400, port_elredd:700 } },
-  gradsul:       { name:"Gradsul",           size:"port",  col:64, row:70, connections:{ hardby:200, rel_mord:100 } },
+  greyhawk_city: { name:"City of Greyhawk", size:"major", col:47, row:44, connections:{ dyvers:390, verbobonc:600, leukish:420, hardby:180, safeton:240, fax:480, port_elredd:480, nessermouth:870 } },
+  dyvers:        { name:"Dyvers",            size:"port",  col:39, row:38, connections:{ greyhawk_city:390, verbobonc:210, leukish:570, hardby:570, safeton:630 } },
+  verbobonc:     { name:"Verbobonc",         size:"port",  col:34, row:35, connections:{ greyhawk_city:600, dyvers:210, leukish:780 } },
+  leukish:       { name:"Leukish",           size:"minor", col:44, row:35, connections:{ greyhawk_city:420, dyvers:570, verbobonc:780, port_elredd:350 } },
+  hardby:        { name:"Hardby",            size:"major", col:47, row:48, connections:{ rel_mord:150, gradsul:200, greyhawk_city:650, fax:300, port_elredd:600 } },
+  safeton:       { name:"Safeton",           size:"port",  col:47, row:41, connections:{ greyhawk_city:250, dyvers:200, nessermouth:100 } },
+  fax:           { name:"Fax",               size:"minor", col:51, row:43, connections:{ greyhawk_city:180, hardby:300, rel_mord:400 } },
+  port_elredd:   { name:"Port Elredd",       size:"major", col:41, row:50, connections:{ greyhawk_city:500, leukish:350, hardby:600, rel_mord:700 } },
+  nessermouth:   { name:"Nessermouth",       size:"minor", col:45, row:40, connections:{ safeton:100, greyhawk_city:200 } },
+  rel_mord:      { name:"Rel Mord",          size:"port",  col:58, row:50, connections:{ hardby:150, gradsul:100, fax:400, port_elredd:700 } },
+  gradsul:       { name:"Gradsul",           size:"port",  col:54, row:54, connections:{ hardby:200, rel_mord:100 } },
 };
 
 const SHIP_TEMPLATES = [
@@ -403,8 +403,8 @@ let selectedDay = -1;
 
 // Use a simple CRS so pixel coords map directly to hex grid
 // Map bounds: 100 cols × 90 rows of hexes
-const MAP_COLS = 100;
-const MAP_ROWS = 90;
+const MAP_COLS = 91;  // calibrated to Darlene map aspect ratio 1.2857
+const MAP_ROWS = 82;
 
 // Flat-top hex: width = sqrt(3)*size, height = 2*size
 // We use size=28px → hex is ~48.5 × 56 px
