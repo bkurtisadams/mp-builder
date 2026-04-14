@@ -627,6 +627,31 @@ function reconcileCharRefs(camp){
   return changed;
 }
 
+// ── Clean orphaned IDB images not referenced by any campaign ──
+async function cleanOrphanImages(dryRun){
+  const allKeys=new Set();
+  const camps=GCC.load('gcc-campaigns')||[];
+  camps.forEach(c=>{
+    if(c.campaignImage&&GCCImages.isKey(c.campaignImage))allKeys.add(c.campaignImage);
+    if(c.hqImage&&GCCImages.isKey(c.hqImage))allKeys.add(c.hqImage);
+    (c.sessions||[]).forEach(s=>{
+      if(s.image&&GCCImages.isKey(s.image))allKeys.add(s.image);
+      (s.sections||[]).forEach(sec=>(sec.images||[]).forEach(img=>{if(img.src&&GCCImages.isKey(img.src))allKeys.add(img.src)}));
+    });
+    (c.lore||[]).forEach(l=>{if(l.image&&GCCImages.isKey(l.image))allKeys.add(l.image)});
+  });
+  const db=await GCCImages.open();
+  const tx=db.transaction('images','readonly');
+  const store=tx.objectStore('images');
+  const allIDB=await new Promise(r=>{const req=store.getAllKeys();req.onsuccess=()=>r(req.result);req.onerror=()=>r([])});
+  const orphans=allIDB.filter(k=>!allKeys.has(k));
+  console.log('[GCC] IDB keys:',allIDB.length,'referenced:',allKeys.size,'orphans:',orphans.length);
+  if(dryRun){console.log('[GCC] Dry run — orphan keys:',orphans);return orphans}
+  if(orphans.length)await GCCImages.removeBulk(orphans);
+  console.log('[GCC] Removed',orphans.length,'orphaned images');
+  return orphans;
+}
+
 // ── Collect all image keys from campaign for bulk loading ──
 function collectImageKeys(camp){
   const keys=[];
@@ -894,11 +919,11 @@ function wireEvents(){
   document.getElementById('btn-add-session')?.addEventListener('click',()=>openSessionModal(-1,'session'));
   document.getElementById('btn-export-journal')?.addEventListener('click',exportJournal);
   document.getElementById('btn-import-sessions')?.addEventListener('click',openSesImportModal);
-  document.getElementById('btn-delete-all-sessions')?.addEventListener('click',async()=>{const camp=getCamp();if(!camp)return;const count=(camp.sessions||[]).length;const ok=await GCCDialog.confirm('Delete all sessions','Delete all '+count+' sessions? This cannot be undone.',{okText:'Delete All',danger:true});if(!ok)return;GCC.updateCampaign(campId,{sessions:[],session:0});const updated=GCC.getCampaign(campId);if(GCCAuth?.getUser()){GCCInvite.pushSharedData(campId,updated);if(typeof GCCSync!=='undefined'&&GCCSync.notifySync)GCCSync.notifySync('gcc-campaigns')}render()});
+  document.getElementById('btn-delete-all-sessions')?.addEventListener('click',async()=>{const camp=getCamp();if(!camp)return;const count=(camp.sessions||[]).length;const ok=await GCCDialog.confirm('Delete all sessions','Delete all '+count+' sessions? This cannot be undone.',{okText:'Delete All',danger:true});if(!ok)return;const deadKeys=[];(camp.sessions||[]).forEach(s=>{if(s.image&&GCCImages.isKey(s.image))deadKeys.push(s.image);(s.sections||[]).forEach(sec=>(sec.images||[]).forEach(img=>{if(img.src&&GCCImages.isKey(img.src))deadKeys.push(img.src)}))});if(deadKeys.length)GCCImages.removeBulk(deadKeys);GCC.updateCampaign(campId,{sessions:[],session:0});const updated=GCC.getCampaign(campId);if(GCCAuth?.getUser()){GCCInvite.pushSharedData(campId,updated);if(typeof GCCSync!=='undefined'&&GCCSync.notifySync)GCCSync.notifySync('gcc-campaigns')}render()});
   document.querySelectorAll('[data-ses-filter]').forEach(btn=>{btn.addEventListener('click',()=>{sessionFilter=btn.dataset.sesFilter;render()})});
   document.querySelectorAll('[data-lore-filter]').forEach(btn=>{btn.addEventListener('click',()=>{loreFilter=btn.dataset.loreFilter;render()})});
   document.querySelectorAll('[data-ses-edit]').forEach(btn=>{btn.addEventListener('click',()=>openSessionModal(parseInt(btn.dataset.sesEdit)))});
-  document.querySelectorAll('[data-ses-del]').forEach(btn=>{btn.addEventListener('click',async()=>{const ok=await GCCDialog.confirm('Delete session','Delete this session entry?',{okText:'Delete',danger:true});if(!ok)return;const camp=getCamp();if(!camp)return;const sessions=camp.sessions||[];sessions.splice(parseInt(btn.dataset.sesDel),1);GCC.updateCampaign(campId,{sessions,session:countRealSessions(sessions)});render()})});
+  document.querySelectorAll('[data-ses-del]').forEach(btn=>{btn.addEventListener('click',async()=>{const ok=await GCCDialog.confirm('Delete session','Delete this session entry?',{okText:'Delete',danger:true});if(!ok)return;const camp=getCamp();if(!camp)return;const sessions=camp.sessions||[];const s=sessions[parseInt(btn.dataset.sesDel)];if(s){const deadKeys=[];if(s.image&&GCCImages.isKey(s.image))deadKeys.push(s.image);(s.sections||[]).forEach(sec=>(sec.images||[]).forEach(img=>{if(img.src&&GCCImages.isKey(img.src))deadKeys.push(img.src)}));if(deadKeys.length)GCCImages.removeBulk(deadKeys)}sessions.splice(parseInt(btn.dataset.sesDel),1);GCC.updateCampaign(campId,{sessions,session:countRealSessions(sessions)});render()})});
   // Drag-to-reorder sessions
   let dragIdx=null;
   document.querySelectorAll('.session-card[draggable]').forEach(card=>{
