@@ -148,6 +148,61 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
 #loading.hidden{opacity:0;pointer-events:none}
 .loading-text{font-family:monospace;font-size:11px;letter-spacing:2px;color:#60a0d0;text-transform:uppercase}
 .loading-sub{font-family:monospace;font-size:9px;color:#4a5464;letter-spacing:1px}
+
+/* ── Trading / Port UI ── */
+.port-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px}
+.port-modal{background:#161a20;border:1px solid #303848;border-radius:6px;width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.port-modal-hdr{padding:12px 16px;border-bottom:1px solid #252a34;display:flex;align-items:center;justify-content:space-between;background:#0d1117;flex-shrink:0}
+.port-modal-title{font-family:'Georgia',serif;font-size:15px;color:#c8ccd4;letter-spacing:.5px}
+.port-modal-body{padding:14px 16px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.port-modal-ftr{padding:10px 16px;border-top:1px solid #252a34;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+.pm-section{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #1e2430}
+.pm-section:last-child{border-bottom:none;margin-bottom:0}
+.pm-section-title{font-size:9px;letter-spacing:1.5px;color:#4a5464;font-family:monospace;text-transform:uppercase;margin-bottom:8px}
+.pm-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font-size:11px;gap:8px}
+.pm-label{color:#4a5464;font-family:monospace;font-size:9px;letter-spacing:.5px;text-transform:uppercase}
+.pm-val{color:#c8ccd4;text-align:right}
+.pm-val.good{color:#48a858}
+.pm-val.warn{color:#d0a040}
+.pm-val.bad{color:#d04848}
+.pm-val.accent{color:#60a0d0}
+.pm-note{font-size:10px;color:#7a8494;font-style:italic;line-height:1.45;margin:4px 0}
+.pm-skill-result{font-size:10px;padding:3px 8px;border-radius:2px;margin:2px 0;border-left:2px solid}
+.pm-skill-result.success{color:#48a858;border-color:#287830;background:rgba(40,120,48,.08)}
+.pm-skill-result.fail{color:#d04848;border-color:#a03030;background:rgba(160,48,48,.08)}
+.pm-skill-result.none{color:#4a5464;border-color:#303848}
+.qty-row{display:flex;align-items:center;gap:8px;margin:8px 0}
+.qty-row label{font-size:10px;color:#7a8494;font-family:monospace;white-space:nowrap}
+.qty-input{width:60px;background:#0d1117;border:1px solid #252a34;color:#c8ccd4;padding:5px 8px;font-size:16px;border-radius:3px;text-align:center;outline:none}
+@media(min-width:601px){.qty-input{font-size:12px}}
+.qty-input:focus{border-color:#3a6a90}
+.cargo-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:3px;border:1px solid #303848;background:#1a1e26;font-size:11px;font-family:monospace;color:#c8ccd4;margin:4px 0}
+.cargo-badge .cb-type{color:#60a0d0;font-weight:700}
+/* Ledger */
+.ledger-entry{display:grid;grid-template-columns:1fr auto auto auto;gap:4px 10px;padding:4px 12px;border-bottom:1px solid #1a1e26;font-size:10px;align-items:baseline}
+.ledger-entry:hover{background:#1a1e26}
+.le-desc{color:#7a8494;font-family:monospace;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.le-date{color:#4a5464;font-family:monospace;font-size:9px;white-space:nowrap}
+.le-inc{color:#48a858;text-align:right;font-family:monospace;font-size:9px;white-space:nowrap}
+.le-exp{color:#d04848;text-align:right;font-family:monospace;font-size:9px;white-space:nowrap}
+.le-bal{color:#60a0d0;text-align:right;font-family:monospace;font-size:9px;white-space:nowrap}
+.ledger-hdr{display:grid;grid-template-columns:1fr auto auto auto;gap:4px 10px;padding:4px 12px;font-size:8px;letter-spacing:1px;color:#4a5464;font-family:monospace;text-transform:uppercase;border-bottom:1px solid #252a34;background:#0d1117;position:sticky;top:0}
+.profit-strip{padding:8px 12px;display:flex;gap:16px;border-bottom:1px solid #252a34;background:#0d1117;flex-wrap:wrap}
+.profit-chip{font-size:10px;font-family:monospace;color:#4a5464}
+.profit-chip span{color:#60a0d0}
+.profit-chip span.pos{color:#48a858}
+.profit-chip span.neg{color:#d04848}
+/* Captain setup in sidebar */
+.cap-stat-row{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+.cap-stat{display:flex;flex-direction:column;align-items:center;flex:1;min-width:44px}
+.cap-stat label{font-size:8px;color:#4a5464;font-family:monospace;letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px}
+.cap-stat input{width:100%;background:#0d1117;border:1px solid #252a34;color:#c8ccd4;padding:4px;font-size:16px;border-radius:3px;text-align:center;outline:none}
+@media(min-width:601px){.cap-stat input{font-size:12px}}
+.cap-stat input:focus{border-color:#3a6a90}
+.skill-checks{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.skill-check{display:flex;align-items:center;gap:4px;font-size:10px;color:#7a8494;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.skill-check input[type=checkbox]{accent-color:#60a0d0}
+
 </style>
 </head>
 <body>
@@ -181,6 +236,7 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
       <div class="sb-tab active" data-panel="setup" onclick="switchTab('setup')">Setup</div>
       <div class="sb-tab" data-panel="log" onclick="switchTab('log')">Log</div>
       <div class="sb-tab" data-panel="ship" onclick="switchTab('ship')">Ship</div>
+      <div class="sb-tab" data-panel="ledger" onclick="switchTab('ledger')">Ledger</div>
       <div class="sb-tab" data-panel="about" onclick="switchTab('about')">Help</div>
     </div>
 
@@ -254,6 +310,37 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
       </div>
 
       <div class="sb-section">
+        <div class="sb-section-title">Captain</div>
+        <div class="field">
+          <label>Captain Name</label>
+          <input type="text" id="inp-captain-name" value="Captain Olvaren" placeholder="Captain name">
+        </div>
+        <div class="cap-stat-row">
+          <div class="cap-stat"><label>STR</label><input type="number" id="cap-str" value="10" min="3" max="18"></div>
+          <div class="cap-stat"><label>DEX</label><input type="number" id="cap-dex" value="10" min="3" max="18"></div>
+          <div class="cap-stat"><label>CON</label><input type="number" id="cap-con" value="10" min="3" max="18"></div>
+          <div class="cap-stat"><label>INT</label><input type="number" id="cap-int" value="12" min="3" max="18"></div>
+          <div class="cap-stat"><label>WIS</label><input type="number" id="cap-wis" value="12" min="3" max="18"></div>
+          <div class="cap-stat"><label>CHA</label><input type="number" id="cap-cha" value="13" min="3" max="18"></div>
+        </div>
+        <div class="field" style="margin-top:4px">
+          <label>Proficiency Skills</label>
+          <div class="skill-checks">
+            <label class="skill-check"><input type="checkbox" id="sk-bargaining" checked> Bargaining</label>
+            <label class="skill-check"><input type="checkbox" id="sk-appraisal" checked> Appraisal</label>
+            <label class="skill-check"><input type="checkbox" id="sk-trade"> Trade</label>
+            <label class="skill-check"><input type="checkbox" id="sk-smuggling"> Smuggling</label>
+            <label class="skill-check"><input type="checkbox" id="sk-navigation" checked> Navigation</label>
+            <label class="skill-check"><input type="checkbox" id="sk-piloting" checked> Piloting</label>
+          </div>
+        </div>
+        <div class="field">
+          <label>Starting Gold (gp)</label>
+          <input type="number" id="inp-gold" value="5000" min="0">
+        </div>
+      </div>
+
+      <div class="sb-section">
         <div class="sb-section-title">Calendar</div>
         <div class="field-row">
           <div class="field">
@@ -295,6 +382,21 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
     <div id="panel-ship" class="sb-panel">
       <div id="detail-panel">
         <div class="empty-state"><div class="empty-icon">🚢</div><div class="empty-text">Start a voyage to see ship status.</div></div>
+      </div>
+    </div>
+
+    <!-- LEDGER PANEL -->
+    <div id="panel-ledger" class="sb-panel">
+      <div class="profit-strip" id="profit-strip">
+        <div class="profit-chip">Treasury <span id="led-treasury">—</span> gp</div>
+        <div class="profit-chip">P&amp;L <span id="led-pl">—</span> gp</div>
+        <div class="profit-chip">Cargo <span id="led-cargo">none</span></div>
+      </div>
+      <div class="ledger-hdr">
+        <span>Description</span><span>Income</span><span>Expense</span><span>Balance</span>
+      </div>
+      <div id="ledger-entries" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
+        <div class="empty-state"><div class="empty-icon">📒</div><div class="empty-text">No voyage in progress.</div></div>
       </div>
     </div>
 
@@ -381,6 +483,7 @@ const SAILING_HOURS = 10;
 
 // ── Application state ──
 let voyage = null;      // active voyage object
+let _pendingPortArrival = null; // portId to open modal after day render
 let routeLegs = [];     // [{from, to, waterType, distance}]
 let mapLayers = {
   hexSvg: null,
@@ -794,6 +897,11 @@ function buildVoyageState() {
     log: [],          // [{day, date, weather, miles, events:[]}]
     hexTrail: [],     // [{col,row}] ship positions
     events: [],       // all events for marker display
+    // Trading
+    startingGold: parseInt(document.getElementById('inp-gold')?.value)||5000,
+    treasury:     parseInt(document.getElementById('inp-gold')?.value)||5000,
+    ledger:       [],
+    cargo:        { loads:0, type:null, purchasePrice:0, purchasedAt:null, distAtPurchase:0 },
   };
 }
 
@@ -895,6 +1003,7 @@ function simulateOneDay() {
           if (nextPort) {
             events.push({ type:'port', text:`Arrived at ${PORTS[leg.to]?.name || leg.to}.` });
             voyage.events.push({ type:'port', day:voyage.dayNumber, col: PORTS[leg.to]?.col, row: PORTS[leg.to]?.row, text:`Arrived: ${PORTS[leg.to]?.name}` });
+            _pendingPortArrival = leg.to;
           }
         } else {
           // Voyage complete
@@ -977,6 +1086,12 @@ function advanceDay() {
     const log = document.getElementById('day-log');
     const entries = log.querySelectorAll('.day-entry');
     if (entries.length) entries[entries.length-1].scrollIntoView({ behavior:'smooth', block:'nearest' });
+    // Fire port modal after render if ship arrived
+    if (_pendingPortArrival) {
+      const portId = _pendingPortArrival;
+      _pendingPortArrival = null;
+      setTimeout(() => openPortModal(portId), 150);
+    }
   }, 50);
 }
 
@@ -984,8 +1099,10 @@ function endVoyage() {
   if (!voyage) return;
   voyage.finished = true;
   voyage = null;
+  _pendingPortArrival = null;
   routeLegs = [];
   clearMapLayers();
+  renderLedger();
   renderPorts();
   renderRoute();
   renderDayLog();
@@ -1161,6 +1278,11 @@ function updateShipPanel() {
     <div class="detail-row"><span class="detail-label">Quality</span><span class="detail-val">${voyage.crewQuality}</span></div>
     <div class="detail-row"><span class="detail-label">Nav Skill</span><span class="detail-val">${voyage.navSkill}</span></div>
     <div class="detail-row"><span class="detail-label">Base Speed</span><span class="detail-val">${voyage.dailySail} mi/day</span></div>
+    <div class="detail-section">Finances</div>
+    <div class="detail-row"><span class="detail-label">Treasury</span><span class="detail-val accent" style="color:#60a0d0">${(voyage.treasury||0).toLocaleString()} gp</span></div>
+    ${(()=>{const pl=(voyage.treasury||0)-(voyage.startingGold||0);return`<div class="detail-row"><span class="detail-label">P&amp;L</span><span class="detail-val" style="color:${pl>=0?'#48a858':'#d04848'}">${pl>=0?'+':''}${pl.toLocaleString()} gp</span></div>`})()}
+    ${voyage.cargo?.loads ? `<div class="detail-row"><span class="detail-label">Cargo</span><span class="detail-val">${voyage.cargo.loads}× ${CARGO_TYPES[voyage.cargo.type]?.name||voyage.cargo.type}</span></div>
+    <div class="detail-row"><span class="detail-label">Bought At</span><span class="detail-val">${voyage.cargo.purchasePrice} gp/load</span></div>` : '<div class="detail-row"><span class="detail-label">Cargo</span><span class="detail-val" style="color:#4a5464">None</span></div>'}
   `;
 }
 
@@ -1168,6 +1290,7 @@ function updateStatusBar() {
   document.getElementById('st-day').textContent = voyage ? voyage.dayNumber : '—';
   document.getElementById('st-hull').textContent = voyage ? `${voyage.hullCurrent}/${voyage.hullMax}` : '—';
   document.getElementById('st-dist').textContent = voyage ? `${voyage.distanceCovered}mi` : '—';
+  if (document.getElementById('panel-ledger')?.classList.contains('active')) renderLedger();
 }
 
 // ============================================================
@@ -1178,6 +1301,7 @@ function switchTab(name) {
   activeTab = name;
   document.querySelectorAll('.sb-tab').forEach(t => t.classList.toggle('active', t.dataset.panel === name));
   document.querySelectorAll('.sb-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${name}`));
+  if (name === 'ledger') renderLedger();
 }
 
 function toggleHexes() {
@@ -1258,6 +1382,485 @@ init();
 function toggleSidebar(){
   document.getElementById("sidebar").classList.toggle("open");
 }
+
+// ═══════════════════════════════════════════════════════
+// TRADING ENGINE
+// ═══════════════════════════════════════════════════════
+
+const CARGO_TYPES = {
+  primitive: { name:'Primitive Goods',  baseValue:50,   desc:'Grain, lumber, stone, simple textiles' },
+  consumer:  { name:'Consumer Goods',   baseValue:150,  desc:'Tools, cloth, preserved foods, pottery' },
+  comfort:   { name:'Comfort Items',    baseValue:250,  desc:'Furniture, glassware, wines, fine clothing' },
+  fine:      { name:'Fine Goods',       baseValue:400,  desc:'Jewelry, art, rare spices, masterwork items' },
+  precious:  { name:'Precious Goods',   baseValue:2000, desc:'Gems, magical items, exotic creatures' },
+};
+
+const PORT_SIZE_MOD = { 'Major Port':2, 'Port':1, 'Minor Port':0 };
+const PORT_SIZES = {
+  greyhawk_city:'Major Port', dyvers:'Port', verbobonc:'Port',
+  leukish:'Minor Port', hardby:'Major Port', safeton:'Port',
+  fax:'Minor Port', port_elredd:'Major Port', nessermouth:'Minor Port',
+  rel_mord:'Port', gradsul:'Port',
+};
+
+// Proficiency: ability score + modifier → target number for d20 roll
+const PROF_ABILITY = { bargaining:'cha', appraisal:'wis', trade:'wis', smuggling:'wis', navigation:'int', piloting:'wis' };
+const PROF_MOD     = { bargaining:-2, appraisal:-2, trade:-1, smuggling:-4, navigation:-3, piloting:1 };
+
+function calcProfScore(stats, skill) {
+  const ab = PROF_ABILITY[skill];
+  if (!ab) return null;
+  const score = stats[ab];
+  if (!score) return null;
+  return score + (PROF_MOD[skill] || 0);
+}
+
+function profCheck(score, crewMod=0, hazMod=0) {
+  if (score === null) return { success:false, roll:null, needed:null, note:'No proficiency' };
+  const roll = d(20);
+  const needed = score + crewMod - hazMod;
+  const success = roll <= needed;
+  const margin = success ? needed - roll : roll - needed;
+  return { success, roll, needed, margin, missedBy: success ? 0 : margin };
+}
+
+function getChaReactionMod(cha) {
+  if (cha <= 5) return -2; if (cha <= 8) return -1;
+  if (cha <= 13) return 0; if (cha <= 15) return 1;
+  if (cha <= 17) return 2; return 3;
+}
+
+function cargoTypeFromRoll(roll) {
+  if (roll <= 5) return 'primitive'; if (roll <= 8) return 'consumer';
+  if (roll <= 12) return 'comfort'; if (roll <= 16) return 'fine';
+  return 'precious';
+}
+
+function saleAdjPct(saRoll) {
+  const t = {3:30,4:40,5:50,6:60,7:70,8:80,9:90,10:100,11:110,12:120,
+             13:130,14:140,15:150,16:160,17:180,18:200,19:300,20:400};
+  const clamped = Math.max(3, Math.min(20, saRoll));
+  return t[clamped] || 100;
+}
+
+function demandMod(roll) {
+  if (roll<=3)return -5; if(roll<=5)return -4; if(roll===6)return -3;
+  if(roll===7)return -2; if(roll<=9)return -1; if(roll<=11)return 0;
+  if(roll<=13)return 1;  if(roll===14)return 2; if(roll===15)return 3;
+  if(roll<=17)return 4;  return 5;
+}
+
+// ── Captain / proficiency state ──────────────────────────────────────────
+
+function getCaptain() {
+  const skills = {};
+  ['bargaining','appraisal','trade','smuggling','navigation','piloting'].forEach(sk => {
+    const el = document.getElementById('sk-'+sk);
+    skills[sk] = el ? el.checked : false;
+  });
+  const stats = {};
+  ['str','dex','con','int','wis','cha'].forEach(ab => {
+    const el = document.getElementById('cap-'+ab);
+    stats[ab] = el ? (parseInt(el.value)||10) : 10;
+  });
+  return {
+    name: document.getElementById('inp-captain-name')?.value || 'Captain',
+    ...stats, skills,
+    profScores: Object.fromEntries(
+      Object.keys(skills).map(sk => [sk, skills[sk] ? calcProfScore(stats, sk) : null])
+    ),
+  };
+}
+
+// ── Port Arrival ──────────────────────────────────────────────────────────
+
+function rollPortFees(hull) {
+  const entrance = dn(1,10)+10;
+  const berth = d(100) <= 80;
+  const mooragePerDay = berth ? hull : 5;
+  const pilot = hull;
+  return { entrance, berth, mooragePerDay, pilot, moorageType: berth?'Berth':'Anchor' };
+}
+
+function rollMerchants(portId, cha) {
+  const sizeMod = PORT_SIZE_MOD[PORT_SIZES[portId]] || 0;
+  const chaMod = getChaReactionMod(cha);
+  const roll = d(6);
+  return { count: Math.max(1, roll+sizeMod+chaMod), roll, sizeMod, chaMod };
+}
+
+function rollCargoOffer(portId, captain, crewMod) {
+  const sizeMod = PORT_SIZE_MOD[PORT_SIZES[portId]] || 0;
+  const baseRoll = dn(3,6);
+
+  // Appraisal check
+  const appCheck = profCheck(captain.profScores.appraisal, crewMod);
+  let appAdj = 0;
+  if (appCheck.roll !== null) {
+    if (appCheck.success) appAdj = +1;
+    else if (appCheck.roll % 2 === 1) appAdj = -1;
+  }
+
+  const finalRoll = Math.max(3, Math.min(20, baseRoll + sizeMod + appAdj));
+  const cargoKey = cargoTypeFromRoll(finalRoll);
+  const cargo = CARGO_TYPES[cargoKey];
+
+  // Qty: 3d8 - cargoTypeRoll (min 1)
+  const qtyRoll = dn(3,8);
+  const qty = Math.max(1, qtyRoll - baseRoll);
+
+  // Bargaining check on price
+  const bargCheck = profCheck(captain.profScores.bargaining, crewMod);
+  let bargAdj = 0;
+  if (bargCheck.roll !== null) {
+    if (bargCheck.success) bargAdj = -Math.min(5, bargCheck.margin) * 5; // up to -25%
+    else if (bargCheck.roll % 2 === 1) bargAdj = Math.min(5, bargCheck.margin) * 5;
+  }
+  const pricePerLoad = Math.max(1, Math.floor(cargo.baseValue * (100+bargAdj) / 100));
+
+  return { cargoKey, cargoName:cargo.name, baseValue:cargo.baseValue, pricePerLoad, qty,
+           bargAdj, appAdj, baseRoll, finalRoll, appCheck, bargCheck };
+}
+
+function rollSalePrice(portId, cargoKey, loads, distanceTraveled, captain, crewMod) {
+  const sizeMod = PORT_SIZE_MOD[PORT_SIZES[portId]] || 0;
+  const cargo = CARGO_TYPES[cargoKey];
+
+  // Demand roll
+  const dmRoll = dn(3,6);
+  let demMod = demandMod(dmRoll) + sizeMod;
+
+  // Trade proficiency
+  let tradeMod = 0, tradeNote = '';
+  const tradeCheck = profCheck(captain.profScores.trade, crewMod);
+  if (tradeCheck.roll !== null) {
+    if (tradeCheck.success) { tradeMod = +4; tradeNote=' (Trade +4)'; }
+    else if (tradeCheck.roll % 2 === 1) { tradeMod = -4; tradeNote=' (Trade −4)'; }
+  }
+
+  // Distance modifier
+  let distMod = 0, distCat = 'Medium', distThresh = 250;
+  if (distanceTraveled > 500) { distMod=+4; distCat='Extraordinary'; distThresh=500; }
+  else {
+    const dr = d(6);
+    if (dr<=2) { distMod=-1; distCat='Short'; distThresh=80; }
+    else if (dr<=5) { distMod=0; distCat='Medium'; distThresh=250; }
+    else { distMod=+2; distCat='Long'; distThresh=500; }
+  }
+
+  // Bargaining & Appraisal on SA roll
+  const sellBargCheck = profCheck(captain.profScores.bargaining, crewMod);
+  const sellAppCheck  = profCheck(captain.profScores.appraisal, crewMod);
+  let saBargAdj=0, saAppAdj=0, bargMargin=0;
+  if (sellBargCheck.roll!==null) {
+    if (sellBargCheck.success) { saBargAdj=+1; bargMargin=Math.min(5,sellBargCheck.margin); }
+    else if (sellBargCheck.roll%2===1) saBargAdj=-1;
+  }
+  if (sellAppCheck.roll!==null) {
+    if (sellAppCheck.success) saAppAdj=+1;
+    else if (sellAppCheck.roll%2===1) saAppAdj=-1;
+  }
+
+  // No-skills penalty
+  const noSkills = !captain.profScores.bargaining && !captain.profScores.appraisal && !captain.profScores.trade;
+  const noSkillsPen = noSkills ? -2 : 0;
+
+  const saBase = dn(3,6) + demMod + tradeMod + distMod + saBargAdj + saAppAdj + noSkillsPen;
+  const saPercent = saleAdjPct(saBase);
+  const bargBonus = Math.min(25, bargMargin*5);
+  const finalPct = Math.floor(saPercent*(100+bargBonus)/100);
+  const pricePerLoad = Math.max(1, Math.floor(cargo.baseValue * finalPct / 100));
+
+  // Perishability
+  let loadsAfterSpoilage = loads;
+  let spoilNote = null;
+  if (distanceTraveled > distThresh) {
+    const excess = Math.floor((distanceTraveled - distThresh) / (distThresh/2 || 40));
+    let lost = 0;
+    for (let i=0;i<excess;i++) { if(d(4)===1) lost += Math.floor(loadsAfterSpoilage*0.25); }
+    if (lost>0) { loadsAfterSpoilage=Math.max(0,loads-lost); spoilNote=`${lost} loads spoiled (${distanceTraveled}mi > ${distThresh}mi ${distCat} threshold).`; }
+  }
+
+  // Customs tax 1d10%
+  const taxPct = d(10);
+  const grossSale = pricePerLoad * loadsAfterSpoilage;
+  const tax = Math.floor(grossSale * taxPct/100);
+  const net = grossSale - tax;
+
+  return { pricePerLoad, grossSale, tax, taxPct, net, loadsAfterSpoilage, spoilNote,
+           saBase, saPercent, finalPct, distCat, distMod, distThresh,
+           demMod, dmRoll: dmRoll+tradeMod, tradeNote,
+           sellBargCheck, sellAppCheck, saBargAdj, saAppAdj, noSkillsPen };
+}
+
+// ── Ledger helpers ────────────────────────────────────────────────────────
+
+function ledgerEntry(v, desc, income, expense) {
+  const prev = v.ledger.length ? v.ledger[v.ledger.length-1].balance : v.startingGold;
+  v.ledger.push({ date:fmtDate(v.cal), desc, income:income||0, expense:expense||0, balance: prev+(income||0)-(expense||0) });
+  if (income)  v.treasury += income;
+  if (expense) v.treasury -= expense;
+}
+
+function renderLedger() {
+  const el = document.getElementById('ledger-entries');
+  if (!voyage || !voyage.ledger || !voyage.ledger.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📒</div><div class="empty-text">No voyage in progress.</div></div>';
+    document.getElementById('led-treasury').textContent = '—';
+    document.getElementById('led-pl').textContent = '—';
+    document.getElementById('led-cargo').textContent = 'none';
+    return;
+  }
+  document.getElementById('led-treasury').textContent = voyage.treasury.toLocaleString();
+  const pl = voyage.treasury - voyage.startingGold;
+  const plEl = document.getElementById('led-pl');
+  plEl.textContent = (pl>=0?'+':'')+pl.toLocaleString();
+  plEl.className = pl>=0 ? 'pos' : 'neg';
+  const cargo = voyage.cargo;
+  document.getElementById('led-cargo').textContent = cargo.loads ? `${cargo.loads}× ${CARGO_TYPES[cargo.type]?.name||cargo.type}` : 'none';
+
+  el.innerHTML = [...voyage.ledger].reverse().map(e =>
+    `<div class="ledger-entry">
+      <span class="le-desc" title="${e.desc}">${e.desc}</span>
+      <span class="le-inc">${e.income ? '+'+e.income.toLocaleString() : ''}</span>
+      <span class="le-exp">${e.expense ? '−'+e.expense.toLocaleString() : ''}</span>
+      <span class="le-bal">${e.balance.toLocaleString()}</span>
+    </div>`
+  ).join('');
+}
+
+// ── Port Modal ────────────────────────────────────────────────────────────
+
+let _portState = null; // {phase, portId, fees, merchants, offer, daysInPort}
+
+function closePortModal() {
+  document.getElementById('port-modal-overlay').style.display = 'none';
+  _portState = null;
+}
+
+function openPortModal(portId) {
+  if (!voyage) return;
+  const port = PORTS[portId];
+  if (!port) return;
+
+  document.getElementById('port-modal-title').textContent = `⚓ ${port.name}`;
+  document.getElementById('port-modal-overlay').style.display = 'flex';
+
+  // Roll port fees
+  const fees = rollPortFees(voyage.hullMax);
+  const daysInPort = Math.floor(Math.random()*3)+2; // 2-4 days base
+  const dailyCost = fees.mooragePerDay + Math.floor(voyage.hullMax * 0.5); // moorage + provisions rough
+
+  _portState = { phase:'fees', portId, fees, daysInPort, dailyCost };
+
+  // Deduct fees immediately
+  const feesTotal = fees.entrance + fees.mooragePerDay * daysInPort + fees.pilot;
+  ledgerEntry(voyage, `Port fees at ${port.name}`, 0, feesTotal);
+  renderLedger();
+  updateStatusBar();
+  updateShipPanel();
+
+  showPortFees(port, fees, feesTotal, daysInPort);
+}
+
+function showPortFees(port, fees, feesTotal, daysInPort) {
+  const body = document.getElementById('port-modal-body');
+  body.innerHTML = `
+    <div class="pm-section">
+      <div class="pm-section-title">Port Fees</div>
+      <div class="pm-row"><span class="pm-label">Entrance</span><span class="pm-val">${fees.entrance} gp</span></div>
+      <div class="pm-row"><span class="pm-label">Moorage (${fees.moorageType}, ${daysInPort}d)</span><span class="pm-val">${fees.mooragePerDay * daysInPort} gp</span></div>
+      <div class="pm-row"><span class="pm-label">Pilot/Towage</span><span class="pm-val">${fees.pilot} gp</span></div>
+      <div class="pm-row" style="border-top:1px solid #252a34;margin-top:4px;padding-top:4px">
+        <span class="pm-label">Total Fees</span><span class="pm-val bad">${feesTotal} gp</span>
+      </div>
+      <div class="pm-row"><span class="pm-label">Days in Port</span><span class="pm-val">${daysInPort} days</span></div>
+      <div class="pm-row"><span class="pm-label">Treasury</span><span class="pm-val accent">${voyage.treasury.toLocaleString()} gp</span></div>
+    </div>`;
+
+  const ftr = document.getElementById('port-modal-ftr');
+  // Show sell button if cargo loaded, else buy
+  const hasCargo = voyage.cargo.loads > 0;
+  ftr.innerHTML = `
+    ${hasCargo ? `<button class="btn btn-primary" onclick="portPhaseSell()">📦 Sell Cargo</button>` : ''}
+    ${!hasCargo ? `<button class="btn btn-primary" onclick="portPhaseBuy()">🛒 Visit Market</button>` : ''}
+    <button class="btn" onclick="portPhaseLeave()">⛵ Depart</button>`;
+}
+
+function portPhaseSell() {
+  if (!_portState || !voyage) return;
+  const captain = getCaptain();
+  const crewMod = CREW_MOD[voyage.crewQuality] || 0;
+  const dist = voyage.distCovered;
+  const sale = rollSalePrice(_portState.portId, voyage.cargo.type, voyage.cargo.loads, dist, captain, crewMod);
+  _portState.sale = sale;
+  _portState.phase = 'sell';
+
+  const port = PORTS[_portState.portId];
+  const body = document.getElementById('port-modal-body');
+
+  const spoilHtml = sale.spoilNote ? `<div class="pm-note" style="color:#d0a040">⚠️ ${sale.spoilNote}</div>` : '';
+  const bargHtml = sale.sellBargCheck.roll !== null
+    ? `<div class="pm-skill-result ${sale.sellBargCheck.success?'success':'fail'}">Bargaining: ${sale.sellBargCheck.success?'✓':'✗'} (rolled ${sale.sellBargCheck.roll}, needed ≤${sale.sellBargCheck.needed})</div>`
+    : `<div class="pm-skill-result none">Bargaining: not proficient</div>`;
+  const appHtml = sale.sellAppCheck.roll !== null
+    ? `<div class="pm-skill-result ${sale.sellAppCheck.success?'success':'fail'}">Appraisal: ${sale.sellAppCheck.success?'✓':'✗'} (rolled ${sale.sellAppCheck.roll}, needed ≤${sale.sellAppCheck.needed})</div>`
+    : `<div class="pm-skill-result none">Appraisal: not proficient</div>`;
+
+  body.innerHTML = `
+    <div class="pm-section">
+      <div class="pm-section-title">Selling ${CARGO_TYPES[voyage.cargo.type]?.name}</div>
+      ${spoilHtml}
+      <div class="pm-row"><span class="pm-label">Loads</span><span class="pm-val">${sale.loadsAfterSpoilage} (of ${voyage.cargo.loads})</span></div>
+      <div class="pm-row"><span class="pm-label">Purchase Price</span><span class="pm-val">${voyage.cargo.purchasePrice} gp/load</span></div>
+      <div class="pm-row"><span class="pm-label">Distance Hauled</span><span class="pm-val">${dist} mi (${sale.distCat})</span></div>
+    </div>
+    <div class="pm-section">
+      <div class="pm-section-title">Skill Checks</div>
+      ${bargHtml}${appHtml}
+      <div class="pm-note">SA Roll: ${sale.saBase} → ${sale.saPercent}%${sale.finalPct!==sale.saPercent?' (+bargain bonus → '+sale.finalPct+'%)':''} of base ${CARGO_TYPES[voyage.cargo.type]?.baseValue}gp</div>
+    </div>
+    <div class="pm-section">
+      <div class="pm-section-title">Sale at ${port.name}</div>
+      <div class="pm-row"><span class="pm-label">Price / Load</span><span class="pm-val good">${sale.pricePerLoad} gp</span></div>
+      <div class="pm-row"><span class="pm-label">Gross Sale</span><span class="pm-val good">${sale.grossSale.toLocaleString()} gp</span></div>
+      <div class="pm-row"><span class="pm-label">Customs (${sale.taxPct}%)</span><span class="pm-val bad">−${sale.tax.toLocaleString()} gp</span></div>
+      <div class="pm-row" style="border-top:1px solid #252a34;margin-top:4px;padding-top:4px">
+        <span class="pm-label">Net Proceeds</span><span class="pm-val ${sale.net > voyage.cargo.purchasePrice*voyage.cargo.loads?'good':'warn'}">${sale.net.toLocaleString()} gp</span>
+      </div>
+    </div>`;
+
+  const ftr = document.getElementById('port-modal-ftr');
+  ftr.innerHTML = `
+    <button class="btn btn-primary" onclick="confirmSell()">✓ Confirm Sale</button>
+    <button class="btn" onclick="portPhaseLeave()">⛵ Skip / Depart</button>`;
+}
+
+function confirmSell() {
+  if (!_portState?.sale || !voyage) return;
+  const sale = _portState.sale;
+  const port = PORTS[_portState.portId];
+  ledgerEntry(voyage, `Sold cargo at ${port.name} (${sale.loadsAfterSpoilage} loads)`, sale.net, 0);
+  if (sale.tax > 0) ledgerEntry(voyage, `Customs at ${port.name}`, 0, sale.tax);
+  voyage.cargo = { loads:0, type:null, purchasePrice:0, purchasedAt:null };
+  renderLedger();
+  updateStatusBar();
+  updateShipPanel();
+  // After selling, offer to buy
+  portPhaseBuy();
+}
+
+function portPhaseBuy() {
+  if (!_portState || !voyage) return;
+  const captain = getCaptain();
+  const crewMod = CREW_MOD[voyage.crewQuality] || 0;
+  const merchants = rollMerchants(_portState.portId, captain.cha);
+  const offer = rollCargoOffer(_portState.portId, captain, crewMod);
+  const port = PORTS[_portState.portId];
+  _portState.offer = offer;
+  _portState.merchants = merchants;
+  _portState.phase = 'buy';
+
+  const appHtml = offer.appCheck.roll !== null
+    ? `<div class="pm-skill-result ${offer.appCheck.success?'success':'fail'}">Appraisal: ${offer.appCheck.success?'✓':'✗'} (rolled ${offer.appCheck.roll}, needed ≤${offer.appCheck.needed})${offer.appAdj!==0?' → '+(offer.appAdj>0?'+':'')+offer.appAdj+' to quality':''}</div>`
+    : `<div class="pm-skill-result none">Appraisal: not proficient</div>`;
+  const bargHtml = offer.bargCheck.roll !== null
+    ? `<div class="pm-skill-result ${offer.bargCheck.success?'success':'fail'}">Bargaining: ${offer.bargCheck.success?'✓':'✗'} (rolled ${offer.bargCheck.roll}, needed ≤${offer.bargCheck.needed})${offer.bargAdj!==0?' → '+(offer.bargAdj<0?'':'')+offer.bargAdj+'% to price':''}</div>`
+    : `<div class="pm-skill-result none">Bargaining: not proficient</div>`;
+
+  const maxLoads = Math.min(offer.qty, Math.floor(voyage.treasury / offer.pricePerLoad));
+  const body = document.getElementById('port-modal-body');
+  body.innerHTML = `
+    <div class="pm-section">
+      <div class="pm-section-title">Market at ${port.name}</div>
+      <div class="pm-row"><span class="pm-label">Merchants</span><span class="pm-val">${merchants.count} (1d6:${merchants.roll} +size:${merchants.sizeMod} +CHA:${merchants.chaMod})</span></div>
+    </div>
+    <div class="pm-section">
+      <div class="pm-section-title">Cargo Available</div>
+      ${appHtml}${bargHtml}
+      <div class="cargo-badge"><span class="cb-type">${offer.cargoName}</span></div>
+      <div class="pm-note">${CARGO_TYPES[offer.cargoKey]?.desc}</div>
+      <div class="pm-row"><span class="pm-label">Base Value</span><span class="pm-val">${offer.baseValue} gp/load</span></div>
+      <div class="pm-row"><span class="pm-label">Price / Load</span><span class="pm-val accent">${offer.pricePerLoad} gp${offer.bargAdj!==0?' ('+offer.bargAdj+'%)':''}</span></div>
+      <div class="pm-row"><span class="pm-label">Loads Available</span><span class="pm-val">${offer.qty}</span></div>
+      <div class="pm-row"><span class="pm-label">Can Afford</span><span class="pm-val">${maxLoads} loads</span></div>
+      <div class="pm-row"><span class="pm-label">Treasury</span><span class="pm-val accent">${voyage.treasury.toLocaleString()} gp</span></div>
+    </div>
+    <div class="pm-section">
+      <div class="pm-section-title">Purchase</div>
+      <div class="qty-row">
+        <label>Loads to buy:</label>
+        <input class="qty-input" type="number" id="inp-buy-qty" value="${Math.min(offer.qty, maxLoads)}" min="0" max="${Math.min(offer.qty, maxLoads)}">
+        <span style="font-size:10px;color:#4a5464;font-family:monospace" id="buy-cost-preview"></span>
+      </div>
+    </div>`;
+
+  // Live cost preview
+  const qtyEl = document.getElementById('inp-buy-qty');
+  const previewEl = document.getElementById('buy-cost-preview');
+  function updatePreview() {
+    const qty = parseInt(qtyEl.value)||0;
+    previewEl.textContent = qty > 0 ? `= ${(qty*offer.pricePerLoad).toLocaleString()} gp` : '';
+  }
+  qtyEl.addEventListener('input', updatePreview);
+  updatePreview();
+
+  const ftr = document.getElementById('port-modal-ftr');
+  ftr.innerHTML = `
+    <button class="btn btn-primary" onclick="confirmBuy()">✓ Buy Cargo</button>
+    <button class="btn" onclick="portPhaseLeave()">⛵ Skip / Depart</button>`;
+}
+
+function confirmBuy() {
+  if (!_portState?.offer || !voyage) return;
+  const qty = parseInt(document.getElementById('inp-buy-qty')?.value)||0;
+  if (qty <= 0) { portPhaseLeave(); return; }
+  const offer = _portState.offer;
+  const port = PORTS[_portState.portId];
+  const totalCost = qty * offer.pricePerLoad;
+  if (totalCost > voyage.treasury) { alert('Insufficient funds.'); return; }
+  ledgerEntry(voyage, `Purchased ${qty}× ${offer.cargoName} at ${port.name}`, 0, totalCost);
+  voyage.cargo = { loads:qty, type:offer.cargoKey, purchasePrice:offer.pricePerLoad, purchasedAt:_portState.portId, distAtPurchase:voyage.distCovered };
+  renderLedger();
+  updateStatusBar();
+  updateShipPanel();
+  portPhaseLeave();
+}
+
+function portPhaseLeave() {
+  // Advance calendar by daysInPort
+  if (voyage && _portState) {
+    const days = _portState.daysInPort || 2;
+    for (let i=0;i<days;i++) voyage.cal = calendarAdvance(voyage.cal);
+    const dailyCost = _portState.dailyCost || 0;
+    if (dailyCost > 0) ledgerEntry(voyage, `Operating costs (${days}d in port)`, 0, dailyCost*days);
+    renderLedger();
+    updateStatusBar();
+    renderDayLog();
+  }
+  closePortModal();
+}
+
+// ── Hook into port arrival events ─────────────────────────────────────────
+
+function onPortArrival(portId) {
+  // Called from simulateOneDay when arriving at an intermediate or final port
+  openPortModal(portId);
+}
+
 </script>
+
+<!-- Port Activity Modal -->
+<div id="port-modal-overlay" class="port-modal-overlay" style="display:none">
+  <div class="port-modal">
+    <div class="port-modal-hdr">
+      <div class="port-modal-title" id="port-modal-title">⚓ In Port</div>
+      <button class="btn" onclick="closePortModal()" style="padding:4px 10px;font-size:11px">✕</button>
+    </div>
+    <div class="port-modal-body" id="port-modal-body"></div>
+    <div class="port-modal-ftr" id="port-modal-ftr"></div>
+  </div>
+</div>
+
 </body>
 </html>
