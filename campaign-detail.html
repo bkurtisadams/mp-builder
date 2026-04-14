@@ -118,6 +118,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .session-card-header{display:flex;align-items:center;padding:10px 14px 6px;gap:10px;border-bottom:1px solid var(--brd)}
 .session-num{font-family:var(--fd);font-size:15px;font-weight:700;color:var(--tx);flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .session-num-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.session-recap-link{color:inherit;text-decoration:none;transition:color .12s}
+.session-recap-link:hover{color:var(--accent);text-decoration:underline}
 .session-date-game{font-family:var(--fm);font-size:12px;color:var(--amber);white-space:nowrap}
 .session-date-real{font-family:var(--fm);font-size:12px;color:var(--tx3);white-space:nowrap;padding-right:10px;margin-right:4px;border-right:1px solid var(--brd)}
 .session-hdr-right{display:flex;align-items:center;flex-shrink:0}
@@ -291,7 +293,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 </div></div>
 <div class="gcc-tools-overlay" id="gcc-tools-overlay"></div>
 <div id="page-content"></div>
-<div class="dice-tray" id="dice-tray" style="display:none">
+<div class="dice-tray" id="dice-tray">
   <div class="dice-panel" id="dice-panel">
     <div class="dice-panel-hdr"><span class="dice-panel-title">DICE ROLLER</span><button class="dice-panel-clear" id="dice-clear">Clear</button></div>
     <div class="dice-log" id="dice-log"><div class="dice-log-empty">No rolls yet</div></div>
@@ -472,9 +474,10 @@ function buildSessionCard(s,idx,total,camp,imgMap){
   for(let i=sessions.length-1;i>=0;i--){if(sessions[i].type!=='timeline')realNum++;if(i===idx)break;}
 
   const titlePart=s.title?' — '+ESC(s.title):'';
+  const recapUrl=`recap.html?id=${encodeURIComponent(campId)}&idx=${idx}`;
   const numLabel=isTimeline
     ?`<span class="session-num"><span class="session-num-text" style="color:var(--tx3)">Timeline${titlePart}</span></span>`
-    :`<span class="session-num"><span class="session-num-text">${ESC(sesLabel)} #${realNum}${titlePart}</span></span>`;
+    :`<span class="session-num"><a class="session-num-text session-recap-link" href="${recapUrl}">${ESC(sesLabel)} #${realNum}${titlePart}</a></span>`;
 
   let gameDateHtml=s.gameDate?`<span class="session-date-game">${ESC(s.gameDate)}</span>`:'';
   let realDateHtml=s.date?`<span class="session-date-real">${formatDate(s.date)}</span>`:'';
@@ -1994,7 +1997,6 @@ window.addEventListener('gcc-sync-ready',()=>{render()});
   // Roll dice
   function rollDice(){
     const user=typeof GCCAuth!=='undefined'?GCCAuth.getUser():null;
-    if(!user){alert('Sign in to roll dice');return}
     const qty=Math.max(1,Math.min(20,parseInt(qtyInput.value)||1));
     const die=selectedDie;
     const mod=parseInt(modInput.value)||0;
@@ -2003,19 +2005,23 @@ window.addEventListener('gcc-sync-ready',()=>{render()});
     const sum=rolls.reduce((a,b)=>a+b,0)+mod;
     const expr=qty+'d'+die+(mod>0?'+'+mod:mod<0?String(mod):'');
     const entry={
-      uid:user.uid,
-      name:user.displayName||user.email.split('@')[0],
+      uid:user?user.uid:'local',
+      name:user?(user.displayName||user.email.split('@')[0]):'Local',
       expr:expr,
       rolls:rolls,
       mod:mod,
       total:sum,
       ts:new Date().toISOString(),
     };
-    // Write to Firestore
+    // Write to Firestore if signed in, otherwise render locally
     const db=(typeof firebase!=='undefined'&&firebase.firestore)?firebase.firestore():null;
-    if(db&&campId){
+    if(db&&campId&&user){
       db.collection('campaigns').doc(campId).collection('rolls').add(entry)
         .catch(e=>console.warn('[Dice] write failed:',e));
+    } else {
+      // Local-only: prepend to log display directly
+      if(log.querySelector('.dice-log-empty'))log.innerHTML='';
+      log.insertBefore(renderEntry(entry),log.firstChild);
     }
   }
 
@@ -2038,17 +2044,19 @@ window.addEventListener('gcc-sync-ready',()=>{render()});
   // Clear log
   document.getElementById('dice-clear').addEventListener('click',async()=>{
     const user=typeof GCCAuth!=='undefined'?GCCAuth.getUser():null;
-    if(!user)return;
     const db=(typeof firebase!=='undefined'&&firebase.firestore)?firebase.firestore():null;
-    if(!db||!campId)return;
-    const ok=typeof GCCDialog!=='undefined'?await GCCDialog.confirm('Clear rolls','Clear the dice log?',{okText:'Clear',danger:true}):confirm('Clear the dice log?');
-    if(!ok)return;
-    try{
-      const snap=await db.collection('campaigns').doc(campId).collection('rolls').get();
-      const batch=db.batch();
-      snap.forEach(doc=>batch.delete(doc.ref));
-      await batch.commit();
-    }catch(e){console.warn('[Dice] clear failed:',e)}
+    if(db&&campId&&user){
+      const ok=typeof GCCDialog!=='undefined'?await GCCDialog.confirm('Clear rolls','Clear the dice log?',{okText:'Clear',danger:true}):confirm('Clear the dice log?');
+      if(!ok)return;
+      try{
+        const snap=await db.collection('campaigns').doc(campId).collection('rolls').get();
+        const batch=db.batch();
+        snap.forEach(doc=>batch.delete(doc.ref));
+        await batch.commit();
+      }catch(e){console.warn('[Dice] clear failed:',e)}
+    } else {
+      log.innerHTML='<div class="dice-log-empty">No rolls yet</div>';
+    }
   });
 
   // Start real-time listener
@@ -2069,18 +2077,16 @@ window.addEventListener('gcc-sync-ready',()=>{render()});
       });
   }
 
-  // Show tray once auth is ready (signed in users only)
+  // Show tray always; start Firestore listener when signed in
   function initDice(){
+    if(campId)tray.style.display='';
     const user=typeof GCCAuth!=='undefined'?GCCAuth.getUser():null;
-    if(user&&campId){
-      tray.style.display='';
-      startListener();
-    }
+    if(user&&campId)startListener();
   }
   window.addEventListener('gcc-sync-ready',initDice);
   // Also try on auth change for cases where sync-ready already fired
   if(typeof GCCAuth!=='undefined'){
-    GCCAuth.onAuthChange(u=>{if(u&&campId){tray.style.display='';startListener()}});
+    GCCAuth.onAuthChange(u=>{if(campId){tray.style.display='';if(u)startListener()}});
   }
 })();
 </script>
