@@ -230,7 +230,7 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
     <div id="sb-pullbar" style="display:none;justify-content:center;padding:6px 0;cursor:pointer;background:#0d1117;border-bottom:1px solid #252a34" onclick="toggleSidebar()"><div style="width:36px;height:4px;background:#303848;border-radius:2px"></div></div>
 <div id="sb-header">
       <div class="sb-title">⚓ Voyage Planner</div>
-      <div class="sb-subtitle" id="sb-subtitle">Greyhawk Waters · 6-mile hex</div>
+      <div class="sb-subtitle" id="sb-subtitle">Greyhawk Waters · 30-mile hex</div>
     </div>
 
     <div id="sb-tabs">
@@ -406,14 +406,15 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
       <div style="padding:14px;color:#7a8494;font-size:11px;line-height:1.7">
         <div style="color:#c8ccd4;font-size:13px;margin-bottom:10px;font-family:'Palatino Linotype',serif">Using the Voyage Map</div>
         <p><strong style="color:#c8ccd4">Setup:</strong> Choose origin and destination ports, add legs to build a route. Each leg can have a different water type.</p>
-        <p style="margin-top:8px"><strong style="color:#c8ccd4">Hexes:</strong> Each hex is 6 miles across. Click any hex to see its coordinates. The ship icon shows current position.</p>
+        <p style="margin-top:8px"><strong style="color:#c8ccd4">Hexes:</strong> Each hex is 30 miles across, matching the Darlene Greyhawk map grid. Click any hex to see its coordinates. The ship icon shows current position.</p>
         <p style="margin-top:8px"><strong style="color:#c8ccd4">Advancing Days:</strong> Switch to the Log tab and click Advance Day. Each press simulates one day of sailing — weather is rolled, encounters checked, distance calculated.</p>
         <p style="margin-top:8px"><strong style="color:#c8ccd4">Events:</strong> Coloured markers appear on the map where encounters or damage occurred. Click a marker for details.</p>
-        <p style="margin-top:8px"><strong style="color:#c8ccd4">Map Image:</strong> Place a file named <code style="background:#1a1e26;padding:1px 4px;border-radius:2px">greyhawk-map.jpg</code> in the same folder to use a background map image. The hex grid is calibrated to standard Greyhawk geography.</p>
+        <p style="margin-top:8px"><strong style="color:#c8ccd4">Map Image:</strong> Place a file named <code style="background:#1a1e26;padding:1px 4px;border-radius:2px">greyhawk-map.jpg</code> (2200×1711px) in the same folder. The 30-mile hex grid is calibrated to align with the Darlene map hexes.</p>
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid #252a34;font-size:10px;color:#4a5464">
           Distances from AD&D 1e Greyhawk sources.<br>
           Weather &amp; encounter rules: DMG 1e / Seafaring supplement.<br>
-          6-mile hex standard from the DMG wilderness travel rules.
+          30-mile hex grid aligned to the Darlene Greyhawk map.<br>
+          Ctrl+click map to read hex coordinates for calibration.
         </div>
       </div>
     </div>
@@ -440,17 +441,17 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
 // ============================================================
 
 const PORTS = {
-  greyhawk_city: { name:"City of Greyhawk", size:"major", col:47, row:44, connections:{ dyvers:390, verbobonc:600, leukish:420, hardby:180, safeton:240, fax:480, port_elredd:480, nessermouth:870 } },
-  dyvers:        { name:"Dyvers",            size:"port",  col:39, row:38, connections:{ greyhawk_city:390, verbobonc:210, leukish:570, hardby:570, safeton:630 } },
-  verbobonc:     { name:"Verbobonc",         size:"port",  col:34, row:35, connections:{ greyhawk_city:600, dyvers:210, leukish:780 } },
-  leukish:       { name:"Leukish",           size:"minor", col:44, row:35, connections:{ greyhawk_city:420, dyvers:570, verbobonc:780, port_elredd:350 } },
-  hardby:        { name:"Hardby",            size:"major", col:47, row:48, connections:{ rel_mord:150, gradsul:200, greyhawk_city:650, fax:300, port_elredd:600 } },
-  safeton:       { name:"Safeton",           size:"port",  col:47, row:41, connections:{ greyhawk_city:250, dyvers:200, nessermouth:100 } },
-  fax:           { name:"Fax",               size:"minor", col:51, row:43, connections:{ greyhawk_city:180, hardby:300, rel_mord:400 } },
-  port_elredd:   { name:"Port Elredd",       size:"major", col:41, row:50, connections:{ greyhawk_city:500, leukish:350, hardby:600, rel_mord:700 } },
-  nessermouth:   { name:"Nessermouth",       size:"minor", col:45, row:40, connections:{ safeton:100, greyhawk_city:200 } },
-  rel_mord:      { name:"Rel Mord",          size:"port",  col:58, row:50, connections:{ hardby:150, gradsul:100, fax:400, port_elredd:700 } },
-  gradsul:       { name:"Gradsul",           size:"port",  col:54, row:54, connections:{ hardby:200, rel_mord:100 } },
+  greyhawk_city: { name:"City of Greyhawk", size:"major", col:26, row:33, connections:{ dyvers:90, verbobonc:150, leukish:120, hardby:60, safeton:60, fax:90, port_elredd:120, nessermouth:60 } },
+  dyvers:        { name:"Dyvers",            size:"port",  col:19, row:28, connections:{ greyhawk_city:90, verbobonc:60, leukish:150, hardby:150, safeton:120 } },
+  verbobonc:     { name:"Verbobonc",         size:"port",  col:11, row:25, connections:{ greyhawk_city:150, dyvers:60, leukish:180 } },
+  leukish:       { name:"Leukish",           size:"minor", col:28, row:22, connections:{ greyhawk_city:120, dyvers:150, verbobonc:180, port_elredd:90 } },
+  hardby:        { name:"Hardby",            size:"major", col:27, row:36, connections:{ rel_mord:150, gradsul:200, greyhawk_city:60, fax:90, port_elredd:150 } },
+  safeton:       { name:"Safeton",           size:"port",  col:27, row:31, connections:{ greyhawk_city:60, dyvers:90, nessermouth:30 } },
+  fax:           { name:"Fax",               size:"minor", col:32, row:34, connections:{ greyhawk_city:90, hardby:90, rel_mord:120 } },
+  port_elredd:   { name:"Port Elredd",       size:"major", col:21, row:33, connections:{ greyhawk_city:120, leukish:90, hardby:150, rel_mord:180 } },
+  nessermouth:   { name:"Nessermouth",       size:"minor", col:25, row:30, connections:{ safeton:30, greyhawk_city:60 } },
+  rel_mord:      { name:"Rel Mord",          size:"port",  col:38, row:31, connections:{ hardby:150, gradsul:120, fax:120, port_elredd:180 } },
+  gradsul:       { name:"Gradsul",           size:"port",  col:34, row:38, connections:{ hardby:200, rel_mord:120 } },
 };
 
 const SHIP_TEMPLATES = [
@@ -477,9 +478,8 @@ const MONTHS_GREYHAWK = [
 
 const CREW_QUALITY_MOD = { green:-2, average:0, experienced:1, veteran:2 };
 
-// ── Hex geometry (flat-top) ──
-const HEX_SIZE = 28; // pixels per hex at zoom 0 — adjusted by Leaflet zoom
-const MILES_PER_HEX = 6;
+// ── Hex geometry (flat-top, 30-mile hexes matched to Darlene map) ──
+const MILES_PER_HEX = 30;
 const SAILING_HOURS = 10;
 
 // ── Application state ──
@@ -505,20 +505,18 @@ let selectedDay = -1;
 // MAP SETUP
 // ============================================================
 
-// Use a simple CRS so pixel coords map directly to hex grid
-// Map bounds: 100 cols × 90 rows of hexes
-const MAP_COLS = 91;  // calibrated to Darlene map aspect ratio 1.2857
-const MAP_ROWS = 82;
+// 30-mile flat-top hexes sized to fill 2200×1711 Darlene map image
+const MAP_COLS = 50;
+const MAP_ROWS = 45;
 
-// Flat-top hex: width = sqrt(3)*size, height = 2*size
-// We use size=28px → hex is ~48.5 × 56 px
-const HS = 30; // half-size
-const HW = Math.round(Math.sqrt(3) * HS); // hex width ~52px
-const HH = 2 * HS;                        // hex height = 60px
+// Derive HS from image width so hexes tile exactly across
+const HS = 2200 / (50.5 * Math.sqrt(3)); // ~25.15px
+const HW = Math.sqrt(3) * HS;            // ~43.6px
+const HH = 2 * HS;                       // ~50.3px
 
-// Canvas dimensions at 1:1
-const CANVAS_W = MAP_COLS * HW + HW/2;
-const CANVAS_H = MAP_ROWS * (HH * 0.75) + HH * 0.25;
+// Canvas matches image dimensions
+const CANVAS_W = MAP_COLS * HW + HW / 2; // ≈2200
+const CANVAS_H = MAP_ROWS * (HH * 0.75) + HH * 0.25; // ≈1710
 
 function hexToPixel(col, row) {
   // Flat-top offset grid (even-col offset)
@@ -607,21 +605,21 @@ function renderHexGrid() {
   const svgNS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(svgNS, 'svg');
   svg.setAttribute('xmlns', svgNS);
-  svg.setAttribute('width', String(CANVAS_W));
-  svg.setAttribute('height', String(CANVAS_H));
+  svg.setAttribute('width', String(Math.ceil(CANVAS_W)));
+  svg.setAttribute('height', String(Math.ceil(CANVAS_H)));
   svg.setAttribute('viewBox', `0 0 ${CANVAS_W} ${CANVAS_H}`);
   svg.style.pointerEvents = 'none';
 
   const g = document.createElementNS(svgNS, 'g');
+  const inset = HS * 0.96; // slight inset so hex borders don't overlap
 
   for (let col = 0; col < MAP_COLS; col++) {
     for (let row = 0; row < MAP_ROWS; row++) {
       const { x, y } = hexToPixel(col, row);
-      // Use polygon instead of path - more reliable cross-browser
       const pts = [];
       for (let i = 0; i < 6; i++) {
         const angle = Math.PI / 180 * (60 * i);
-        pts.push(`${x + (HS-1) * Math.cos(angle)},${y + (HS-1) * Math.sin(angle)}`);
+        pts.push(`${x + inset * Math.cos(angle)},${y + inset * Math.sin(angle)}`);
       }
       const poly = document.createElementNS(svgNS, 'polygon');
       poly.setAttribute('points', pts.join(' '));
@@ -630,11 +628,11 @@ function renderHexGrid() {
       poly.setAttribute('stroke-width', '0.6');
       g.appendChild(poly);
 
-      if (showCoords && col % 5 === 0 && row % 5 === 0) {
+      if (showCoords) {
         const txt = document.createElementNS(svgNS, 'text');
         txt.setAttribute('x', String(x));
         txt.setAttribute('y', String(y));
-        txt.setAttribute('font-size', '7');
+        txt.setAttribute('font-size', '6');
         txt.setAttribute('fill', '#2a4a6a');
         txt.setAttribute('font-family', 'monospace');
         txt.setAttribute('text-anchor', 'middle');
@@ -647,7 +645,6 @@ function renderHexGrid() {
   }
 
   svg.appendChild(g);
-  // L.svgOverlay renders SVG element directly - no blob URL, works on all mobile browsers
   _hexOverlay = L.svgOverlay(svg, imgBounds, { interactive: false }).addTo(map);
 }
 
