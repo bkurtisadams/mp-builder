@@ -140,6 +140,14 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
 
 /* ── Route line ── */
 .route-line{stroke:#2a4a6a;stroke-width:1.5;stroke-dasharray:4,3;fill:none;opacity:.7}
+
+/* ── Calibration panel ── */
+.cal-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.cal-row label{font-size:10px;color:#7a8494;width:65px;flex-shrink:0}
+.cal-row input[type=range]{flex:1;accent-color:#60a0d0;height:16px}
+.cal-row span{font-size:10px;color:#60a0d0;width:45px;text-align:right;flex-shrink:0}
+.cal-row select{background:#0d1117;border:1px solid #252a34;color:#c8ccd4;font-size:10px;padding:2px 4px;border-radius:3px}
+.cal-pt{font-size:10px;padding:2px 6px;margin:2px 0;border-radius:2px;border-left:2px solid #60a0d0;background:rgba(96,160,208,.08);color:#c8ccd4}
 .route-line.active{stroke:#60a0d0;stroke-width:2;stroke-dasharray:none;opacity:1}
 .trail-line{stroke:#48a858;stroke-width:2;fill:none;opacity:.8}
 
@@ -222,6 +230,25 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
       <button class="map-btn" id="btn-coords" onclick="toggleCoords()">Coords</button>
       <button class="map-btn" id="btn-labels" onclick="toggleLabels()">Labels</button>
       <button class="map-btn" id="btn-opacity" onclick="cycleOpacity()">Map 65%</button>
+      <button class="map-btn" id="btn-calibrate" onclick="toggleCalibrate()">Calibrate</button>
+    </div>
+    <!-- Calibration panel -->
+    <div id="cal-panel" style="display:none;position:absolute;top:12px;left:12px;z-index:1000;background:rgba(13,17,23,.95);border:1px solid #252a34;border-radius:4px;padding:10px 14px;font-family:monospace;font-size:11px;color:#c8ccd4;max-width:340px">
+      <div style="font-size:12px;color:#60a0d0;margin-bottom:8px;font-weight:700">⬡ Grid Calibration</div>
+      <div style="color:#7a8494;font-size:10px;line-height:1.5;margin-bottom:8px">
+        <b>2-point align:</b> Ctrl+click two hex <em>vertices</em> (corners where 3 edges meet) on the map image, separated by several hexes. The grid will snap to match.<br>
+        <b>Manual:</b> Adjust sliders below. Values are saved to localStorage.
+      </div>
+      <div id="cal-points" style="margin-bottom:8px"></div>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button class="btn" onclick="calReset()">Reset Points</button>
+        <button class="btn btn-danger" onclick="calResetDefaults()">Factory Reset</button>
+      </div>
+      <div class="cal-row"><label>Size (HS)</label><input type="range" id="cal-hs" min="10" max="30" step="0.05"><span id="cal-hs-val"></span></div>
+      <div class="cal-row"><label>Offset X</label><input type="range" id="cal-ox" min="-30" max="30" step="0.5"><span id="cal-ox-val"></span></div>
+      <div class="cal-row"><label>Offset Y</label><input type="range" id="cal-oy" min="-30" max="30" step="0.5"><span id="cal-oy-val"></span></div>
+      <div class="cal-row"><label>Odd col shift</label><select id="cal-odd"><option value="down">Odd down</option><option value="up">Odd up</option></select></div>
+      <div style="margin-top:8px;font-size:9px;color:#4a5464" id="cal-info"></div>
     </div>
   </div>
 
@@ -507,27 +534,30 @@ let selectedDay = -1;
 // ============================================================
 
 // 30-mile flat-top hexes calibrated to 2200×1711 Darlene map image
-// Darlene map: ~76 hex columns × ~69 hex rows
-const MAP_COLS = 76;
-const MAP_ROWS = 69;
+let MAP_COLS = 76;
+let MAP_ROWS = 69;
 
-// Hex circumradius calibrated by aligning overlay to Darlene grid lines
-const HS = 16.65;                        // circumradius in px
-const HW = Math.sqrt(3) * HS;           // ~28.84px column spacing
-const HH = 2 * HS;                      // ~33.30px hex height
+// Hex circumradius — mutable for calibration
+let HS = 16.65;
+let HW = Math.sqrt(3) * HS;
+let HH = 2 * HS;
 
-// Grid origin offset (px) — positions hex(0,0) centre on the map
-const GRID_OX = 14;
-const GRID_OY = -1;
+// Grid origin offset (px) — mutable for calibration
+let GRID_OX = 14;
+let GRID_OY = -1;
+
+// Odd-column shift direction: true = odd columns shifted down
+let ODD_DOWN = true;
 
 // Canvas = image dimensions
 const CANVAS_W = 2200;
 const CANVAS_H = 1711;
 
 function hexToPixel(col, row) {
-  // Flat-top offset grid (odd-col shifted down)
+  // Flat-top offset grid
   const x = GRID_OX + col * HW + HW/2;
-  const y = GRID_OY + row * (HH * 0.75) + (col % 2 === 0 ? 0 : HH * 0.375) + HH/2;
+  const oddShift = ODD_DOWN ? (col % 2 === 1) : (col % 2 === 0);
+  const y = GRID_OY + row * (HH * 0.75) + (oddShift ? HH * 0.375 : 0) + HH/2;
   return { x, y };
 }
 
@@ -583,23 +613,238 @@ bgLayer.on('error', () => { /* silently fail if no image */ });
 
 map.fitBounds(imgBounds, { padding: [20, 20] });
 
-// Calibration mode: Ctrl+Click shows hex coords + copies to clipboard
-let _calibrationLog = [];
+// ── Calibration system (Roll20-style 2-point alignment + manual sliders) ──
+let _calMode = false;
+let _calPoints = [];      // [{latlng, px, py}] — clicked vertex positions
+let _calMarkers = [];     // Leaflet markers for clicked points
+
+function toggleCalibrate() {
+  _calMode = !_calMode;
+  document.getElementById('btn-calibrate').classList.toggle('active', _calMode);
+  document.getElementById('cal-panel').style.display = _calMode ? 'block' : 'none';
+  if (_calMode) calSyncSliders();
+}
+
 map.on('click', function(e) {
   if (!e.originalEvent.ctrlKey && !e.originalEvent.metaKey) return;
+  const px = e.latlng.lng;
+  const py = -e.latlng.lat;
+
+  if (_calMode) {
+    // Calibration mode: collect vertex points
+    if (_calPoints.length >= 2) calReset();
+    _calPoints.push({ latlng: e.latlng, px, py });
+    const m = L.circleMarker(e.latlng, { radius:6, color:'#ff0', weight:2, fillColor:'#ff0', fillOpacity:0.5, interactive:false }).addTo(map);
+    _calMarkers.push(m);
+    calUpdatePointsUI();
+
+    if (_calPoints.length === 2) {
+      calSolveFromPoints();
+    }
+    return;
+  }
+
+  // Normal mode: show hex coords
   const hex = latLngToHex(e.latlng);
-  const entry = `col:${hex.col}, row:${hex.row}`;
-  _calibrationLog.push(entry);
+  const entry = `col:${hex.col}, row:${hex.row}  (px:${Math.round(px)}, py:${Math.round(py)})`;
   console.log('📍 Hex clicked:', entry);
-  // Show temporary marker
   const popup = L.popup({ closeButton:false, autoClose:true, closeOnClick:true })
     .setLatLng(e.latlng)
     .setContent(`<div style="font-family:monospace;font-size:12px;color:#60a0d0"><b>${entry}</b></div>`)
     .openOn(map);
-  // Copy to clipboard
   navigator.clipboard?.writeText(entry).catch(()=>{});
   setStatus(`Calibration: ${entry}`, 'ok');
 });
+
+function calUpdatePointsUI() {
+  const el = document.getElementById('cal-points');
+  el.innerHTML = _calPoints.map((p, i) =>
+    `<div class="cal-pt">Point ${i+1}: px(${Math.round(p.px)}, ${Math.round(p.py)})</div>`
+  ).join('') || '<div style="font-size:10px;color:#4a5464">Ctrl+click two hex vertices on the map…</div>';
+}
+
+function calReset() {
+  _calPoints = [];
+  _calMarkers.forEach(m => m.remove());
+  _calMarkers = [];
+  calUpdatePointsUI();
+}
+
+function calResetDefaults() {
+  localStorage.removeItem('cal_hs');
+  localStorage.removeItem('cal_ox');
+  localStorage.removeItem('cal_oy');
+  localStorage.removeItem('cal_odd');
+  HS = 16.65; GRID_OX = 14; GRID_OY = -1; ODD_DOWN = true;
+  calApplyHS();
+  calReset();
+  calSyncSliders();
+  calRefresh();
+}
+
+function calSolveFromPoints() {
+  // Two vertices clicked. For flat-top hexes, vertices sit on a triangular lattice.
+  // The distance between any two adjacent vertices = HS (circumradius).
+  // Between two arbitrary vertices, the distance = HS * sqrt(a² + ab + b²)
+  // for integer steps (a,b) along the two lattice basis vectors.
+  //
+  // Strategy: compute the pixel distance between the two clicked points.
+  // Try small integer lattice steps and find the HS that best fits,
+  // then compute the grid origin from one of the points.
+
+  const p1 = _calPoints[0], p2 = _calPoints[1];
+  const dx = p2.px - p1.px;
+  const dy = p2.py - p1.py;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+
+  // For flat-top hexes, vertex lattice basis vectors are:
+  //   v1 = (HW, 0) = (sqrt(3)*HS, 0)
+  //   v2 = (HW/2, 1.5*HS) = (sqrt(3)/2*HS, 1.5*HS)
+  // Distance for steps (a,b) = HS * sqrt(3a² + 3ab + b²)  ... wait, let me derive properly.
+  // |a*v1 + b*v2|² = (a*sqrt(3)*HS + b*sqrt(3)/2*HS)² + (b*1.5*HS)²
+  //                = HS² * [(sqrt(3)*a + sqrt(3)/2*b)² + (1.5*b)²]
+  //                = HS² * [3a² + 3ab + 0.75b² + 2.25b²]
+  //                = HS² * [3a² + 3ab + 3b²]
+  //                = 3*HS² * [a² + ab + b²]
+  // So dist = HS * sqrt(3*(a² + ab + b²))
+  //
+  // For each candidate (a,b), compute HS = dist / sqrt(3*(a²+ab+b²))
+  // Pick the one that gives HS in a reasonable range (10-25).
+
+  let bestHS = HS, bestErr = Infinity;
+  for (let a = -20; a <= 20; a++) {
+    for (let b = -20; b <= 20; b++) {
+      if (a === 0 && b === 0) continue;
+      const q = a*a + a*b + b*b;
+      if (q <= 0) continue;
+      const candidateHS = dist / Math.sqrt(3 * q);
+      if (candidateHS < 10 || candidateHS > 25) continue;
+      // Score: how close is this to our current HS? Prefer solutions near current.
+      const err = Math.abs(candidateHS - HS);
+      if (err < bestErr) { bestErr = err; bestHS = candidateHS; }
+    }
+  }
+
+  // Apply the new HS
+  HS = Math.round(bestHS * 100) / 100;
+  calApplyHS();
+
+  // Now compute grid origin from the first clicked point.
+  // The clicked point is a hex VERTEX. For flat-top hexes, vertex positions are:
+  //   For hex(col, row), the 6 vertices are at hexToPixel(col,row) + HS*(cos(60°*i), sin(60°*i))
+  // A vertex is shared by 3 hexes. The vertex lattice origin is offset from the
+  // hex-centre lattice by HS in the direction of angle 0° (rightmost vertex of hex(0,0)).
+  //
+  // The vertex at hex(0,0) angle 0 is at: (GRID_OX + HW/2 + HS, GRID_OY + HH/2)
+  // So if we know a vertex pixel position (p1.px, p1.py), we know that for some integers (a,b):
+  //   p1.px = origin_vx + a*HW + b*HW/2
+  //   p1.py = origin_vy + b*1.5*HS
+  // where origin_vx = GRID_OX + HW/2 + HS, origin_vy = GRID_OY + HH/2
+  //
+  // Simpler approach: just compute GRID_OX/OY such that the vertex lattice passes through p1.
+
+  // Find which vertex of which hex is closest to p1 in the current grid
+  // Then adjust GRID_OX/OY to make that vertex land exactly on p1.
+  const hex1 = pixelToHex(p1.px, p1.py);
+  const ctr = hexToPixel(hex1.col, hex1.row);
+  // Find closest vertex of this hex
+  let bestVx = 0, bestVy = 0, bestVd = Infinity;
+  for (let i = 0; i < 6; i++) {
+    const angle = Math.PI / 180 * (60 * i);
+    const vx = ctr.x + HS * Math.cos(angle);
+    const vy = ctr.y + HS * Math.sin(angle);
+    const vd = (vx - p1.px)**2 + (vy - p1.py)**2;
+    if (vd < bestVd) { bestVd = vd; bestVx = vx; bestVy = vy; }
+  }
+  // Shift grid so this vertex lands on p1
+  GRID_OX += (p1.px - bestVx);
+  GRID_OY += (p1.py - bestVy);
+  GRID_OX = Math.round(GRID_OX * 10) / 10;
+  GRID_OY = Math.round(GRID_OY * 10) / 10;
+
+  calSyncSliders();
+  calSave();
+  calRefresh();
+  setStatus(`Calibrated: HS=${HS} OX=${GRID_OX} OY=${GRID_OY}`, 'ok');
+}
+
+function calApplyHS() {
+  HW = Math.sqrt(3) * HS;
+  HH = 2 * HS;
+  MAP_COLS = Math.ceil(CANVAS_W / HW) + 1;
+  MAP_ROWS = Math.ceil(CANVAS_H / (HH * 0.75)) + 1;
+}
+
+function calSyncSliders() {
+  const hsEl = document.getElementById('cal-hs');
+  const oxEl = document.getElementById('cal-ox');
+  const oyEl = document.getElementById('cal-oy');
+  const oddEl = document.getElementById('cal-odd');
+  hsEl.value = HS; oxEl.value = GRID_OX; oyEl.value = GRID_OY;
+  oddEl.value = ODD_DOWN ? 'down' : 'up';
+  document.getElementById('cal-hs-val').textContent = HS.toFixed(2);
+  document.getElementById('cal-ox-val').textContent = GRID_OX.toFixed(1);
+  document.getElementById('cal-oy-val').textContent = GRID_OY.toFixed(1);
+  calUpdateInfo();
+}
+
+function calUpdateInfo() {
+  document.getElementById('cal-info').textContent =
+    `HW=${HW.toFixed(2)} HH=${HH.toFixed(2)} cols=${MAP_COLS} rows=${MAP_ROWS}`;
+}
+
+function calSliderChanged() {
+  HS = parseFloat(document.getElementById('cal-hs').value);
+  GRID_OX = parseFloat(document.getElementById('cal-ox').value);
+  GRID_OY = parseFloat(document.getElementById('cal-oy').value);
+  ODD_DOWN = document.getElementById('cal-odd').value === 'down';
+  calApplyHS();
+  document.getElementById('cal-hs-val').textContent = HS.toFixed(2);
+  document.getElementById('cal-ox-val').textContent = GRID_OX.toFixed(1);
+  document.getElementById('cal-oy-val').textContent = GRID_OY.toFixed(1);
+  calUpdateInfo();
+  calSave();
+  calRefresh();
+}
+
+function calSave() {
+  localStorage.setItem('cal_hs', HS);
+  localStorage.setItem('cal_ox', GRID_OX);
+  localStorage.setItem('cal_oy', GRID_OY);
+  localStorage.setItem('cal_odd', ODD_DOWN ? 'down' : 'up');
+}
+
+function calLoad() {
+  const h = localStorage.getItem('cal_hs');
+  const x = localStorage.getItem('cal_ox');
+  const y = localStorage.getItem('cal_oy');
+  const o = localStorage.getItem('cal_odd');
+  if (h != null) HS = parseFloat(h);
+  if (x != null) GRID_OX = parseFloat(x);
+  if (y != null) GRID_OY = parseFloat(y);
+  if (o != null) ODD_DOWN = o === 'down';
+  calApplyHS();
+}
+
+function calRefresh() {
+  renderHexGrid();
+  clearMapLayers();
+  renderPorts();
+  if (voyage) {
+    renderRoute();
+    updateShipMarker();
+    renderTrail();
+    placeEventMarkers();
+  }
+}
+
+// Wire up slider events after DOM ready
+setTimeout(() => {
+  ['cal-hs','cal-ox','cal-oy','cal-odd'].forEach(id => {
+    document.getElementById(id).addEventListener('input', calSliderChanged);
+  });
+  calUpdatePointsUI();
+}, 0);
 
 // ============================================================
 // HEX GRID (SVG overlay)
@@ -1414,6 +1659,7 @@ function populateSelects() {
 }
 
 function init() {
+  calLoad(); // restore saved calibration
   document.getElementById('loading-sub').textContent = 'Building hex grid...';
   populateSelects();
   setTimeout(() => {
