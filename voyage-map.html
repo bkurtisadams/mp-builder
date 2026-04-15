@@ -727,6 +727,7 @@ function renderLegsUI() {
 
 function rollD(sides) { return Math.floor(Math.random() * sides) + 1; }
 function rollDN(n, sides) { let t=0; for(let i=0;i<n;i++) t+=rollD(sides); return t; }
+const d = rollD, dn = rollDN;
 
 function generateWeather() {
   const windSpeed = rollDN(2, 10) + 5; // 2d10+5: range 7-25, avg ~16
@@ -1597,7 +1598,7 @@ function rollSalePrice(portId, cargoKey, loads, distanceTraveled, captain, crewM
 
 function ledgerEntry(v, desc, income, expense) {
   const prev = v.ledger.length ? v.ledger[v.ledger.length-1].balance : v.startingGold;
-  v.ledger.push({ date:fmtDate(v.cal), desc, income:income||0, expense:expense||0, balance: prev+(income||0)-(expense||0) });
+  v.ledger.push({ date:formatDate(v.calendar), desc, income:income||0, expense:expense||0, balance: prev+(income||0)-(expense||0) });
   if (income)  v.treasury += income;
   if (expense) v.treasury -= expense;
 }
@@ -1690,8 +1691,8 @@ function showPortFees(port, fees, feesTotal, daysInPort) {
 function portPhaseSell() {
   if (!_portState || !voyage) return;
   const captain = getCaptain();
-  const crewMod = CREW_MOD[voyage.crewQuality] || 0;
-  const dist = voyage.distCovered;
+  const crewMod = CREW_QUALITY_MOD[voyage.crewQuality] || 0;
+  const dist = voyage.distanceCovered;
   const sale = rollSalePrice(_portState.portId, voyage.cargo.type, voyage.cargo.loads, dist, captain, crewMod);
   _portState.sale = sale;
   _portState.phase = 'sell';
@@ -1753,7 +1754,7 @@ function confirmSell() {
 function portPhaseBuy() {
   if (!_portState || !voyage) return;
   const captain = getCaptain();
-  const crewMod = CREW_MOD[voyage.crewQuality] || 0;
+  const crewMod = CREW_QUALITY_MOD[voyage.crewQuality] || 0;
   const merchants = rollMerchants(_portState.portId, captain.cha);
   const offer = rollCargoOffer(_portState.portId, captain, crewMod);
   const port = PORTS[_portState.portId];
@@ -1820,7 +1821,7 @@ function confirmBuy() {
   const totalCost = qty * offer.pricePerLoad;
   if (totalCost > voyage.treasury) { alert('Insufficient funds.'); return; }
   ledgerEntry(voyage, `Purchased ${qty}× ${offer.cargoName} at ${port.name}`, 0, totalCost);
-  voyage.cargo = { loads:qty, type:offer.cargoKey, purchasePrice:offer.pricePerLoad, purchasedAt:_portState.portId, distAtPurchase:voyage.distCovered };
+  voyage.cargo = { loads:qty, type:offer.cargoKey, purchasePrice:offer.pricePerLoad, purchasedAt:_portState.portId, distAtPurchase:voyage.distanceCovered };
   renderLedger();
   updateStatusBar();
   updateShipPanel();
@@ -1831,7 +1832,7 @@ function portPhaseLeave() {
   // Advance calendar by daysInPort
   if (voyage && _portState) {
     const days = _portState.daysInPort || 2;
-    for (let i=0;i<days;i++) voyage.cal = calendarAdvance(voyage.cal);
+    for (let i=0;i<days;i++) voyage.calendar = calendarAdvance(voyage.calendar);
     const dailyCost = _portState.dailyCost || 0;
     if (dailyCost > 0) ledgerEntry(voyage, `Operating costs (${days}d in port)`, 0, dailyCost*days);
     renderLedger();
