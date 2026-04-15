@@ -505,24 +505,23 @@ let selectedDay = -1;
 // MAP SETUP
 // ============================================================
 
-// 30-mile flat-top hexes calibrated to the current Greyhawk map image
-// Visible printed map area uses roughly 48 columns × 43 rows of hexes.
+// 30-mile flat-top hexes calibrated to 2200×1711 Darlene map image
+// Darlene map: ~48 hex columns × ~43 hex rows
 const MAP_COLS = 48;
 const MAP_ROWS = 43;
 
-// Uploaded map image dimensions
-const CANVAS_W = 2048;
-const CANVAS_H = 1592;
+// Derive hex size from image width: 48.5 hex-widths span 2200px
+const HS = 2200 / (48.5 * Math.sqrt(3)); // ~26.19px
+const HW = Math.sqrt(3) * HS;            // ~45.36px
+const HH = 2 * HS;                       // ~52.38px
 
-// Hex sizing fitted to the printed hex lattice in greyhawk-map.jpg
-// 48.5 hex-widths span the usable map width once margins are excluded.
-const HS = CANVAS_W / (48.5 * Math.sqrt(3)); // ~24.38px
-const HW = Math.sqrt(3) * HS;                // ~42.23px
-const HH = 2 * HS;                           // ~48.76px
+// Grid origin offset (px) — accounts for map title/margins
+const GRID_OX = 0;
+const GRID_OY = 4;
 
-// Grid origin offset (px) tuned to the printed hex grid, not the page edge
-const GRID_OX = 48;
-const GRID_OY = 43;
+// Canvas = image dimensions
+const CANVAS_W = 2200;
+const CANVAS_H = 1711;
 
 function hexToPixel(col, row) {
   // Flat-top offset grid (odd-col shifted down)
