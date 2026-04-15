@@ -437,21 +437,22 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
 //   Dyvers ≈ northwest on Nyr Dyv
 //   Hardby ≈ south of Greyhawk on the Woolly Bay coast
 //   Gradsul / Rel Mord ≈ far south, Relmor Bay
-// 1 hex = 6 miles; positions in hex col/row units.
+// Calibrated to Darlene map hex grid (flat-top, 30-mile hexes).
+// Positions in hex col/row units.
 // ============================================================
 
 const PORTS = {
-  greyhawk_city: { name:"City of Greyhawk", size:"major", col:22, row:17, connections:{ dyvers:90, verbobonc:150, leukish:120, hardby:60, safeton:60, fax:90, port_elredd:120, nessermouth:60 } },
-  dyvers:        { name:"Dyvers",            size:"port",  col:19, row:18, connections:{ greyhawk_city:90, verbobonc:60, leukish:150, hardby:150, safeton:120 } },
-  verbobonc:     { name:"Verbobonc",         size:"port",  col:12, row:14, connections:{ greyhawk_city:150, dyvers:60, leukish:180 } },
-  leukish:       { name:"Leukish",           size:"minor", col:22, row:11, connections:{ greyhawk_city:120, dyvers:150, verbobonc:180, port_elredd:90 } },
-  hardby:        { name:"Hardby",            size:"major", col:22, row:20, connections:{ rel_mord:150, gradsul:200, greyhawk_city:60, fax:90, port_elredd:150 } },
-  safeton:       { name:"Safeton",           size:"port",  col:21, row:19, connections:{ greyhawk_city:60, dyvers:90, nessermouth:30 } },
-  fax:           { name:"Fax",               size:"minor", col:23, row:15, connections:{ greyhawk_city:90, hardby:90, rel_mord:120 } },
-  port_elredd:   { name:"Port Elredd",       size:"major", col:15, row:15, connections:{ greyhawk_city:120, leukish:90, hardby:150, rel_mord:180 } },
-  nessermouth:   { name:"Nessermouth",       size:"minor", col:19, row:13, connections:{ safeton:30, greyhawk_city:60 } },
-  rel_mord:      { name:"Rel Mord",          size:"port",  col:27, row:13, connections:{ hardby:150, gradsul:120, fax:120, port_elredd:180 } },
-  gradsul:       { name:"Gradsul",           size:"port",  col:23, row:18, connections:{ hardby:200, rel_mord:120 } },
+  greyhawk_city: { name:"City of Greyhawk", size:"major", col:33, row:30, connections:{ dyvers:90, verbobonc:150, leukish:120, hardby:60, safeton:60, fax:90, port_elredd:120, nessermouth:60 } },
+  dyvers:        { name:"Dyvers",            size:"port",  col:29, row:27, connections:{ greyhawk_city:90, verbobonc:60, leukish:150, hardby:150, safeton:120 } },
+  verbobonc:     { name:"Verbobonc",         size:"port",  col:24, row:29, connections:{ greyhawk_city:150, dyvers:60, leukish:180 } },
+  leukish:       { name:"Leukish",           size:"minor", col:38, row:30, connections:{ greyhawk_city:120, dyvers:150, verbobonc:180, port_elredd:90 } },
+  hardby:        { name:"Hardby",            size:"major", col:34, row:32, connections:{ rel_mord:150, gradsul:200, greyhawk_city:60, fax:90, port_elredd:150 } },
+  safeton:       { name:"Safeton",           size:"port",  col:31, row:33, connections:{ greyhawk_city:60, dyvers:90, nessermouth:30 } },
+  fax:           { name:"Fax",               size:"minor", col:36, row:33, connections:{ greyhawk_city:90, hardby:90, rel_mord:120 } },
+  port_elredd:   { name:"Port Elredd",       size:"major", col:29, row:34, connections:{ greyhawk_city:120, leukish:90, hardby:150, rel_mord:180 } },
+  nessermouth:   { name:"Nessermouth",       size:"minor", col:31, row:28, connections:{ safeton:30, greyhawk_city:60 } },
+  rel_mord:      { name:"Rel Mord",          size:"port",  col:48, row:34, connections:{ hardby:150, gradsul:120, fax:120, port_elredd:180 } },
+  gradsul:       { name:"Gradsul",           size:"port",  col:26, row:47, connections:{ hardby:200, rel_mord:120 } },
 };
 
 const SHIP_TEMPLATES = [
@@ -506,18 +507,18 @@ let selectedDay = -1;
 // ============================================================
 
 // 30-mile flat-top hexes calibrated to 2200×1711 Darlene map image
-// Darlene map: ~48 hex columns × ~43 hex rows
-const MAP_COLS = 48;
-const MAP_ROWS = 43;
+// Darlene map: ~76 hex columns × ~69 hex rows
+const MAP_COLS = 76;
+const MAP_ROWS = 69;
 
-// Derive hex size from image width: 48.5 hex-widths span 2200px
-const HS = 2200 / (48.5 * Math.sqrt(3)); // ~26.19px
-const HW = Math.sqrt(3) * HS;            // ~45.36px
-const HH = 2 * HS;                       // ~52.38px
+// Hex circumradius calibrated by aligning overlay to Darlene grid lines
+const HS = 16.65;                        // circumradius in px
+const HW = Math.sqrt(3) * HS;           // ~28.84px column spacing
+const HH = 2 * HS;                      // ~33.30px hex height
 
-// Grid origin offset (px) — accounts for map title/margins
-const GRID_OX = 0;
-const GRID_OY = 4;
+// Grid origin offset (px) — positions hex(0,0) centre on the map
+const GRID_OX = 14;
+const GRID_OY = -1;
 
 // Canvas = image dimensions
 const CANVAS_W = 2200;
@@ -531,12 +532,25 @@ function hexToPixel(col, row) {
 }
 
 function pixelToHex(x, y) {
+  // Estimate then check neighbors to find closest hex centre
   const ax = x - GRID_OX;
   const ay = y - GRID_OY;
-  const col = Math.round((ax - HW/2) / HW);
-  const rowOffset = col % 2 === 0 ? 0 : HH * 0.375;
-  const row = Math.round((ay - HH/2 - rowOffset) / (HH * 0.75));
-  return { col: Math.max(0, Math.min(MAP_COLS-1, col)), row: Math.max(0, Math.min(MAP_ROWS-1, row)) };
+  const colEst = Math.round((ax - HW/2) / HW);
+  const rowH = HH * 0.75;
+  const shift = HH * 0.375;
+  let bestCol = colEst, bestRow = 0, bestDist = Infinity;
+  for (let dc = -1; dc <= 1; dc++) {
+    const c = colEst + dc;
+    const off = c % 2 === 0 ? 0 : shift;
+    const rEst = Math.round((ay - HH/2 - off) / rowH);
+    for (let dr = -1; dr <= 1; dr++) {
+      const r = rEst + dr;
+      const p = hexToPixel(c, r);
+      const d = (p.x - x) ** 2 + (p.y - y) ** 2;
+      if (d < bestDist) { bestDist = d; bestCol = c; bestRow = r; }
+    }
+  }
+  return { col: Math.max(0, Math.min(MAP_COLS-1, bestCol)), row: Math.max(0, Math.min(MAP_ROWS-1, bestRow)) };
 }
 
 // Convert hex col/row to Leaflet latlng (inverted y)
