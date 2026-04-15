@@ -221,6 +221,7 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
       <button class="map-btn active" id="btn-hexes" onclick="toggleHexes()">Hexes</button>
       <button class="map-btn" id="btn-coords" onclick="toggleCoords()">Coords</button>
       <button class="map-btn" id="btn-labels" onclick="toggleLabels()">Labels</button>
+      <button class="map-btn" id="btn-opacity" onclick="cycleOpacity()">Map 65%</button>
     </div>
   </div>
 
@@ -559,10 +560,28 @@ L.control.zoom({ position: 'topright' }).addTo(map);
 
 // Try to load background map image
 const imgBounds = [[-CANVAS_H, 0], [0, CANVAS_W]];
-const bgLayer = L.imageOverlay('greyhawk-map.jpg', imgBounds, { opacity: 0.45 }).addTo(map);
+const bgLayer = L.imageOverlay('greyhawk-map.jpg', imgBounds, { opacity: 0.65 }).addTo(map);
 bgLayer.on('error', () => { /* silently fail if no image */ });
 
 map.fitBounds(imgBounds, { padding: [20, 20] });
+
+// Calibration mode: Ctrl+Click shows hex coords + copies to clipboard
+let _calibrationLog = [];
+map.on('click', function(e) {
+  if (!e.originalEvent.ctrlKey && !e.originalEvent.metaKey) return;
+  const hex = latLngToHex(e.latlng);
+  const entry = `col:${hex.col}, row:${hex.row}`;
+  _calibrationLog.push(entry);
+  console.log('📍 Hex clicked:', entry);
+  // Show temporary marker
+  const popup = L.popup({ closeButton:false, autoClose:true, closeOnClick:true })
+    .setLatLng(e.latlng)
+    .setContent(`<div style="font-family:monospace;font-size:12px;color:#60a0d0"><b>${entry}</b></div>`)
+    .openOn(map);
+  // Copy to clipboard
+  navigator.clipboard?.writeText(entry).catch(()=>{});
+  setStatus(`Calibration: ${entry}`, 'ok');
+});
 
 // ============================================================
 // HEX GRID (SVG overlay)
@@ -1328,6 +1347,17 @@ function toggleLabels() {
     renderTrail();
     placeEventMarkers();
   }
+}
+
+const _opacitySteps = [0.35, 0.50, 0.65, 0.80, 0.95];
+let _opacityIdx = 2; // starts at 0.65
+function cycleOpacity() {
+  _opacityIdx = (_opacityIdx + 1) % _opacitySteps.length;
+  const val = _opacitySteps[_opacityIdx];
+  bgLayer.setOpacity(val);
+  const btn = document.getElementById('btn-opacity');
+  btn.textContent = `Map ${Math.round(val*100)}%`;
+  btn.classList.toggle('active', val >= 0.65);
 }
 
 function setStatus(msg, type='ok') {
