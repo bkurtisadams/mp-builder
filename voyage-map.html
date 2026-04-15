@@ -145,7 +145,8 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
 .cal-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
 .cal-row label{font-size:10px;color:#7a8494;width:65px;flex-shrink:0}
 .cal-row input[type=range]{flex:1;accent-color:#60a0d0;height:16px}
-.cal-row span{font-size:10px;color:#60a0d0;width:45px;text-align:right;flex-shrink:0}
+.cal-num{width:58px;background:#0d1117;border:1px solid #252a34;color:#60a0d0;font-size:11px;font-family:monospace;padding:2px 4px;border-radius:3px;text-align:right;outline:none;flex-shrink:0}
+.cal-num:focus{border-color:#3a6a90}
 .cal-row select{background:#0d1117;border:1px solid #252a34;color:#c8ccd4;font-size:10px;padding:2px 4px;border-radius:3px}
 .cal-pt{font-size:10px;padding:2px 6px;margin:2px 0;border-radius:2px;border-left:2px solid #60a0d0;background:rgba(96,160,208,.08);color:#c8ccd4}
 .route-line.active{stroke:#60a0d0;stroke-width:2;stroke-dasharray:none;opacity:1}
@@ -233,20 +234,20 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
       <button class="map-btn" id="btn-calibrate" onclick="toggleCalibrate()">Calibrate</button>
     </div>
     <!-- Calibration panel -->
-    <div id="cal-panel" style="display:none;position:absolute;top:12px;left:12px;z-index:1000;background:rgba(13,17,23,.95);border:1px solid #252a34;border-radius:4px;padding:10px 14px;font-family:monospace;font-size:11px;color:#c8ccd4;max-width:340px">
+    <div id="cal-panel" style="display:none;position:absolute;top:12px;left:12px;z-index:1000;background:rgba(13,17,23,.95);border:1px solid #252a34;border-radius:4px;padding:10px 14px;font-family:monospace;font-size:11px;color:#c8ccd4;max-width:360px">
       <div style="font-size:12px;color:#60a0d0;margin-bottom:8px;font-weight:700">⬡ Grid Calibration</div>
       <div style="color:#7a8494;font-size:10px;line-height:1.5;margin-bottom:8px">
         <b>2-point align:</b> Ctrl+click two hex <em>vertices</em> (corners where 3 edges meet) on the map image, separated by several hexes. The grid will snap to match.<br>
-        <b>Manual:</b> Adjust sliders below. Values are saved to localStorage.
+        <b>Manual:</b> Use sliders or type values. Saved to localStorage.
       </div>
       <div id="cal-points" style="margin-bottom:8px"></div>
       <div style="display:flex;gap:6px;margin-bottom:10px">
         <button class="btn" onclick="calReset()">Reset Points</button>
         <button class="btn btn-danger" onclick="calResetDefaults()">Factory Reset</button>
       </div>
-      <div class="cal-row"><label>Size (HS)</label><input type="range" id="cal-hs" min="10" max="30" step="0.05"><span id="cal-hs-val"></span></div>
-      <div class="cal-row"><label>Offset X</label><input type="range" id="cal-ox" min="-30" max="30" step="0.5"><span id="cal-ox-val"></span></div>
-      <div class="cal-row"><label>Offset Y</label><input type="range" id="cal-oy" min="-30" max="30" step="0.5"><span id="cal-oy-val"></span></div>
+      <div class="cal-row"><label>Size (HS)</label><input type="range" id="cal-hs" min="4" max="30" step="0.05"><input type="number" class="cal-num" id="cal-hs-num" min="1" max="50" step="0.01"></div>
+      <div class="cal-row"><label>Offset X</label><input type="range" id="cal-ox" min="-50" max="50" step="0.5"><input type="number" class="cal-num" id="cal-ox-num" min="-100" max="100" step="0.5"></div>
+      <div class="cal-row"><label>Offset Y</label><input type="range" id="cal-oy" min="-50" max="50" step="0.5"><input type="number" class="cal-num" id="cal-oy-num" min="-100" max="100" step="0.5"></div>
       <div class="cal-row"><label>Odd col shift</label><select id="cal-odd"><option value="down">Odd down</option><option value="up">Odd up</option></select></div>
       <div style="margin-top:8px;font-size:9px;color:#4a5464" id="cal-info"></div>
     </div>
@@ -537,7 +538,7 @@ let selectedDay = -1;
 let MAP_COLS = 76;
 let MAP_ROWS = 69;
 
-// Hex circumradius — mutable for calibration
+// Hex circumradius — mutable for calibration. Use Calibrate tool to align.
 let HS = 16.65;
 let HW = Math.sqrt(3) * HS;
 let HH = 2 * HS;
@@ -632,7 +633,6 @@ map.on('click', function(e) {
 
   if (_calMode) {
     // Calibration mode: collect vertex points
-    if (_calPoints.length >= 2) calReset();
     _calPoints.push({ latlng: e.latlng, px, py });
     const m = L.circleMarker(e.latlng, { radius:6, color:'#ff0', weight:2, fillColor:'#ff0', fillOpacity:0.5, interactive:false }).addTo(map);
     _calMarkers.push(m);
@@ -640,7 +640,11 @@ map.on('click', function(e) {
 
     if (_calPoints.length === 2) {
       calSolveFromPoints();
+      // Auto-clear points so user can immediately try again
+      setTimeout(() => { calReset(); }, 1500);
     }
+    // If >2 points somehow, reset
+    if (_calPoints.length > 2) calReset();
     return;
   }
 
@@ -718,7 +722,7 @@ function calSolveFromPoints() {
       const q = a*a + a*b + b*b;
       if (q <= 0) continue;
       const candidateHS = dist / Math.sqrt(3 * q);
-      if (candidateHS < 10 || candidateHS > 25) continue;
+      if (candidateHS < 4 || candidateHS > 40) continue;
       // Score: how close is this to our current HS? Prefer solutions near current.
       const err = Math.abs(candidateHS - HS);
       if (err < bestErr) { bestErr = err; bestHS = candidateHS; }
@@ -776,15 +780,13 @@ function calApplyHS() {
 }
 
 function calSyncSliders() {
-  const hsEl = document.getElementById('cal-hs');
-  const oxEl = document.getElementById('cal-ox');
-  const oyEl = document.getElementById('cal-oy');
-  const oddEl = document.getElementById('cal-odd');
-  hsEl.value = HS; oxEl.value = GRID_OX; oyEl.value = GRID_OY;
-  oddEl.value = ODD_DOWN ? 'down' : 'up';
-  document.getElementById('cal-hs-val').textContent = HS.toFixed(2);
-  document.getElementById('cal-ox-val').textContent = GRID_OX.toFixed(1);
-  document.getElementById('cal-oy-val').textContent = GRID_OY.toFixed(1);
+  document.getElementById('cal-hs').value = HS;
+  document.getElementById('cal-ox').value = GRID_OX;
+  document.getElementById('cal-oy').value = GRID_OY;
+  document.getElementById('cal-hs-num').value = HS.toFixed(2);
+  document.getElementById('cal-ox-num').value = GRID_OX.toFixed(1);
+  document.getElementById('cal-oy-num').value = GRID_OY.toFixed(1);
+  document.getElementById('cal-odd').value = ODD_DOWN ? 'down' : 'up';
   calUpdateInfo();
 }
 
@@ -793,15 +795,25 @@ function calUpdateInfo() {
     `HW=${HW.toFixed(2)} HH=${HH.toFixed(2)} cols=${MAP_COLS} rows=${MAP_ROWS}`;
 }
 
-function calSliderChanged() {
-  HS = parseFloat(document.getElementById('cal-hs').value);
-  GRID_OX = parseFloat(document.getElementById('cal-ox').value);
-  GRID_OY = parseFloat(document.getElementById('cal-oy').value);
+function calSliderChanged(src) {
+  // src = 'range' or 'num' — sync the other input
+  if (src === 'range') {
+    HS = parseFloat(document.getElementById('cal-hs').value);
+    GRID_OX = parseFloat(document.getElementById('cal-ox').value);
+    GRID_OY = parseFloat(document.getElementById('cal-oy').value);
+    document.getElementById('cal-hs-num').value = HS.toFixed(2);
+    document.getElementById('cal-ox-num').value = GRID_OX.toFixed(1);
+    document.getElementById('cal-oy-num').value = GRID_OY.toFixed(1);
+  } else {
+    HS = parseFloat(document.getElementById('cal-hs-num').value) || HS;
+    GRID_OX = parseFloat(document.getElementById('cal-ox-num').value) || 0;
+    GRID_OY = parseFloat(document.getElementById('cal-oy-num').value) || 0;
+    document.getElementById('cal-hs').value = HS;
+    document.getElementById('cal-ox').value = GRID_OX;
+    document.getElementById('cal-oy').value = GRID_OY;
+  }
   ODD_DOWN = document.getElementById('cal-odd').value === 'down';
   calApplyHS();
-  document.getElementById('cal-hs-val').textContent = HS.toFixed(2);
-  document.getElementById('cal-ox-val').textContent = GRID_OX.toFixed(1);
-  document.getElementById('cal-oy-val').textContent = GRID_OY.toFixed(1);
   calUpdateInfo();
   calSave();
   calRefresh();
@@ -838,11 +850,15 @@ function calRefresh() {
   }
 }
 
-// Wire up slider events after DOM ready
+// Wire up calibration controls after DOM ready
 setTimeout(() => {
-  ['cal-hs','cal-ox','cal-oy','cal-odd'].forEach(id => {
-    document.getElementById(id).addEventListener('input', calSliderChanged);
+  ['cal-hs','cal-ox','cal-oy'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => calSliderChanged('range'));
   });
+  ['cal-hs-num','cal-ox-num','cal-oy-num'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => calSliderChanged('num'));
+  });
+  document.getElementById('cal-odd').addEventListener('change', () => calSliderChanged('range'));
   calUpdatePointsUI();
 }, 0);
 
