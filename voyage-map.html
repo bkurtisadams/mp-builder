@@ -237,12 +237,10 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
     <div id="cal-panel" style="display:none;position:absolute;top:12px;left:12px;z-index:1000;background:rgba(13,17,23,.95);border:1px solid #252a34;border-radius:4px;padding:10px 14px;font-family:monospace;font-size:11px;color:#c8ccd4;max-width:360px">
       <div style="font-size:12px;color:#60a0d0;margin-bottom:8px;font-weight:700">⬡ Grid Calibration</div>
       <div style="color:#7a8494;font-size:10px;line-height:1.5;margin-bottom:8px">
-        <b>2-point align:</b> Ctrl+click two hex <em>vertices</em> (corners where 3 edges meet) on the map image, separated by several hexes. The grid will snap to match.<br>
-        <b>Manual:</b> Use sliders or type values. Saved to localStorage.
+        <b>Drag across 3 hex columns</b> on the map image to set hex size and snap the grid. Fine-tune with sliders or type values. Ctrl+click to read hex coords.
       </div>
-      <div id="cal-points" style="margin-bottom:8px"></div>
+      <div id="cal-status" style="font-size:10px;color:#d0a040;margin-bottom:8px"></div>
       <div style="display:flex;gap:6px;margin-bottom:10px">
-        <button class="btn" onclick="calReset()">Reset Points</button>
         <button class="btn btn-danger" onclick="calResetDefaults()">Factory Reset</button>
       </div>
       <div class="cal-row"><label>Size (HS)</label><input type="range" id="cal-hs" min="4" max="30" step="0.05"><input type="number" class="cal-num" id="cal-hs-num" min="1" max="50" step="0.01"></div>
@@ -614,64 +612,141 @@ bgLayer.on('error', () => { /* silently fail if no image */ });
 
 map.fitBounds(imgBounds, { padding: [20, 20] });
 
-// ── Calibration system (Roll20-style 2-point alignment + manual sliders) ──
+// ── Calibration (3-column trace, adapted from gc-map-tools wilderness generator) ──
 let _calMode = false;
-let _calPoints = [];      // [{latlng, px, py}] — clicked vertex positions
-let _calMarkers = [];     // Leaflet markers for clicked points
+let _calDrag = null;     // { startLL, endLL } during drag
+let _calRect = null;     // Leaflet rectangle while dragging
 
 function toggleCalibrate() {
   _calMode = !_calMode;
   document.getElementById('btn-calibrate').classList.toggle('active', _calMode);
   document.getElementById('cal-panel').style.display = _calMode ? 'block' : 'none';
-  if (_calMode) calSyncSliders();
+  if (_calMode) {
+    calSyncSliders();
+    calSetStatus('Drag a rectangle over <b>exactly 3 hex columns</b> on the map image.');
+  }
 }
 
-map.on('click', function(e) {
-  if (!e.originalEvent.ctrlKey && !e.originalEvent.metaKey) return;
-  const px = e.latlng.lng;
-  const py = -e.latlng.lat;
+// ── Drag rectangle on map to trace 3 hex columns ──
+map.on('mousedown', function(e) {
+  if (!_calMode) return;
+  if (e.originalEvent.button !== 0) return;
+  e.originalEvent.preventDefault();
+  _calDrag = { startLL: e.latlng, endLL: e.latlng };
+  if (_calRect) { _calRect.remove(); _calRect = null; }
+  _calRect = L.rectangle([e.latlng, e.latlng], {
+    color: '#ff4444', weight: 2, dashArray: '6,3', fill: true, fillOpacity: 0.08, interactive: false
+  }).addTo(map);
+  map.dragging.disable();
+});
 
-  if (_calMode) {
-    // Calibration mode: collect vertex points
-    _calPoints.push({ latlng: e.latlng, px, py });
-    const m = L.circleMarker(e.latlng, { radius:6, color:'#ff0', weight:2, fillColor:'#ff0', fillOpacity:0.5, interactive:false }).addTo(map);
-    _calMarkers.push(m);
-    calUpdatePointsUI();
+map.on('mousemove', function(e) {
+  if (!_calDrag) return;
+  _calDrag.endLL = e.latlng;
+  if (_calRect) _calRect.setBounds(L.latLngBounds(_calDrag.startLL, _calDrag.endLL));
+});
 
-    if (_calPoints.length === 2) {
-      calSolveFromPoints();
-      // Auto-clear points so user can immediately try again
-      setTimeout(() => { calReset(); }, 1500);
-    }
-    // If >2 points somehow, reset
-    if (_calPoints.length > 2) calReset();
+map.on('mouseup', function(e) {
+  if (!_calDrag) return;
+  map.dragging.enable();
+  _calDrag.endLL = e.latlng;
+  calCompleteTrace();
+  _calDrag = null;
+  setTimeout(() => { if (_calRect) { _calRect.remove(); _calRect = null; } }, 1200);
+});
+
+function calCompleteTrace() {
+  if (!_calDrag) return;
+  // Convert latlng to image pixels (Leaflet CRS.Simple: lng = x, lat = -y)
+  const x1 = _calDrag.startLL.lng;
+  const x2 = _calDrag.endLL.lng;
+  const traceW = Math.abs(x2 - x1);
+  if (traceW < 5) {
+    calSetStatus('Trace too narrow — drag wider across 3 hex columns.');
     return;
   }
 
-  // Normal mode: show hex coords
+  // 3 flat-top hex columns span: left edge of col 0 to right edge of col 2
+  // = 2 * HW + HW = 3 * HW? No.
+  // For flat-top hexes:
+  //   col 0 center at x=0, col 1 at x=HW, col 2 at x=2*HW
+  //   Left vertex of col 0 = center - HW/2 = -HW/2
+  //   Right vertex of col 2 = center + HW/2 = 2*HW + HW/2 = 2.5*HW
+  //   Total = 2.5*HW - (-HW/2) = 3*HW
+  // But the wilderness generator uses: 3 columns = 5 * hexSize in world pixels
+  //   HW = sqrt(3) * HS, so 3*HW = 3*sqrt(3)*HS ≈ 5.196*HS
+  //   5*HS ≈ 5*HS (close but not the same)
+  // Actually, re-reading the wilderness code: it uses flat-top AXIAL coordinates
+  // where _hexToPixel(q,r).x = size * (3/2 * q). So column spacing = 1.5 * size.
+  // 3 columns span q=0 to q=2, centers at x=0 and x=3*size.
+  // Including the hex edges: -size to 3*size + size = 5*size. That matches.
+  //
+  // In MY offset grid, column spacing = HW = sqrt(3) * HS.
+  // 3 columns edge-to-edge = 3 * HW (left vertex of first to right vertex of third).
+  // Actually: leftmost point of col 0 = center_x - HS (flat-top vertex)
+  //   = GRID_OX + HW/2 - HS
+  // Rightmost point of col 2 = GRID_OX + 2*HW + HW/2 + HS
+  // Width = 2*HW + 2*HS = 2*sqrt(3)*HS + 2*HS = 2*HS*(sqrt(3)+1) ≈ 5.46*HS
+  //
+  // Simpler: user drags across 3 column WIDTHS (center-to-center spans 2*HW,
+  // but the visual span including the half-hex on each side = 3*HW).
+  // Let's just define: traceW = 3 * HW = 3 * sqrt(3) * HS
+  // → HS = traceW / (3 * sqrt(3))
+
+  const newHS = traceW / (3 * Math.sqrt(3));
+  HS = Math.round(newHS * 100) / 100;
+  calApplyHS();
+
+  // Snap grid origin: the left edge of the trace should land on a hex vertex.
+  // The leftmost x of the trace in image pixels:
+  const traceLeft = Math.min(_calDrag.startLL.lng, _calDrag.endLL.lng);
+  const traceTop  = -Math.max(_calDrag.startLL.lat, _calDrag.endLL.lat);
+
+  // traceLeft should be the leftmost vertex of a hex column.
+  // For col C, leftmost vertex = GRID_OX + C * HW + HW/2 - HS
+  // We want this = traceLeft for some integer C.
+  // → GRID_OX = traceLeft - C*HW - HW/2 + HS
+  // Pick C = round((traceLeft - GRID_OX - HW/2 + HS) / HW)
+  // Then adjust GRID_OX.
+  const cEst = Math.round((traceLeft - GRID_OX - HW/2 + HS) / HW);
+  GRID_OX = traceLeft - cEst * HW - HW/2 + HS;
+  GRID_OX = Math.round(GRID_OX * 10) / 10;
+
+  // Similarly for Y: snap the top of the trace to a hex vertex.
+  // Top vertex of a hex at row R (even col) = GRID_OY + R * ROW_H + HH/2 - HS
+  // (the topmost vertex of a flat-top hex is at center_y - HS)
+  const rowH = HH * 0.75;
+  const rEst = Math.round((traceTop - GRID_OY - HH/2 + HS) / rowH);
+  GRID_OY = traceTop - rEst * rowH - HH/2 + HS;
+  GRID_OY = Math.round(GRID_OY * 10) / 10;
+
+  calSyncSliders();
+  calSave();
+  calRefresh();
+  calSetStatus(`Aligned — HS=${HS}, OX=${GRID_OX}, OY=${GRID_OY}. Fine-tune with sliders.`);
+  setStatus(`Calibrated: HS=${HS} OX=${GRID_OX} OY=${GRID_OY}`, 'ok');
+}
+
+// ── Ctrl+Click: show hex coords (works in and out of cal mode) ──
+map.on('click', function(e) {
+  if (!e.originalEvent.ctrlKey && !e.originalEvent.metaKey) return;
+  const px = e.latlng.lng, py = -e.latlng.lat;
   const hex = latLngToHex(e.latlng);
   const entry = `col:${hex.col}, row:${hex.row}  (px:${Math.round(px)}, py:${Math.round(py)})`;
   console.log('📍 Hex clicked:', entry);
-  const popup = L.popup({ closeButton:false, autoClose:true, closeOnClick:true })
+  L.popup({ closeButton:false, autoClose:true, closeOnClick:true })
     .setLatLng(e.latlng)
     .setContent(`<div style="font-family:monospace;font-size:12px;color:#60a0d0"><b>${entry}</b></div>`)
     .openOn(map);
   navigator.clipboard?.writeText(entry).catch(()=>{});
-  setStatus(`Calibration: ${entry}`, 'ok');
+  setStatus(`${entry}`, 'ok');
 });
 
-function calUpdatePointsUI() {
-  const el = document.getElementById('cal-points');
-  el.innerHTML = _calPoints.map((p, i) =>
-    `<div class="cal-pt">Point ${i+1}: px(${Math.round(p.px)}, ${Math.round(p.py)})</div>`
-  ).join('') || '<div style="font-size:10px;color:#4a5464">Ctrl+click two hex vertices on the map…</div>';
-}
+// ── Calibration helpers ──
 
-function calReset() {
-  _calPoints = [];
-  _calMarkers.forEach(m => m.remove());
-  _calMarkers = [];
-  calUpdatePointsUI();
+function calSetStatus(html) {
+  const el = document.getElementById('cal-status');
+  if (el) el.innerHTML = html;
 }
 
 function calResetDefaults() {
@@ -681,95 +756,9 @@ function calResetDefaults() {
   localStorage.removeItem('cal_odd');
   HS = 16.65; GRID_OX = 14; GRID_OY = -1; ODD_DOWN = true;
   calApplyHS();
-  calReset();
   calSyncSliders();
   calRefresh();
-}
-
-function calSolveFromPoints() {
-  // Two vertices clicked. For flat-top hexes, vertices sit on a triangular lattice.
-  // The distance between any two adjacent vertices = HS (circumradius).
-  // Between two arbitrary vertices, the distance = HS * sqrt(a² + ab + b²)
-  // for integer steps (a,b) along the two lattice basis vectors.
-  //
-  // Strategy: compute the pixel distance between the two clicked points.
-  // Try small integer lattice steps and find the HS that best fits,
-  // then compute the grid origin from one of the points.
-
-  const p1 = _calPoints[0], p2 = _calPoints[1];
-  const dx = p2.px - p1.px;
-  const dy = p2.py - p1.py;
-  const dist = Math.sqrt(dx*dx + dy*dy);
-
-  // For flat-top hexes, vertex lattice basis vectors are:
-  //   v1 = (HW, 0) = (sqrt(3)*HS, 0)
-  //   v2 = (HW/2, 1.5*HS) = (sqrt(3)/2*HS, 1.5*HS)
-  // Distance for steps (a,b) = HS * sqrt(3a² + 3ab + b²)  ... wait, let me derive properly.
-  // |a*v1 + b*v2|² = (a*sqrt(3)*HS + b*sqrt(3)/2*HS)² + (b*1.5*HS)²
-  //                = HS² * [(sqrt(3)*a + sqrt(3)/2*b)² + (1.5*b)²]
-  //                = HS² * [3a² + 3ab + 0.75b² + 2.25b²]
-  //                = HS² * [3a² + 3ab + 3b²]
-  //                = 3*HS² * [a² + ab + b²]
-  // So dist = HS * sqrt(3*(a² + ab + b²))
-  //
-  // For each candidate (a,b), compute HS = dist / sqrt(3*(a²+ab+b²))
-  // Pick the one that gives HS in a reasonable range (10-25).
-
-  let bestHS = HS, bestErr = Infinity;
-  for (let a = -20; a <= 20; a++) {
-    for (let b = -20; b <= 20; b++) {
-      if (a === 0 && b === 0) continue;
-      const q = a*a + a*b + b*b;
-      if (q <= 0) continue;
-      const candidateHS = dist / Math.sqrt(3 * q);
-      if (candidateHS < 4 || candidateHS > 40) continue;
-      // Score: how close is this to our current HS? Prefer solutions near current.
-      const err = Math.abs(candidateHS - HS);
-      if (err < bestErr) { bestErr = err; bestHS = candidateHS; }
-    }
-  }
-
-  // Apply the new HS
-  HS = Math.round(bestHS * 100) / 100;
-  calApplyHS();
-
-  // Now compute grid origin from the first clicked point.
-  // The clicked point is a hex VERTEX. For flat-top hexes, vertex positions are:
-  //   For hex(col, row), the 6 vertices are at hexToPixel(col,row) + HS*(cos(60°*i), sin(60°*i))
-  // A vertex is shared by 3 hexes. The vertex lattice origin is offset from the
-  // hex-centre lattice by HS in the direction of angle 0° (rightmost vertex of hex(0,0)).
-  //
-  // The vertex at hex(0,0) angle 0 is at: (GRID_OX + HW/2 + HS, GRID_OY + HH/2)
-  // So if we know a vertex pixel position (p1.px, p1.py), we know that for some integers (a,b):
-  //   p1.px = origin_vx + a*HW + b*HW/2
-  //   p1.py = origin_vy + b*1.5*HS
-  // where origin_vx = GRID_OX + HW/2 + HS, origin_vy = GRID_OY + HH/2
-  //
-  // Simpler approach: just compute GRID_OX/OY such that the vertex lattice passes through p1.
-
-  // Find which vertex of which hex is closest to p1 in the current grid
-  // Then adjust GRID_OX/OY to make that vertex land exactly on p1.
-  const hex1 = pixelToHex(p1.px, p1.py);
-  const ctr = hexToPixel(hex1.col, hex1.row);
-  // Find closest vertex of this hex
-  let bestVx = 0, bestVy = 0, bestVd = Infinity;
-  for (let i = 0; i < 6; i++) {
-    const angle = Math.PI / 180 * (60 * i);
-    const vx = ctr.x + HS * Math.cos(angle);
-    const vy = ctr.y + HS * Math.sin(angle);
-    const vd = (vx - p1.px)**2 + (vy - p1.py)**2;
-    if (vd < bestVd) { bestVd = vd; bestVx = vx; bestVy = vy; }
-  }
-  // Shift grid so this vertex lands on p1
-  GRID_OX += (p1.px - bestVx);
-  GRID_OY += (p1.py - bestVy);
-  GRID_OX = Math.round(GRID_OX * 10) / 10;
-  GRID_OY = Math.round(GRID_OY * 10) / 10;
-
-  calSyncSliders();
-  calSave();
-  calRefresh();
-  setStatus(`Calibrated: HS=${HS} OX=${GRID_OX} OY=${GRID_OY}`, 'ok');
+  calSetStatus('Reset to defaults. Drag 3 columns to re-align.');
 }
 
 function calApplyHS() {
@@ -796,7 +785,6 @@ function calUpdateInfo() {
 }
 
 function calSliderChanged(src) {
-  // src = 'range' or 'num' — sync the other input
   if (src === 'range') {
     HS = parseFloat(document.getElementById('cal-hs').value);
     GRID_OX = parseFloat(document.getElementById('cal-ox').value);
@@ -859,7 +847,6 @@ setTimeout(() => {
     document.getElementById(id).addEventListener('input', () => calSliderChanged('num'));
   });
   document.getElementById('cal-odd').addEventListener('change', () => calSliderChanged('range'));
-  calUpdatePointsUI();
 }, 0);
 
 // ============================================================
