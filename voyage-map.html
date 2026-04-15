@@ -441,17 +441,17 @@ html,body{height:100dvh;min-height:100vh;overflow:hidden;background:#0d1117;colo
 // ============================================================
 
 const PORTS = {
-  greyhawk_city: { name:"City of Greyhawk", size:"major", col:26, row:33, connections:{ dyvers:90, verbobonc:150, leukish:120, hardby:60, safeton:60, fax:90, port_elredd:120, nessermouth:60 } },
-  dyvers:        { name:"Dyvers",            size:"port",  col:19, row:28, connections:{ greyhawk_city:90, verbobonc:60, leukish:150, hardby:150, safeton:120 } },
-  verbobonc:     { name:"Verbobonc",         size:"port",  col:11, row:25, connections:{ greyhawk_city:150, dyvers:60, leukish:180 } },
-  leukish:       { name:"Leukish",           size:"minor", col:28, row:22, connections:{ greyhawk_city:120, dyvers:150, verbobonc:180, port_elredd:90 } },
-  hardby:        { name:"Hardby",            size:"major", col:27, row:36, connections:{ rel_mord:150, gradsul:200, greyhawk_city:60, fax:90, port_elredd:150 } },
-  safeton:       { name:"Safeton",           size:"port",  col:27, row:31, connections:{ greyhawk_city:60, dyvers:90, nessermouth:30 } },
-  fax:           { name:"Fax",               size:"minor", col:32, row:34, connections:{ greyhawk_city:90, hardby:90, rel_mord:120 } },
-  port_elredd:   { name:"Port Elredd",       size:"major", col:21, row:33, connections:{ greyhawk_city:120, leukish:90, hardby:150, rel_mord:180 } },
-  nessermouth:   { name:"Nessermouth",       size:"minor", col:25, row:30, connections:{ safeton:30, greyhawk_city:60 } },
-  rel_mord:      { name:"Rel Mord",          size:"port",  col:38, row:31, connections:{ hardby:150, gradsul:120, fax:120, port_elredd:180 } },
-  gradsul:       { name:"Gradsul",           size:"port",  col:34, row:38, connections:{ hardby:200, rel_mord:120 } },
+  greyhawk_city: { name:"City of Greyhawk", size:"major", col:22, row:17, connections:{ dyvers:90, verbobonc:150, leukish:120, hardby:60, safeton:60, fax:90, port_elredd:120, nessermouth:60 } },
+  dyvers:        { name:"Dyvers",            size:"port",  col:19, row:18, connections:{ greyhawk_city:90, verbobonc:60, leukish:150, hardby:150, safeton:120 } },
+  verbobonc:     { name:"Verbobonc",         size:"port",  col:12, row:14, connections:{ greyhawk_city:150, dyvers:60, leukish:180 } },
+  leukish:       { name:"Leukish",           size:"minor", col:22, row:11, connections:{ greyhawk_city:120, dyvers:150, verbobonc:180, port_elredd:90 } },
+  hardby:        { name:"Hardby",            size:"major", col:22, row:20, connections:{ rel_mord:150, gradsul:200, greyhawk_city:60, fax:90, port_elredd:150 } },
+  safeton:       { name:"Safeton",           size:"port",  col:21, row:19, connections:{ greyhawk_city:60, dyvers:90, nessermouth:30 } },
+  fax:           { name:"Fax",               size:"minor", col:23, row:15, connections:{ greyhawk_city:90, hardby:90, rel_mord:120 } },
+  port_elredd:   { name:"Port Elredd",       size:"major", col:15, row:15, connections:{ greyhawk_city:120, leukish:90, hardby:150, rel_mord:180 } },
+  nessermouth:   { name:"Nessermouth",       size:"minor", col:19, row:13, connections:{ safeton:30, greyhawk_city:60 } },
+  rel_mord:      { name:"Rel Mord",          size:"port",  col:27, row:13, connections:{ hardby:150, gradsul:120, fax:120, port_elredd:180 } },
+  gradsul:       { name:"Gradsul",           size:"port",  col:23, row:18, connections:{ hardby:200, rel_mord:120 } },
 };
 
 const SHIP_TEMPLATES = [
@@ -505,31 +505,37 @@ let selectedDay = -1;
 // MAP SETUP
 // ============================================================
 
-// 30-mile flat-top hexes sized to fill 2200×1711 Darlene map image
-const MAP_COLS = 50;
-const MAP_ROWS = 45;
+// 30-mile flat-top hexes calibrated to 2200×1711 Darlene map image
+// Darlene map: ~48 hex columns × ~43 hex rows
+const MAP_COLS = 48;
+const MAP_ROWS = 43;
 
-// Derive HS from image width so hexes tile exactly across
-const HS = 2200 / (50.5 * Math.sqrt(3)); // ~25.15px
-const HW = Math.sqrt(3) * HS;            // ~43.6px
-const HH = 2 * HS;                       // ~50.3px
+// Derive hex size from image width: 48.5 hex-widths span 2200px
+const HS = 2200 / (48.5 * Math.sqrt(3)); // ~26.19px
+const HW = Math.sqrt(3) * HS;            // ~45.36px
+const HH = 2 * HS;                       // ~52.38px
 
-// Canvas matches image dimensions
-const CANVAS_W = MAP_COLS * HW + HW / 2; // ≈2200
-const CANVAS_H = MAP_ROWS * (HH * 0.75) + HH * 0.25; // ≈1710
+// Grid origin offset (px) — accounts for map title/margins
+const GRID_OX = 0;
+const GRID_OY = 4;
+
+// Canvas = image dimensions
+const CANVAS_W = 2200;
+const CANVAS_H = 1711;
 
 function hexToPixel(col, row) {
-  // Flat-top offset grid (even-col offset)
-  const x = col * HW + HW/2;
-  const y = row * (HH * 0.75) + (col % 2 === 0 ? 0 : HH * 0.375) + HH/2;
+  // Flat-top offset grid (odd-col shifted down)
+  const x = GRID_OX + col * HW + HW/2;
+  const y = GRID_OY + row * (HH * 0.75) + (col % 2 === 0 ? 0 : HH * 0.375) + HH/2;
   return { x, y };
 }
 
 function pixelToHex(x, y) {
-  // Approximate inverse — good enough for click detection
-  const col = Math.round((x - HW/2) / HW);
+  const ax = x - GRID_OX;
+  const ay = y - GRID_OY;
+  const col = Math.round((ax - HW/2) / HW);
   const rowOffset = col % 2 === 0 ? 0 : HH * 0.375;
-  const row = Math.round((y - HH/2 - rowOffset) / (HH * 0.75));
+  const row = Math.round((ay - HH/2 - rowOffset) / (HH * 0.75));
   return { col: Math.max(0, Math.min(MAP_COLS-1, col)), row: Math.max(0, Math.min(MAP_ROWS-1, row)) };
 }
 
