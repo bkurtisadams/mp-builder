@@ -797,12 +797,21 @@ function wireEvents(){
   window.addEventListener('mousemove',e=>{
     if(!state.dragging) return;
     const dx=e.clientX-state.dragStartX, dy=e.clientY-state.dragStartY;
-    if(Math.abs(dx)>3||Math.abs(dy)>3) state.didDrag=true;
+    if(!state.didDrag){
+      if(Math.abs(dx)>3||Math.abs(dy)>3) state.didDrag=true;
+      else return;
+    }
     state.panX=state.panStartX+dx;
     state.panY=state.panStartY+dy;
     clampPan(); applyTransform();
   });
-  window.addEventListener('mouseup',()=>{ state.dragging=false; wrap.classList.remove('grabbing'); });
+  window.addEventListener('mouseup',e=>{
+    if(state.dragging){
+      const dx=e.clientX-state.dragStartX, dy=e.clientY-state.dragStartY;
+      if(Math.abs(dx)<=3&&Math.abs(dy)<=3) state.didDrag=false;
+    }
+    state.dragging=false; wrap.classList.remove('grabbing');
+  });
   wrap.addEventListener('wheel',e=>{ e.preventDefault(); const topOff=(document.getElementById('gcc-bar')?.offsetHeight||0)+46; doZoom(e.deltaY<0?1.12:.89,e.clientX,e.clientY-topOff); },{passive:false});
 
   // Toolbar
