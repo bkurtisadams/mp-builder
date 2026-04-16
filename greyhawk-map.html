@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>World of Greyhawk — Campaign Map</title>
+<link rel="stylesheet" href="gcc-header.css">
+<link rel="stylesheet" href="gcc-auth.css">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
   :root {
@@ -16,12 +18,13 @@
     --panel-border: #5a3a0a;
     --gold: #c8941a;
     --gold-light: #e8b840;
+    --gcc-bar-h: 44px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background:#0a0500; font-family:'Crimson Text',Georgia,serif; color:var(--parchment-light); overflow:hidden; height:100vh; width:100vw; user-select:none; }
 
   /* TOPBAR */
-  #topbar { position:fixed; top:0; left:0; right:0; height:46px; background:linear-gradient(180deg,#100800,#1e1004); border-bottom:1px solid var(--panel-border); display:flex; align-items:center; padding:0 14px; gap:10px; z-index:100; box-shadow:0 2px 16px rgba(0,0,0,.7); overflow-x:auto; overflow-y:hidden; }
+  #topbar { position:fixed; top:var(--gcc-bar-h); left:0; right:0; height:46px; background:linear-gradient(180deg,#100800,#1e1004); border-bottom:1px solid var(--panel-border); display:flex; align-items:center; padding:0 14px; gap:10px; z-index:100; box-shadow:0 2px 16px rgba(0,0,0,.7); overflow-x:auto; overflow-y:hidden; }
   #topbar h1 { font-family:'Cinzel',serif; font-size:15px; font-weight:600; letter-spacing:.12em; color:var(--gold-light); text-shadow:0 0 14px rgba(200,148,26,.5); white-space:nowrap; }
   .sep { width:1px; height:22px; background:var(--panel-border); flex-shrink:0; }
   .spacer { flex:1; min-width:8px; }
@@ -33,7 +36,7 @@
   #mode-label { font-family:'Cinzel',serif; font-size:10px; letter-spacing:.1em; color:var(--gold); padding:3px 9px; border:1px solid var(--gold); border-radius:2px; background:rgba(200,148,26,.08); white-space:nowrap; flex-shrink:0; }
 
   /* MAP */
-  #map-wrap { position:fixed; top:46px; left:0; right:0; bottom:0; overflow:hidden; cursor:grab; background:#050200; }
+  #map-wrap { position:fixed; top:calc(var(--gcc-bar-h) + 46px); left:0; right:0; bottom:0; overflow:hidden; cursor:grab; background:#050200; }
   #map-wrap.grabbing { cursor:grabbing; }
   #map-wrap.move-mode { cursor:crosshair; }
   #map-wrap.cal-mode { cursor:crosshair; }
@@ -52,7 +55,7 @@
   @keyframes pulse { 0%,100%{opacity:.5;r:7}50%{opacity:.12;r:12} }
 
   /* SIDE PANEL */
-  #side-panel { position:fixed; top:46px; right:0; width:255px; bottom:0; background:var(--panel-bg); border-left:1px solid var(--panel-border); display:flex; flex-direction:column; z-index:50; transform:translateX(100%); transition:transform .22s ease; }
+  #side-panel { position:fixed; top:calc(var(--gcc-bar-h) + 46px); right:0; width:255px; bottom:0; background:var(--panel-bg); border-left:1px solid var(--panel-border); display:flex; flex-direction:column; z-index:50; transform:translateX(100%); transition:transform .22s ease; }
   #side-panel.open { transform:translateX(0); }
   #panel-header { padding:13px 38px 9px 15px; border-bottom:1px solid var(--panel-border); position:relative; }
   #panel-header h2 { font-family:'Cinzel',serif; font-size:12px; font-weight:600; letter-spacing:.1em; color:var(--gold-light); }
@@ -74,7 +77,7 @@
 
   /* ALIGNMENT TOOL */
   /* Draw-box overlay — sits above map, below panel */
-  #cal-overlay { position:fixed; top:46px; left:0; right:0; bottom:0; z-index:200; display:none; cursor:crosshair; }
+  #cal-overlay { position:fixed; top:calc(var(--gcc-bar-h) + 46px); left:0; right:0; bottom:0; z-index:200; display:none; cursor:crosshair; }
   #cal-overlay.active { display:block; }
   /* The rubber-band box */
   #cal-box { position:fixed; border:2px solid #00ffaa; background:rgba(0,255,170,.07); pointer-events:none; z-index:201; display:none; }
@@ -138,6 +141,12 @@
 </style>
 </head>
 <body>
+
+<div id="gcc-bar" class="gcc-bar"><div class="gcc-bar-in">
+  <a href="index.html" class="gcc-brand" title="Back to Dashboard"><div class="gcc-title-wrap"><div class="gcc-title">GRAYCLOAK'S</div><div class="gcc-subtitle">CAMPAIGN CORNER</div></div></a>
+  <div class="gcc-nav"><div class="gcc-tools-wrap"><button class="gcc-nav-btn" id="gcc-btn-tools">🎲 Tools ▾</button><div class="gcc-tools-dd" id="gcc-tools-dd"></div></div><span id="gcc-auth-slot"></span><button class="gcc-nav-btn" id="gcc-btn-theme" title="Toggle light/dark"><span id="gcc-theme-icon">◑</span></button></div>
+</div></div>
+<div class="gcc-tools-overlay" id="gcc-tools-overlay"></div>
 
 <div id="topbar">
   <h1>⚔ Greyhawk</h1>
@@ -436,7 +445,8 @@ function updateStageFrame(){
   svg.style.top=(-stageBounds.minY)+'px';
 }
 function screenToMap(sx,sy){
-  return stageToMap((sx-state.panX)/state.zoom, (sy-46-state.panY)/state.zoom);
+  const topOff=(document.getElementById('gcc-bar')?.offsetHeight||0)+46;
+  return stageToMap((sx-state.panX)/state.zoom, (sy-topOff-state.panY)/state.zoom);
 }
 
 // ── BUILD GRID ────────────────────────────────────────────────────────────────
@@ -793,7 +803,7 @@ function wireEvents(){
     clampPan(); applyTransform();
   });
   window.addEventListener('mouseup',()=>{ state.dragging=false; wrap.classList.remove('grabbing'); });
-  wrap.addEventListener('wheel',e=>{ e.preventDefault(); doZoom(e.deltaY<0?1.12:.89,e.clientX,e.clientY-46); },{passive:false});
+  wrap.addEventListener('wheel',e=>{ e.preventDefault(); const topOff=(document.getElementById('gcc-bar')?.offsetHeight||0)+46; doZoom(e.deltaY<0?1.12:.89,e.clientX,e.clientY-topOff); },{passive:false});
 
   // Toolbar
   document.getElementById('btn-zoom-in').addEventListener('click',()=>doZoom(1.25));
@@ -891,5 +901,9 @@ function init(){
 }
 window.addEventListener('load',init);
 </script>
+<script src="gcc-data.js"></script>
+<script src="gcc-header.js"></script>
+<script src="gcc-firebase-config.js"></script>
+<script src="gcc-auth.js"></script>
 </body>
 </html>
