@@ -396,6 +396,23 @@ function hexCorners(cx,cy){
   });
 }
 function hexIdStr(col,row){ return `${COL_LABELS[col]||col}${String(row+1).padStart(2,'0')}`; }
+function mapToHex(mx,my){
+  const cs=colStep(),rs=rowStep(),g=gridSize();
+  let bestCol=0,bestRow=0,bestDist=Infinity;
+  const estCol=Math.round((mx-cal.offsetX)/cs);
+  const cMin=Math.max(0,estCol-1),cMax=Math.min(g.cols-1,estCol+1);
+  for(let c=cMin;c<=cMax;c++){
+    const estRow=Math.round((my-cal.offsetY-(c%2===1?rs*.5:0))/rs);
+    const rMin=Math.max(0,estRow-1),rMax=Math.min(g.rows-1,estRow+1);
+    for(let r=rMin;r<=rMax;r++){
+      const {x,y}=hexCenter(c,r);
+      const d=(mx-x)*(mx-x)+(my-y)*(my-y);
+      if(d<bestDist){bestDist=d;bestCol=c;bestRow=r;}
+    }
+  }
+  if(bestDist>cal.hexSize*cal.hexSize) return null;
+  return {col:bestCol,row:bestRow};
+}
 function hexDistance(c1,r1,c2,r2){
   const tc=(c,r)=>{const x=c,z=r-(c-(c&1))/2;return{x,y:-x-z,z};};
   const a=tc(c1,r1),b=tc(c2,r2);
@@ -491,8 +508,6 @@ function buildHexGrid(){
       if(state.selectedCol===col && state.selectedRow===row) cls+=' selected';
       poly.setAttribute('class',cls);
       poly.dataset.col=col; poly.dataset.row=row; poly.id=`hex-${col}-${row}`;
-      poly.addEventListener('mouseenter',onHexHover);
-      poly.addEventListener('click',onHexClick);
       cellsG.appendChild(poly);
       const txt=document.createElementNS(ns,'text');
       txt.setAttribute('x',x.toFixed(1)); txt.setAttribute('y',y.toFixed(1));
@@ -516,19 +531,18 @@ function updatePartyMarker(){
 }
 
 // ── HEX EVENTS ────────────────────────────────────────────────────────────────
-function onHexHover(e){
+function onHexHover(mx,my){
   if(state.calMode) return;
-  const col=+e.target.dataset.col,row=+e.target.dataset.row;
+  const hit=mapToHex(mx,my);
+  if(!hit) return;
   document.getElementById('coords').textContent=
-    `${hexIdStr(col,row)}  ·  ${TERRAIN[getHexTerrain(col,row)]?.label}  ·  ${getRegion(col,row)}`;
+    `${hexIdStr(hit.col,hit.row)}  ·  ${TERRAIN[getHexTerrain(hit.col,hit.row)]?.label}  ·  ${getRegion(hit.col,hit.row)}`;
 }
-function onHexClick(e){
-  if(state.calMode||state.didDrag) return;
-  const col=+e.target.dataset.col,row=+e.target.dataset.row;
+function onHexClick(col,row){
   if(state.selectedCol!==null)
     document.getElementById(`hex-${state.selectedCol}-${state.selectedRow}`)?.classList.remove('selected');
   state.selectedCol=col; state.selectedRow=row;
-  e.target.classList.add('selected');
+  document.getElementById(`hex-${col}-${row}`)?.classList.add('selected');
   const terrain=getHexTerrain(col,row),region=getRegion(col,row);
   const dist=hexDistance(state.partyCol,state.partyRow,col,row);
   updateSidePanel(col,row,terrain,region,dist);
@@ -819,6 +833,21 @@ function wireEvents(){
       if(Math.abs(dx)<=3&&Math.abs(dy)<=3) state.didDrag=false;
     }
     state.dragging=false; wrap.classList.remove('grabbing');
+  });
+
+  // Hex click via coordinate math
+  wrap.addEventListener('click',e=>{
+    if(state.calMode||state.didDrag) return;
+    const m=screenToMap(e.clientX,e.clientY);
+    const hit=mapToHex(m.x,m.y);
+    if(hit) onHexClick(hit.col,hit.row);
+  });
+
+  // Hex hover via coordinate math
+  wrap.addEventListener('mousemove',e=>{
+    if(state.dragging) return;
+    const m=screenToMap(e.clientX,e.clientY);
+    onHexHover(m.x,m.y);
   });
   wrap.addEventListener('wheel',e=>{ e.preventDefault(); const topOff=(document.getElementById('gcc-bar')?.offsetHeight||0)+46; doZoom(e.deltaY<0?1.12:.89,e.clientX,e.clientY-topOff); },{passive:false});
 
