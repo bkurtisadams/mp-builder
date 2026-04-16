@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>World of Greyhawk — Campaign Map</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+  :root {
+    --parchment-light: #e8d5a3;
+    --hex-stroke: rgba(0,0,0,0.18);
+    --hex-hover: rgba(255,220,100,0.22);
+    --hex-selected: rgba(220,140,30,0.38);
+    --hex-explored: rgba(255,255,200,0.12);
+    --panel-bg: rgba(14,8,2,0.93);
+    --panel-border: #5a3a0a;
+    --gold: #c8941a;
+    --gold-light: #e8b840;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background:#0a0500; font-family:'Crimson Text',Georgia,serif; color:var(--parchment-light); overflow:hidden; height:100vh; width:100vw; user-select:none; }
+
+  /* TOPBAR */
+  #topbar { position:fixed; top:0; left:0; right:0; height:46px; background:linear-gradient(180deg,#100800,#1e1004); border-bottom:1px solid var(--panel-border); display:flex; align-items:center; padding:0 14px; gap:10px; z-index:100; box-shadow:0 2px 16px rgba(0,0,0,.7); overflow-x:auto; overflow-y:hidden; }
+  #topbar h1 { font-family:'Cinzel',serif; font-size:15px; font-weight:600; letter-spacing:.12em; color:var(--gold-light); text-shadow:0 0 14px rgba(200,148,26,.5); white-space:nowrap; }
+  .sep { width:1px; height:22px; background:var(--panel-border); flex-shrink:0; }
+  .spacer { flex:1; min-width:8px; }
+  .tb-btn { background:none; border:1px solid var(--panel-border); color:var(--parchment-light); font-family:'Cinzel',serif; font-size:11px; letter-spacing:.04em; padding:4px 10px; cursor:pointer; border-radius:2px; transition:all .15s; white-space:nowrap; flex-shrink:0; }
+  .tb-btn:hover { background:rgba(200,148,26,.15); border-color:var(--gold); color:var(--gold-light); }
+  .tb-btn.active { background:rgba(200,148,26,.22); border-color:var(--gold); color:var(--gold-light); }
+  .tb-btn.cal-active { background:rgba(0,180,120,.18); border-color:#00cc88; color:#44ffbb; }
+  #zoom-display { font-family:'Cinzel',serif; font-size:11px; color:#c8a96e; min-width:42px; text-align:center; flex-shrink:0; }
+  #mode-label { font-family:'Cinzel',serif; font-size:10px; letter-spacing:.1em; color:var(--gold); padding:3px 9px; border:1px solid var(--gold); border-radius:2px; background:rgba(200,148,26,.08); white-space:nowrap; flex-shrink:0; }
+
+  /* MAP */
+  #map-wrap { position:fixed; top:46px; left:0; right:0; bottom:0; overflow:hidden; cursor:grab; background:#050200; }
+  #map-wrap.grabbing { cursor:grabbing; }
+  #map-wrap.move-mode { cursor:crosshair; }
+  #map-wrap.cal-mode { cursor:crosshair; }
+  #map-stage { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; overflow:visible; }
+  #map-img { position:absolute; top:0; left:0; display:block; max-width:none; }
+  #hex-svg { position:absolute; top:0; left:0; overflow:visible; pointer-events:all; }
+
+  /* HEX CELLS */
+  .hex-cell { fill:transparent; stroke:var(--hex-stroke); stroke-width:.6; cursor:pointer; transition:fill .1s; }
+  .hex-cell:hover { fill:var(--hex-hover); stroke:rgba(255,200,80,.5); stroke-width:1; }
+  .hex-cell.explored { fill:var(--hex-explored); }
+  .hex-cell.selected { fill:var(--hex-selected)!important; stroke:var(--gold); stroke-width:1.5; }
+  .hex-cell.party-hex { stroke:#cc2200; stroke-width:1.8; }
+  .hex-label { font-family:'Cinzel',serif; font-size:5px; fill:rgba(0,0,0,.45); text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
+  .party-pulse { animation:pulse 2.2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:.5;r:7}50%{opacity:.12;r:12} }
+
+  /* SIDE PANEL */
+  #side-panel { position:fixed; top:46px; right:0; width:255px; bottom:0; background:var(--panel-bg); border-left:1px solid var(--panel-border); display:flex; flex-direction:column; z-index:50; transform:translateX(100%); transition:transform .22s ease; }
+  #side-panel.open { transform:translateX(0); }
+  #panel-header { padding:13px 38px 9px 15px; border-bottom:1px solid var(--panel-border); position:relative; }
+  #panel-header h2 { font-family:'Cinzel',serif; font-size:12px; font-weight:600; letter-spacing:.1em; color:var(--gold-light); }
+  #panel-hex-id { font-size:10px; color:#c8a96e; margin-top:2px; font-family:'Cinzel',serif; letter-spacing:.06em; }
+  #panel-close { position:absolute; top:8px; right:10px; background:rgba(200,148,26,.1); border:1px solid var(--panel-border); color:#c8a96e; font-size:14px; cursor:pointer; padding:3px 8px; border-radius:2px; line-height:1; z-index:10; }
+  #panel-close:hover { background:rgba(200,148,26,.25); color:var(--gold-light); border-color:var(--gold); }
+  #panel-body { flex:1; overflow-y:auto; padding:13px 15px; display:flex; flex-direction:column; gap:12px; }
+  .panel-row { display:flex; flex-direction:column; gap:3px; }
+  .panel-row label { font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold); font-family:'Cinzel',serif; }
+  .panel-row .value { font-size:13px; color:var(--parchment-light); line-height:1.4; }
+  .panel-divider { border:none; border-top:1px solid var(--panel-border); margin:2px 0; }
+  .panel-btn { width:100%; padding:7px; background:rgba(200,148,26,.08); border:1px solid var(--panel-border); color:var(--parchment-light); font-family:'Cinzel',serif; font-size:11px; letter-spacing:.05em; cursor:pointer; border-radius:2px; transition:all .14s; text-align:center; }
+  .panel-btn:hover { background:rgba(200,148,26,.22); border-color:var(--gold); color:var(--gold-light); }
+  .panel-btn.primary { border-color:#883311; color:#ff8855; background:rgba(180,50,20,.1); }
+  .panel-btn.primary:hover { background:rgba(180,50,20,.25); border-color:#cc4422; }
+  #panel-body::-webkit-scrollbar { width:4px; }
+  #panel-body::-webkit-scrollbar-track { background:transparent; }
+  #panel-body::-webkit-scrollbar-thumb { background:var(--panel-border); border-radius:2px; }
+
+  /* ALIGNMENT TOOL */
+  /* Draw-box overlay — sits above map, below panel */
+  #cal-overlay { position:fixed; top:46px; left:0; right:0; bottom:0; z-index:200; display:none; cursor:crosshair; }
+  #cal-overlay.active { display:block; }
+  /* The rubber-band box */
+  #cal-box { position:fixed; border:2px solid #00ffaa; background:rgba(0,255,170,.07); pointer-events:none; z-index:201; display:none; }
+  #cal-box::before,#cal-box::after { content:''; position:absolute; width:10px; height:10px; border-color:#00ffaa; border-style:solid; }
+  #cal-box::before { top:-2px; left:-2px; border-width:2px 0 0 2px; }
+  #cal-box::after  { bottom:-2px; right:-2px; border-width:0 2px 2px 0; }
+  #cal-box-info { position:absolute; top:-22px; left:0; font-family:'Cinzel',serif; font-size:10px; color:#00ffaa; text-shadow:0 1px 3px rgba(0,0,0,1); white-space:nowrap; pointer-events:none; }
+
+  /* Alignment panel */
+  #cal-panel { position:fixed; top:56px; left:50%; transform:translateX(-50%); background:rgba(0,18,12,.97); border:1px solid #00cc88; padding:14px 18px; z-index:210; border-radius:3px; box-shadow:0 4px 30px rgba(0,0,0,.8); display:none; min-width:300px; max-width:360px; font-family:'Cinzel',serif; }
+  #cal-panel.open { display:block; }
+  #cal-panel h3 { font-size:12px; letter-spacing:.1em; color:#44ffbb; margin-bottom:8px; }
+  #cal-panel p { font-size:11px; color:#a0d0c0; margin-bottom:10px; line-height:1.6; }
+  .cal-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .cal-row label { font-size:10px; color:#44ffbb; letter-spacing:.08em; min-width:68px; }
+  .cal-nudge { display:flex; align-items:center; gap:4px; }
+  .cal-nudge button { background:rgba(0,180,120,.15); border:1px solid #00aa66; color:#44ffbb; font-size:12px; cursor:pointer; padding:2px 7px; border-radius:2px; transition:all .1s; font-family:monospace; }
+  .cal-nudge button:hover { background:rgba(0,180,120,.35); }
+  .cal-nudge span { font-size:12px; color:#e8d5a3; min-width:52px; text-align:center; font-family:monospace; }
+  #cal-status { font-size:10px; color:#a0d0c0; background:rgba(0,0,0,.3); padding:6px 8px; border-radius:2px; margin-bottom:10px; line-height:1.6; }
+  .cal-btns { display:flex; gap:8px; margin-top:10px; }
+  .cal-btns button { flex:1; padding:6px; font-family:'Cinzel',serif; font-size:10px; letter-spacing:.06em; cursor:pointer; border-radius:2px; transition:all .14s; }
+  #btn-cal-save  { background:rgba(0,180,120,.2); border:1px solid #00cc88; color:#44ffbb; }
+  #btn-cal-save:hover { background:rgba(0,180,120,.4); }
+  #btn-cal-reset { background:rgba(200,148,26,.1); border:1px solid var(--panel-border); color:#c8a96e; }
+  #btn-cal-reset:hover { background:rgba(200,148,26,.2); }
+  #btn-cal-close { background:rgba(180,50,20,.1); border:1px solid #663311; color:#cc6644; }
+  #btn-cal-close:hover { background:rgba(180,50,20,.25); }
+
+  /* LEGEND */
+  #legend { position:fixed; bottom:14px; left:14px; background:var(--panel-bg); border:1px solid var(--panel-border); padding:9px 13px; z-index:50; border-radius:2px; }
+  #legend h3 { font-family:'Cinzel',serif; font-size:9px; letter-spacing:.12em; color:var(--gold); margin-bottom:7px; text-transform:uppercase; }
+  .legend-item { display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:11px; color:var(--parchment-light); }
+  .legend-swatch { width:12px; height:12px; border-radius:2px; border:1px solid rgba(255,255,255,.12); flex-shrink:0; }
+
+  /* COORDS */
+  #coords { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); background:var(--panel-bg); border:1px solid var(--panel-border); padding:4px 13px; font-family:'Cinzel',serif; font-size:10px; color:#c8a96e; border-radius:2px; z-index:50; letter-spacing:.08em; pointer-events:none; white-space:nowrap; }
+
+  /* OPACITY SLIDER */
+  #opacity-wrap { position:fixed; bottom:14px; right:14px; background:var(--panel-bg); border:1px solid var(--panel-border); padding:7px 12px; z-index:50; border-radius:2px; display:flex; align-items:center; gap:8px; font-family:'Cinzel',serif; font-size:10px; color:var(--gold); }
+  #opacity-slider { width:80px; accent-color:var(--gold); cursor:pointer; }
+
+  /* MOVE DIALOG */
+  #overlay-bg { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:190; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #overlay-bg.open { opacity:1; pointer-events:all; }
+  #move-dialog { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(.92); background:#120900; border:1px solid var(--gold); padding:22px 26px; z-index:195; min-width:270px; box-shadow:0 10px 50px rgba(0,0,0,.85); border-radius:2px; opacity:0; pointer-events:none; transition:all .18s; }
+  #move-dialog.open { opacity:1; pointer-events:all; transform:translate(-50%,-50%) scale(1); }
+  #move-dialog h3 { font-family:'Cinzel',serif; font-size:14px; color:var(--gold-light); margin-bottom:13px; letter-spacing:.08em; }
+  #move-dialog p { font-size:13px; color:var(--parchment-light); margin-bottom:5px; line-height:1.5; }
+  #move-dialog p span { color:var(--gold-light); font-weight:600; }
+  #move-dialog .dialog-btns { display:flex; gap:9px; margin-top:17px; }
+  #move-dialog .dialog-btns button { flex:1; padding:7px; font-family:'Cinzel',serif; font-size:11px; cursor:pointer; border-radius:2px; letter-spacing:.05em; transition:all .14s; }
+  #btn-confirm-move { background:rgba(180,50,20,.15); border:1px solid #aa3311; color:#ff7755; }
+  #btn-confirm-move:hover { background:rgba(180,50,20,.35); }
+  #btn-cancel-move { background:rgba(200,148,26,.08); border:1px solid var(--panel-border); color:#c8a96e; }
+  #btn-cancel-move:hover { background:rgba(200,148,26,.18); border-color:var(--gold); }
+
+  /* TOAST */
+  #toast { position:fixed; bottom:56px; left:50%; transform:translateX(-50%) translateY(16px); background:var(--panel-bg); border:1px solid var(--gold); color:var(--gold-light); font-family:'Cinzel',serif; font-size:11px; letter-spacing:.06em; padding:7px 16px; border-radius:2px; z-index:300; opacity:0; pointer-events:none; transition:all .25s; white-space:nowrap; }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>⚔ Greyhawk</h1>
+  <div class="sep"></div>
+  <button class="tb-btn" id="btn-zoom-in">＋</button>
+  <button class="tb-btn" id="btn-zoom-out">－</button>
+  <button class="tb-btn" id="btn-reset">Reset</button>
+  <span id="zoom-display">50%</span>
+  <div class="sep"></div>
+  <button class="tb-btn" id="btn-move-mode">☩ Move</button>
+  <button class="tb-btn" id="btn-hex-labels">IDs</button>
+  <button class="tb-btn" id="btn-calibrate">⊹ Align</button>
+  <div class="spacer"></div>
+  <div id="mode-label">OVERWORLD · 30 MI/HEX</div>
+  <div class="sep"></div>
+  <button class="tb-btn" id="btn-panel-toggle">Party ▸</button>
+</div>
+
+<div id="map-wrap">
+  <div id="map-stage">
+    <img id="map-img" src="greyhawk-map.jpg" alt="World of Greyhawk">
+    <svg id="hex-svg"></svg>
+  </div>
+</div>
+
+<!-- Alignment draw overlay (captures mouse during cal mode) -->
+<div id="cal-overlay"></div>
+<!-- Rubber-band box drawn by user -->
+<div id="cal-box"><div id="cal-box-info"></div></div>
+
+<!-- Alignment panel -->
+<div id="cal-panel">
+  <h3>⊹ Grid Alignment</h3>
+  <p>Zoom in so you can clearly see the printed hex grid.<br>
+     <b style="color:#00ffaa">Click and drag</b> a box over exactly <b>3 hexes across × 3 hexes down</b>.<br>
+     Then enter where the <b>top-left corner</b> of your box is, counting from 0,0 at the top-left of the whole map.</p>
+  <div id="cal-status">No box drawn yet.</div>
+  <div id="cal-coord-section" style="display:none;margin-bottom:10px;">
+    <div style="font-size:9px;color:#00ffaa;letter-spacing:.1em;margin-bottom:6px;">BOX TOP-LEFT — COL &nbsp; ROW (from 0,0)</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input id="cal-start-col" type="number" min="0" max="200" value="0"
+        style="width:54px;background:#001a10;border:1px solid #00aa66;color:#e8d5a3;padding:4px 6px;font-family:monospace;font-size:13px;border-radius:2px;">
+      <input id="cal-start-row" type="number" min="0" max="200" value="0"
+        style="width:54px;background:#001a10;border:1px solid #00aa66;color:#e8d5a3;padding:4px 6px;font-family:monospace;font-size:13px;border-radius:2px;">
+      <button id="btn-cal-apply"
+        style="background:rgba(0,180,120,.25);border:1px solid #00cc88;color:#44ffbb;font-family:'Cinzel',serif;font-size:11px;padding:5px 14px;cursor:pointer;border-radius:2px;white-space:nowrap;">
+        ⊹ Apply
+      </button>
+    </div>
+  </div>
+  <div id="cal-nudge-section">
+    <div class="cal-row">
+      <label>Hex Size</label>
+      <div class="cal-nudge">
+        <button data-param="hexSize" data-delta="-0.5">−−</button>
+        <button data-param="hexSize" data-delta="-0.1">−</button>
+        <span id="disp-hexSize">0.00</span>
+        <button data-param="hexSize" data-delta="0.1">+</button>
+        <button data-param="hexSize" data-delta="0.5">++</button>
+      </div>
+    </div>
+    <div class="cal-row">
+      <label>Offset X</label>
+      <div class="cal-nudge">
+        <button data-param="offsetX" data-delta="-5">−−</button>
+        <button data-param="offsetX" data-delta="-1">−</button>
+        <span id="disp-offsetX">0.00</span>
+        <button data-param="offsetX" data-delta="1">+</button>
+        <button data-param="offsetX" data-delta="5">++</button>
+      </div>
+    </div>
+    <div class="cal-row">
+      <label>Offset Y</label>
+      <div class="cal-nudge">
+        <button data-param="offsetY" data-delta="-5">−−</button>
+        <button data-param="offsetY" data-delta="-1">−</button>
+        <span id="disp-offsetY">0.00</span>
+        <button data-param="offsetY" data-delta="1">+</button>
+        <button data-param="offsetY" data-delta="5">++</button>
+      </div>
+    </div>
+  </div>
+  <div class="cal-btns">
+    <button id="btn-cal-save">💾 Save</button>
+    <button id="btn-cal-reset">↺ Reset</button>
+    <button id="btn-cal-close">✕ Close</button>
+  </div>
+</div>
+
+<div id="side-panel">
+  <button id="panel-close">✕</button>
+  <div id="panel-header">
+    <h2>Party Position</h2>
+    <div id="panel-hex-id">No hex selected</div>
+  </div>
+  <div id="panel-body">
+    <div class="panel-row"><label>Current Hex</label><div class="value" id="p-current-hex">—</div></div>
+    <div class="panel-row"><label>Terrain</label><div class="value" id="p-terrain">—</div></div>
+    <div class="panel-row"><label>Region</label><div class="value" id="p-region">—</div></div>
+    <div class="panel-row"><label>Est. Travel Time</label><div class="value" id="p-travel">—</div></div>
+    <div class="panel-row"><label>Hexes Explored</label><div class="value" id="p-explored">0</div></div>
+    <hr class="panel-divider">
+    <button class="panel-btn primary" id="p-btn-explore">⬡ Explore Sub-Map</button>
+    <button class="panel-btn" id="p-btn-encounter">⚄ Check Encounter</button>
+    <button class="panel-btn" id="p-btn-rest">⛺ Make Camp</button>
+    <button class="panel-btn" id="p-btn-build">🏰 Build Stronghold</button>
+  </div>
+</div>
+
+<div id="legend">
+  <h3>Terrain</h3>
+  <div class="legend-item"><div class="legend-swatch" style="background:#7a9e5a"></div>Plains / Clear</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#2d5e28"></div>Forest</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#8b6e45"></div>Hills</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#7a6055"></div>Mountains</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#4a7fa0"></div>Water / Sea</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#c4b060"></div>Desert / Scrub</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#3d6b50"></div>Swamp / Marsh</div>
+</div>
+
+<div id="coords">Hover over a hex</div>
+<div id="opacity-wrap">Grid <input type="range" id="opacity-slider" min="0" max="100" value="100"></div>
+<div id="overlay-bg"></div>
+<div id="move-dialog">
+  <h3>Move Party</h3>
+  <p>Destination: <span id="dlg-hex-id">—</span></p>
+  <p>Terrain: <span id="dlg-terrain">—</span></p>
+  <p>Distance: <span id="dlg-distance">—</span> hex(es)</p>
+  <p>Est. Travel: <span id="dlg-time">—</span></p>
+  <div class="dialog-btns">
+    <button id="btn-cancel-move">Cancel</button>
+    <button id="btn-confirm-move">Confirm Move</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ── CALIBRATION ───────────────────────────────────────────────────────────────
+const DEFAULTS = { hexSize:9.33, offsetX:54.33, offsetY:53.08, cols:153, rows:100 };
+function loadCal() {
+  try { const s=localStorage.getItem('gh-cal'); if(s){const p=JSON.parse(s);return{...DEFAULTS,...p};} } catch(e){}
+  return {...DEFAULTS};
+}
+let cal = loadCal();
+const MAP_W=2200, MAP_H=1711;
+let stageBounds = { minX:0, minY:0, maxX:MAP_W, maxY:MAP_H, width:MAP_W, height:MAP_H };
+
+// ── LABELS ────────────────────────────────────────────────────────────────────
+const COL_LABELS=[];
+for(let i=0;i<26;i++) COL_LABELS.push(String.fromCharCode(65+i));
+for(let i=0;i<37;i++) COL_LABELS.push(String.fromCharCode(65+Math.floor(i/26))+String.fromCharCode(65+(i%26)));
+
+// ── TERRAIN ───────────────────────────────────────────────────────────────────
+const TERRAIN={
+  clear:    {label:'Clear/Road', footDays:.33,mountDays:.17},
+  plains:   {label:'Plains',     footDays:.33,mountDays:.25},
+  forest:   {label:'Forest',     footDays:.5, mountDays:.5 },
+  hills:    {label:'Hills',      footDays:.5, mountDays:.33},
+  mountains:{label:'Mountains',  footDays:1.0,mountDays:.75},
+  water:    {label:'Water/Sea',  footDays:null,mountDays:null},
+  desert:   {label:'Desert',     footDays:.67,mountDays:.5 },
+  swamp:    {label:'Swamp/Marsh',footDays:1.0,mountDays:1.0},
+};
+
+// ── REGIONS ───────────────────────────────────────────────────────────────────
+const REGIONS=[
+  {name:'Icy Sea',              cols:[46,104],rows:[0,9]  },
+  {name:'Land of Black Ice',    cols:[37,64], rows:[0,12] },
+  {name:'Blackmoor',            cols:[51,69], rows:[5,16] },
+  {name:'Iuz',                  cols:[55,76], rows:[12,32]},
+  {name:'Horned Society',       cols:[69,83], rows:[23,37]},
+  {name:'Shield Lands',         cols:[76,90], rows:[23,37]},
+  {name:'Bandit Kingdoms',      cols:[83,101],rows:[16,32]},
+  {name:'Duchy of Tenh',        cols:[97,111],rows:[18,32]},
+  {name:'Theocracy of the Pale',cols:[101,120],rows:[18,37]},
+  {name:'Perrenland',           cols:[51,64], rows:[18,32]},
+  {name:'Kingdom of Furyondy',  cols:[64,83], rows:[30,46]},
+  {name:'Veluna',               cols:[55,69], rows:[37,51]},
+  {name:'Verbobonc',            cols:[67,78], rows:[41,53]},
+  {name:'Nyr Dyv',              cols:[76,88], rows:[37,46]},
+  {name:'City of Greyhawk',     cols:[81,88], rows:[41,51]},
+  {name:'Kingdom of Nyrond',    cols:[97,120],rows:[32,51]},
+  {name:'County of Urnst',      cols:[88,101],rows:[32,46]},
+  {name:'Duchy of Urnst',       cols:[97,111],rows:[28,41]},
+  {name:'Bissel',               cols:[51,64], rows:[46,58]},
+  {name:'Gran March',           cols:[55,69], rows:[55,67]},
+  {name:'Celene',               cols:[69,85], rows:[51,64]},
+  {name:'Duchy of Ulek',        cols:[60,74], rows:[60,71]},
+  {name:'County of Ulek',       cols:[64,78], rows:[67,78]},
+  {name:'Principality of Ulek', cols:[58,69], rows:[69,81]},
+  {name:'Keoland',              cols:[51,64], rows:[69,83]},
+  {name:'Wild Coast',           cols:[78,92], rows:[55,69]},
+  {name:'Prelacy of Almor',     cols:[106,120],rows:[46,60]},
+  {name:'The Great Kingdom',    cols:[115,138],rows:[37,60]},
+  {name:'Adri Forest',          cols:[115,129],rows:[41,55]},
+  {name:'South Province',       cols:[111,129],rows:[55,69]},
+  {name:'Idee',                 cols:[115,129],rows:[64,78]},
+  {name:'Lordship of the Isles',cols:[129,145],rows:[69,83]},
+  {name:'Sea Barons',           cols:[134,145],rows:[51,69]},
+  {name:'Relmor Bay',           cols:[101,124],rows:[55,69]},
+  {name:'Sea of Gearnat',       cols:[78,120], rows:[69,83]},
+  {name:'Azure Sea',            cols:[64,97],  rows:[78,92]},
+  {name:'Woolly Bay',           cols:[74,92],  rows:[64,78]},
+  {name:'Bright Desert',        cols:[83,97],  rows:[51,64]},
+  {name:'Dry Steppes',          cols:[14,41],  rows:[64,83]},
+  {name:'Plains of the Paynims',cols:[14,51],  rows:[46,64]},
+  {name:'Sultanate of Zeif',    cols:[9,32],   rows:[41,60]},
+  {name:'Caliphate of Ekbir',   cols:[14,32],  rows:[28,46]},
+  {name:'Tiger Nomads',         cols:[18,41],  rows:[14,32]},
+  {name:'Wolf Nomads',          cols:[37,60],  rows:[14,28]},
+  {name:'Yeomanry',             cols:[41,60],  rows:[78,92]},
+  {name:'Sea of Dust',          cols:[9,46],   rows:[83,97]},
+  {name:'Solnor Ocean',         cols:[124,145],rows:[14,51]},
+  {name:'Dramidj Ocean',        cols:[0,23],   rows:[14,51]},
+  {name:'Amedio Jungle',        cols:[46,78],  rows:[88,97]},
+  {name:'Hepmonaland',          cols:[106,145],rows:[88,97]},
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+const state={
+  zoom:.5,panX:0,panY:0,
+  dragging:false,didDrag:false,dragStartX:0,dragStartY:0,panStartX:0,panStartY:0,
+  moveMode:false,showLabels:false,
+  partyCol:83,partyRow:51,
+  selectedCol:null,selectedRow:null,
+  hexData:{},pendingMove:null,
+  calMode:false,
+  calDrawing:false,calStartX:0,calStartY:0,
+};
+
+// ── HEX MATH ──────────────────────────────────────────────────────────────────
+function colStep(){ return cal.hexSize*1.5; }
+function rowStep(){ return cal.hexSize*Math.sqrt(3); }
+function hexCenter(col,row){
+  return { x:cal.offsetX+col*colStep(), y:cal.offsetY+row*rowStep()+(col%2===1?rowStep()*.5:0) };
+}
+function hexCorners(cx,cy){
+  return Array.from({length:6},(_,i)=>{
+    const a=(Math.PI/180)*(60*i);
+    return [cx+cal.hexSize*Math.cos(a),cy+cal.hexSize*Math.sin(a)];
+  });
+}
+function hexIdStr(col,row){ return `${COL_LABELS[col]||col}${String(row+1).padStart(2,'0')}`; }
+function hexDistance(c1,r1,c2,r2){
+  const tc=(c,r)=>{const x=c,z=r-(c-(c&1))/2;return{x,y:-x-z,z};};
+  const a=tc(c1,r1),b=tc(c2,r2);
+  return Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y),Math.abs(a.z-b.z));
+}
+function getRegion(col,row){
+  for(const r of REGIONS) if(col>=r.cols[0]&&col<r.cols[1]&&row>=r.rows[0]&&row<r.rows[1]) return r.name;
+  return 'Unknown Reaches';
+}
+function getHexTerrain(col,row){ return state.hexData[`${col}-${row}`]?.terrain||'plains'; }
+function travelTime(terrain,dist){
+  const t=TERRAIN[terrain];
+  if(!t||t.footDays===null) return 'Impassable';
+  const d=t.footDays*dist;
+  return d<1?`~${Math.round(d*24)}h on foot`:`~${d.toFixed(1)} day(s) on foot`;
+}
+
+// Screen <-> map coords
+function computeStageBounds(){
+  const left = cal.offsetX - cal.hexSize - 4;
+  const top = cal.offsetY - rowStep() * 0.5 - 4;
+  const lastCol = Math.max(0, cal.cols - 1);
+  const lastRow = Math.max(0, cal.rows - 1);
+  const right = cal.offsetX + lastCol * colStep() + cal.hexSize + 4;
+  const bottom = cal.offsetY
+    + lastRow * rowStep()
+    + (lastCol % 2 === 1 ? rowStep() * 0.5 : 0)
+    + rowStep() * 0.5 + 4;
+
+  stageBounds = {
+    minX: Math.min(0, left),
+    minY: Math.min(0, top),
+    maxX: Math.max(MAP_W, right),
+    maxY: Math.max(MAP_H, bottom),
+    width: 0,
+    height: 0
+  };
+  stageBounds.width = Math.ceil(stageBounds.maxX - stageBounds.minX);
+  stageBounds.height = Math.ceil(stageBounds.maxY - stageBounds.minY);
+  return stageBounds;
+}
+function mapToStage(x,y){ return { x:x-stageBounds.minX, y:y-stageBounds.minY }; }
+function stageToMap(x,y){ return { x:x+stageBounds.minX, y:y+stageBounds.minY }; }
+function updateStageFrame(){
+  const stage=document.getElementById('map-stage');
+  const img=document.getElementById('map-img');
+  const svg=document.getElementById('hex-svg');
+  stage.style.width=stageBounds.width+'px';
+  stage.style.height=stageBounds.height+'px';
+  img.style.left=(-stageBounds.minX)+'px';
+  img.style.top=(-stageBounds.minY)+'px';
+  svg.style.left=(-stageBounds.minX)+'px';
+  svg.style.top=(-stageBounds.minY)+'px';
+}
+function screenToMap(sx,sy){
+  return stageToMap((sx-state.panX)/state.zoom, (sy-46-state.panY)/state.zoom);
+}
+
+// ── BUILD GRID ────────────────────────────────────────────────────────────────
+function buildHexGrid(){
+  const svg=document.getElementById('hex-svg');
+  const ns='http://www.w3.org/2000/svg';
+
+  computeStageBounds();
+  updateStageFrame();
+
+  svg.setAttribute('width',  stageBounds.width);
+  svg.setAttribute('height', stageBounds.height);
+  svg.setAttribute('viewBox', `0 0 ${stageBounds.width} ${stageBounds.height}`);
+  svg.innerHTML='';
+  const cellsG=document.createElementNS(ns,'g'); cellsG.id='hex-cells';
+  const labelsG=document.createElementNS(ns,'g'); labelsG.id='hex-labels'; labelsG.style.display=state.showLabels?'':'none';
+  const markerG=document.createElementNS(ns,'g'); markerG.id='party-marker'; markerG.style.pointerEvents='none';
+  const pulse=document.createElementNS(ns,'circle');
+  pulse.setAttribute('r','9'); pulse.setAttribute('fill','rgba(204,34,0,.28)');
+  pulse.setAttribute('class','party-pulse'); pulse.id='party-pulse';
+  const dot=document.createElementNS(ns,'circle');
+  dot.setAttribute('r','5'); dot.setAttribute('fill','#dd2200');
+  dot.setAttribute('stroke','#ffaa88'); dot.setAttribute('stroke-width','1.5'); dot.id='party-dot';
+  markerG.appendChild(pulse); markerG.appendChild(dot);
+  for(let col=0;col<cal.cols;col++){
+    for(let row=0;row<cal.rows;row++){
+      const {x:mx,y:my}=hexCenter(col,row);
+      const {x,y}=mapToStage(mx,my);
+      const pts=hexCorners(x,y).map(([px,py])=>`${px.toFixed(1)},${py.toFixed(1)}`).join(' ');
+      const poly=document.createElementNS(ns,'polygon');
+      poly.setAttribute('points',pts);
+      let cls='hex-cell';
+      if(state.hexData[`${col}-${row}`]?.explored) cls+=' explored';
+      if(state.selectedCol===col && state.selectedRow===row) cls+=' selected';
+      poly.setAttribute('class',cls);
+      poly.dataset.col=col; poly.dataset.row=row; poly.id=`hex-${col}-${row}`;
+      poly.addEventListener('mouseenter',onHexHover);
+      poly.addEventListener('click',onHexClick);
+      cellsG.appendChild(poly);
+      const txt=document.createElementNS(ns,'text');
+      txt.setAttribute('x',x.toFixed(1)); txt.setAttribute('y',y.toFixed(1));
+      txt.setAttribute('class','hex-label'); txt.textContent=hexIdStr(col,row);
+      labelsG.appendChild(txt);
+    }
+  }
+  svg.appendChild(cellsG); svg.appendChild(labelsG); svg.appendChild(markerG);
+  updatePartyMarker();
+}
+function rebuildGrid(){ buildHexGrid(); updateCalDisplays(); }
+function updatePartyMarker(){
+  const {x:mx,y:my}=hexCenter(state.partyCol,state.partyRow);
+  const {x,y}=mapToStage(mx,my);
+  ['party-pulse','party-dot'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.setAttribute('cx',x);el.setAttribute('cy',y);}
+  });
+  document.querySelectorAll('.party-hex').forEach(el=>el.classList.remove('party-hex'));
+  document.getElementById(`hex-${state.partyCol}-${state.partyRow}`)?.classList.add('party-hex');
+}
+
+// ── HEX EVENTS ────────────────────────────────────────────────────────────────
+function onHexHover(e){
+  if(state.calMode) return;
+  const col=+e.target.dataset.col,row=+e.target.dataset.row;
+  document.getElementById('coords').textContent=
+    `${hexIdStr(col,row)}  ·  ${TERRAIN[getHexTerrain(col,row)]?.label}  ·  ${getRegion(col,row)}`;
+}
+function onHexClick(e){
+  if(state.calMode||state.didDrag) return;
+  const col=+e.target.dataset.col,row=+e.target.dataset.row;
+  if(state.selectedCol!==null)
+    document.getElementById(`hex-${state.selectedCol}-${state.selectedRow}`)?.classList.remove('selected');
+  state.selectedCol=col; state.selectedRow=row;
+  e.target.classList.add('selected');
+  const terrain=getHexTerrain(col,row),region=getRegion(col,row);
+  const dist=hexDistance(state.partyCol,state.partyRow,col,row);
+  updateSidePanel(col,row,terrain,region,dist);
+  if(state.moveMode) showMoveDialog(col,row,terrain,dist);
+}
+
+// ── PANELS ────────────────────────────────────────────────────────────────────
+function updateSidePanel(col,row,terrain,region,dist){
+  document.getElementById('panel-hex-id').textContent=hexIdStr(col,row);
+  document.getElementById('p-current-hex').textContent=hexIdStr(state.partyCol,state.partyRow);
+  document.getElementById('p-terrain').textContent=TERRAIN[terrain]?.label||terrain;
+  document.getElementById('p-region').textContent=region;
+  document.getElementById('p-travel').textContent=dist>0?travelTime(terrain,dist):'Current position';
+  document.getElementById('p-explored').textContent=Object.values(state.hexData).filter(h=>h.explored).length;
+  document.getElementById('side-panel').classList.add('open');
+  document.getElementById('btn-panel-toggle').textContent='Party ◂';
+}
+function showMoveDialog(col,row,terrain,dist){
+  state.pendingMove={col,row};
+  document.getElementById('dlg-hex-id').textContent=hexIdStr(col,row);
+  document.getElementById('dlg-terrain').textContent=TERRAIN[terrain]?.label||terrain;
+  document.getElementById('dlg-distance').textContent=dist;
+  document.getElementById('dlg-time').textContent=travelTime(terrain,dist);
+  document.getElementById('move-dialog').classList.add('open');
+  document.getElementById('overlay-bg').classList.add('open');
+}
+function closeMoveDialog(){
+  document.getElementById('move-dialog').classList.remove('open');
+  document.getElementById('overlay-bg').classList.remove('open');
+  state.pendingMove=null;
+}
+function confirmMove(){
+  if(!state.pendingMove) return;
+  const {col,row}=state.pendingMove;
+  const terrain=getHexTerrain(col,row);
+  if(terrain==='water'){showToast('Cannot enter water hex without a vessel.');closeMoveDialog();return;}
+  const oldKey=`${state.partyCol}-${state.partyRow}`;
+  if(!state.hexData[oldKey]) state.hexData[oldKey]={};
+  state.hexData[oldKey].explored=true;
+  document.getElementById(`hex-${state.partyCol}-${state.partyRow}`)?.classList.add('explored');
+  state.partyCol=col; state.partyRow=row;
+  updatePartyMarker(); closeMoveDialog();
+  showToast(`Moved to ${hexIdStr(col,row)} · ${travelTime(terrain,1)}`);
+  updateSidePanel(col,row,terrain,getRegion(col,row),0);
+}
+
+// ── PAN / ZOOM ────────────────────────────────────────────────────────────────
+function applyTransform(){
+  document.getElementById('map-stage').style.transform=`translate(${state.panX}px,${state.panY}px) scale(${state.zoom})`;
+  document.getElementById('zoom-display').textContent=Math.round(state.zoom*100)+'%';
+}
+function clampPan(){
+  const w=document.getElementById('map-wrap');
+  const W=w.clientWidth,H=w.clientHeight;
+  const scaledW=stageBounds.width*state.zoom;
+  const scaledH=stageBounds.height*state.zoom;
+
+  if(scaledW<=W) state.panX=(W-scaledW)/2;
+  else state.panX=Math.min(0,Math.max(W-scaledW,state.panX));
+
+  if(scaledH<=H) state.panY=(H-scaledH)/2;
+  else state.panY=Math.min(0,Math.max(H-scaledH,state.panY));
+}
+function doZoom(factor,cx,cy){
+  const w=document.getElementById('map-wrap');
+  cx=cx??w.clientWidth/2; cy=cy??w.clientHeight/2;
+  const nz=Math.max(.25,Math.min(5,state.zoom*factor));
+  const r=nz/state.zoom;
+  state.panX=cx-r*(cx-state.panX); state.panY=cy-r*(cy-state.panY);
+  state.zoom=nz; clampPan(); applyTransform();
+}
+function centerOnHex(col,row){
+  const {x:mx,y:my}=hexCenter(col,row);
+  const {x,y}=mapToStage(mx,my);
+  const w=document.getElementById('map-wrap');
+  state.panX=w.clientWidth/2-x*state.zoom;
+  state.panY=w.clientHeight/2-y*state.zoom;
+  clampPan(); applyTransform();
+}
+
+// ── ALIGNMENT TOOL ────────────────────────────────────────────────────────────
+// Roll20-style: user drags a box over 3×3 hexes on the printed map.
+// Box top-left = first hex's top-left corner, box covers 3 cols × 3 rows.
+//
+// For flat-top hex grid:
+//   3 cols wide  -> boxWidth  = 3 * colStep  = 3 * hexSize * 1.5  = hexSize * 4.5
+//   3 rows tall  -> boxHeight = 3 * rowStep  = 3 * hexSize * sqrt3
+//
+// But the box top-left aligns to a hex CORNER, not center:
+//   The leftmost point of col=0 is at offsetX - hexSize
+//   The topmost point of row=0 (even col) is at offsetY - rowStep/2
+//
+// So:
+//   hexSize  = boxWidth_mapPx / 4.5
+//   hexSize  = boxHeight_mapPx / (3 * sqrt3)   (second estimate)
+//   offsetX  = box_mapLeft  + hexSize           (left edge + hexSize = first hex center x)
+//   offsetY  = box_mapTop   + rowStep/2         (top edge + rowStep/2 = first hex center y)
+
+function enterCalMode(){
+  state.calMode=true;
+  document.getElementById('btn-calibrate').classList.add('cal-active');
+  document.getElementById('cal-panel').classList.add('open');
+  document.getElementById('cal-overlay').classList.add('active');
+  document.getElementById('map-wrap').classList.add('cal-mode');
+  updateCalDisplays();
+}
+function exitCalMode(){
+  state.calMode=false;
+  document.getElementById('btn-calibrate').classList.remove('cal-active');
+  document.getElementById('cal-panel').classList.remove('open');
+  document.getElementById('cal-overlay').classList.remove('active');
+  document.getElementById('cal-box').style.display='none';
+  document.getElementById('map-wrap').classList.remove('cal-mode');
+}
+function updateCalDisplays(){
+  document.getElementById('disp-hexSize').textContent=cal.hexSize.toFixed(2);
+  document.getElementById('disp-offsetX').textContent=cal.offsetX.toFixed(2);
+  document.getElementById('disp-offsetY').textContent=cal.offsetY.toFixed(2);
+}
+function nudgeCal(param,delta){
+  if(param==='hexSize') cal.hexSize=Math.max(2,+(cal.hexSize+delta).toFixed(2));
+  if(param==='offsetX') cal.offsetX=+(cal.offsetX+delta).toFixed(2);
+  if(param==='offsetY') cal.offsetY=+(cal.offsetY+delta).toFixed(2);
+  rebuildGrid();
+}
+function saveCal(){
+  try{ localStorage.setItem('gh-cal',JSON.stringify({hexSize:cal.hexSize,offsetX:cal.offsetX,offsetY:cal.offsetY})); }catch(e){}
+  showToast(`Saved — size:${cal.hexSize.toFixed(2)} x:${cal.offsetX.toFixed(1)} y:${cal.offsetY.toFixed(1)}`);
+}
+function resetCal(){
+  cal.hexSize=DEFAULTS.hexSize; cal.offsetX=DEFAULTS.offsetX; cal.offsetY=DEFAULTS.offsetY;
+  try{ localStorage.removeItem('gh-cal'); }catch(e){}
+  rebuildGrid();
+  document.getElementById('cal-coord-section').style.display='none';
+  document.getElementById('cal-nudge-section').style.display='block';
+  document.getElementById('cal-status').textContent='Reset to defaults. Saved calibration cleared. Draw a box to re-align.';
+}
+
+// Store last drawn box in map coords
+let lastBox = null;
+
+function solveFromBox(screenX1,screenY1,screenX2,screenY2){
+  const m1=screenToMap(screenX1,screenY1);
+  const m2=screenToMap(screenX2,screenY2);
+  const mapLeft=Math.min(m1.x,m2.x);
+  const mapTop =Math.min(m1.y,m2.y);
+  const boxW   =Math.abs(m2.x-m1.x);
+  const boxH   =Math.abs(m2.y-m1.y);
+
+  if(boxW<10||boxH<10){
+    showToast('Box too small — drag a larger area covering 3×3 hexes');
+    return;
+  }
+
+  lastBox = { mapLeft, mapTop, boxW, boxH };
+
+  // Show coord inputs, keep nudge hidden until apply
+  document.getElementById('cal-coord-section').style.display='block';
+  document.getElementById('cal-nudge-section').style.display='none';
+  document.getElementById('cal-status').textContent=
+    `Box drawn: ${boxW.toFixed(0)}×${boxH.toFixed(0)} map px.\nNow enter the col and row of the hex at the TOP-LEFT corner of your box (0,0 = top-left of the whole map), then click Apply.`;
+}
+
+function applyCalibration(){
+  if(!lastBox){ showToast('Draw a box on the map first'); return; }
+  const startCol = +document.getElementById('cal-start-col').value;
+  const startRow = +document.getElementById('cal-start-row').value;
+  const { mapLeft, mapTop, boxW, boxH } = lastBox;
+  const sqrt3 = Math.sqrt(3);
+
+  // hexSize from box dimensions:
+  // 3 cols wide: outer width = 2*colStep + 2*R = 3R + 2R = 5R  => R = boxW/5
+  // 3 rows tall: outer height = 3*rowStep = 3*R*sqrt3          => R = boxH/(3*sqrt3)
+  const hsFromW = boxW / 5;
+  const hsFromH = boxH / (3 * sqrt3);
+  const newHexSize = (hsFromW + hsFromH) / 2;
+
+  // The box top-left is the top-left corner of hex (startCol, startRow).
+  // For a flat-top hex, the top-left corner of hex (col, row) is:
+  //   x = offsetX + col*colStep - hexSize          (left flat edge)
+  //   y = offsetY + row*rowStep - rowStep/2         (top of hex, even col)
+  //       + (col%2===1 ? rowStep/2 : 0)             (odd col offset)
+  //
+  // Solving for offsetX and offsetY:
+  //   offsetX = mapLeft + newHexSize  - startCol * newHexSize * 1.5  ... wait:
+  //   mapLeft = offsetX + startCol*colStep - hexSize
+  //   offsetX = mapLeft - startCol*colStep + hexSize
+  //           = mapLeft - startCol*newHexSize*1.5 + newHexSize
+
+  const newColStep = newHexSize * 1.5;
+  const newRowStep = newHexSize * sqrt3;
+
+  const newOffsetX = mapLeft - startCol * newColStep + newHexSize;
+  // For even startCol: mapTop = offsetY + startRow*rowStep - rowStep/2
+  // For odd startCol:  mapTop = offsetY + startRow*rowStep + rowStep/2 - rowStep/2 = offsetY + startRow*rowStep
+  // Simplified (assuming even col start which is most common):
+  const oddColAdj = (startCol % 2 === 1) ? newRowStep * 0.5 : 0;
+  const newOffsetY = mapTop - startRow * newRowStep + newRowStep / 2 - oddColAdj;
+
+  cal.hexSize = +newHexSize.toFixed(3);
+  cal.offsetX = +newOffsetX.toFixed(3);
+  cal.offsetY = +newOffsetY.toFixed(3);
+
+  rebuildGrid();
+  document.getElementById('cal-nudge-section').style.display='block';
+  document.getElementById('cal-status').textContent=
+    `Applied — hexSize:${cal.hexSize.toFixed(2)}  offsetX:${cal.offsetX.toFixed(1)}  offsetY:${cal.offsetY.toFixed(1)}
+Fine-tune with the nudge buttons if needed.`;
+}
+
+// Draw box event handling on the overlay
+function wireCalOverlay(){
+  const overlay=document.getElementById('cal-overlay');
+  const box=document.getElementById('cal-box');
+  const info=document.getElementById('cal-box-info');
+
+  function startDraw(cx,cy){
+    state.calDrawing=true;
+    state.calStartX=cx; state.calStartY=cy;
+    box.style.display='block';
+    box.style.left=cx+'px'; box.style.top=cy+'px';
+    box.style.width='0'; box.style.height='0';
+    info.textContent='';
+  }
+  function updateDraw(cx,cy){
+    if(!state.calDrawing) return;
+    const x=Math.min(cx,state.calStartX);
+    const y=Math.min(cy,state.calStartY);
+    const w=Math.abs(cx-state.calStartX);
+    const h=Math.abs(cy-state.calStartY);
+    box.style.left=x+'px'; box.style.top=y+'px';
+    box.style.width=w+'px'; box.style.height=h+'px';
+    // Show map-space dimensions in info
+    const m1=screenToMap(state.calStartX,state.calStartY);
+    const m2=screenToMap(cx,cy);
+    const mw=Math.abs(m2.x-m1.x).toFixed(0);
+    const mh=Math.abs(m2.y-m1.y).toFixed(0);
+    info.textContent=`${mw}×${mh} map px`;
+  }
+  function endDraw(cx,cy){
+    if(!state.calDrawing) return;
+    state.calDrawing=false;
+    solveFromBox(state.calStartX,state.calStartY,cx,cy);
+  }
+
+  overlay.addEventListener('mousedown',e=>{ e.preventDefault(); startDraw(e.clientX,e.clientY); });
+  overlay.addEventListener('mousemove',e=>{ updateDraw(e.clientX,e.clientY); });
+  overlay.addEventListener('mouseup',  e=>{ endDraw(e.clientX,e.clientY); });
+  overlay.addEventListener('touchstart',e=>{ e.preventDefault(); const t=e.touches[0]; startDraw(t.clientX,t.clientY); },{passive:false});
+  overlay.addEventListener('touchmove', e=>{ e.preventDefault(); const t=e.touches[0]; updateDraw(t.clientX,t.clientY); },{passive:false});
+  overlay.addEventListener('touchend',  e=>{ const t=e.changedTouches[0]; endDraw(t.clientX,t.clientY); });
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+let _tt=null;
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ── WIRE ALL EVENTS ───────────────────────────────────────────────────────────
+function wireEvents(){
+  const wrap=document.getElementById('map-wrap');
+
+  // Pan
+  wrap.addEventListener('mousedown',e=>{
+    if(e.button!==0||state.calMode) return;
+    state.dragging=true;
+    state.didDrag=false;
+    state.dragStartX=e.clientX; state.dragStartY=e.clientY;
+    state.panStartX=state.panX; state.panStartY=state.panY;
+    wrap.classList.add('grabbing');
+  });
+  window.addEventListener('mousemove',e=>{
+    if(!state.dragging) return;
+    const dx=e.clientX-state.dragStartX, dy=e.clientY-state.dragStartY;
+    if(Math.abs(dx)>3||Math.abs(dy)>3) state.didDrag=true;
+    state.panX=state.panStartX+dx;
+    state.panY=state.panStartY+dy;
+    clampPan(); applyTransform();
+  });
+  window.addEventListener('mouseup',()=>{ state.dragging=false; wrap.classList.remove('grabbing'); });
+  wrap.addEventListener('wheel',e=>{ e.preventDefault(); doZoom(e.deltaY<0?1.12:.89,e.clientX,e.clientY-46); },{passive:false});
+
+  // Toolbar
+  document.getElementById('btn-zoom-in').addEventListener('click',()=>doZoom(1.25));
+  document.getElementById('btn-zoom-out').addEventListener('click',()=>doZoom(.8));
+  document.getElementById('btn-reset').addEventListener('click',()=>{
+    state.zoom=.5;
+    const w=document.getElementById('map-wrap');
+    state.panX=(w.clientWidth-stageBounds.width*state.zoom)/2;
+    state.panY=(w.clientHeight-stageBounds.height*state.zoom)/2;
+    clampPan(); applyTransform();
+  });
+  document.getElementById('btn-move-mode').addEventListener('click',()=>{
+    if(state.calMode){showToast('Exit alignment mode first');return;}
+    state.moveMode=!state.moveMode;
+    document.getElementById('btn-move-mode').classList.toggle('active',state.moveMode);
+    wrap.classList.toggle('move-mode',state.moveMode);
+    showToast(state.moveMode?'Move mode: click destination hex':'Move mode off');
+  });
+  document.getElementById('btn-hex-labels').addEventListener('click',()=>{
+    state.showLabels=!state.showLabels;
+    document.getElementById('hex-labels').style.display=state.showLabels?'':'none';
+    document.getElementById('btn-hex-labels').classList.toggle('active',state.showLabels);
+  });
+  document.getElementById('btn-calibrate').addEventListener('click',()=>{
+    state.calMode?exitCalMode():enterCalMode();
+  });
+
+  // Side panel
+  document.getElementById('btn-panel-toggle').addEventListener('click',()=>{
+    const open=document.getElementById('side-panel').classList.toggle('open');
+    document.getElementById('btn-panel-toggle').textContent=open?'Party ◂':'Party ▸';
+  });
+  document.getElementById('panel-close').addEventListener('click',()=>{
+    document.getElementById('side-panel').classList.remove('open');
+    document.getElementById('btn-panel-toggle').textContent='Party ▸';
+  });
+
+  // Move dialog
+  document.getElementById('btn-confirm-move').addEventListener('click',confirmMove);
+  document.getElementById('btn-cancel-move').addEventListener('click',closeMoveDialog);
+  document.getElementById('overlay-bg').addEventListener('click',closeMoveDialog);
+
+  // Cal panel
+  document.querySelectorAll('.cal-nudge button').forEach(btn=>{
+    btn.addEventListener('click',()=>nudgeCal(btn.dataset.param,+btn.dataset.delta));
+  });
+  document.getElementById('btn-cal-save').addEventListener('click',saveCal);
+  document.getElementById('btn-cal-reset').addEventListener('click',resetCal);
+  document.getElementById('btn-cal-close').addEventListener('click',exitCalMode);
+  document.getElementById('btn-cal-apply').addEventListener('click',applyCalibration);
+
+  // Cal overlay draw box
+  wireCalOverlay();
+
+  // Opacity slider
+  document.getElementById('opacity-slider').addEventListener('input',e=>{
+    const cells=document.getElementById('hex-cells');
+    if(cells) cells.style.opacity=e.target.value/100;
+  });
+
+  // Panel stubs
+  document.getElementById('p-btn-explore').addEventListener('click',()=>showToast('Sub-map — Phase 2'));
+  document.getElementById('p-btn-encounter').addEventListener('click',()=>showToast('Encounter check — Phase 2'));
+  document.getElementById('p-btn-rest').addEventListener('click',()=>showToast('Camp — CTT Phase 3'));
+  document.getElementById('p-btn-build').addEventListener('click',()=>showToast('Stronghold — Phase 4'));
+
+  // Keyboard
+  window.addEventListener('keydown',e=>{
+    if(e.key==='m'||e.key==='M') document.getElementById('btn-move-mode').click();
+    if(e.key==='l'||e.key==='L') document.getElementById('btn-hex-labels').click();
+    if(e.key==='a'||e.key==='A') document.getElementById('btn-calibrate').click();
+    if(e.key==='h'||e.key==='H') centerOnHex(state.partyCol,state.partyRow);
+    if(e.key==='='||e.key==='+') doZoom(1.2);
+    if(e.key==='-') doZoom(.83);
+    if(e.key==='Escape'){ exitCalMode(); closeMoveDialog(); }
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init(){
+  const img=document.getElementById('map-img');
+  const start=()=>{
+    buildHexGrid(); wireEvents();
+    const w=document.getElementById('map-wrap');
+    state.zoom=.5;
+    state.panX=(w.clientWidth-stageBounds.width*state.zoom)/2;
+    state.panY=(w.clientHeight-stageBounds.height*state.zoom)/2;
+    clampPan(); applyTransform();
+    setTimeout(()=>centerOnHex(state.partyCol,state.partyRow),120);
+    const saved=localStorage.getItem('gh-cal');
+    showToast(saved?'Calibration loaded  |  A=align  H=party  M=move':'A=align grid  H=center party  M=move mode');
+  };
+  if(img.complete&&img.naturalWidth>0) start();
+  else img.addEventListener('load',start);
+}
+window.addEventListener('load',init);
+</script>
+</body>
+</html>
