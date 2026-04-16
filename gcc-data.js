@@ -77,6 +77,7 @@ const GCC = (function() {
         { id: 'add1-wild', name: 'Wilderness Generator', href: null },
         { id: 'add1-dun', name: 'DMG Dungeon Builder', href: null },
         { id: 'add1-voy', name: 'Voyage Simulator', href: 'voyage-map.html' },
+        { id: 'add1-map', name: 'Campaign Map', href: 'greyhawk-map.html' },
       ]
     },
 
