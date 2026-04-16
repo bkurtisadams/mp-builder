@@ -739,10 +739,16 @@ function applyCalibration(){
   const oddColAdj = (startCol % 2 === 1) ? newRowStep * 0.5 : 0;
   let newOffsetY = mapTop - startRow * newRowStep + newRowStep / 2 - oddColAdj;
 
-  // Normalize: shift grid origin so col 0 / row 0 is near the top-left
-  // of the map, preserving alignment phase
-  if(newOffsetX > newColStep) newOffsetX = ((newOffsetX % newColStep) + newColStep) % newColStep;
-  if(newOffsetY > newRowStep) newOffsetY = ((newOffsetY % newRowStep) + newRowStep) % newRowStep;
+  // Normalize: shift grid origin so col 0 / row 0 is near the top-left of the map,
+  // preserving exact alignment phase. X must shift by multiples of 2*colStep to
+  // preserve odd/even column parity (which controls the vertical stagger).
+  const colPeriod = newColStep * 2;
+  if(newOffsetX > colPeriod){
+    newOffsetX = ((newOffsetX % colPeriod) + colPeriod) % colPeriod;
+  }
+  if(newOffsetY > newRowStep){
+    newOffsetY = ((newOffsetY % newRowStep) + newRowStep) % newRowStep;
+  }
 
   cal.hexSize = +newHexSize.toFixed(3);
   cal.offsetX = +newOffsetX.toFixed(3);
