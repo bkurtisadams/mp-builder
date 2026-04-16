@@ -285,7 +285,7 @@
 
 <script>
 // ── CALIBRATION ───────────────────────────────────────────────────────────────
-const DEFAULTS = { hexSize:9.33, offsetX:54.33, offsetY:53.08, cols:153, rows:100 };
+const DEFAULTS = { hexSize:9.33, offsetX:54.33, offsetY:53.08 };
 function loadCal() {
   try { const s=localStorage.getItem('gh-cal'); if(s){const p=JSON.parse(s);return{...DEFAULTS,...p};} } catch(e){}
   return {...DEFAULTS};
@@ -293,11 +293,17 @@ function loadCal() {
 let cal = loadCal();
 const MAP_W=2200, MAP_H=1711;
 let stageBounds = { minX:0, minY:0, maxX:MAP_W, maxY:MAP_H, width:MAP_W, height:MAP_H };
+function gridSize(){
+  const cs=cal.hexSize*1.5, rs=cal.hexSize*Math.sqrt(3);
+  const c=Math.ceil((MAP_W-cal.offsetX+cal.hexSize+4)/cs)+1;
+  const r=Math.ceil((MAP_H-cal.offsetY+rs*0.5+4)/rs)+1;
+  return {cols:Math.max(c,1),rows:Math.max(r,1)};
+}
 
 // ── LABELS ────────────────────────────────────────────────────────────────────
 const COL_LABELS=[];
 for(let i=0;i<26;i++) COL_LABELS.push(String.fromCharCode(65+i));
-for(let i=0;i<37;i++) COL_LABELS.push(String.fromCharCode(65+Math.floor(i/26))+String.fromCharCode(65+(i%26)));
+for(let i=0;i<676;i++) COL_LABELS.push(String.fromCharCode(65+Math.floor(i/26))+String.fromCharCode(65+(i%26)));
 
 // ── TERRAIN ───────────────────────────────────────────────────────────────────
 const TERRAIN={
@@ -409,10 +415,11 @@ function travelTime(terrain,dist){
 
 // Screen <-> map coords
 function computeStageBounds(){
+  const g=gridSize();
   const left = cal.offsetX - cal.hexSize - 4;
   const top = cal.offsetY - rowStep() * 0.5 - 4;
-  const lastCol = Math.max(0, cal.cols - 1);
-  const lastRow = Math.max(0, cal.rows - 1);
+  const lastCol = Math.max(0, g.cols - 1);
+  const lastRow = Math.max(0, g.rows - 1);
   const right = cal.offsetX + lastCol * colStep() + cal.hexSize + 4;
   const bottom = cal.offsetY
     + lastRow * rowStep()
@@ -471,8 +478,9 @@ function buildHexGrid(){
   dot.setAttribute('r','5'); dot.setAttribute('fill','#dd2200');
   dot.setAttribute('stroke','#ffaa88'); dot.setAttribute('stroke-width','1.5'); dot.id='party-dot';
   markerG.appendChild(pulse); markerG.appendChild(dot);
-  for(let col=0;col<cal.cols;col++){
-    for(let row=0;row<cal.rows;row++){
+  const g=gridSize();
+  for(let col=0;col<g.cols;col++){
+    for(let row=0;row<g.rows;row++){
       const {x:mx,y:my}=hexCenter(col,row);
       const {x,y}=mapToStage(mx,my);
       const pts=hexCorners(x,y).map(([px,py])=>`${px.toFixed(1)},${py.toFixed(1)}`).join(' ');
