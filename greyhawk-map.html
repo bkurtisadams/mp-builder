@@ -41,7 +41,7 @@
   #map-wrap.move-mode { cursor:crosshair; }
   #map-wrap.cal-mode { cursor:crosshair; }
   #map-stage { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; overflow:visible; }
-  #map-img { position:absolute; top:0; left:0; display:block; max-width:none; pointer-events:none; }
+  #map-img { position:absolute; top:0; left:0; display:block; width:100%; height:100%; pointer-events:none; }
   #hex-svg { position:absolute; top:0; left:0; overflow:visible; pointer-events:all; }
 
   /* HEX CELLS */
@@ -158,7 +158,6 @@
   <div class="sep"></div>
   <button class="tb-btn" id="btn-move-mode">☩ Move</button>
   <button class="tb-btn" id="btn-hex-labels">IDs</button>
-  <button class="tb-btn" id="btn-calibrate">⊹ Align</button>
   <div class="spacer"></div>
   <div id="mode-label">OVERWORLD · 30 MI/HEX</div>
   <div class="sep"></div>
@@ -284,22 +283,21 @@
 <div id="toast"></div>
 
 <script>
-// ── CALIBRATION ───────────────────────────────────────────────────────────────
-const DEFAULTS = { hexSize:9.68, offsetX:53.68, offsetY:72.39 };
-const MAX_COLS=145, MAX_ROWS=97;
-function loadCal() {
-  try { const s=localStorage.getItem('gh-cal'); if(s){const p=JSON.parse(s);return{...DEFAULTS,...p};} } catch(e){}
-  return {...DEFAULTS};
-}
-let cal = loadCal();
-const MAP_W=2200, MAP_H=1711;
+// ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
+// Darlene World of Greyhawk map: 145 cols x 97 rows of flat-top hexes.
+// The hex grid is ground truth; the background image stretches to fit.
+const HEX_R = 20;
+const GRID_COLS = 145;
+const GRID_ROWS = 97;
+const cal = {
+  hexSize: HEX_R,
+  offsetX: HEX_R,                        // col 0 left edge at x=0
+  offsetY: HEX_R * Math.sqrt(3) / 2,     // row 0 top edge at y=0
+};
+const MAP_W = Math.ceil((GRID_COLS - 1) * 1.5 * HEX_R + 2 * HEX_R);          // 4360
+const MAP_H = Math.ceil(GRID_ROWS * Math.sqrt(3) * HEX_R + Math.sqrt(3) * HEX_R / 2); // 3378
 let stageBounds = { minX:0, minY:0, maxX:MAP_W, maxY:MAP_H, width:MAP_W, height:MAP_H };
-function gridSize(){
-  const cs=cal.hexSize*1.5, rs=cal.hexSize*Math.sqrt(3);
-  const c=Math.ceil((MAP_W-cal.offsetX+cal.hexSize+4)/cs)+1;
-  const r=Math.ceil((MAP_H-cal.offsetY+rs*0.5+4)/rs)+1;
-  return {cols:Math.min(MAX_COLS,Math.max(c,1)),rows:Math.min(MAX_ROWS,Math.max(r,1))};
-}
+function gridSize(){ return { cols:GRID_COLS, rows:GRID_ROWS }; }
 
 // ── LABELS ────────────────────────────────────────────────────────────────────
 const COL_LABELS=[];
@@ -882,9 +880,6 @@ function wireEvents(){
     document.getElementById('hex-labels').style.display=state.showLabels?'':'none';
     document.getElementById('btn-hex-labels').classList.toggle('active',state.showLabels);
   });
-  document.getElementById('btn-calibrate').addEventListener('click',()=>{
-    state.calMode?exitCalMode():enterCalMode();
-  });
 
   // Side panel
   document.getElementById('btn-panel-toggle').addEventListener('click',()=>{
@@ -929,11 +924,10 @@ function wireEvents(){
   window.addEventListener('keydown',e=>{
     if(e.key==='m'||e.key==='M') document.getElementById('btn-move-mode').click();
     if(e.key==='l'||e.key==='L') document.getElementById('btn-hex-labels').click();
-    if(e.key==='a'||e.key==='A') document.getElementById('btn-calibrate').click();
     if(e.key==='h'||e.key==='H') centerOnHex(state.partyCol,state.partyRow);
     if(e.key==='='||e.key==='+') doZoom(1.2);
     if(e.key==='-') doZoom(.83);
-    if(e.key==='Escape'){ exitCalMode(); closeMoveDialog(); }
+    if(e.key==='Escape'){ closeMoveDialog(); }
   });
 }
 
@@ -948,8 +942,7 @@ function init(){
     state.panY=(w.clientHeight-stageBounds.height*state.zoom)/2;
     clampPan(); applyTransform();
     setTimeout(()=>centerOnHex(state.partyCol,state.partyRow),120);
-    const saved=localStorage.getItem('gh-cal');
-    showToast(saved?'Calibration loaded  |  A=align  H=party  M=move':'A=align grid  H=center party  M=move mode');
+    showToast('H=center party  M=move mode  L=labels');
   };
   if(img.complete&&img.naturalWidth>0) start();
   else img.addEventListener('load',start);
