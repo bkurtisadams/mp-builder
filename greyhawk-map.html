@@ -285,7 +285,8 @@
 
 <script>
 // ── CALIBRATION ───────────────────────────────────────────────────────────────
-const DEFAULTS = { hexSize:9.33, offsetX:54.33, offsetY:53.08 };
+const DEFAULTS = { hexSize:10.11, offsetX:10.11, offsetY:8.76 };
+const MAX_COLS=145, MAX_ROWS=97;
 function loadCal() {
   try { const s=localStorage.getItem('gh-cal'); if(s){const p=JSON.parse(s);return{...DEFAULTS,...p};} } catch(e){}
   return {...DEFAULTS};
@@ -297,7 +298,7 @@ function gridSize(){
   const cs=cal.hexSize*1.5, rs=cal.hexSize*Math.sqrt(3);
   const c=Math.ceil((MAP_W-cal.offsetX+cal.hexSize+4)/cs)+1;
   const r=Math.ceil((MAP_H-cal.offsetY+rs*0.5+4)/rs)+1;
-  return {cols:Math.max(c,1),rows:Math.max(r,1)};
+  return {cols:Math.min(MAX_COLS,Math.max(c,1)),rows:Math.min(MAX_ROWS,Math.max(r,1))};
 }
 
 // ── LABELS ────────────────────────────────────────────────────────────────────
