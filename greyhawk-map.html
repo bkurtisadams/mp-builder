@@ -735,12 +735,14 @@ function applyCalibration(){
   const newColStep = newHexSize * 1.5;
   const newRowStep = newHexSize * sqrt3;
 
-  const newOffsetX = mapLeft - startCol * newColStep + newHexSize;
-  // For even startCol: mapTop = offsetY + startRow*rowStep - rowStep/2
-  // For odd startCol:  mapTop = offsetY + startRow*rowStep + rowStep/2 - rowStep/2 = offsetY + startRow*rowStep
-  // Simplified (assuming even col start which is most common):
+  let newOffsetX = mapLeft - startCol * newColStep + newHexSize;
   const oddColAdj = (startCol % 2 === 1) ? newRowStep * 0.5 : 0;
-  const newOffsetY = mapTop - startRow * newRowStep + newRowStep / 2 - oddColAdj;
+  let newOffsetY = mapTop - startRow * newRowStep + newRowStep / 2 - oddColAdj;
+
+  // Normalize: shift grid origin so col 0 / row 0 is near the top-left
+  // of the map, preserving alignment phase
+  if(newOffsetX > newColStep) newOffsetX = ((newOffsetX % newColStep) + newColStep) % newColStep;
+  if(newOffsetY > newRowStep) newOffsetY = ((newOffsetY % newRowStep) + newRowStep) % newRowStep;
 
   cal.hexSize = +newHexSize.toFixed(3);
   cal.offsetX = +newOffsetX.toFixed(3);
