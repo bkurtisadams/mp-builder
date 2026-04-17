@@ -80,11 +80,8 @@
   #cal-overlay { position:fixed; top:calc(var(--gcc-bar-h) + 46px); left:0; right:0; bottom:0; z-index:200; display:none; cursor:crosshair; }
   #cal-overlay.active { display:block; }
   /* The rubber-band box */
-  #cal-box { position:fixed; border:2px solid #00ffaa; background:rgba(0,255,170,.07); pointer-events:none; z-index:201; display:none; }
-  #cal-box::before,#cal-box::after { content:''; position:absolute; width:10px; height:10px; border-color:#00ffaa; border-style:solid; }
-  #cal-box::before { top:-2px; left:-2px; border-width:2px 0 0 2px; }
-  #cal-box::after  { bottom:-2px; right:-2px; border-width:0 2px 2px 0; }
-  #cal-box-info { position:absolute; top:-22px; left:0; font-family:'Cinzel',serif; font-size:10px; color:#00ffaa; text-shadow:0 1px 3px rgba(0,0,0,1); white-space:nowrap; pointer-events:none; }
+  .cal-marker { position:fixed; width:22px; height:22px; border-radius:50%; background:rgba(0,255,170,.3); border:2px solid #00ffaa; color:#00ffaa; font-family:'Cinzel',serif; font-size:12px; font-weight:bold; display:none; align-items:center; justify-content:center; z-index:201; pointer-events:none; box-shadow:0 0 12px rgba(0,255,170,.7); transform:translate(-50%,-50%); }
+  .cal-marker.visible { display:flex; }
 
   /* Alignment panel */
   #cal-panel { position:fixed; top:56px; left:50%; transform:translateX(-50%); background:rgba(0,18,12,.97); border:1px solid #00cc88; padding:14px 18px; z-index:210; border-radius:3px; box-shadow:0 4px 30px rgba(0,0,0,.8); display:none; min-width:300px; max-width:360px; font-family:'Cinzel',serif; }
@@ -173,32 +170,22 @@
   </div>
 </div>
 
-<!-- Alignment draw overlay (captures mouse during cal mode) -->
+<!-- Alignment click-target overlay (captures mouse during cal mode) -->
 <div id="cal-overlay"></div>
-<!-- Rubber-band box drawn by user -->
-<div id="cal-box"><div id="cal-box-info"></div></div>
+<!-- Click markers -->
+<div id="cal-marker-1" class="cal-marker">1</div>
+<div id="cal-marker-2" class="cal-marker">2</div>
 
 <!-- Alignment panel -->
 <div id="cal-panel">
   <h3>⊹ Grid Alignment</h3>
-  <p>Zoom in so you can clearly see the printed hex grid.<br>
-     <b style="color:#00ffaa">Click and drag</b> a box over exactly <b>3 hexes across × 3 hexes down</b>.<br>
-     Then enter where the <b>top-left corner</b> of your box is, counting from 0,0 at the top-left of the whole map.</p>
-  <div id="cal-status">No box drawn yet.</div>
-  <div id="cal-coord-section" style="display:none;margin-bottom:10px;">
-    <div style="font-size:9px;color:#00ffaa;letter-spacing:.1em;margin-bottom:6px;">BOX TOP-LEFT — COL &nbsp; ROW (from 0,0)</div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <input id="cal-start-col" type="number" min="0" max="200" value="0"
-        style="width:54px;background:#001a10;border:1px solid #00aa66;color:#e8d5a3;padding:4px 6px;font-family:monospace;font-size:13px;border-radius:2px;">
-      <input id="cal-start-row" type="number" min="0" max="200" value="0"
-        style="width:54px;background:#001a10;border:1px solid #00aa66;color:#e8d5a3;padding:4px 6px;font-family:monospace;font-size:13px;border-radius:2px;">
-      <button id="btn-cal-apply"
-        style="background:rgba(0,180,120,.25);border:1px solid #00cc88;color:#44ffbb;font-family:'Cinzel',serif;font-size:11px;padding:5px 14px;cursor:pointer;border-radius:2px;white-space:nowrap;">
-        ⊹ Apply
-      </button>
-    </div>
-  </div>
-  <div id="cal-nudge-section">
+  <p style="font-size:10px;line-height:1.5;">
+    <b style="color:#00ffaa">Step 1:</b> Zoom in on the <b>top-left</b> printed hex and click its <b>center</b>.<br>
+    <b style="color:#00ffaa">Step 2:</b> Pan to the <b>bottom-right</b> printed hex and click its <b>center</b>.<br>
+    <b style="color:#00ffaa">Step 3:</b> Nudge with arrow keys / +− if needed, then Save.
+  </p>
+  <div id="cal-status">Waiting for click 1 (top-left hex center)…</div>
+  <div id="cal-nudge-section" style="display:none;">
     <div class="cal-row">
       <label>Hex Size</label>
       <div class="cal-nudge">
@@ -229,8 +216,12 @@
         <button data-param="offsetY" data-delta="5">++</button>
       </div>
     </div>
+    <div style="font-size:9px;color:#a0d0c0;margin-top:6px;line-height:1.5;">
+      Arrow keys = offset ±1 &nbsp;·&nbsp; Shift+Arrow = ±5 &nbsp;·&nbsp; +/− = size ±0.1 &nbsp;·&nbsp; Shift +/− = ±0.5
+    </div>
   </div>
   <div class="cal-btns">
+    <button id="btn-cal-redo">↻ Redo Clicks</button>
     <button id="btn-cal-save">💾 Save</button>
     <button id="btn-cal-reset">↺ Reset</button>
     <button id="btn-cal-close">✕ Close</button>
@@ -382,7 +373,7 @@ const state={
   selectedCol:null,selectedRow:null,
   hexData:{},pendingMove:null,
   calMode:false,
-  calDrawing:false,calStartX:0,calStartY:0,
+  calClick1:null,calClick2:null,
 };
 
 // ── HEX MATH ──────────────────────────────────────────────────────────────────
@@ -595,6 +586,7 @@ function confirmMove(){
 function applyTransform(){
   document.getElementById('map-stage').style.transform=`translate(${state.panX}px,${state.panY}px) scale(${state.zoom})`;
   document.getElementById('zoom-display').textContent=Math.round(state.zoom*100)+'%';
+  if(state.calMode) positionCalMarkers();
 }
 function clampPan(){
   const w=document.getElementById('map-wrap');
@@ -625,38 +617,42 @@ function centerOnHex(col,row){
   clampPan(); applyTransform();
 }
 
-// ── ALIGNMENT TOOL ────────────────────────────────────────────────────────────
-// Roll20-style: user drags a box over 3×3 hexes on the printed map.
-// Box top-left = first hex's top-left corner, box covers 3 cols × 3 rows.
-//
-// For flat-top hex grid:
-//   3 cols wide  -> boxWidth  = 3 * colStep  = 3 * hexSize * 1.5  = hexSize * 4.5
-//   3 rows tall  -> boxHeight = 3 * rowStep  = 3 * hexSize * sqrt3
-//
-// But the box top-left aligns to a hex CORNER, not center:
-//   The leftmost point of col=0 is at offsetX - hexSize
-//   The topmost point of row=0 (even col) is at offsetY - rowStep/2
-//
-// So:
-//   hexSize  = boxWidth_mapPx / 4.5
-//   hexSize  = boxHeight_mapPx / (3 * sqrt3)   (second estimate)
-//   offsetX  = box_mapLeft  + hexSize           (left edge + hexSize = first hex center x)
-//   offsetY  = box_mapTop   + rowStep/2         (top edge + rowStep/2 = first hex center y)
+// ── CALIBRATION (two-click corners) ────────────────────────────────────────
+// User clicks center of hex (0,0) and center of hex (GRID_COLS-1, GRID_ROWS-1).
+// Given flat-top hex geometry:
+//   hexCenter(c,r).x = offsetX + c * hexSize * 1.5
+//   hexCenter(c,r).y = offsetY + r * hexSize * sqrt3 + (c%2 ? hexSize*sqrt3/2 : 0)
+// Both corner cols (0 and 144) are even, so the odd-col stagger term vanishes.
+// Solve:
+//   offsetX  = mx1
+//   offsetY  = my1
+//   colStep  = (mx2 - mx1) / (GRID_COLS - 1)
+//   rowStep  = (my2 - my1) / (GRID_ROWS - 1)
+//   hexSize  = average of (colStep/1.5) and (rowStep/sqrt3)
 
 function enterCalMode(){
   state.calMode=true;
+  state.calClick1=null;
+  state.calClick2=null;
   document.getElementById('btn-calibrate').classList.add('cal-active');
   document.getElementById('cal-panel').classList.add('open');
   document.getElementById('cal-overlay').classList.add('active');
   document.getElementById('map-wrap').classList.add('cal-mode');
+  document.getElementById('cal-nudge-section').style.display='none';
+  document.getElementById('cal-marker-1').classList.remove('visible');
+  document.getElementById('cal-marker-2').classList.remove('visible');
+  document.getElementById('cal-status').textContent='Waiting for click 1 (top-left hex center)…';
   updateCalDisplays();
 }
 function exitCalMode(){
   state.calMode=false;
+  state.calClick1=null;
+  state.calClick2=null;
   document.getElementById('btn-calibrate').classList.remove('cal-active');
   document.getElementById('cal-panel').classList.remove('open');
   document.getElementById('cal-overlay').classList.remove('active');
-  document.getElementById('cal-box').style.display='none';
+  document.getElementById('cal-marker-1').classList.remove('visible');
+  document.getElementById('cal-marker-2').classList.remove('visible');
   document.getElementById('map-wrap').classList.remove('cal-mode');
 }
 function updateCalDisplays(){
@@ -669,6 +665,7 @@ function nudgeCal(param,delta){
   if(param==='offsetX') cal.offsetX=+(cal.offsetX+delta).toFixed(2);
   if(param==='offsetY') cal.offsetY=+(cal.offsetY+delta).toFixed(2);
   rebuildGrid();
+  positionCalMarkers();
 }
 function saveCal(){
   try{ localStorage.setItem('gh-cal',JSON.stringify({hexSize:cal.hexSize,offsetX:cal.offsetX,offsetY:cal.offsetY})); }catch(e){}
@@ -677,133 +674,106 @@ function saveCal(){
 function resetCal(){
   cal.hexSize=DEFAULTS.hexSize; cal.offsetX=DEFAULTS.offsetX; cal.offsetY=DEFAULTS.offsetY;
   try{ localStorage.removeItem('gh-cal'); }catch(e){}
+  state.calClick1=null; state.calClick2=null;
   rebuildGrid();
-  document.getElementById('cal-coord-section').style.display='none';
-  document.getElementById('cal-nudge-section').style.display='block';
-  document.getElementById('cal-status').textContent='Reset to defaults. Saved calibration cleared. Draw a box to re-align.';
+  document.getElementById('cal-nudge-section').style.display='none';
+  document.getElementById('cal-marker-1').classList.remove('visible');
+  document.getElementById('cal-marker-2').classList.remove('visible');
+  document.getElementById('cal-status').textContent='Reset to defaults. Click top-left hex center to re-align.';
+}
+function redoCalClicks(){
+  state.calClick1=null; state.calClick2=null;
+  document.getElementById('cal-marker-1').classList.remove('visible');
+  document.getElementById('cal-marker-2').classList.remove('visible');
+  document.getElementById('cal-nudge-section').style.display='none';
+  document.getElementById('cal-status').textContent='Waiting for click 1 (top-left hex center)…';
 }
 
-// Store last drawn box in map coords
-let lastBox = null;
+// Position visual markers at the click positions, tracking pan/zoom
+function positionCalMarkers(){
+  const topOff=(document.getElementById('gcc-bar')?.offsetHeight||0)+46;
+  const place=(id,mpt)=>{
+    if(!mpt) return;
+    const el=document.getElementById(id);
+    const sx=mpt.mx*state.zoom+state.panX;
+    const sy=mpt.my*state.zoom+state.panY+topOff;
+    el.style.left=sx+'px';
+    el.style.top=sy+'px';
+  };
+  place('cal-marker-1',state.calClick1);
+  place('cal-marker-2',state.calClick2);
+}
 
-function solveFromBox(screenX1,screenY1,screenX2,screenY2){
-  const m1=screenToMap(screenX1,screenY1);
-  const m2=screenToMap(screenX2,screenY2);
-  const mapLeft=Math.min(m1.x,m2.x);
-  const mapTop =Math.min(m1.y,m2.y);
-  const boxW   =Math.abs(m2.x-m1.x);
-  const boxH   =Math.abs(m2.y-m1.y);
-
-  if(boxW<10||boxH<10){
-    showToast('Box too small — drag a larger area covering 3×3 hexes');
+function handleCalClick(clientX,clientY){
+  const m=screenToMap(clientX,clientY);
+  if(!state.calClick1){
+    state.calClick1={mx:m.x,my:m.y};
+    document.getElementById('cal-marker-1').classList.add('visible');
+    positionCalMarkers();
+    document.getElementById('cal-status').textContent=
+      `Click 1 set at (${m.x.toFixed(0)}, ${m.y.toFixed(0)}). Now click 2 (bottom-right hex center).`;
     return;
   }
-
-  lastBox = { mapLeft, mapTop, boxW, boxH };
-
-  // Show coord inputs, keep nudge hidden until apply
-  document.getElementById('cal-coord-section').style.display='block';
-  document.getElementById('cal-nudge-section').style.display='none';
-  document.getElementById('cal-status').textContent=
-    `Box drawn: ${boxW.toFixed(0)}×${boxH.toFixed(0)} map px.\nNow enter the col and row of the hex at the TOP-LEFT corner of your box (0,0 = top-left of the whole map), then click Apply.`;
+  if(!state.calClick2){
+    state.calClick2={mx:m.x,my:m.y};
+    document.getElementById('cal-marker-2').classList.add('visible');
+    applyTwoClickCal();
+    return;
+  }
 }
 
-function applyCalibration(){
-  if(!lastBox){ showToast('Draw a box on the map first'); return; }
-  const startCol = +document.getElementById('cal-start-col').value;
-  const startRow = +document.getElementById('cal-start-row').value;
-  const { mapLeft, mapTop, boxW, boxH } = lastBox;
-  const sqrt3 = Math.sqrt(3);
-
-  // hexSize from box dimensions:
-  // 3 cols wide: outer width = 2*colStep + 2*R = 3R + 2R = 5R  => R = boxW/5
-  // 3 rows tall: outer height = 3*rowStep = 3*R*sqrt3          => R = boxH/(3*sqrt3)
-  const hsFromW = boxW / 5;
-  const hsFromH = boxH / (3 * sqrt3);
-  const newHexSize = (hsFromW + hsFromH) / 2;
-
-  // The box top-left is the top-left corner of hex (startCol, startRow).
-  // For a flat-top hex, the top-left corner of hex (col, row) is:
-  //   x = offsetX + col*colStep - hexSize          (left flat edge)
-  //   y = offsetY + row*rowStep - rowStep/2         (top of hex, even col)
-  //       + (col%2===1 ? rowStep/2 : 0)             (odd col offset)
-  //
-  // Solving for offsetX and offsetY:
-  //   offsetX = mapLeft + newHexSize  - startCol * newHexSize * 1.5  ... wait:
-  //   mapLeft = offsetX + startCol*colStep - hexSize
-  //   offsetX = mapLeft - startCol*colStep + hexSize
-  //           = mapLeft - startCol*newHexSize*1.5 + newHexSize
-
-  const newColStep = newHexSize * 1.5;
-  const newRowStep = newHexSize * sqrt3;
-
-  let newOffsetX = mapLeft - startCol * newColStep + newHexSize;
-  const oddColAdj = (startCol % 2 === 1) ? newRowStep * 0.5 : 0;
-  let newOffsetY = mapTop - startRow * newRowStep + newRowStep / 2 - oddColAdj;
-
-  // Normalize: shift grid origin so col 0 / row 0 is near the top-left of the map,
-  // preserving exact alignment phase. X must shift by multiples of 2*colStep to
-  // preserve odd/even column parity (which controls the vertical stagger).
-  const colPeriod = newColStep * 2;
-  if(newOffsetX > colPeriod){
-    newOffsetX = ((newOffsetX % colPeriod) + colPeriod) % colPeriod;
+function applyTwoClickCal(){
+  const c1=state.calClick1, c2=state.calClick2;
+  if(!c1||!c2) return;
+  const sqrt3=Math.sqrt(3);
+  const dx=c2.mx-c1.mx;
+  const dy=c2.my-c1.my;
+  if(dx<50||dy<50){
+    showToast('Clicks too close — click 2 should be bottom-right hex');
+    state.calClick2=null;
+    document.getElementById('cal-marker-2').classList.remove('visible');
+    return;
   }
-  if(newOffsetY > newRowStep){
-    newOffsetY = ((newOffsetY % newRowStep) + newRowStep) % newRowStep;
-  }
+  const colStep=dx/(GRID_COLS-1);
+  const rowStep=dy/(GRID_ROWS-1);
+  const hsFromCol=colStep/1.5;
+  const hsFromRow=rowStep/sqrt3;
+  const newHexSize=(hsFromCol+hsFromRow)/2;
 
-  cal.hexSize = +newHexSize.toFixed(3);
-  cal.offsetX = +newOffsetX.toFixed(3);
-  cal.offsetY = +newOffsetY.toFixed(3);
+  cal.hexSize=+newHexSize.toFixed(3);
+  cal.offsetX=+c1.mx.toFixed(3);
+  cal.offsetY=+c1.my.toFixed(3);
 
   rebuildGrid();
+  positionCalMarkers();
   document.getElementById('cal-nudge-section').style.display='block';
   document.getElementById('cal-status').textContent=
-    `Applied — hexSize:${cal.hexSize.toFixed(2)}  offsetX:${cal.offsetX.toFixed(1)}  offsetY:${cal.offsetY.toFixed(1)}
-Fine-tune with the nudge buttons if needed.`;
+    `Applied — hexSize:${cal.hexSize.toFixed(2)} (Δcol:${hsFromCol.toFixed(2)} Δrow:${hsFromRow.toFixed(2)}).\nNudge with arrows / +− if needed, then Save.`;
 }
 
-// Draw box event handling on the overlay
+// Click handler on the cal overlay (captures clicks above the map)
 function wireCalOverlay(){
   const overlay=document.getElementById('cal-overlay');
-  const box=document.getElementById('cal-box');
-  const info=document.getElementById('cal-box-info');
-
-  function startDraw(cx,cy){
-    state.calDrawing=true;
-    state.calStartX=cx; state.calStartY=cy;
-    box.style.display='block';
-    box.style.left=cx+'px'; box.style.top=cy+'px';
-    box.style.width='0'; box.style.height='0';
-    info.textContent='';
-  }
-  function updateDraw(cx,cy){
-    if(!state.calDrawing) return;
-    const x=Math.min(cx,state.calStartX);
-    const y=Math.min(cy,state.calStartY);
-    const w=Math.abs(cx-state.calStartX);
-    const h=Math.abs(cy-state.calStartY);
-    box.style.left=x+'px'; box.style.top=y+'px';
-    box.style.width=w+'px'; box.style.height=h+'px';
-    // Show map-space dimensions in info
-    const m1=screenToMap(state.calStartX,state.calStartY);
-    const m2=screenToMap(cx,cy);
-    const mw=Math.abs(m2.x-m1.x).toFixed(0);
-    const mh=Math.abs(m2.y-m1.y).toFixed(0);
-    info.textContent=`${mw}×${mh} map px`;
-  }
-  function endDraw(cx,cy){
-    if(!state.calDrawing) return;
-    state.calDrawing=false;
-    solveFromBox(state.calStartX,state.calStartY,cx,cy);
-  }
-
-  overlay.addEventListener('mousedown',e=>{ e.preventDefault(); startDraw(e.clientX,e.clientY); });
-  overlay.addEventListener('mousemove',e=>{ updateDraw(e.clientX,e.clientY); });
-  overlay.addEventListener('mouseup',  e=>{ endDraw(e.clientX,e.clientY); });
-  overlay.addEventListener('touchstart',e=>{ e.preventDefault(); const t=e.touches[0]; startDraw(t.clientX,t.clientY); },{passive:false});
-  overlay.addEventListener('touchmove', e=>{ e.preventDefault(); const t=e.touches[0]; updateDraw(t.clientX,t.clientY); },{passive:false});
-  overlay.addEventListener('touchend',  e=>{ const t=e.changedTouches[0]; endDraw(t.clientX,t.clientY); });
+  // Track mousedown position so drags become pans, not clicks
+  let downX=0,downY=0,downT=0,isDown=false;
+  overlay.addEventListener('mousedown',e=>{
+    if(!state.calMode) return;
+    isDown=true; downX=e.clientX; downY=e.clientY; downT=Date.now();
+    // Forward to map-wrap to allow panning while in cal mode
+    const wrap=document.getElementById('map-wrap');
+    state.dragging=true; state.didDrag=false;
+    state.dragStartX=e.clientX; state.dragStartY=e.clientY;
+    state.panStartX=state.panX; state.panStartY=state.panY;
+    wrap.classList.add('grabbing');
+  });
+  overlay.addEventListener('click',e=>{
+    if(!state.calMode) return;
+    // If this click was preceded by a drag, skip
+    if(state.didDrag) return;
+    const dx=Math.abs(e.clientX-downX), dy=Math.abs(e.clientY-downY);
+    if(dx>4||dy>4) return;
+    handleCalClick(e.clientX,e.clientY);
+  });
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
@@ -909,9 +879,9 @@ function wireEvents(){
   document.getElementById('btn-cal-save').addEventListener('click',saveCal);
   document.getElementById('btn-cal-reset').addEventListener('click',resetCal);
   document.getElementById('btn-cal-close').addEventListener('click',exitCalMode);
-  document.getElementById('btn-cal-apply').addEventListener('click',applyCalibration);
+  document.getElementById('btn-cal-redo').addEventListener('click',redoCalClicks);
 
-  // Cal overlay draw box
+  // Cal overlay click capture
   wireCalOverlay();
 
   // Opacity slider
@@ -928,6 +898,17 @@ function wireEvents(){
 
   // Keyboard
   window.addEventListener('keydown',e=>{
+    // In cal mode: arrow keys nudge offset, +/- nudge size
+    if(state.calMode){
+      const big=e.shiftKey;
+      if(e.key==='ArrowLeft') { nudgeCal('offsetX', big?-5:-1); e.preventDefault(); return; }
+      if(e.key==='ArrowRight'){ nudgeCal('offsetX', big? 5: 1); e.preventDefault(); return; }
+      if(e.key==='ArrowUp')   { nudgeCal('offsetY', big?-5:-1); e.preventDefault(); return; }
+      if(e.key==='ArrowDown') { nudgeCal('offsetY', big? 5: 1); e.preventDefault(); return; }
+      if(e.key==='='||e.key==='+'){ nudgeCal('hexSize', big?0.5:0.1); e.preventDefault(); return; }
+      if(e.key==='-'||e.key==='_'){ nudgeCal('hexSize', big?-0.5:-0.1); e.preventDefault(); return; }
+      if(e.key==='Escape'){ exitCalMode(); return; }
+    }
     if(e.key==='m'||e.key==='M') document.getElementById('btn-move-mode').click();
     if(e.key==='l'||e.key==='L') document.getElementById('btn-hex-labels').click();
     if(e.key==='h'||e.key==='H') centerOnHex(state.partyCol,state.partyRow);
