@@ -158,6 +158,8 @@
   <div class="sep"></div>
   <button class="tb-btn" id="btn-move-mode">☩ Move</button>
   <button class="tb-btn" id="btn-hex-labels">IDs</button>
+  <div class="sep"></div>
+  <button class="tb-btn" id="btn-calibrate">⊹ Align</button>
   <div class="spacer"></div>
   <div id="mode-label">OVERWORLD · 30 MI/HEX</div>
   <div class="sep"></div>
@@ -294,6 +296,7 @@ const cal = {
   offsetX: HEX_R,                        // col 0 left edge at x=0
   offsetY: HEX_R * Math.sqrt(3) / 2,     // row 0 top edge at y=0
 };
+const DEFAULTS = { hexSize: cal.hexSize, offsetX: cal.offsetX, offsetY: cal.offsetY };
 const MAP_W = Math.ceil((GRID_COLS - 1) * 1.5 * HEX_R + 2 * HEX_R);          // 4360
 const MAP_H = Math.ceil(GRID_ROWS * Math.sqrt(3) * HEX_R + Math.sqrt(3) * HEX_R / 2); // 3378
 let stageBounds = { minX:0, minY:0, maxX:MAP_W, maxY:MAP_H, width:MAP_W, height:MAP_H };
@@ -897,6 +900,9 @@ function wireEvents(){
   document.getElementById('overlay-bg').addEventListener('click',closeMoveDialog);
 
   // Cal panel
+  document.getElementById('btn-calibrate').addEventListener('click',()=>{
+    state.calMode ? exitCalMode() : enterCalMode();
+  });
   document.querySelectorAll('.cal-nudge button').forEach(btn=>{
     btn.addEventListener('click',()=>nudgeCal(btn.dataset.param,+btn.dataset.delta));
   });
@@ -933,6 +939,14 @@ function wireEvents(){
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function init(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('gh-cal')||'null');
+    if(saved&&saved.hexSize>0){
+      cal.hexSize=saved.hexSize;
+      cal.offsetX=saved.offsetX;
+      cal.offsetY=saved.offsetY;
+    }
+  }catch(e){}
   const img=document.getElementById('map-img');
   const start=()=>{
     buildHexGrid(); wireEvents();
