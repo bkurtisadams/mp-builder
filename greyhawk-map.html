@@ -280,7 +280,7 @@
 // Darlene World of Greyhawk map: 145 cols x 97 rows of flat-top hexes.
 // The hex grid is ground truth; the background image stretches to fit.
 const HEX_R = 20;
-const GRID_COLS = 146;
+const GRID_COLS = 74;
 const GRID_ROWS = 97;
 const cal = {
   hexSize: HEX_R,
@@ -304,8 +304,9 @@ function darleneColLabel(col){
   const rep = Math.floor(idx / 26) + 1;
   return rep === 1 ? letter : letter + rep;
 }
+// new: diagonal advances exactly 1 per column
 function darleneDiagonal(col, row){
-  return row + 1 + Math.round((GRID_COLS - 1 - col) * 73 / 145);
+  return row + 1 + (GRID_COLS - 1 - col);
 }
 function darleneToInternal(label){
   const m = String(label||'').trim().toUpperCase().match(/^([A-Z])(\d*)-(\d+)$/);
@@ -425,7 +426,7 @@ const state={
   zoom:.5,panX:0,panY:0,
   dragging:false,didDrag:false,dragStartX:0,dragStartY:0,panStartX:0,panStartY:0,
   moveMode:false,showLabels:false,
-  partyCol:83,partyRow:51,
+  partyCol:64,partyRow:44,
   selectedCol:null,selectedRow:null,
   hexData:{},pendingMove:null,
   calMode:false,
