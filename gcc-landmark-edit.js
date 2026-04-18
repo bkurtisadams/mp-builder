@@ -5,6 +5,8 @@
 
 (function(){
   if (typeof window === 'undefined') return;
+  const LOG = (...a) => console.log('[landmark-edit]', ...a);
+  LOG('gcc-landmark-edit.js v0.1.0 loaded');
 
   const KINDS = ['city','town','castle','ruin','village','feature','landmark'];
 
@@ -163,17 +165,18 @@
   // ── Map click interception ───────────────────────────────────────────────
   function onMapClick(ev){
     if (!state.active) return;
+    LOG('click received at', ev.clientX, ev.clientY);
     const wrap = document.getElementById('hex-wrap');
     if (!wrap) return;
-    // Use the same coord conversion the map uses — rely on a pageX/pageY-based
-    // helper if exposed, else compute from the wrap bounding rect matching how
-    // greyhawk-map.html's click handler does it.
     if (typeof screenToMap !== 'function' || typeof mapToHex !== 'function'){
+      LOG('✗ screenToMap or mapToHex not a function');
       setStatus('Map coord helpers not available yet.', false); return;
     }
     const m = screenToMap(ev.clientX, ev.clientY);
+    LOG('screenToMap →', m);
     if (!m) return;
     const hit = mapToHex(m.x, m.y);
+    LOG('mapToHex →', hit);
     if (!hit){ setStatus('Click was outside the hex grid.', false); return; }
 
     ev.stopPropagation();
@@ -197,11 +200,12 @@
     }
 
     const id = hexIdStr(hit.col, hit.row);
-    GCCLandmarks.setOverride({ name, id, kind, region, notes });
+    const ok = GCCLandmarks.setOverride({ name, id, kind, region, notes });
+    LOG('setOverride →', { name, id, kind, ok });
+    LOG('merged count now:', GCCLandmarks.all().length, 'overrides:', Object.keys(GCCLandmarks.exportOverrides()));
     showToast(`${name} → ${id}`);
     setStatus(`Placed: ${name} at ${id}. Pick next.`, false);
 
-    // Reset selection for next placement
     if (state.newMode){
       state.panelEl.querySelector('#le-new-name').value = '';
       state.newFields.name = '';
@@ -245,16 +249,17 @@
   }
 
   function redrawOverlay(){
-    // Safest: rebuild the grid. Expensive but correct and already debounced
-    // through buildHexGrid → buildLandmarkOverlay.
-    if (typeof rebuildGrid === 'function') rebuildGrid();
-    else if (typeof buildHexGrid === 'function') buildHexGrid();
+    if (typeof rebuildGrid === 'function'){ LOG('rebuildGrid()'); rebuildGrid(); }
+    else if (typeof buildHexGrid === 'function'){ LOG('buildHexGrid()'); buildHexGrid(); }
+    else LOG('✗ no rebuildGrid or buildHexGrid available');
   }
 
   // ── Enter / exit mode ────────────────────────────────────────────────────
   function enter(){
+    LOG('enter() called; state.active was', state.active);
     if (state.active) return;
     if (typeof GCCLandmarks === 'undefined'){
+      LOG('✗ GCCLandmarks undefined — gcc-landmarks.js not loaded');
       (typeof showToast === 'function' ? showToast : alert)('gcc-landmarks.js not loaded');
       return;
     }
@@ -264,10 +269,16 @@
     else state.panelEl.style.display = 'block';
     refreshSelect();
     const wrap = document.getElementById('hex-wrap');
-    if (wrap) wrap.addEventListener('click', onMapClick, true);
+    if (wrap){
+      wrap.addEventListener('click', onMapClick, true);
+      LOG('✓ click listener attached to #hex-wrap');
+    } else {
+      LOG('✗ #hex-wrap not found');
+    }
     document.addEventListener('keydown', onKey, true);
     const btn = document.getElementById('btn-landmark-edit');
     if (btn) btn.classList.add('active');
+    LOG('mode entered');
   }
 
   function exit(){
@@ -291,7 +302,12 @@
   // ── Wire toolbar button after DOM ready ──────────────────────────────────
   function wire(){
     const btn = document.getElementById('btn-landmark-edit');
-    if (btn) btn.addEventListener('click', toggle);
+    if (btn){
+      btn.addEventListener('click', toggle);
+      LOG('✓ button #btn-landmark-edit wired');
+    } else {
+      LOG('✗ button #btn-landmark-edit not found — toolbar edit missing?');
+    }
   }
   if (document.readyState === 'loading')
     document.addEventListener('DOMContentLoaded', wire);
