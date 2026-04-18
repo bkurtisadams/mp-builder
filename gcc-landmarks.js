@@ -1,4 +1,4 @@
-// gcc-landmarks.js v0.2.0 — 2026-04-18
+// gcc-landmarks.js v0.3.0 — 2026-04-18
 // World of Greyhawk landmarks, keyed by Darlene hex ID.
 // Layered store: BASE file data + PENDING (no hex yet) + OVERRIDES (localStorage).
 //
@@ -18,27 +18,25 @@
 
   // ── PENDING: known cities waiting for hex ID assignment ───────────────────
   // Place via the landmark editor (gcc-landmark-edit.js).
-  const GH_PENDING = [
-    { name: "Chendl",        kind: "city",    region: "Kingdom of Furyondy" },
-    { name: "Mitrik",        kind: "city",    region: "Archclericy of Veluna" },
-    { name: "Verbobonc",     kind: "city",    region: "Viscounty of Verbobonc" },
-    { name: "Willip",        kind: "city",    region: "Kingdom of Furyondy" },
-    { name: "Nulb",          kind: "village" },
-    { name: "Hommlet",       kind: "village" },
-    { name: "Rel Mord",      kind: "city",    region: "Kingdom of Nyrond" },
-    { name: "Rauxes",        kind: "city",    region: "Great Kingdom" },
-    { name: "Rel Astra",     kind: "city",    region: "Great Kingdom" },
-    { name: "Irongate",      kind: "city",    region: "Iron League" },
-    { name: "Gradsul",       kind: "city",    region: "Kingdom of Keoland" },
-    { name: "Saltmarsh",     kind: "town",    region: "Kingdom of Keoland" },
-    { name: "Safeton",       kind: "town",    region: "Wild Coast" },
-    { name: "Narwell",       kind: "town",    region: "Wild Coast" },
-    { name: "Leukish",       kind: "city",    region: "Duchy of Urnst" },
-    { name: "Radigast City", kind: "city",    region: "County of Urnst" },
-    { name: "Molag",         kind: "city",    region: "Horned Society" },
-    { name: "Dorakaa",       kind: "city",    region: "Empire of Iuz" },
-    { name: "Maure Castle",  kind: "castle",  notes: "Maure family ruin" },
-  ];
+      const GH_LANDMARKS = {
+    "A2-69"   : { name: "Rauxes", kind: "city", region: "Great Kingdom" },
+    "C4-86"   : { name: "City of Greyhawk", kind: "city", size: "metropolis", pop: 58000, region: "Domain of Greyhawk" },
+    "C4-91"   : { name: "Hardby", kind: "town", size: "small-city", pop: 7500, region: "Domain of Greyhawk" },
+    "E4-74"   : { name: "Molag", kind: "city", region: "Horned Society" },
+    "E4-83"   : { name: "Willip", kind: "city", region: "Kingdom of Furyondy" },
+    "F4-95"   : { name: "Safeton", kind: "town", region: "Wild Coast" },
+    "G4-89"   : { name: "Dyvers", kind: "city", size: "city", pop: 42000, region: "Wild Coast" },
+    "H4-70"   : { name: "Dorakaa", kind: "city", region: "Empire of Iuz" },
+    "H4-95"   : { name: "Narwell", kind: "town", region: "Wild Coast" },
+    "N4-97"   : { name: "Hommlet", kind: "village" },
+    "O4-95"   : { name: "Verbobonc", kind: "city", region: "Viscounty of Verbobonc" },
+    "P4-117"  : { name: "Gradsul", kind: "city", region: "Kingdom of Keoland" },
+    "P4-85"   : { name: "Chendl", kind: "city", region: "Kingdom of Furyondy" },
+    "Q3-74"   : { name: "Radigast City", kind: "city", region: "County of Urnst" },
+    "R-72"    : { name: "Rel Astra", kind: "city", region: "Great Kingdom" },
+    "R3-81"   : { name: "Leukish", kind: "city", region: "Duchy of Urnst" },
+    "X4-113"  : { name: "Niole Dra", kind: "city", size: "city", region: "Kingdom of Keoland" },
+  };
 
   // ── OVERRIDES: user placements via editor, persisted to localStorage ──────
   // Shape: { [name]: { id, name, kind, region?, notes?, _override:true } }

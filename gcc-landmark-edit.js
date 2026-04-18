@@ -1,4 +1,4 @@
-// gcc-landmark-edit.js v0.1.0 — 2026-04-18
+// gcc-landmark-edit.js v0.3.0 — 2026-04-18
 // Click-to-place landmark editor for greyhawk-map.html.
 // Requires globals: GCCLandmarks, hexIdStr, darleneToInternal, mapToHex,
 //   clientToMap (on the wrap element), showToast, buildHexGrid / rebuildGrid.
