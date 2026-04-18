@@ -104,6 +104,31 @@ const GCC = (function() {
   const LORE_TYPES = ['npc', 'location', 'faction', 'item', 'other'];
   const LORE_TYPE_LABELS = { npc: 'NPC', location: 'Location', faction: 'Faction', item: 'Item', other: 'Other' };
 
+  // ── Campaign Rule Toggles ──
+  const RULE_DEFS = {
+    add1e: [
+      { id:'nwp',                 label:'Non-Weapon Proficiencies', desc:'2e-style proficiency system (OA/DSG/WSG/PHB2e)' },
+      { id:'weaponSpec',          label:'Weapon Specialization',    desc:'Fighters can specialize in a single weapon (UA/2e)' },
+      { id:'psionics',            label:'Psionics',                 desc:'PHB Appendix I psionic disciplines' },
+      { id:'criticalHits',        label:'Critical Hits',            desc:'Natural 20 deals maximum or double damage' },
+      { id:'calledShots',         label:'Called Shots',             desc:'Target specific body locations at a penalty' },
+      { id:'detailedEncumbrance', label:'Detailed Encumbrance',     desc:'Track item weights vs. simple encumbrance categories' },
+      { id:'segmentedInitiative', label:'Segmented Initiative',     desc:'Individual initiative with weapon speed factors' },
+      { id:'weaponVsAC',          label:'Weapon vs. AC Modifiers',  desc:'Apply weapon-type vs. armor-type adjustments' },
+      { id:'spellComponents',     label:'Spell Components',         desc:'Track material components for spells' },
+      { id:'spellFumbles',        label:'Spell Fumbles',            desc:'Natural 1 on spell check causes mishap' },
+      { id:'moraleChecks',        label:'Morale Checks',            desc:'Monsters and henchmen check morale' },
+    ],
+    faserip: [
+      { id:'teamKarmaPool',       label:'Team Karma Pool',          desc:'Shared karma pool for team members' },
+      { id:'classicAdvancement',  label:'Classic Advancement',      desc:'Use original FASERIP advancement rules' },
+    ],
+    mp: [
+      { id:'strictDefenses',      label:'Strict Defense Tracking',  desc:'Enforce force-field and armor depletion exactly' },
+    ],
+  };
+  function getRuleDefs(systemId) { return RULE_DEFS[systemId] || []; }
+
   // ── Schema Migration ──
   function migrateEntity(entity) {
     if (!entity) return entity;
@@ -213,6 +238,7 @@ const GCC = (function() {
       characters: data.characters || [],
       sessions: data.sessions || [],
       lore: data.lore || [],
+      rules: data.rules || {},
       created: data.created || new Date().toISOString(),
     };
     list.push(camp);
@@ -230,6 +256,22 @@ const GCC = (function() {
   function deleteCampaign(id) {
     const list = loadCampaigns().filter(c => c.id !== id);
     saveCampaigns(list);
+  }
+  function getCampaignRules(id) {
+    const camp = getCampaign(id);
+    if (!camp) return {};
+    const defs = getRuleDefs(camp.system);
+    const stored = camp.rules || {};
+    const out = {};
+    defs.forEach(d => { out[d.id] = !!stored[d.id]; });
+    return out;
+  }
+  function setCampaignRule(id, ruleId, value) {
+    const camp = getCampaign(id);
+    if (!camp) return null;
+    const rules = Object.assign({}, camp.rules || {});
+    rules[ruleId] = !!value;
+    return updateCampaign(id, { rules });
   }
 
   // ── Activity Log ──
@@ -425,9 +467,11 @@ const GCC = (function() {
     TEAM_LABELS,
     LORE_TYPES,
     LORE_TYPE_LABELS,
+    RULE_DEFS,
     teamLabel,
     sessionLabel,
     xpLabel,
+    getRuleDefs,
     init,
     // Campaigns
     loadCampaigns,
@@ -436,6 +480,8 @@ const GCC = (function() {
     addCampaign,
     updateCampaign,
     deleteCampaign,
+    getCampaignRules,
+    setCampaignRule,
     // Activity
     loadActivity,
     logActivity,
