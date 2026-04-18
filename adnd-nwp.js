@@ -102,7 +102,7 @@
 
   // ── Campaign rule check ──
   function isEnabledForCharacter(CHAR){
-    if(!window.GCC || !GCC.loadCampaigns || !GCC.getCampaignRules) return false;
+    if(typeof GCC==='undefined' || !GCC.loadCampaigns || !GCC.getCampaignRules) return false;
     if(!CHAR || !CHAR._id){
       // Allow viewing existing NWPs on unsaved chars so data isn't hidden
       return !!(CHAR && CHAR.nwp && CHAR.nwp.length);
