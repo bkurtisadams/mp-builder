@@ -437,7 +437,8 @@ const state={
 function colStep(){ return cal.hexSize*1.5; }
 function rowStep(){ return cal.hexSize*Math.sqrt(3); }
 function hexCenter(col,row){
-  return { x:cal.offsetX+col*colStep(), y:cal.offsetY+row*rowStep()+(col%2===1?rowStep()*.5:0) };
+  return { x:cal.offsetX+col*colStep(),
+           y:cal.offsetY+row*rowStep()+(col%2===0?rowStep()*.5:0) };
 }
 function hexCorners(cx,cy){
   return Array.from({length:6},(_,i)=>{
@@ -453,7 +454,7 @@ function mapToHex(mx,my){
   const estCol=Math.round((mx-cal.offsetX)/cs);
   const cMin=Math.max(0,estCol-1),cMax=Math.min(g.cols-1,estCol+1);
   for(let c=cMin;c<=cMax;c++){
-    const estRow=Math.round((my-cal.offsetY-(c%2===1?rs*.5:0))/rs);
+    const estRow=Math.round((my-cal.offsetY-(c%2===0?rs*.5:0))/rs);
     const rMin=Math.max(0,estRow-1),rMax=Math.min(g.rows-1,estRow+1);
     for(let r=rMin;r<=rMax;r++){
       const {x,y}=hexCenter(c,r);
@@ -831,7 +832,7 @@ function applyLandmarkCal(landmarks){
   };
   for(const L of landmarks){
     addRow([1, 0, L.col*1.5], L.mx);
-    addRow([0, 1, L.row*sqrt3 + (L.col%2?sqrt3/2:0)], L.my);
+    addRow([0, 1, L.row*sqrt3 + (L.col%2?0:sqrt3/2)], L.my);
   }
   // Solve 3x3 via Cramer's rule
   const det3 = M => (
