@@ -111,7 +111,7 @@
       #landmark-edit-panel .le-btn:hover { background:rgba(200,148,26,.25); color:#e8b840; border-color:#c8941a; }
       #landmark-edit-panel .le-btn.le-danger { color:#cc6644; border-color:#663311; }
       #landmark-edit-panel .le-btn.le-danger:hover { background:rgba(180,50,20,.2); color:#ff7755; }
-      body.le-placing #hex-wrap { cursor:crosshair !important; }
+      body.le-placing #map-wrap { cursor:crosshair !important; }
     `;
     document.head.appendChild(s);
   }
@@ -166,7 +166,7 @@
   function onMapClick(ev){
     if (!state.active) return;
     LOG('click received at', ev.clientX, ev.clientY);
-    const wrap = document.getElementById('hex-wrap');
+    const wrap = document.getElementById('map-wrap');
     if (!wrap) return;
     if (typeof screenToMap !== 'function' || typeof mapToHex !== 'function'){
       LOG('✗ screenToMap or mapToHex not a function');
@@ -268,12 +268,12 @@
     if (!state.panelEl) buildPanel();
     else state.panelEl.style.display = 'block';
     refreshSelect();
-    const wrap = document.getElementById('hex-wrap');
+    const wrap = document.getElementById('map-wrap');
     if (wrap){
       wrap.addEventListener('click', onMapClick, true);
-      LOG('✓ click listener attached to #hex-wrap');
+      LOG('✓ click listener attached to #map-wrap');
     } else {
-      LOG('✗ #hex-wrap not found');
+      LOG('✗ #map-wrap not found');
     }
     document.addEventListener('keydown', onKey, true);
     const btn = document.getElementById('btn-landmark-edit');
@@ -286,7 +286,7 @@
     state.active = false;
     document.body.classList.remove('le-placing');
     if (state.panelEl) state.panelEl.style.display = 'none';
-    const wrap = document.getElementById('hex-wrap');
+    const wrap = document.getElementById('map-wrap');
     if (wrap) wrap.removeEventListener('click', onMapClick, true);
     document.removeEventListener('keydown', onKey, true);
     const btn = document.getElementById('btn-landmark-edit');
