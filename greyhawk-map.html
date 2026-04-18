@@ -52,6 +52,7 @@
   .hex-cell.party-hex { stroke:#cc2200; stroke-width:1.8; }
   .hex-label { font-family:'Cinzel',serif; font-size:5px; fill:rgba(0,0,0,.45); text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
   .landmark-mark  { filter: drop-shadow(0 0 2px rgba(0,0,0,.5)); }
+  .landmark-override { filter: drop-shadow(0 0 3px rgba(68,255,187,.7)); }
   .landmark-label { font-family:'Cinzel',serif; font-size:4.5px; font-weight:600;
                     fill:#2a1a08; stroke:#f4e4b8; stroke-width:0.3;
                     paint-order:stroke; text-anchor:middle;
@@ -162,6 +163,7 @@
   <button class="tb-btn" id="btn-hex-labels">IDs</button>
   <div class="sep"></div>
   <button class="tb-btn" id="btn-calibrate">⊹ Align</button>
+  <button class="tb-btn" id="btn-landmark-edit">📍 Place</button>
   <div class="spacer"></div>
   <div id="mode-label">OVERWORLD · 30 MI/HEX</div>
   <div class="sep"></div>
@@ -281,6 +283,7 @@
 <div id="toast"></div>
 
 <script src="gcc-landmarks.js"></script>
+<script src="gcc-landmark-edit.js"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
 // Darlene World of Greyhawk map: 145 cols x 97 rows of flat-top hexes.
@@ -600,6 +603,8 @@ function buildLandmarkOverlay(){
     const {x:mx, y:my} = hexCenter(hit.col, hit.row);
     const {x, y} = mapToStage(mx, my);
     const style = KIND_STYLE[lm.kind] || KIND_STYLE.feature;
+    const overrideFill   = '#44ffbb';
+    const overrideStroke = '#aaffdd';
     let mark;
     switch(style.shape){
       case 'circle':
@@ -631,10 +636,10 @@ function buildLandmarkOverlay(){
         break;
       }
     }
-    if(style.fill && style.shape !== 'x') mark.setAttribute('fill',  style.fill);
-    if(style.stroke) mark.setAttribute('stroke', style.stroke);
+    if(style.fill && style.shape !== 'x') mark.setAttribute('fill',  lm._override ? overrideFill : style.fill);
+    if(style.stroke) mark.setAttribute('stroke', lm._override ? overrideStroke : style.stroke);
     if(style.sw)     mark.setAttribute('stroke-width', style.sw);
-    mark.setAttribute('class', 'landmark-mark');
+    mark.setAttribute('class', lm._override ? 'landmark-mark landmark-override' : 'landmark-mark');
     mark.dataset.id = id;
     g.appendChild(mark);
     const label = document.createElementNS(ns,'text');
