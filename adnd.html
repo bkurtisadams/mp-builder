@@ -295,6 +295,7 @@ tr.inv-nocarry td input{color:var(--ink-lt)}
   .cls-sec{display:block!important}
 }
 </style>
+<link rel="stylesheet" href="adnd-nwp.css">
 </head>
 <body>
 
@@ -360,6 +361,7 @@ tr.inv-nocarry td input{color:var(--ink-lt)}
 <div class="pg-tabs">
   <div class="pg-tab active" data-page="page1">Page 1 — Stats & Combat</div>
   <div class="pg-tab" data-page="page2">Page 2 — Inventory & Personal</div>
+  <div class="pg-tab" data-page="page3" style="display:none">Page 3 — NWP</div>
 </div>
 
 <div class="pg-page active" id="page1">
@@ -728,16 +730,21 @@ tr.inv-nocarry td input{color:var(--ink-lt)}
 </div>
 </div>
 
+<div class="pg-page" id="page3"></div>
+
 <script src="gcc-data.js"></script>
 <script src="gcc-header.js"></script>
 <script src="gcc-firebase-config.js"></script>
 <script src="gcc-auth.js"></script>
 <script src="gcc-sync.js"></script>
 <script src="gcc-dialog.js"></script>
+<script src="adnd-nwp-data.js"></script>
+<script src="adnd-nwp.js"></script>
 <script>
 const STORAGE_KEY=GCC.KEYS.add1eChars;
 const AUTOSAVE_KEY='gcc_add1e_autosave';
 let CHAR={};
+Object.defineProperty(window,'CHAR',{get:()=>CHAR,set:v=>{CHAR=v;}});
 
 const CLASS_SECTIONS={
   'cleric':['section-turning','section-spells'],'druid':['section-spells'],
@@ -2528,7 +2535,17 @@ function populateAll(){
   renderTableRows('associates','assoc-list','add-assoc',[{key:'num',center:true},{key:'name'},{key:'cls'},{key:'level',center:true},{key:'race'},{key:'notes'},{key:'num2',center:true},{key:'name2'},{key:'cls2'},{key:'level2',center:true},{key:'race2'},{key:'notes2'}]);
   renderTableRows('locales','locale-list','add-locale',[{key:'location'},{key:'time'},{key:'details'},{key:'location2'},{key:'time2'},{key:'details2'}]);
   renderSpells();calcWeight();
+  if(window.ADNDNWP)ADNDNWP.updateTabVisibility();
 }
+
+// Re-render NWP tab when fields that affect slot math change
+document.addEventListener('change',e=>{
+  if(!window.ADNDNWP)return;
+  const f=e.target&&e.target.dataset&&e.target.dataset.field;
+  if(f==='int'||f==='level'||f==='characterClass'||f==='languages'){
+    ADNDNWP.updateTabVisibility();
+  }
+});
 
 (function(){
   function loadAndPopulate(){
