@@ -808,6 +808,112 @@ function applyTwoClickCal(){
     `Applied — hexSize:${cal.hexSize.toFixed(2)} (Δcol:${hsFromCol.toFixed(2)} Δrow:${hsFromRow.toFixed(2)}).\nNudge with arrows / +− if needed, then Save.`;
 }
 
+// ── LANDMARK CALIBRATION ──────────────────────────────────────────────────────
+// landmarks: [{mx, my, col, row}]  — pixel coords of clicks + expected hex (col,row)
+function applyLandmarkCal(landmarks){
+  if(!landmarks || landmarks.length < 3){
+    showToast('Need at least 3 landmarks');
+    return false;
+  }
+  const sqrt3 = Math.sqrt(3);
+  // hexCenter(c,r) = offsetX + c*hexSize*1.5,  offsetY + r*hexSize*sqrt3 + (c%2?hexSize*sqrt3/2:0)
+  // Let s = hexSize, ox = offsetX, oy = offsetY. For each landmark i:
+  //   mx_i = ox + c_i * 1.5 * s
+  //   my_i = oy + (r_i*sqrt3 + (c_i%2?sqrt3/2:0)) * s
+  // Two linear equations per landmark in (ox, oy, s). Stack and solve via normal equations.
+  let A=[[0,0,0],[0,0,0],[0,0,0]], b=[0,0,0];
+  const addRow = (coef, rhs) => {
+    for(let i=0;i<3;i++){
+      for(let j=0;j<3;j++) A[i][j] += coef[i]*coef[j];
+      b[i] += coef[i]*rhs;
+    }
+  };
+  for(const L of landmarks){
+    addRow([1, 0, L.col*1.5], L.mx);
+    addRow([0, 1, L.row*sqrt3 + (L.col%2?sqrt3/2:0)], L.my);
+  }
+  // Solve 3x3 via Cramer's rule
+  const det3 = M => (
+    M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1])
+  - M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0])
+  + M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0])
+  );
+  const D = det3(A);
+  if(Math.abs(D) < 1e-9){ showToast('Landmarks colinear — add variety'); return false; }
+  const sub = k => A.map((row,i) => row.map((v,j) => j===k ? b[i] : v));
+  const ox = det3(sub(0))/D;
+  const oy = det3(sub(1))/D;
+  const s  = det3(sub(2))/D;
+  if(s < 2 || s > 500){ showToast(`Bad fit (s=${s.toFixed(1)})`); return false; }
+  cal.offsetX = +ox.toFixed(3);
+  cal.offsetY = +oy.toFixed(3);
+  cal.hexSize = +s.toFixed(3);
+  // Residuals for diagnostics
+  let maxRes = 0, sumSq = 0;
+  for(const L of landmarks){
+    const {x, y} = hexCenter(L.col, L.row);
+    const dx = x - L.mx, dy = y - L.my;
+    const r2 = dx*dx + dy*dy;
+    sumSq += r2;
+    if(r2 > maxRes) maxRes = r2;
+  }
+  const rms = Math.sqrt(sumSq / landmarks.length).toFixed(2);
+  const peak = Math.sqrt(maxRes).toFixed(2);
+  rebuildGrid();
+  showToast(`Fit: s=${s.toFixed(2)} ox=${ox.toFixed(1)} oy=${oy.toFixed(1)}  rms=${rms}px peak=${peak}px`);
+  return true;
+}
+
+// Console-driven landmark calibration.
+// Usage:
+//   calStartLandmarks()              // begin collecting
+//   (click Greyhawk on map, prompt asks for ID, type "K3-83")
+//   (click Dyvers, type its ID; etc.)
+//   calFinishLandmarks()             // solves + applies
+//   calAbortLandmarks()              // cancel
+window._calLandmarks = null;
+window.calStartLandmarks = function(){
+  _calLandmarks = [];
+  showToast('Landmark cal: click a known hex, then enter its ID. 3+ needed.');
+  const wrap = document.getElementById('map-wrap');
+  wrap._landmarkHandler = (e) => {
+    if(!_calLandmarks) return;
+    const m = screenToMap(e.clientX, e.clientY);
+    const id = prompt(`Hex ID for point (${m.x.toFixed(0)}, ${m.y.toFixed(0)})?  (e.g. K3-83)`);
+    if(!id) return;
+    const hit = darleneToInternal(id);
+    if(!hit){ showToast(`Bad ID: ${id}`); return; }
+    _calLandmarks.push({mx:m.x, my:m.y, col:hit.col, row:hit.row});
+    showToast(`Landmark ${_calLandmarks.length}: ${id} → (${hit.col},${hit.row})`);
+    console.log(`  landmark ${_calLandmarks.length}: ${id} at pixel (${m.x.toFixed(1)}, ${m.y.toFixed(1)})`);
+  };
+  wrap.addEventListener('click', wrap._landmarkHandler, true);
+};
+window.calFinishLandmarks = function(){
+  const wrap = document.getElementById('map-wrap');
+  if(wrap._landmarkHandler){
+    wrap.removeEventListener('click', wrap._landmarkHandler, true);
+    wrap._landmarkHandler = null;
+  }
+  if(!_calLandmarks || _calLandmarks.length < 3){
+    showToast(`Only ${_calLandmarks?.length||0} landmarks — need 3+`);
+    return;
+  }
+  console.log('Solving with landmarks:', _calLandmarks);
+  applyLandmarkCal(_calLandmarks);
+  saveCal();
+  _calLandmarks = null;
+};
+window.calAbortLandmarks = function(){
+  const wrap = document.getElementById('map-wrap');
+  if(wrap._landmarkHandler){
+    wrap.removeEventListener('click', wrap._landmarkHandler, true);
+    wrap._landmarkHandler = null;
+  }
+  _calLandmarks = null;
+  showToast('Landmark cal aborted');
+};
+
 // Click handler on the cal overlay (captures clicks above the map)
 function wireCalOverlay(){
   const overlay=document.getElementById('cal-overlay');
