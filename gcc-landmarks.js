@@ -8,38 +8,39 @@
 (function(){
   const LS_KEY = 'gcc-landmark-overrides-v1';
 
-  // ── BASE: verified from 27MB Darlene scan ─────────────────────────────────
+  // ── BASE: verified via the landmark editor against 27MB Darlene scan ──────
   const GH_LANDMARKS = {
-    "D4-86":  { name: "City of Greyhawk",   kind: "city", size: "metropolis", pop: 58000, region: "Domain of Greyhawk" },
-    "H4-89":  { name: "Dyvers",             kind: "city", size: "city",       pop: 42000, region: "Wild Coast" },
+    "A2-69":  { name: "Rauxes",             kind: "city", region: "Great Kingdom" },
+    "C4-86":  { name: "City of Greyhawk",   kind: "city", size: "metropolis", pop: 58000, region: "Domain of Greyhawk" },
     "C4-91":  { name: "Hardby",             kind: "town", size: "small-city", pop: 7500,  region: "Domain of Greyhawk" },
-    "Y4-113": { name: "Niole Dra",          kind: "city", size: "city",                   region: "Kingdom of Keoland" },
+    "E4-74":  { name: "Molag",              kind: "city", region: "Horned Society" },
+    "E4-83":  { name: "Willip",             kind: "city", region: "Kingdom of Furyondy" },
+    "F4-95":  { name: "Safeton",            kind: "town", region: "Wild Coast" },
+    "G4-89":  { name: "Dyvers",             kind: "city", size: "city",       pop: 42000, region: "Wild Coast" },
+    "H4-70":  { name: "Dorakaa",            kind: "city", region: "Empire of Iuz" },
+    "H4-95":  { name: "Narwell",            kind: "town", region: "Wild Coast" },
+    "N4-97":  { name: "Hommlet",            kind: "village" },
+    "O4-95":  { name: "Verbobonc",          kind: "city", region: "Viscounty of Verbobonc" },
+    "P4-85":  { name: "Chendl",             kind: "city", region: "Kingdom of Furyondy" },
+    "P4-117": { name: "Gradsul",            kind: "city", region: "Kingdom of Keoland" },
+    "Q3-74":  { name: "Radigast City",      kind: "city", region: "County of Urnst" },
+    "R-72":   { name: "Rel Astra",          kind: "city", region: "Great Kingdom" },
+    "R3-81":  { name: "Leukish",            kind: "city", region: "Duchy of Urnst" },
+    "X4-113": { name: "Niole Dra",          kind: "city", size: "city",                   region: "Kingdom of Keoland" },
   };
 
-  // ── PENDING: known cities waiting for hex ID assignment ───────────────────
+  // ── PENDING: known cities still waiting for hex ID assignment ─────────────
   // Place via the landmark editor (gcc-landmark-edit.js).
-      const GH_LANDMARKS = {
-    "A2-69"   : { name: "Rauxes", kind: "city", region: "Great Kingdom" },
-    "C4-86"   : { name: "City of Greyhawk", kind: "city", size: "metropolis", pop: 58000, region: "Domain of Greyhawk" },
-    "C4-91"   : { name: "Hardby", kind: "town", size: "small-city", pop: 7500, region: "Domain of Greyhawk" },
-    "E4-74"   : { name: "Molag", kind: "city", region: "Horned Society" },
-    "E4-83"   : { name: "Willip", kind: "city", region: "Kingdom of Furyondy" },
-    "F4-95"   : { name: "Safeton", kind: "town", region: "Wild Coast" },
-    "G4-89"   : { name: "Dyvers", kind: "city", size: "city", pop: 42000, region: "Wild Coast" },
-    "H4-70"   : { name: "Dorakaa", kind: "city", region: "Empire of Iuz" },
-    "H4-95"   : { name: "Narwell", kind: "town", region: "Wild Coast" },
-    "N4-97"   : { name: "Hommlet", kind: "village" },
-    "O4-95"   : { name: "Verbobonc", kind: "city", region: "Viscounty of Verbobonc" },
-    "P4-117"  : { name: "Gradsul", kind: "city", region: "Kingdom of Keoland" },
-    "P4-85"   : { name: "Chendl", kind: "city", region: "Kingdom of Furyondy" },
-    "Q3-74"   : { name: "Radigast City", kind: "city", region: "County of Urnst" },
-    "R-72"    : { name: "Rel Astra", kind: "city", region: "Great Kingdom" },
-    "R3-81"   : { name: "Leukish", kind: "city", region: "Duchy of Urnst" },
-    "X4-113"  : { name: "Niole Dra", kind: "city", size: "city", region: "Kingdom of Keoland" },
-  };
+  const GH_PENDING = [
+    { name: "Mitrik",       kind: "city",   region: "Archclericy of Veluna" },
+    { name: "Nulb",         kind: "village" },
+    { name: "Rel Mord",     kind: "city",   region: "Kingdom of Nyrond" },
+    { name: "Irongate",     kind: "city",   region: "Iron League" },
+    { name: "Saltmarsh",    kind: "town",   region: "Kingdom of Keoland" },
+    { name: "Maure Castle", kind: "castle", notes: "Maure family ruin" },
+  ];
 
   // ── OVERRIDES: user placements via editor, persisted to localStorage ──────
-  // Shape: { [name]: { id, name, kind, region?, notes?, _override:true } }
   let OVERRIDES = {};
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -50,9 +51,6 @@
     try { localStorage.setItem(LS_KEY, JSON.stringify(OVERRIDES)); } catch(e){}
   }
 
-  // Precedence: overrides > base. Pending only appears once it has an override.
-  // If an override exists for a name, the base entry keyed by the OLD hex id is
-  // suppressed so moves don't leave a ghost at the old spot.
   function mergedView(){
     const out = {};
     const overriddenNames = new Set(Object.keys(OVERRIDES));
@@ -121,7 +119,6 @@
   function clearOverrides(){ OVERRIDES = {}; saveOverrides(); }
   function exportOverrides(){ return JSON.parse(JSON.stringify(OVERRIDES)); }
 
-  // Paste-ready replacement for the GH_LANDMARKS object reflecting all overrides.
   function exportMergedSource(){
     const merged = mergedView();
     const lines = ['  const GH_LANDMARKS = {'];
