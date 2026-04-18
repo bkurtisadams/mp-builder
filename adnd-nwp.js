@@ -103,13 +103,19 @@
   // ── Campaign rule check ──
   function isEnabledForCharacter(CHAR){
     if(typeof GCC==='undefined' || !GCC.loadCampaigns || !GCC.getCampaignRules) return false;
-    if(!CHAR || !CHAR._id){
-      // Allow viewing existing NWPs on unsaved chars so data isn't hidden
+    if(!CHAR || (!CHAR._id && !CHAR.characterName)){
       return !!(CHAR && CHAR.nwp && CHAR.nwp.length);
     }
+    const id = CHAR._id;
+    const name = CHAR.characterName;
     const camps = GCC.loadCampaigns();
     for(const c of camps){
-      if((c.characters||[]).some(r => r._id === CHAR._id)){
+      const refs = c.characters||[];
+      const match = refs.some(r =>
+        (id && r._id === id) ||
+        (name && (r.name === name || r.characterName === name))
+      );
+      if(match){
         const rules = GCC.getCampaignRules(c.id);
         if(rules.nwp) return true;
       }
