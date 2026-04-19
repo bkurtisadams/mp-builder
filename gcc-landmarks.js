@@ -63,7 +63,7 @@
   };
 
   // ── PENDING: known cities still waiting for hex ID assignment ─────────────
-  // Place via the landmark editor (gcc-landmark-edit.js).
+  // Place via the Hex Editor, Landmarks tab (gcc-hex-edit.js).
   const GH_PENDING = [
     { name: "Nulb", kind: "village" },
   ];
