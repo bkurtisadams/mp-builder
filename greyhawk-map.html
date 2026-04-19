@@ -285,7 +285,7 @@
 
 <script src="gcc-regions.js?v=6"></script>
 <script src="gcc-landmarks.js?v=9"></script>
-<script src="gcc-landmark-edit.js?v=10"></script>
+<script src="gcc-landmark-edit.js?v=11"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
 // Darlene World of Greyhawk map: 145 cols x 97 rows of flat-top hexes.
@@ -1129,6 +1129,7 @@ function wireEvents(){
   // Hex click via coordinate math
   wrap.addEventListener('click',e=>{
     if(state.didDrag||state.imgAlignMode) return;
+    if(document.body.classList.contains('le-placing')) return;
     const m=screenToMap(e.clientX,e.clientY);
     const hit=mapToHex(m.x,m.y);
     if(hit) onHexClick(hit.col,hit.row);

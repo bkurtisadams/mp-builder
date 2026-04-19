@@ -1,7 +1,14 @@
-// gcc-landmark-edit.js v0.3.0 — 2026-04-19
+// gcc-landmark-edit.js v0.3.1 — 2026-04-19
 // Click-to-place landmark editor + canonical hex ID override input.
 // Requires globals: GCCLandmarks, hexIdStr, darleneToInternal, mapToHex,
 //   screenToMap, showToast, buildHexGrid/rebuildGrid.
+// v0.3.1: UX fixes — switched input font to Crimson Text so lowercase
+//   typed names render as typed (Cinzel has no lowercase glyphs and was
+//   making all typed names appear uppercase); clear region + kind in the
+//   new-landmark block after placement; hoist stopPropagation +
+//   stopImmediatePropagation to top of onMapClick so the map's bubble
+//   click handler never fires while the editor is active (was letting
+//   side panel / move dialog pop on every click).
 // v0.3.0: removed alignment-era machinery (placement mode radios, align
 //   buttons, onAlignFromPlaced/TPS/Reset, gatherHexCenterControls).
 //   Alignment is now handled entirely by the image-align transform.
@@ -109,7 +116,7 @@
       }
       #landmark-edit-panel .le-select, #landmark-edit-panel .le-input {
         width:100%; background:rgba(0,0,0,.4); color:#f4e4b8; border:1px solid #8b6e45;
-        border-radius:2px; padding:4px 6px; font-family:inherit; font-size:12px; box-sizing:border-box;
+        border-radius:2px; padding:4px 6px; font-family:'Crimson Text',Georgia,serif; font-size:13px; box-sizing:border-box;
       }
       #landmark-edit-panel .le-status {
         margin-top:8px; padding:6px 8px; background:rgba(0,0,0,.35); border-left:2px solid #c8941a;
@@ -254,6 +261,13 @@
     LOG('click received at', ev.clientX, ev.clientY);
     const wrap = document.getElementById('map-wrap');
     if (!wrap) return;
+    // Suppress the map's bubble-phase click handler immediately — otherwise
+    // clicks that miss a hex or hit while unarmed still fall through to
+    // onHexClick (side panel, move dialog if moveMode is on). stopImmediate
+    // also prevents any co-registered listeners on the same target.
+    ev.stopPropagation();
+    ev.stopImmediatePropagation();
+    ev.preventDefault();
     if (typeof screenToMap !== 'function' || typeof mapToHex !== 'function'){
       LOG('✗ screenToMap or mapToHex not a function');
       setStatus('Map coord helpers not available yet.', false); return;
@@ -264,9 +278,6 @@
     const hit = mapToHex(m.x, m.y);
     LOG('mapToHex →', hit);
     if (!hit){ setStatus('Click was outside the hex grid.', false); return; }
-
-    ev.stopPropagation();
-    ev.preventDefault();
 
     let name, kind, region, notes;
     if (state.newMode){
@@ -296,7 +307,11 @@
 
     if (state.newMode){
       state.panelEl.querySelector('#le-new-name').value = '';
+      state.panelEl.querySelector('#le-new-region').value = '';
+      state.panelEl.querySelector('#le-new-kind').value = 'city';
       state.newFields.name = '';
+      state.newFields.region = '';
+      state.newFields.kind = 'city';
     }
     state.selectedName = null;
     refreshSelect();
