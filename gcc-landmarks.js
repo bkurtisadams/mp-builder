@@ -1,11 +1,11 @@
-// gcc-landmarks.js v0.5.0 — 2026-04-19
+// gcc-landmarks.js v0.6.0 — 2026-04-19
 // World of Greyhawk landmarks, keyed by Darlene hex ID.
 // Layered store: BASE file data + PENDING (no hex yet) + OVERRIDES (localStorage).
 //
-// v0.5.0: two pixel fields per override:
-//   symbolPixel    — city-art location on scan; drives marker rendering.
-//   hexCenterPixel — Darlene hex-center location on scan; drives TPS/affine.
-// Legacy `clickPixel` fields are migrated to symbolPixel on module load.
+// v0.6.0: single pixel field per override (symbolPixel). hexCenterPixel
+//   retired along with the landmark-based affine/TPS solvers; image-align
+//   transform replaces that workflow.
+// v0.5.0: two pixel fields (symbolPixel, hexCenterPixel).
 // v0.4.0: setOverride accepted optional clickPixel for affine calibration.
 //
 // Format: "Letter[Rep]-Diag": { name, kind, ... }
@@ -115,32 +115,23 @@
     if (entry.region || existing.region) merged.region = entry.region || existing.region;
     if (entry.notes  || existing.notes)  merged.notes  = entry.notes  || existing.notes;
 
-    // v0.5.0: two independent pixel fields.
-    //   symbolPixel    — where the city art is drawn on the Darlene scan.
-    //                    Drives marker rendering in buildLandmarkOverlay.
-    //   hexCenterPixel — where the Darlene HEX CENTER sits on the scan.
-    //                    Drives TPS / affine alignment of the grid.
-    // Backward-compat: a caller passing legacy `clickPixel` has that value
-    // treated as symbolPixel (what it historically captured).
+    // v0.6.0: single pixel field. symbolPixel — where the city art is drawn
+    // on the Darlene scan. Drives marker rendering in buildLandmarkOverlay.
+    // The old hexCenterPixel was used by the landmark-based affine/TPS
+    // alignment, removed 2026-04-19 in favour of the image-align transform.
     const prev = OVERRIDES[entry.name] || {};
-    const incomingSym = entry.symbolPixel || entry.clickPixel;
-    const incomingHex = entry.hexCenterPixel;
-    const sym = incomingSym || prev.symbolPixel;
-    const hex = incomingHex || prev.hexCenterPixel;
+    const sym = entry.symbolPixel || prev.symbolPixel;
     if (sym && typeof sym.mx === 'number' && typeof sym.my === 'number'){
       merged.symbolPixel = { mx: +sym.mx, my: +sym.my };
-    }
-    if (hex && typeof hex.mx === 'number' && typeof hex.my === 'number'){
-      merged.hexCenterPixel = { mx: +hex.mx, my: +hex.my };
     }
     OVERRIDES[entry.name] = merged;
     saveOverrides();
     return true;
   }
 
-  // One-shot migration: legacy overrides stored their single click as
-  // `clickPixel`. That was always a city-symbol click (that's what callers
-  // were told to click). Copy into symbolPixel; strip the legacy key.
+  // One-shot cleanup: strip legacy clickPixel (pre-v0.5) and hexCenterPixel
+  // (v0.5, used by removed alignment solvers) from stored overrides. Both
+  // are superseded by symbolPixel + the image-align transform.
   function migrateLegacyOverrides(){
     let migrated = 0;
     for (const name in OVERRIDES){
@@ -153,10 +144,14 @@
         delete o.clickPixel;
         migrated++;
       }
+      if (o.hexCenterPixel){
+        delete o.hexCenterPixel;
+        migrated++;
+      }
     }
     if (migrated > 0){
       saveOverrides();
-      console.log('[gcc-landmarks] migrated', migrated, 'legacy clickPixel → symbolPixel');
+      console.log('[gcc-landmarks] stripped', migrated, 'legacy pixel fields');
     }
   }
   migrateLegacyOverrides();

@@ -91,35 +91,6 @@
   #panel-body::-webkit-scrollbar-track { background:transparent; }
   #panel-body::-webkit-scrollbar-thumb { background:var(--panel-border); border-radius:2px; }
 
-  /* ALIGNMENT TOOL */
-  /* Draw-box overlay — sits above map, below panel */
-  #cal-overlay { position:fixed; top:calc(var(--gcc-bar-h) + 46px); left:0; right:0; bottom:0; z-index:200; display:none; cursor:crosshair; }
-  #cal-overlay.active { display:block; }
-  /* The rubber-band box */
-  .cal-marker { position:fixed; width:22px; height:22px; border-radius:50%; background:rgba(0,255,170,.3); border:2px solid #00ffaa; color:#00ffaa; font-family:'Cinzel',serif; font-size:12px; font-weight:bold; display:none; align-items:center; justify-content:center; z-index:201; pointer-events:none; box-shadow:0 0 12px rgba(0,255,170,.7); transform:translate(-50%,-50%); }
-  .cal-marker.visible { display:flex; }
-
-  /* Alignment panel */
-  #cal-panel { position:fixed; top:56px; left:50%; transform:translateX(-50%); background:rgba(0,18,12,.97); border:1px solid #00cc88; padding:14px 18px; z-index:210; border-radius:3px; box-shadow:0 4px 30px rgba(0,0,0,.8); display:none; min-width:300px; max-width:360px; font-family:'Cinzel',serif; }
-  #cal-panel.open { display:block; }
-  #cal-panel h3 { font-size:12px; letter-spacing:.1em; color:#44ffbb; margin-bottom:8px; }
-  #cal-panel p { font-size:11px; color:#a0d0c0; margin-bottom:10px; line-height:1.6; }
-  .cal-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
-  .cal-row label { font-size:10px; color:#44ffbb; letter-spacing:.08em; min-width:68px; }
-  .cal-nudge { display:flex; align-items:center; gap:4px; }
-  .cal-nudge button { background:rgba(0,180,120,.15); border:1px solid #00aa66; color:#44ffbb; font-size:12px; cursor:pointer; padding:2px 7px; border-radius:2px; transition:all .1s; font-family:monospace; }
-  .cal-nudge button:hover { background:rgba(0,180,120,.35); }
-  .cal-nudge span { font-size:12px; color:#e8d5a3; min-width:52px; text-align:center; font-family:monospace; }
-  #cal-status { font-size:10px; color:#a0d0c0; background:rgba(0,0,0,.3); padding:6px 8px; border-radius:2px; margin-bottom:10px; line-height:1.6; }
-  .cal-btns { display:flex; gap:8px; margin-top:10px; }
-  .cal-btns button { flex:1; padding:6px; font-family:'Cinzel',serif; font-size:10px; letter-spacing:.06em; cursor:pointer; border-radius:2px; transition:all .14s; }
-  #btn-cal-save  { background:rgba(0,180,120,.2); border:1px solid #00cc88; color:#44ffbb; }
-  #btn-cal-save:hover { background:rgba(0,180,120,.4); }
-  #btn-cal-reset { background:rgba(200,148,26,.1); border:1px solid var(--panel-border); color:#c8a96e; }
-  #btn-cal-reset:hover { background:rgba(200,148,26,.2); }
-  #btn-cal-close { background:rgba(180,50,20,.1); border:1px solid #663311; color:#cc6644; }
-  #btn-cal-close:hover { background:rgba(180,50,20,.25); }
-
   /* LEGEND */
   #legend { position:fixed; bottom:14px; left:14px; background:var(--panel-bg); border:1px solid var(--panel-border); padding:9px 13px; z-index:50; border-radius:2px; }
   #legend h3 { font-family:'Cinzel',serif; font-size:9px; letter-spacing:.12em; color:var(--gold); margin-bottom:7px; text-transform:uppercase; }
@@ -222,7 +193,6 @@
   <button class="tb-btn" id="btn-hex-labels">IDs</button>
   <button class="tb-btn" id="btn-coord-labels" title="Show Darlene column/diagonal labels along map edges">⌨ Coords</button>
   <div class="sep"></div>
-  <button class="tb-btn" id="btn-calibrate">⊹ Align</button>
   <button class="tb-btn" id="btn-image-align" title="Drag/scale/rotate the Darlene map to match SVG hexes">🖼 Image</button>
   <button class="tb-btn" id="btn-landmark-edit">📍 Place</button>
   <div class="spacer"></div>
@@ -235,64 +205,6 @@
   <div id="map-stage">
     <img id="map-img" src="greyhawk-map.jpg" alt="World of Greyhawk">
     <svg id="hex-svg"></svg>
-  </div>
-</div>
-
-<!-- Alignment click-target overlay (captures mouse during cal mode) -->
-<div id="cal-overlay"></div>
-<!-- Click markers -->
-<div id="cal-marker-1" class="cal-marker">1</div>
-<div id="cal-marker-2" class="cal-marker">2</div>
-
-<!-- Alignment panel -->
-<div id="cal-panel">
-  <h3>⊹ Grid Alignment</h3>
-  <p style="font-size:10px;line-height:1.5;">
-    <b style="color:#00ffaa">Step 1:</b> Zoom in on the <b>top-left</b> printed hex and click its <b>center</b>.<br>
-    <b style="color:#00ffaa">Step 2:</b> Pan to the <b>bottom-right</b> printed hex and click its <b>center</b>.<br>
-    <b style="color:#00ffaa">Step 3:</b> Nudge with arrow keys / +− if needed, then Save.
-  </p>
-  <div id="cal-status">Waiting for click 1 (top-left hex center)…</div>
-  <div id="cal-nudge-section" style="display:none;">
-    <div class="cal-row">
-      <label>Hex Size</label>
-      <div class="cal-nudge">
-        <button data-param="hexSize" data-delta="-0.5">−−</button>
-        <button data-param="hexSize" data-delta="-0.1">−</button>
-        <span id="disp-hexSize">0.00</span>
-        <button data-param="hexSize" data-delta="0.1">+</button>
-        <button data-param="hexSize" data-delta="0.5">++</button>
-      </div>
-    </div>
-    <div class="cal-row">
-      <label>Offset X</label>
-      <div class="cal-nudge">
-        <button data-param="offsetX" data-delta="-5">−−</button>
-        <button data-param="offsetX" data-delta="-1">−</button>
-        <span id="disp-offsetX">0.00</span>
-        <button data-param="offsetX" data-delta="1">+</button>
-        <button data-param="offsetX" data-delta="5">++</button>
-      </div>
-    </div>
-    <div class="cal-row">
-      <label>Offset Y</label>
-      <div class="cal-nudge">
-        <button data-param="offsetY" data-delta="-5">−−</button>
-        <button data-param="offsetY" data-delta="-1">−</button>
-        <span id="disp-offsetY">0.00</span>
-        <button data-param="offsetY" data-delta="1">+</button>
-        <button data-param="offsetY" data-delta="5">++</button>
-      </div>
-    </div>
-    <div style="font-size:9px;color:#a0d0c0;margin-top:6px;line-height:1.5;">
-      Arrow keys = offset ±1 &nbsp;·&nbsp; Shift+Arrow = ±5 &nbsp;·&nbsp; +/− = size ±0.1 &nbsp;·&nbsp; Shift +/− = ±0.5
-    </div>
-  </div>
-  <div class="cal-btns">
-    <button id="btn-cal-redo">↻ Redo Clicks</button>
-    <button id="btn-cal-save">💾 Save</button>
-    <button id="btn-cal-reset">↺ Reset</button>
-    <button id="btn-cal-close">✕ Close</button>
   </div>
 </div>
 
@@ -376,9 +288,8 @@
 <div id="toast"></div>
 
 <script src="gcc-regions.js?v=6"></script>
-<script src="gcc-tps.js?v=7"></script>
-<script src="gcc-landmarks.js?v=8"></script>
-<script src="gcc-landmark-edit.js?v=9"></script>
+<script src="gcc-landmarks.js?v=9"></script>
+<script src="gcc-landmark-edit.js?v=10"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
 // Darlene World of Greyhawk map: 145 cols x 97 rows of flat-top hexes.
@@ -390,32 +301,9 @@ const cal = {
   hexSize: HEX_R,
   offsetX: HEX_R,                        // col 0 left edge at x=0
   offsetY: HEX_R * Math.sqrt(3) / 2,     // row 0 top edge at y=0
-  // Affine residual correction applied AFTER canonical hexCenter.
-  // [a b c]  sx = a*cx + b*cy + c
-  // [d e f]  sy = d*cx + e*cy + f
-  matrix: [1, 0, 0, 0, 1, 0],
-  // Calibration mode: 'affine' uses matrix above; 'tps' uses thin-plate
-  // spline warping via cal.tps = {forward, inverse} TPS descriptors.
-  mode: 'affine',
-  tps: null,
 };
-const DEFAULTS = { hexSize: cal.hexSize, offsetX: cal.offsetX, offsetY: cal.offsetY, matrix: [1,0,0,0,1,0] };
+const DEFAULTS = { hexSize: cal.hexSize, offsetX: cal.offsetX, offsetY: cal.offsetY };
 
-// ── AFFINE UTILITIES ──────────────────────────────────────────────────────────
-function affApply(M, x, y){
-  return { x: M[0]*x + M[1]*y + M[2], y: M[3]*x + M[4]*y + M[5] };
-}
-function affInvert(M){
-  const d = M[0]*M[4] - M[1]*M[3];
-  if (Math.abs(d) < 1e-12) return [1,0,0,0,1,0];
-  const a = M[4]/d, b = -M[1]/d, dd = -M[3]/d, e = M[0]/d;
-  const c = -(a*M[2] + b*M[5]);
-  const f = -(dd*M[2] + e*M[5]);
-  return [a, b, c, dd, e, f];
-}
-function affIsIdentity(M){
-  return M[0]===1 && M[1]===0 && M[2]===0 && M[3]===0 && M[4]===1 && M[5]===0;
-}
 const MAP_W = Math.ceil((GRID_COLS - 1) * 1.5 * HEX_R + 2 * HEX_R);          // 4360
 const MAP_H = Math.ceil(GRID_ROWS * Math.sqrt(3) * HEX_R + Math.sqrt(3) * HEX_R / 2); // 3378
 // Reserved strip around the hex grid for Darlene-style edge labels (column
@@ -527,18 +415,16 @@ const state={
   partyCol:64,partyRow:44,
   selectedCol:null,selectedRow:null,
   hexData:{},pendingMove:null,
-  calMode:false,
-  calClick1:null,calClick2:null,
   imgAlignMode:false,
   imgDragging:false, imgDragStart:null, imgDragStartTx:0, imgDragStartTy:0,
   imgRotDragging:false, imgRotStart:0, imgRotStartAngle:0,
 };
 
 // ── IMAGE TRANSFORM ───────────────────────────────────────────────────────────
-// Separate from cal.matrix / cal.tps. Transforms the Darlene image directly
-// so the user can drag/scale/rotate it to match the canonical SVG hex grid.
-// Applied via CSS transform on the <img> element with origin at stage center.
-// Grid coordinates stay untouched; only the picture moves.
+// The Darlene scan is aligned to the canonical SVG hex grid by transforming
+// the image (drag / scale / rotate), not the grid. The SVG grid is ground
+// truth. Applied via CSS transform on the <img> element with origin at
+// stage center. See gh-img-xform in localStorage for persistence.
 const imgX = { tx:0, ty:0, sx:1, sy:1, rot:0 };
 function applyImgTransform(){
   const img = document.getElementById('map-img');
@@ -655,7 +541,6 @@ function downloadStateFile(){
 }
 
 function enterImgAlignMode(){
-  if (state.calMode){ showToast('Exit grid alignment first'); return; }
   state.imgAlignMode = true;
   // Session backup: clone the current (pre-edit) transform so "Revert" can
   // restore it even if the user closes and re-enters mode mid-session.
@@ -726,27 +611,12 @@ function hexCenter(col,row){
   return { x:cal.offsetX+col*colStep(),
            y:cal.offsetY+row*rowStep()+(col%2===1?rowStep()*.5:0) };
 }
-// Unified forward transform: canonical hex-space point → display/map point.
-// Dispatches on cal.mode. Preserves identity fast-path.
-function displayApply(x, y){
-  if (cal.mode === 'tps' && cal.tps && cal.tps.forward){
-    return GCCTps.apply(cal.tps.forward, x, y);
-  }
-  if (affIsIdentity(cal.matrix)) return {x, y};
-  return affApply(cal.matrix, x, y);
-}
-// Unified inverse transform: display/map point → canonical hex-space.
-function displayInvert(x, y){
-  if (cal.mode === 'tps' && cal.tps && cal.tps.inverse){
-    return GCCTps.apply(cal.tps.inverse, x, y);
-  }
-  if (affIsIdentity(cal.matrix)) return {x, y};
-  return affApply(affInvert(cal.matrix), x, y);
-}
-function hexCenterDisplay(col,row){
-  const c = hexCenter(col,row);
-  return displayApply(c.x, c.y);
-}
+// hexCenterDisplay / hexCornersDisplay used to dispatch through a
+// calibration transform (affine or TPS) fit against landmark clicks. That
+// machinery was removed 2026-04-19 in favour of the image-align transform
+// (which transforms the Darlene scan itself rather than the SVG grid).
+// The SVG hex grid is now ground truth with no post-processing.
+function hexCenterDisplay(col, row){ return hexCenter(col, row); }
 function hexCorners(cx,cy){
   return Array.from({length:6},(_,i)=>{
     const a=(Math.PI/180)*(60*i);
@@ -755,19 +625,10 @@ function hexCorners(cx,cy){
 }
 function hexCornersDisplay(col, row){
   const c = hexCenter(col, row);
-  const corners = hexCorners(c.x, c.y);
-  // Fast-path: identity transform.
-  if (cal.mode !== 'tps' && affIsIdentity(cal.matrix)) return corners;
-  return corners.map(([x,y]) => {
-    const p = displayApply(x, y);
-    return [p.x, p.y];
-  });
+  return hexCorners(c.x, c.y);
 }
-// new
 function hexIdStr(col, row){ return `${darleneColLabel(col)}-${darleneDiagonal(col, row)}`; }
 function mapToHex(mx,my){
-  const inv = displayInvert(mx, my);
-  mx = inv.x; my = inv.y;
   const cs=colStep(),rs=rowStep(),g=gridSize();
   let bestCol=0,bestRow=0,bestDist=Infinity;
   const estCol=Math.round((mx-cal.offsetX)/cs);
@@ -1093,7 +954,7 @@ function buildLandmarkOverlay(){
   }
   return g;
 }
-function rebuildGrid(){ buildHexGrid(); updateCalDisplays(); }
+function rebuildGrid(){ buildHexGrid(); }
 // Targeted rebuild: swap just the landmark overlay group in place. ~1ms
 // vs 130ms for buildHexGrid. Use when only overlay data changed (placing/
 // removing landmarks), not when hex positions changed (calibration).
@@ -1118,7 +979,6 @@ function updatePartyMarker(){
 
 // ── HEX EVENTS ────────────────────────────────────────────────────────────────
 function onHexHover(mx,my){
-  if(state.calMode) return;
   const hit=mapToHex(mx,my);
   if(!hit) return;
   const lm = (typeof GCCLandmarks !== 'undefined')
@@ -1183,7 +1043,6 @@ function confirmMove(){
 function applyTransform(){
   document.getElementById('map-stage').style.transform=`translate(${state.panX}px,${state.panY}px) scale(${state.zoom})`;
   document.getElementById('zoom-display').textContent=Math.round(state.zoom*100)+'%';
-  if(state.calMode) positionCalMarkers();
 }
 function clampPan(){
   const w=document.getElementById('map-wrap');
@@ -1222,369 +1081,14 @@ function centerOnHex(col,row){
   clampPan(); applyTransform();
 }
 
-// ── CALIBRATION (two-click corners) ────────────────────────────────────────
-// User clicks center of hex (0,0) and center of hex (GRID_COLS-1, GRID_ROWS-1).
-// Given flat-top hex geometry:
-//   hexCenter(c,r).x = offsetX + c * hexSize * 1.5
-//   hexCenter(c,r).y = offsetY + r * hexSize * sqrt3 + (c%2 ? hexSize*sqrt3/2 : 0)
-// Both corner cols (0 and 144) are even, so the odd-col stagger term vanishes.
-// Solve:
-//   offsetX  = mx1
-//   offsetY  = my1
-//   colStep  = (mx2 - mx1) / (GRID_COLS - 1)
-//   rowStep  = (my2 - my1) / (GRID_ROWS - 1)
-//   hexSize  = average of (colStep/1.5) and (rowStep/sqrt3)
-
-function enterCalMode(){
-  state.calMode=true;
-  state.calClick1=null;
-  state.calClick2=null;
-  document.getElementById('btn-calibrate').classList.add('cal-active');
-  document.getElementById('cal-panel').classList.add('open');
-  document.getElementById('cal-overlay').classList.add('active');
-  document.getElementById('map-wrap').classList.add('cal-mode');
-  document.getElementById('cal-nudge-section').style.display='none';
-  document.getElementById('cal-marker-1').classList.remove('visible');
-  document.getElementById('cal-marker-2').classList.remove('visible');
-  document.getElementById('cal-status').textContent='Waiting for click 1 (top-left hex center)…';
-  updateCalDisplays();
-}
-function exitCalMode(){
-  state.calMode=false;
-  state.calClick1=null;
-  state.calClick2=null;
-  document.getElementById('btn-calibrate').classList.remove('cal-active');
-  document.getElementById('cal-panel').classList.remove('open');
-  document.getElementById('cal-overlay').classList.remove('active');
-  document.getElementById('cal-marker-1').classList.remove('visible');
-  document.getElementById('cal-marker-2').classList.remove('visible');
-  document.getElementById('map-wrap').classList.remove('cal-mode');
-}
-function updateCalDisplays(){
-  document.getElementById('disp-hexSize').textContent=cal.hexSize.toFixed(2);
-  document.getElementById('disp-offsetX').textContent=cal.offsetX.toFixed(2);
-  document.getElementById('disp-offsetY').textContent=cal.offsetY.toFixed(2);
-}
-function nudgeCal(param,delta){
-  if(param==='hexSize') cal.hexSize=Math.max(2,+(cal.hexSize+delta).toFixed(2));
-  if(param==='offsetX') cal.offsetX=+(cal.offsetX+delta).toFixed(2);
-  if(param==='offsetY') cal.offsetY=+(cal.offsetY+delta).toFixed(2);
-  rebuildGrid();
-  positionCalMarkers();
-}
-function saveCal(){
-  try{
-    const payload = {
-      hexSize: cal.hexSize, offsetX: cal.offsetX, offsetY: cal.offsetY,
-      matrix:  cal.matrix,  mode:    cal.mode || 'affine',
-    };
-    if (cal.tps && cal.tps.forward && cal.tps.inverse && typeof GCCTps !== 'undefined'){
-      payload.tps = {
-        forward: GCCTps.toJSON(cal.tps.forward),
-        inverse: GCCTps.toJSON(cal.tps.inverse),
-      };
-    }
-    localStorage.setItem('gh-cal', JSON.stringify(payload));
-  }catch(e){}
-  const isAff = !affIsIdentity(cal.matrix);
-  const modeLabel = (cal.mode === 'tps' && cal.tps) ? 'TPS' : (isAff ? 'affine' : 'identity');
-  showToast(`Saved — ${modeLabel} calibration persisted`);
-}
-function resetCal(){
-  cal.hexSize=DEFAULTS.hexSize; cal.offsetX=DEFAULTS.offsetX; cal.offsetY=DEFAULTS.offsetY;
-  cal.matrix=[1,0,0,0,1,0];
-  cal.mode='affine';
-  cal.tps=null;
-  try{ localStorage.removeItem('gh-cal'); }catch(e){}
-  state.calClick1=null; state.calClick2=null;
-  rebuildGrid();
-  document.getElementById('cal-nudge-section').style.display='none';
-  document.getElementById('cal-marker-1').classList.remove('visible');
-  document.getElementById('cal-marker-2').classList.remove('visible');
-  document.getElementById('cal-status').textContent='Reset to defaults. Click top-left hex center to re-align.';
-}
-function redoCalClicks(){
-  state.calClick1=null; state.calClick2=null;
-  document.getElementById('cal-marker-1').classList.remove('visible');
-  document.getElementById('cal-marker-2').classList.remove('visible');
-  document.getElementById('cal-nudge-section').style.display='none';
-  document.getElementById('cal-status').textContent='Waiting for click 1 (top-left hex center)…';
-}
-
-// Position visual markers at the click positions, tracking pan/zoom
-function positionCalMarkers(){
-  const topOff=(document.getElementById('gcc-bar')?.offsetHeight||0)+46;
-  const place=(id,mpt)=>{
-    if(!mpt) return;
-    const el=document.getElementById(id);
-    const sx=mpt.mx*state.zoom+state.panX;
-    const sy=mpt.my*state.zoom+state.panY+topOff;
-    el.style.left=sx+'px';
-    el.style.top=sy+'px';
-  };
-  place('cal-marker-1',state.calClick1);
-  place('cal-marker-2',state.calClick2);
-}
-
-function handleCalClick(clientX,clientY){
-  const m=screenToMap(clientX,clientY);
-  if(!state.calClick1){
-    state.calClick1={mx:m.x,my:m.y};
-    document.getElementById('cal-marker-1').classList.add('visible');
-    positionCalMarkers();
-    document.getElementById('cal-status').textContent=
-      `Click 1 set at (${m.x.toFixed(0)}, ${m.y.toFixed(0)}). Now click 2 (bottom-right hex center).`;
-    return;
-  }
-  if(!state.calClick2){
-    state.calClick2={mx:m.x,my:m.y};
-    document.getElementById('cal-marker-2').classList.add('visible');
-    applyTwoClickCal();
-    return;
-  }
-}
-
-function applyTwoClickCal(){
-  const c1=state.calClick1, c2=state.calClick2;
-  if(!c1||!c2) return;
-  const sqrt3=Math.sqrt(3);
-  const dx=c2.mx-c1.mx;
-  const dy=c2.my-c1.my;
-  if(dx<50||dy<50){
-    showToast('Clicks too close — click 2 should be bottom-right hex');
-    state.calClick2=null;
-    document.getElementById('cal-marker-2').classList.remove('visible');
-    return;
-  }
-  const colStep=dx/(GRID_COLS-1);
-  const rowStep=dy/(GRID_ROWS-1);
-  const hsFromCol=colStep/1.5;
-  const hsFromRow=rowStep/sqrt3;
-  const newHexSize=(hsFromCol+hsFromRow)/2;
-
-  cal.hexSize=+newHexSize.toFixed(3);
-  cal.offsetX=+c1.mx.toFixed(3);
-  cal.offsetY=+c1.my.toFixed(3);
-
-  rebuildGrid();
-  positionCalMarkers();
-  document.getElementById('cal-nudge-section').style.display='block';
-  document.getElementById('cal-status').textContent=
-    `Applied — hexSize:${cal.hexSize.toFixed(2)} (Δcol:${hsFromCol.toFixed(2)} Δrow:${hsFromRow.toFixed(2)}).\nNudge with arrows / +− if needed, then Save.`;
-}
-
-// ── LANDMARK CALIBRATION (full 6-param affine) ────────────────────────────────
-// landmarks: [{mx, my, col, row}]  — pixel coords of scan-truth + expected hex.
-// Solves affine matrix M s.t. M * canonical_center(col,row) ≈ (mx, my).
-// Canonical coords use DEFAULTS; the matrix captures scale+rotation+shear+translation.
-function applyLandmarkCal(landmarks){
-  if(!landmarks || landmarks.length < 3){
-    showToast('Need at least 3 landmarks');
-    return false;
-  }
-  // Reset canonical to defaults so the matrix is absolute, not a delta.
-  cal.hexSize = DEFAULTS.hexSize;
-  cal.offsetX = DEFAULTS.offsetX;
-  cal.offsetY = DEFAULTS.offsetY;
-
-  const pts = landmarks.map(L => {
-    const c = hexCenter(L.col, L.row);
-    return { cx: c.x, cy: c.y, sx: L.mx, sy: L.my };
-  });
-
-  // Two independent 3-param LS: one for the x-row of M, one for the y-row.
-  // For target t ∈ {sx, sy}, solve [a b c] minimizing Σ (a·cx + b·cy + c - t_i)^2
-  // via normal equations S·[a;b;c] = rhs with S = Σ r·r^T, rhs = Σ r·t_i, r = [cx;cy;1].
-  const solve3 = (targetKey) => {
-    const S=[[0,0,0],[0,0,0],[0,0,0]], rhs=[0,0,0];
-    for(const p of pts){
-      const r=[p.cx, p.cy, 1];
-      for(let i=0;i<3;i++){
-        for(let j=0;j<3;j++) S[i][j] += r[i]*r[j];
-        rhs[i] += r[i]*p[targetKey];
-      }
-    }
-    const det3 = M =>
-      M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1])
-    - M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0])
-    + M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0]);
-    const D = det3(S);
-    if(Math.abs(D) < 1e-9) return null;
-    const sub = k => S.map((row,i) => row.map((v,j) => j===k ? rhs[i] : v));
-    return [det3(sub(0))/D, det3(sub(1))/D, det3(sub(2))/D];
-  };
-
-  const abc = solve3('sx');
-  const def = solve3('sy');
-  if(!abc || !def){
-    showToast('Landmarks degenerate — need variety (non-colinear)');
-    return false;
-  }
-
-  cal.matrix = [abc[0], abc[1], abc[2], def[0], def[1], def[2]];
-  // Running the affine solver means the user wants the affine path active.
-  cal.mode = 'affine';
-
-  // Per-landmark residuals (px).
-  const residuals = pts.map(p => {
-    const proj = affApply(cal.matrix, p.cx, p.cy);
-    const dx = proj.x - p.sx, dy = proj.y - p.sy;
-    return Math.sqrt(dx*dx + dy*dy);
-  });
-  const rms  = Math.sqrt(residuals.reduce((a,v)=>a+v*v,0)/residuals.length);
-  const peak = Math.max(...residuals);
-
-  rebuildGrid();
-  console.log('[affine cal] matrix (a b c d e f):',
-    cal.matrix.map(v => v.toFixed(4)).join(', '));
-  console.log('[affine cal] per-landmark residuals:');
-  landmarks.forEach((L,i) => {
-    const id = hexIdStr(L.col, L.row);
-    console.log(`  ${id.padEnd(8)} (${L.col},${L.row}): ${residuals[i].toFixed(2)}px`);
-  });
-  showToast(`Affine fit: ${landmarks.length} pts, rms=${rms.toFixed(2)}px peak=${peak.toFixed(2)}px`);
-  return { rms, peak, residuals };
-}
-
-// ── LANDMARK CALIBRATION (thin-plate spline) ─────────────────────────────────
-// Same landmark input as applyLandmarkCal but fits a TPS warp: zero residual
-// at every control point, smooth interpolation between. Builds both forward
-// (canonical → map) and inverse (map → canonical) descriptors.
-function applyLandmarkTPS(landmarks){
-  if (!landmarks || landmarks.length < 3){
-    showToast('Need at least 3 landmarks for TPS');
-    return false;
-  }
-  if (typeof GCCTps === 'undefined'){
-    showToast('TPS module not loaded (gcc-tps.js missing)');
-    return false;
-  }
-  // TPS is built against canonical hex centers (defaults), not current cal.
-  cal.hexSize = DEFAULTS.hexSize;
-  cal.offsetX = DEFAULTS.offsetX;
-  cal.offsetY = DEFAULTS.offsetY;
-  cal.matrix  = DEFAULTS.matrix.slice();
-
-  const forwardCP = landmarks.map(L => {
-    const c = hexCenter(L.col, L.row);
-    return { sx: c.x, sy: c.y, tx: L.mx, ty: L.my };
-  });
-  const inverseCP = landmarks.map(L => {
-    const c = hexCenter(L.col, L.row);
-    return { sx: L.mx, sy: L.my, tx: c.x, ty: c.y };
-  });
-
-  const forward = GCCTps.build(forwardCP);
-  const inverse = GCCTps.build(inverseCP);
-  if (!forward || !inverse){
-    showToast('TPS solve failed (likely colinear landmarks)');
-    return false;
-  }
-  cal.tps  = { forward, inverse };
-  cal.mode = 'tps';
-
-  // Residuals are mathematically zero at control points. Compute anyway for
-  // floating-point sanity check.
-  const residuals = landmarks.map(L => {
-    const c = hexCenter(L.col, L.row);
-    const p = GCCTps.apply(forward, c.x, c.y);
-    return Math.hypot(p.x - L.mx, p.y - L.my);
-  });
-  const rms  = Math.sqrt(residuals.reduce((a,v)=>a+v*v,0) / residuals.length);
-  const peak = Math.max(...residuals);
-
-  rebuildGrid();
-  console.log(`[tps cal] ${landmarks.length} control points, rms=${rms.toExponential(2)}px peak=${peak.toExponential(2)}px`);
-  showToast(`TPS fit: ${landmarks.length} pts, zero residual at each landmark`);
-  return { rms, peak, residuals };
-}
-
-// Reset calibration back to identity in both modes.
-function resetAllCal(){
-  cal.hexSize = DEFAULTS.hexSize;
-  cal.offsetX = DEFAULTS.offsetX;
-  cal.offsetY = DEFAULTS.offsetY;
-  cal.matrix  = DEFAULTS.matrix.slice();
-  cal.mode    = 'affine';
-  cal.tps     = null;
-  try { localStorage.removeItem('gh-cal'); } catch(e){}
-  rebuildGrid();
-}
-
-// Console-driven landmark calibration.
-// Usage:
-//   calStartLandmarks()              // begin collecting
-//   (click Greyhawk on map, prompt asks for ID, type "K3-83")
-//   (click Dyvers, type its ID; etc.)
-//   calFinishLandmarks()             // solves + applies
-//   calAbortLandmarks()              // cancel
-window._calLandmarks = null;
-window.calStartLandmarks = function(){
-  _calLandmarks = [];
-  showToast('Landmark cal: click a known hex, then enter its ID. 3+ needed.');
-  const wrap = document.getElementById('map-wrap');
-  wrap._landmarkHandler = (e) => {
-    if(!_calLandmarks) return;
-    const m = screenToMap(e.clientX, e.clientY);
-    const id = prompt(`Hex ID for point (${m.x.toFixed(0)}, ${m.y.toFixed(0)})?  (e.g. K3-83)`);
-    if(!id) return;
-    const hit = darleneToInternal(id);
-    if(!hit){ showToast(`Bad ID: ${id}`); return; }
-    _calLandmarks.push({mx:m.x, my:m.y, col:hit.col, row:hit.row});
-    showToast(`Landmark ${_calLandmarks.length}: ${id} → (${hit.col},${hit.row})`);
-    console.log(`  landmark ${_calLandmarks.length}: ${id} at pixel (${m.x.toFixed(1)}, ${m.y.toFixed(1)})`);
-  };
-  wrap.addEventListener('click', wrap._landmarkHandler, true);
-};
-window.calFinishLandmarks = function(){
-  const wrap = document.getElementById('map-wrap');
-  if(wrap._landmarkHandler){
-    wrap.removeEventListener('click', wrap._landmarkHandler, true);
-    wrap._landmarkHandler = null;
-  }
-  if(!_calLandmarks || _calLandmarks.length < 3){
-    showToast(`Only ${_calLandmarks?.length||0} landmarks — need 3+`);
-    return;
-  }
-  console.log('Solving with landmarks:', _calLandmarks);
-  applyLandmarkCal(_calLandmarks);
-  saveCal();
-  _calLandmarks = null;
-};
-window.calAbortLandmarks = function(){
-  const wrap = document.getElementById('map-wrap');
-  if(wrap._landmarkHandler){
-    wrap.removeEventListener('click', wrap._landmarkHandler, true);
-    wrap._landmarkHandler = null;
-  }
-  _calLandmarks = null;
-  showToast('Landmark cal aborted');
-};
-
-// Click handler on the cal overlay (captures clicks above the map)
-function wireCalOverlay(){
-  const overlay=document.getElementById('cal-overlay');
-  // Track mousedown position so drags become pans, not clicks
-  let downX=0,downY=0,downT=0,isDown=false;
-  overlay.addEventListener('mousedown',e=>{
-    if(!state.calMode) return;
-    isDown=true; downX=e.clientX; downY=e.clientY; downT=Date.now();
-    // Forward to map-wrap to allow panning while in cal mode
-    const wrap=document.getElementById('map-wrap');
-    state.dragging=true; state.didDrag=false;
-    state.dragStartX=e.clientX; state.dragStartY=e.clientY;
-    state.panStartX=state.panX; state.panStartY=state.panY;
-    wrap.classList.add('grabbing');
-  });
-  overlay.addEventListener('click',e=>{
-    if(!state.calMode) return;
-    // If this click was preceded by a drag, skip
-    if(state.didDrag) return;
-    const dx=Math.abs(e.clientX-downX), dy=Math.abs(e.clientY-downY);
-    if(dx>4||dy>4) return;
-    handleCalClick(e.clientX,e.clientY);
-  });
-}
+// ── CALIBRATION: removed 2026-04-19 ──────────────────────────────────────────
+// Historical: two-click corner calibration (enter/exit cal mode, click top-left
+// then bottom-right to fit hexSize/offsetX/offsetY), plus landmark-based affine
+// and TPS solves (applyLandmarkCal / applyLandmarkTPS). All superseded by the
+// image-align transform, which transforms the Darlene scan itself to match the
+// canonical SVG grid. The SVG grid is now ground truth; calibration data is
+// limited to cal.hexSize/offsetX/offsetY which are compile-time constants.
+// See archive/greyhawk-map.pre-cleanup.html for the removed code.
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
 let _tt=null;
@@ -1599,7 +1103,7 @@ function wireEvents(){
 
   // Pan
   wrap.addEventListener('mousedown',e=>{
-    if(e.button!==0||state.calMode) return;
+    if(e.button!==0) return;
     // Image-align mode: drag moves image; shift+drag rotates.
     if (state.imgAlignMode){
       e.preventDefault();
@@ -1667,7 +1171,7 @@ function wireEvents(){
 
   // Hex click via coordinate math
   wrap.addEventListener('click',e=>{
-    if(state.calMode||state.didDrag||state.imgAlignMode) return;
+    if(state.didDrag||state.imgAlignMode) return;
     const m=screenToMap(e.clientX,e.clientY);
     const hit=mapToHex(m.x,m.y);
     if(hit) onHexClick(hit.col,hit.row);
@@ -1715,7 +1219,6 @@ function wireEvents(){
     clampPan(); applyTransform();
   });
   document.getElementById('btn-move-mode').addEventListener('click',()=>{
-    if(state.calMode){showToast('Exit alignment mode first');return;}
     state.moveMode=!state.moveMode;
     document.getElementById('btn-move-mode').classList.toggle('active',state.moveMode);
     wrap.classList.toggle('move-mode',state.moveMode);
@@ -1746,18 +1249,6 @@ function wireEvents(){
   document.getElementById('btn-cancel-move').addEventListener('click',closeMoveDialog);
   document.getElementById('overlay-bg').addEventListener('click',closeMoveDialog);
 
-  // Cal panel
-  document.getElementById('btn-calibrate').addEventListener('click',()=>{
-    state.calMode ? exitCalMode() : enterCalMode();
-  });
-  document.querySelectorAll('.cal-nudge button').forEach(btn=>{
-    btn.addEventListener('click',()=>nudgeCal(btn.dataset.param,+btn.dataset.delta));
-  });
-  document.getElementById('btn-cal-save').addEventListener('click',saveCal);
-  document.getElementById('btn-cal-reset').addEventListener('click',resetCal);
-  document.getElementById('btn-cal-close').addEventListener('click',exitCalMode);
-  document.getElementById('btn-cal-redo').addEventListener('click',redoCalClicks);
-
   // Image-align panel
   document.getElementById('btn-image-align').addEventListener('click', ()=>{
     state.imgAlignMode ? exitImgAlignMode() : enterImgAlignMode();
@@ -1773,9 +1264,6 @@ function wireEvents(){
     loadHistoryByIndex(parseInt(v, 10));
     e.target.value = '';  // reset selector so picking same index again still fires
   });
-
-  // Cal overlay click capture
-  wireCalOverlay();
 
   // Opacity slider
   document.getElementById('opacity-slider').addEventListener('input',e=>{
@@ -1818,17 +1306,6 @@ function wireEvents(){
       enterImgAlignMode(); e.preventDefault(); return;
     }
 
-    // In cal mode: arrow keys nudge offset, +/- nudge size
-    if(state.calMode){
-      const big=e.shiftKey;
-      if(e.key==='ArrowLeft') { nudgeCal('offsetX', big?-5:-1); e.preventDefault(); return; }
-      if(e.key==='ArrowRight'){ nudgeCal('offsetX', big? 5: 1); e.preventDefault(); return; }
-      if(e.key==='ArrowUp')   { nudgeCal('offsetY', big?-5:-1); e.preventDefault(); return; }
-      if(e.key==='ArrowDown') { nudgeCal('offsetY', big? 5: 1); e.preventDefault(); return; }
-      if(e.key==='='||e.key==='+'){ nudgeCal('hexSize', big?0.5:0.1); e.preventDefault(); return; }
-      if(e.key==='-'||e.key==='_'){ nudgeCal('hexSize', big?-0.5:-0.1); e.preventDefault(); return; }
-      if(e.key==='Escape'){ exitCalMode(); return; }
-    }
     if(e.key==='m'||e.key==='M') document.getElementById('btn-move-mode').click();
     if(e.key==='l'||e.key==='L') document.getElementById('btn-hex-labels').click();
     if(e.key==='h'||e.key==='H') centerOnHex(state.partyCol,state.partyRow);
@@ -1840,28 +1317,9 @@ function wireEvents(){
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function init(){
-  try{
-    const saved=JSON.parse(localStorage.getItem('gh-cal')||'null');
-    if(saved&&saved.hexSize>0){
-      cal.hexSize=saved.hexSize;
-      cal.offsetX=saved.offsetX;
-      cal.offsetY=saved.offsetY;
-      if(Array.isArray(saved.matrix) && saved.matrix.length===6){
-        cal.matrix=saved.matrix.slice();
-      }
-      if (saved.mode === 'tps' && saved.tps && saved.tps.forward && saved.tps.inverse
-          && typeof GCCTps !== 'undefined'){
-        const fwd = GCCTps.fromJSON(saved.tps.forward);
-        const inv = GCCTps.fromJSON(saved.tps.inverse);
-        if (fwd && inv){
-          cal.tps = { forward: fwd, inverse: inv };
-          cal.mode = 'tps';
-        }
-      } else if (saved.mode){
-        cal.mode = saved.mode;
-      }
-    }
-  }catch(e){}
+  // Legacy gh-cal load removed 2026-04-19 — cal is now compile-time geometry
+  // (hexSize/offsetX/offsetY constants). Any stored gh-cal from the old
+  // landmark-cal era is ignored.
   loadImgTransform();
   const img=document.getElementById('map-img');
   const start=()=>{
