@@ -1,9 +1,12 @@
-// gcc-landmarks.js v0.4.0 — 2026-04-18
+// gcc-landmarks.js v0.5.0 — 2026-04-19
 // World of Greyhawk landmarks, keyed by Darlene hex ID.
 // Layered store: BASE file data + PENDING (no hex yet) + OVERRIDES (localStorage).
 //
-// v0.4.0: setOverride now accepts optional clickPixel:{mx,my} so placed
-// landmarks can feed the affine calibration solver.
+// v0.5.0: two pixel fields per override:
+//   symbolPixel    — city-art location on scan; drives marker rendering.
+//   hexCenterPixel — Darlene hex-center location on scan; drives TPS/affine.
+// Legacy `clickPixel` fields are migrated to symbolPixel on module load.
+// v0.4.0: setOverride accepted optional clickPixel for affine calibration.
 //
 // Format: "Letter[Rep]-Diag": { name, kind, ... }
 //   kind: "city" | "town" | "castle" | "ruin" | "village" | "feature" | "landmark"
@@ -102,26 +105,61 @@
 
   function setOverride(entry){
     if (!entry || !entry.name || !entry.id) return false;
-    const existing = getByName(entry.name) || {};
     const merged = {
       name: entry.name,
       id: entry.id,
-      kind: entry.kind || existing.kind || 'feature',
-      ...(entry.region || existing.region ? { region: entry.region || existing.region } : {}),
-      ...(entry.notes  || existing.notes  ? { notes:  entry.notes  || existing.notes  } : {}),
+      kind: entry.kind || (getByName(entry.name) || {}).kind || 'feature',
       _override: true,
     };
-    // clickPixel: {mx, my} in canonical map space (output of screenToMap).
-    // Recorded at placement so calibration can solve affine from placed landmarks.
-    if (entry.clickPixel && typeof entry.clickPixel.mx === 'number' && typeof entry.clickPixel.my === 'number'){
-      merged.clickPixel = { mx: entry.clickPixel.mx, my: entry.clickPixel.my };
-    } else if (OVERRIDES[entry.name] && OVERRIDES[entry.name].clickPixel){
-      merged.clickPixel = OVERRIDES[entry.name].clickPixel;
+    const existing = getByName(entry.name) || {};
+    if (entry.region || existing.region) merged.region = entry.region || existing.region;
+    if (entry.notes  || existing.notes)  merged.notes  = entry.notes  || existing.notes;
+
+    // v0.5.0: two independent pixel fields.
+    //   symbolPixel    — where the city art is drawn on the Darlene scan.
+    //                    Drives marker rendering in buildLandmarkOverlay.
+    //   hexCenterPixel — where the Darlene HEX CENTER sits on the scan.
+    //                    Drives TPS / affine alignment of the grid.
+    // Backward-compat: a caller passing legacy `clickPixel` has that value
+    // treated as symbolPixel (what it historically captured).
+    const prev = OVERRIDES[entry.name] || {};
+    const incomingSym = entry.symbolPixel || entry.clickPixel;
+    const incomingHex = entry.hexCenterPixel;
+    const sym = incomingSym || prev.symbolPixel;
+    const hex = incomingHex || prev.hexCenterPixel;
+    if (sym && typeof sym.mx === 'number' && typeof sym.my === 'number'){
+      merged.symbolPixel = { mx: +sym.mx, my: +sym.my };
+    }
+    if (hex && typeof hex.mx === 'number' && typeof hex.my === 'number'){
+      merged.hexCenterPixel = { mx: +hex.mx, my: +hex.my };
     }
     OVERRIDES[entry.name] = merged;
     saveOverrides();
     return true;
   }
+
+  // One-shot migration: legacy overrides stored their single click as
+  // `clickPixel`. That was always a city-symbol click (that's what callers
+  // were told to click). Copy into symbolPixel; strip the legacy key.
+  function migrateLegacyOverrides(){
+    let migrated = 0;
+    for (const name in OVERRIDES){
+      const o = OVERRIDES[name];
+      if (!o || typeof o !== 'object') continue;
+      if (o.clickPixel){
+        if (!o.symbolPixel && typeof o.clickPixel.mx === 'number'){
+          o.symbolPixel = { mx: +o.clickPixel.mx, my: +o.clickPixel.my };
+        }
+        delete o.clickPixel;
+        migrated++;
+      }
+    }
+    if (migrated > 0){
+      saveOverrides();
+      console.log('[gcc-landmarks] migrated', migrated, 'legacy clickPixel → symbolPixel');
+    }
+  }
+  migrateLegacyOverrides();
 
   function removeOverride(name){
     if (OVERRIDES[name]){ delete OVERRIDES[name]; saveOverrides(); return true; }

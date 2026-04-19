@@ -15,6 +15,7 @@
     selectedName: null,       // landmark name currently armed for placement
     newMode: false,           // creating a brand-new landmark
     newFields: { name:'', kind:'city', region:'' },
+    placeMode: 'symbol',      // 'symbol' (city art) | 'hexCenter' (Darlene hex center)
     panelEl: null,
     originalCalMode: false,
   };
@@ -31,6 +32,12 @@
       <div class="le-body">
         <label class="le-lbl">Landmark</label>
         <select class="le-select" id="le-select"></select>
+
+        <label class="le-lbl" style="margin-top:8px">Placement Mode</label>
+        <div class="le-mode" id="le-mode">
+          <label class="le-mode-opt"><input type="radio" name="le-place-mode" value="symbol" checked> Symbol <span class="le-mode-hint">(city art)</span></label>
+          <label class="le-mode-opt"><input type="radio" name="le-place-mode" value="hexCenter"> Hex Center <span class="le-mode-hint">(TPS)</span></label>
+        </div>
 
         <div class="le-new" id="le-new" style="display:none">
           <label class="le-lbl">Name</label>
@@ -73,6 +80,16 @@
     p.querySelector('#le-new-name').oninput  = e => state.newFields.name   = e.target.value;
     p.querySelector('#le-new-kind').onchange = e => state.newFields.kind   = e.target.value;
     p.querySelector('#le-new-region').oninput= e => state.newFields.region = e.target.value;
+    p.querySelectorAll('input[name="le-place-mode"]').forEach(r => {
+      r.onchange = e => {
+        if (e.target.checked){
+          state.placeMode = e.target.value;
+          const modeLabel = state.placeMode === 'hexCenter' ? 'HEX CENTER' : 'SYMBOL';
+          if (state.selectedName) setStatus(`Armed: ${state.selectedName} — mode: ${modeLabel}. Click a hex.`, true);
+          else setStatus(`Mode: ${modeLabel}. Pick a landmark, then click.`, false);
+        }
+      };
+    });
 
     injectStyles();
     refreshSelect();
@@ -107,6 +124,15 @@
         width:100%; background:rgba(0,0,0,.4); color:#f4e4b8; border:1px solid #8b6e45;
         border-radius:2px; padding:4px 6px; font-family:inherit; font-size:12px; box-sizing:border-box;
       }
+      #landmark-edit-panel .le-mode { display:flex; gap:8px; margin-top:2px; }
+      #landmark-edit-panel .le-mode-opt {
+        flex:1; display:flex; align-items:center; gap:4px; font-size:11px;
+        color:#f4e4b8; padding:3px 4px; background:rgba(0,0,0,.25); border:1px solid #5a3a0a;
+        border-radius:2px; cursor:pointer;
+      }
+      #landmark-edit-panel .le-mode-opt:hover { background:rgba(200,148,26,.12); }
+      #landmark-edit-panel .le-mode-opt input { margin:0; accent-color:#c8941a; }
+      #landmark-edit-panel .le-mode-hint { color:#c8a96e; font-size:10px; }
       #landmark-edit-panel .le-status {
         margin-top:8px; padding:6px 8px; background:rgba(0,0,0,.35); border-left:2px solid #c8941a;
         font-size:11px; line-height:1.4; color:#c8a96e; min-height:14px;
@@ -214,14 +240,15 @@
     }
 
     const id = hexIdStr(hit.col, hit.row);
-    const ok = GCCLandmarks.setOverride({
-      name, id, kind, region, notes,
-      clickPixel: { mx: m.x, my: m.y }  // scan-pixel ground truth for affine cal
-    });
-    LOG('setOverride →', { name, id, kind, ok, clickPixel: { mx: m.x, my: m.y } });
+    const pixelField = state.placeMode === 'hexCenter' ? 'hexCenterPixel' : 'symbolPixel';
+    const modeLabel  = state.placeMode === 'hexCenter' ? 'HEX CENTER'    : 'SYMBOL';
+    const payload = { name, id, kind, region, notes };
+    payload[pixelField] = { mx: m.x, my: m.y };
+    const ok = GCCLandmarks.setOverride(payload);
+    LOG('setOverride →', { name, id, kind, ok, field: pixelField, pixel: { mx: m.x, my: m.y } });
     LOG('merged count now:', GCCLandmarks.all().length, 'overrides:', Object.keys(GCCLandmarks.exportOverrides()));
-    showToast(`${name} → ${id}`);
-    setStatus(`Placed: ${name} at ${id}. Pick next.`, false);
+    showToast(`${name} → ${id} [${modeLabel}]`);
+    setStatus(`Placed: ${name} at ${id} [${modeLabel}]. Pick next.`, false);
 
     if (state.newMode){
       state.panelEl.querySelector('#le-new-name').value = '';
@@ -265,24 +292,35 @@
     redrawOverlay();
   }
 
-  // Collect every override that has both a hex id and a recorded clickPixel,
-  // convert to the [{mx,my,col,row}, ...] shape applyLandmarkCal wants, and solve.
+  // Gather every override that has a hex id AND a hex-center pixel click.
+  // Returns [{mx, my, col, row, name}, ...] for applyLandmarkCal/TPS.
+  function gatherHexCenterControls(){
+    const ovs = GCCLandmarks.exportOverrides();
+    const landmarks = [];
+    for (const name in ovs){
+      const o = ovs[name];
+      if (!o.hexCenterPixel || !o.id) continue;
+      if (typeof darleneToInternal !== 'function') continue;
+      const hit = darleneToInternal(o.id);
+      if (!hit) continue;
+      landmarks.push({
+        mx: o.hexCenterPixel.mx,
+        my: o.hexCenterPixel.my,
+        col: hit.col, row: hit.row, name,
+      });
+    }
+    return landmarks;
+  }
+
   function onAlignFromPlaced(){
     if (typeof applyLandmarkCal !== 'function' || typeof darleneToInternal !== 'function'){
       setStatus('Affine solver not loaded (need greyhawk-map.html update).', false);
       return;
     }
-    const ovs = GCCLandmarks.exportOverrides();
-    const landmarks = [];
-    for (const [name, o] of Object.entries(ovs)){
-      if (!o.clickPixel || !o.id) continue;
-      const hit = darleneToInternal(o.id);
-      if (!hit) continue;
-      landmarks.push({ mx: o.clickPixel.mx, my: o.clickPixel.my, col: hit.col, row: hit.row, name });
-    }
-    LOG('alignFromPlaced:', landmarks.length, 'landmarks with clickPixel');
+    const landmarks = gatherHexCenterControls();
+    LOG('alignFromPlaced:', landmarks.length, 'landmarks with hexCenterPixel');
     if (landmarks.length < 3){
-      setStatus(`Need 3+ placed landmarks with click data. Have ${landmarks.length}. Re-click landmarks in Place mode to seed.`, false);
+      setStatus(`Need 3+ hex-center placements. Have ${landmarks.length}. Switch mode to "Hex Center (TPS)" and click Darlene hex centers.`, false);
       return;
     }
     const result = applyLandmarkCal(landmarks);
@@ -294,7 +332,7 @@
 
   function onAlignReset(){
     if (typeof cal === 'undefined' || typeof rebuildGrid !== 'function') return;
-    if (!confirm('Reset affine alignment to identity? Hex grid will revert to canonical positions.')) return;
+    if (!confirm('Reset alignment to identity? Both affine matrix and TPS warp will be cleared.')) return;
     cal.matrix = [1,0,0,0,1,0];
     cal.mode = 'affine';
     cal.tps = null;
@@ -303,10 +341,11 @@
     setStatus('Alignment reset to identity.', false);
   }
 
-  // TPS alignment: thin-plate spline warp through every placed landmark.
+  // TPS alignment: thin-plate spline warp through every hex-center placement.
   // Residual at each control point is zero by construction; warp smoothly
-  // interpolates between them. Use when affine rms plateaus (hand-drawn
-  // local drift that no uniform transform can represent).
+  // interpolates between them. Uses hexCenterPixel — clicks on Darlene hex
+  // centers, NOT city symbols. Symbol clicks live in symbolPixel and drive
+  // marker rendering instead.
   function onAlignTPS(){
     if (typeof applyLandmarkTPS !== 'function'){
       setStatus('TPS solver not loaded (need gcc-tps.js + greyhawk-map.html update).', false);
@@ -316,17 +355,10 @@
       setStatus('Darlene ID resolver not available.', false);
       return;
     }
-    const ovs = GCCLandmarks.exportOverrides();
-    const landmarks = [];
-    for (const [name, o] of Object.entries(ovs)){
-      if (!o.clickPixel || !o.id) continue;
-      const hit = darleneToInternal(o.id);
-      if (!hit) continue;
-      landmarks.push({ mx: o.clickPixel.mx, my: o.clickPixel.my, col: hit.col, row: hit.row, name });
-    }
-    LOG('alignTPS:', landmarks.length, 'landmarks with clickPixel');
+    const landmarks = gatherHexCenterControls();
+    LOG('alignTPS:', landmarks.length, 'landmarks with hexCenterPixel');
     if (landmarks.length < 3){
-      setStatus(`Need 3+ placed landmarks with click data. Have ${landmarks.length}.`, false);
+      setStatus(`Need 3+ hex-center placements. Have ${landmarks.length}. Switch mode to "Hex Center (TPS)" and click Darlene hex centers.`, false);
       return;
     }
     const result = applyLandmarkTPS(landmarks);
