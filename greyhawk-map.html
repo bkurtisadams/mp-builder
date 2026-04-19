@@ -329,8 +329,9 @@
   </div>
   <div class="iap-body">
     <p class="iap-help">
-      <b>Drag</b> map to move · <b>Shift+Drag</b> rotate · <b>Wheel</b> scale<br>
-      <b>Shift+Wheel</b> scale X · <b>Ctrl+Wheel</b> scale Y<br>
+      <b>Drag</b> move · <b>Shift+Drag</b> rotate<br>
+      <b>Wheel</b> scale 0.5% · <b>Alt+Wheel</b> 0.1% · <b>Cmd+Wheel</b> 3%<br>
+      <b>Shift+Wheel</b> X only · <b>Ctrl+Wheel</b> Y only<br>
       <b>Arrows</b> nudge 1px · <b>Shift+Arrows</b> 5px · <b>R</b> reset
     </p>
     <div class="iap-row"><label>Tx</label><span id="iap-tx">0.0</span></div>
@@ -1434,13 +1435,22 @@ function wireEvents(){
   });
   wrap.addEventListener('wheel',e=>{
     e.preventDefault();
-    // Image-align mode: wheel scales the image instead of zooming the view.
+    // Image-align mode: wheel scales the image. Modifier keys change tier:
+    //   plain               = 0.5%/tick       (default; fine)
+    //   Alt                 = 0.1%/tick       (very fine; pixel-level nudging)
+    //   Meta (Cmd/Win)      = 3%/tick         (coarse; rough positioning)
+    //   Shift               = scale X only (combines with above tiers)
+    //   Ctrl                = scale Y only (combines with above tiers)
+    // Shift+Ctrl together = uniform scale at the active tier (same as neither).
     if (state.imgAlignMode){
-      const factor = e.deltaY < 0 ? 1.015 : 0.9852; // ~1.5% per tick
-      const fx = e.ctrlKey ? 1 : factor;
-      const fy = e.shiftKey ? 1 : factor;
-      // For now scale around image center (no origin compensation). Users can
-      // re-center with translate if scaling drifts the image off-screen.
+      let pct = 0.005;                    // 0.5% default
+      if (e.altKey)  pct = 0.001;         // 0.1% fine
+      if (e.metaKey) pct = 0.03;          // 3% coarse
+      const factor = e.deltaY < 0 ? (1 + pct) : (1 / (1 + pct));
+      const xOnly = e.shiftKey && !e.ctrlKey;
+      const yOnly = e.ctrlKey  && !e.shiftKey;
+      const fx = yOnly ? 1 : factor;
+      const fy = xOnly ? 1 : factor;
       imgScaleBy(fx, fy, null);
       return;
     }
