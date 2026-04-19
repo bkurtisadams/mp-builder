@@ -285,8 +285,9 @@
 <div id="toast"></div>
 
 <script src="gcc-regions.js?v=6"></script>
+<script src="gcc-tps.js?v=7"></script>
 <script src="gcc-landmarks.js?v=6"></script>
-<script src="gcc-landmark-edit.js?v=6"></script>
+<script src="gcc-landmark-edit.js?v=7"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
 // Darlene World of Greyhawk map: 145 cols x 97 rows of flat-top hexes.
@@ -302,6 +303,10 @@ const cal = {
   // [a b c]  sx = a*cx + b*cy + c
   // [d e f]  sy = d*cx + e*cy + f
   matrix: [1, 0, 0, 0, 1, 0],
+  // Calibration mode: 'affine' uses matrix above; 'tps' uses thin-plate
+  // spline warping via cal.tps = {forward, inverse} TPS descriptors.
+  mode: 'affine',
+  tps: null,
 };
 const DEFAULTS = { hexSize: cal.hexSize, offsetX: cal.offsetX, offsetY: cal.offsetY, matrix: [1,0,0,0,1,0] };
 
@@ -421,10 +426,26 @@ function hexCenter(col,row){
   return { x:cal.offsetX+col*colStep(),
            y:cal.offsetY+row*rowStep()+(col%2===1?rowStep()*.5:0) };
 }
+// Unified forward transform: canonical hex-space point → display/map point.
+// Dispatches on cal.mode. Preserves identity fast-path.
+function displayApply(x, y){
+  if (cal.mode === 'tps' && cal.tps && cal.tps.forward){
+    return GCCTps.apply(cal.tps.forward, x, y);
+  }
+  if (affIsIdentity(cal.matrix)) return {x, y};
+  return affApply(cal.matrix, x, y);
+}
+// Unified inverse transform: display/map point → canonical hex-space.
+function displayInvert(x, y){
+  if (cal.mode === 'tps' && cal.tps && cal.tps.inverse){
+    return GCCTps.apply(cal.tps.inverse, x, y);
+  }
+  if (affIsIdentity(cal.matrix)) return {x, y};
+  return affApply(affInvert(cal.matrix), x, y);
+}
 function hexCenterDisplay(col,row){
   const c = hexCenter(col,row);
-  if (affIsIdentity(cal.matrix)) return c;
-  return affApply(cal.matrix, c.x, c.y);
+  return displayApply(c.x, c.y);
 }
 function hexCorners(cx,cy){
   return Array.from({length:6},(_,i)=>{
@@ -435,19 +456,18 @@ function hexCorners(cx,cy){
 function hexCornersDisplay(col, row){
   const c = hexCenter(col, row);
   const corners = hexCorners(c.x, c.y);
-  if (affIsIdentity(cal.matrix)) return corners;
+  // Fast-path: identity transform.
+  if (cal.mode !== 'tps' && affIsIdentity(cal.matrix)) return corners;
   return corners.map(([x,y]) => {
-    const p = affApply(cal.matrix, x, y);
+    const p = displayApply(x, y);
     return [p.x, p.y];
   });
 }
 // new
 function hexIdStr(col, row){ return `${darleneColLabel(col)}-${darleneDiagonal(col, row)}`; }
 function mapToHex(mx,my){
-  if (!affIsIdentity(cal.matrix)){
-    const p = affApply(affInvert(cal.matrix), mx, my);
-    mx = p.x; my = p.y;
-  }
+  const inv = displayInvert(mx, my);
+  mx = inv.x; my = inv.y;
   const cs=colStep(),rs=rowStep(),g=gridSize();
   let bestCol=0,bestRow=0,bestDist=Infinity;
   const estCol=Math.round((mx-cal.offsetX)/cs);
@@ -842,17 +862,28 @@ function nudgeCal(param,delta){
   positionCalMarkers();
 }
 function saveCal(){
-  try{ localStorage.setItem('gh-cal',JSON.stringify({
-    hexSize:cal.hexSize, offsetX:cal.offsetX, offsetY:cal.offsetY, matrix:cal.matrix
-  })); }catch(e){}
+  try{
+    const payload = {
+      hexSize: cal.hexSize, offsetX: cal.offsetX, offsetY: cal.offsetY,
+      matrix:  cal.matrix,  mode:    cal.mode || 'affine',
+    };
+    if (cal.tps && cal.tps.forward && cal.tps.inverse && typeof GCCTps !== 'undefined'){
+      payload.tps = {
+        forward: GCCTps.toJSON(cal.tps.forward),
+        inverse: GCCTps.toJSON(cal.tps.inverse),
+      };
+    }
+    localStorage.setItem('gh-cal', JSON.stringify(payload));
+  }catch(e){}
   const isAff = !affIsIdentity(cal.matrix);
-  showToast(isAff
-    ? `Saved — affine matrix active (rms below; identity=no)`
-    : `Saved — size:${cal.hexSize.toFixed(2)} x:${cal.offsetX.toFixed(1)} y:${cal.offsetY.toFixed(1)}`);
+  const modeLabel = (cal.mode === 'tps' && cal.tps) ? 'TPS' : (isAff ? 'affine' : 'identity');
+  showToast(`Saved — ${modeLabel} calibration persisted`);
 }
 function resetCal(){
   cal.hexSize=DEFAULTS.hexSize; cal.offsetX=DEFAULTS.offsetX; cal.offsetY=DEFAULTS.offsetY;
   cal.matrix=[1,0,0,0,1,0];
+  cal.mode='affine';
+  cal.tps=null;
   try{ localStorage.removeItem('gh-cal'); }catch(e){}
   state.calClick1=null; state.calClick2=null;
   rebuildGrid();
@@ -980,6 +1011,8 @@ function applyLandmarkCal(landmarks){
   }
 
   cal.matrix = [abc[0], abc[1], abc[2], def[0], def[1], def[2]];
+  // Running the affine solver means the user wants the affine path active.
+  cal.mode = 'affine';
 
   // Per-landmark residuals (px).
   const residuals = pts.map(p => {
@@ -1000,6 +1033,71 @@ function applyLandmarkCal(landmarks){
   });
   showToast(`Affine fit: ${landmarks.length} pts, rms=${rms.toFixed(2)}px peak=${peak.toFixed(2)}px`);
   return { rms, peak, residuals };
+}
+
+// ── LANDMARK CALIBRATION (thin-plate spline) ─────────────────────────────────
+// Same landmark input as applyLandmarkCal but fits a TPS warp: zero residual
+// at every control point, smooth interpolation between. Builds both forward
+// (canonical → map) and inverse (map → canonical) descriptors.
+function applyLandmarkTPS(landmarks){
+  if (!landmarks || landmarks.length < 3){
+    showToast('Need at least 3 landmarks for TPS');
+    return false;
+  }
+  if (typeof GCCTps === 'undefined'){
+    showToast('TPS module not loaded (gcc-tps.js missing)');
+    return false;
+  }
+  // TPS is built against canonical hex centers (defaults), not current cal.
+  cal.hexSize = DEFAULTS.hexSize;
+  cal.offsetX = DEFAULTS.offsetX;
+  cal.offsetY = DEFAULTS.offsetY;
+  cal.matrix  = DEFAULTS.matrix.slice();
+
+  const forwardCP = landmarks.map(L => {
+    const c = hexCenter(L.col, L.row);
+    return { sx: c.x, sy: c.y, tx: L.mx, ty: L.my };
+  });
+  const inverseCP = landmarks.map(L => {
+    const c = hexCenter(L.col, L.row);
+    return { sx: L.mx, sy: L.my, tx: c.x, ty: c.y };
+  });
+
+  const forward = GCCTps.build(forwardCP);
+  const inverse = GCCTps.build(inverseCP);
+  if (!forward || !inverse){
+    showToast('TPS solve failed (likely colinear landmarks)');
+    return false;
+  }
+  cal.tps  = { forward, inverse };
+  cal.mode = 'tps';
+
+  // Residuals are mathematically zero at control points. Compute anyway for
+  // floating-point sanity check.
+  const residuals = landmarks.map(L => {
+    const c = hexCenter(L.col, L.row);
+    const p = GCCTps.apply(forward, c.x, c.y);
+    return Math.hypot(p.x - L.mx, p.y - L.my);
+  });
+  const rms  = Math.sqrt(residuals.reduce((a,v)=>a+v*v,0) / residuals.length);
+  const peak = Math.max(...residuals);
+
+  rebuildGrid();
+  console.log(`[tps cal] ${landmarks.length} control points, rms=${rms.toExponential(2)}px peak=${peak.toExponential(2)}px`);
+  showToast(`TPS fit: ${landmarks.length} pts, zero residual at each landmark`);
+  return { rms, peak, residuals };
+}
+
+// Reset calibration back to identity in both modes.
+function resetAllCal(){
+  cal.hexSize = DEFAULTS.hexSize;
+  cal.offsetX = DEFAULTS.offsetX;
+  cal.offsetY = DEFAULTS.offsetY;
+  cal.matrix  = DEFAULTS.matrix.slice();
+  cal.mode    = 'affine';
+  cal.tps     = null;
+  try { localStorage.removeItem('gh-cal'); } catch(e){}
+  rebuildGrid();
 }
 
 // Console-driven landmark calibration.
@@ -1237,6 +1335,17 @@ function init(){
       cal.offsetY=saved.offsetY;
       if(Array.isArray(saved.matrix) && saved.matrix.length===6){
         cal.matrix=saved.matrix.slice();
+      }
+      if (saved.mode === 'tps' && saved.tps && saved.tps.forward && saved.tps.inverse
+          && typeof GCCTps !== 'undefined'){
+        const fwd = GCCTps.fromJSON(saved.tps.forward);
+        const inv = GCCTps.fromJSON(saved.tps.inverse);
+        if (fwd && inv){
+          cal.tps = { forward: fwd, inverse: inv };
+          cal.mode = 'tps';
+        }
+      } else if (saved.mode){
+        cal.mode = saved.mode;
       }
     }
   }catch(e){}

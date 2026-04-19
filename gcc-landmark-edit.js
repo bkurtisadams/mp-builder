@@ -54,6 +54,9 @@
           <button class="le-btn le-align" id="le-align" title="Solve 6-param affine from placed landmarks">📐 Align from Placed</button>
           <button class="le-btn" id="le-align-reset" title="Revert to identity matrix">↺ Reset Align</button>
         </div>
+        <div class="le-btns" style="margin-top:4px">
+          <button class="le-btn le-tps" id="le-align-tps" title="Fit thin-plate spline through all placed landmarks (zero residual at each)">🧵 Align TPS</button>
+        </div>
       </div>
     `;
     document.body.appendChild(p);
@@ -66,6 +69,7 @@
     p.querySelector('#le-reset').onclick   = onReset;
     p.querySelector('#le-align').onclick         = onAlignFromPlaced;
     p.querySelector('#le-align-reset').onclick   = onAlignReset;
+    p.querySelector('#le-align-tps').onclick     = onAlignTPS;
     p.querySelector('#le-new-name').oninput  = e => state.newFields.name   = e.target.value;
     p.querySelector('#le-new-kind').onchange = e => state.newFields.kind   = e.target.value;
     p.querySelector('#le-new-region').oninput= e => state.newFields.region = e.target.value;
@@ -119,6 +123,8 @@
       #landmark-edit-panel .le-btn.le-danger:hover { background:rgba(180,50,20,.2); color:#ff7755; }
       #landmark-edit-panel .le-btn.le-align { color:#44ffbb; border-color:#005544; }
       #landmark-edit-panel .le-btn.le-align:hover { background:rgba(68,255,187,.18); color:#aaffdd; }
+      #landmark-edit-panel .le-btn.le-tps { color:#ffaa44; border-color:#663311; }
+      #landmark-edit-panel .le-btn.le-tps:hover { background:rgba(255,170,68,.18); color:#ffcc88; }
       body.le-placing #map-wrap { cursor:crosshair !important; }
     `;
     document.head.appendChild(s);
@@ -290,9 +296,44 @@
     if (typeof cal === 'undefined' || typeof rebuildGrid !== 'function') return;
     if (!confirm('Reset affine alignment to identity? Hex grid will revert to canonical positions.')) return;
     cal.matrix = [1,0,0,0,1,0];
+    cal.mode = 'affine';
+    cal.tps = null;
     if (typeof saveCal === 'function') saveCal();
     rebuildGrid();
     setStatus('Alignment reset to identity.', false);
+  }
+
+  // TPS alignment: thin-plate spline warp through every placed landmark.
+  // Residual at each control point is zero by construction; warp smoothly
+  // interpolates between them. Use when affine rms plateaus (hand-drawn
+  // local drift that no uniform transform can represent).
+  function onAlignTPS(){
+    if (typeof applyLandmarkTPS !== 'function'){
+      setStatus('TPS solver not loaded (need gcc-tps.js + greyhawk-map.html update).', false);
+      return;
+    }
+    if (typeof darleneToInternal !== 'function'){
+      setStatus('Darlene ID resolver not available.', false);
+      return;
+    }
+    const ovs = GCCLandmarks.exportOverrides();
+    const landmarks = [];
+    for (const [name, o] of Object.entries(ovs)){
+      if (!o.clickPixel || !o.id) continue;
+      const hit = darleneToInternal(o.id);
+      if (!hit) continue;
+      landmarks.push({ mx: o.clickPixel.mx, my: o.clickPixel.my, col: hit.col, row: hit.row, name });
+    }
+    LOG('alignTPS:', landmarks.length, 'landmarks with clickPixel');
+    if (landmarks.length < 3){
+      setStatus(`Need 3+ placed landmarks with click data. Have ${landmarks.length}.`, false);
+      return;
+    }
+    const result = applyLandmarkTPS(landmarks);
+    if (result && result.rms !== undefined){
+      setStatus(`TPS fit from ${landmarks.length}. Residual at each landmark ≈ 0 (by construction).`, true);
+      if (typeof saveCal === 'function') saveCal();
+    }
   }
 
   function redrawOverlay(){
