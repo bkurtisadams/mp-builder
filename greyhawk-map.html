@@ -145,6 +145,42 @@
   /* TOAST */
   #toast { position:fixed; bottom:56px; left:50%; transform:translateX(-50%) translateY(16px); background:var(--panel-bg); border:1px solid var(--gold); color:var(--gold-light); font-family:'Cinzel',serif; font-size:11px; letter-spacing:.06em; padding:7px 16px; border-radius:2px; z-index:300; opacity:0; pointer-events:none; transition:all .25s; white-space:nowrap; }
   #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* IMAGE-ALIGN MODE */
+  #img-align-panel {
+    position:fixed; top:72px; right:16px; width:232px; z-index:210;
+    background:rgba(8,16,24,.97); border:1px solid #44ccff; border-radius:3px;
+    font-family:'Cinzel',serif; color:#d0e8f0; display:none;
+    box-shadow:0 4px 20px rgba(0,0,0,.6);
+  }
+  #img-align-panel.open { display:block; }
+  #img-align-panel .iap-hdr {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 10px; background:rgba(68,204,255,.15); border-bottom:1px solid #44ccff;
+    font-size:13px; font-weight:600; letter-spacing:.05em; color:#88ddff;
+  }
+  #img-align-panel .iap-close {
+    background:none; border:none; color:#aaccdd; font-size:14px; cursor:pointer; padding:0 4px;
+  }
+  #img-align-panel .iap-close:hover { color:#ffffff; }
+  #img-align-panel .iap-body { padding:10px; }
+  #img-align-panel .iap-help { font-size:10px; color:#88ccdd; margin-bottom:10px; line-height:1.55; }
+  #img-align-panel .iap-help b { color:#aaddee; }
+  #img-align-panel .iap-row { display:flex; justify-content:space-between; align-items:center;
+    font-size:11px; padding:3px 0; border-bottom:1px solid rgba(68,204,255,.15); }
+  #img-align-panel .iap-row label { color:#88ccdd; letter-spacing:.05em; }
+  #img-align-panel .iap-row span { color:#ffeebb; font-family:monospace; font-size:11px; }
+  #img-align-panel .iap-btns { display:flex; gap:6px; margin-top:10px; }
+  #img-align-panel .iap-btns button {
+    flex:1; background:rgba(68,204,255,.1); border:1px solid #4488aa;
+    color:#88ddff; padding:6px 8px; border-radius:2px; font-family:inherit;
+    font-size:11px; cursor:pointer; transition:all .14s; letter-spacing:.05em;
+  }
+  #img-align-panel .iap-btns button:hover { background:rgba(68,204,255,.25); color:#aaffff; }
+  #img-align-panel .iap-btns .iap-primary { background:rgba(68,204,255,.25); color:#ffffff; border-color:#66ccff; }
+  body.img-aligning #map-wrap { cursor:move !important; }
+  body.img-aligning #hex-cells path { stroke:#ff44aa !important; stroke-width:0.4 !important; opacity:1 !important; }
+  #btn-image-align.active { background:rgba(68,204,255,.25); color:#88ddff; border-color:#44ccff; }
 </style>
 </head>
 <body>
@@ -167,6 +203,7 @@
   <button class="tb-btn" id="btn-hex-labels">IDs</button>
   <div class="sep"></div>
   <button class="tb-btn" id="btn-calibrate">⊹ Align</button>
+  <button class="tb-btn" id="btn-image-align" title="Drag/scale/rotate the Darlene map to match SVG hexes">🖼 Image</button>
   <button class="tb-btn" id="btn-landmark-edit">📍 Place</button>
   <div class="spacer"></div>
   <div id="mode-label">OVERWORLD · 30 MI/HEX</div>
@@ -282,6 +319,29 @@
   <div class="dialog-btns">
     <button id="btn-cancel-move">Cancel</button>
     <button id="btn-confirm-move">Confirm Move</button>
+  </div>
+</div>
+<!-- Image alignment panel -->
+<div id="img-align-panel">
+  <div class="iap-hdr">
+    <span>🖼 Image Alignment</span>
+    <button class="iap-close" title="Exit (Esc)">✕</button>
+  </div>
+  <div class="iap-body">
+    <p class="iap-help">
+      <b>Drag</b> map to move · <b>Shift+Drag</b> rotate · <b>Wheel</b> scale<br>
+      <b>Shift+Wheel</b> scale X · <b>Ctrl+Wheel</b> scale Y<br>
+      <b>Arrows</b> nudge 1px · <b>Shift+Arrows</b> 5px · <b>R</b> reset
+    </p>
+    <div class="iap-row"><label>Tx</label><span id="iap-tx">0.0</span></div>
+    <div class="iap-row"><label>Ty</label><span id="iap-ty">0.0</span></div>
+    <div class="iap-row"><label>Scale X</label><span id="iap-sx">1.0000</span></div>
+    <div class="iap-row"><label>Scale Y</label><span id="iap-sy">1.0000</span></div>
+    <div class="iap-row"><label>Rotation</label><span id="iap-rot">0.00°</span></div>
+    <div class="iap-btns">
+      <button id="iap-reset">Reset</button>
+      <button id="iap-save" class="iap-primary">Save &amp; Close</button>
+    </div>
   </div>
 </div>
 <div id="toast"></div>
@@ -419,7 +479,86 @@ const state={
   hexData:{},pendingMove:null,
   calMode:false,
   calClick1:null,calClick2:null,
+  imgAlignMode:false,
+  imgDragging:false, imgDragStart:null, imgDragStartTx:0, imgDragStartTy:0,
+  imgRotDragging:false, imgRotStart:0, imgRotStartAngle:0,
 };
+
+// ── IMAGE TRANSFORM ───────────────────────────────────────────────────────────
+// Separate from cal.matrix / cal.tps. Transforms the Darlene image directly
+// so the user can drag/scale/rotate it to match the canonical SVG hex grid.
+// Applied via CSS transform on the <img> element with origin at stage center.
+// Grid coordinates stay untouched; only the picture moves.
+const imgX = { tx:0, ty:0, sx:1, sy:1, rot:0 };
+function applyImgTransform(){
+  const img = document.getElementById('map-img');
+  if (!img) return;
+  img.style.transformOrigin = 'center center';
+  img.style.transform = `translate(${imgX.tx}px, ${imgX.ty}px) rotate(${imgX.rot}deg) scale(${imgX.sx}, ${imgX.sy})`;
+  updateImgReadout();
+}
+function updateImgReadout(){
+  const fmt = (n, d=2) => (n >= 0 ? '+' : '') + n.toFixed(d);
+  const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setText('iap-tx',  fmt(imgX.tx, 1));
+  setText('iap-ty',  fmt(imgX.ty, 1));
+  setText('iap-sx',  imgX.sx.toFixed(4));
+  setText('iap-sy',  imgX.sy.toFixed(4));
+  setText('iap-rot', fmt(imgX.rot, 2) + '°');
+}
+function saveImgTransform(){
+  try{ localStorage.setItem('gh-img-xform', JSON.stringify(imgX)); }catch(e){}
+}
+function loadImgTransform(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('gh-img-xform') || 'null');
+    if (saved && typeof saved.tx === 'number'){
+      imgX.tx  = saved.tx;  imgX.ty  = saved.ty;
+      imgX.sx  = saved.sx || 1; imgX.sy = saved.sy || 1;
+      imgX.rot = saved.rot || 0;
+    }
+  }catch(e){}
+}
+function resetImgTransform(){
+  imgX.tx = 0; imgX.ty = 0; imgX.sx = 1; imgX.sy = 1; imgX.rot = 0;
+  applyImgTransform();
+  saveImgTransform();
+  showToast('Image transform reset');
+}
+function enterImgAlignMode(){
+  if (state.calMode){ showToast('Exit grid alignment first'); return; }
+  state.imgAlignMode = true;
+  document.body.classList.add('img-aligning');
+  document.getElementById('btn-image-align').classList.add('active');
+  document.getElementById('img-align-panel').classList.add('open');
+  updateImgReadout();
+  showToast('Image align: drag/scale/rotate to match hexes');
+}
+function exitImgAlignMode(){
+  state.imgAlignMode = false;
+  document.body.classList.remove('img-aligning');
+  document.getElementById('btn-image-align').classList.remove('active');
+  document.getElementById('img-align-panel').classList.remove('open');
+  saveImgTransform();
+}
+function imgNudge(dx, dy){
+  imgX.tx += dx; imgX.ty += dy;
+  applyImgTransform();
+}
+function imgScaleBy(fx, fy, originPx){
+  // Scale around cursor position by modifying tx/ty so the cursor stays anchored.
+  // If originPx is null, scale around image center (no compensation needed).
+  if (originPx){
+    imgX.tx = originPx.x + (imgX.tx - originPx.x) * fx;
+    imgX.ty = originPx.y + (imgX.ty - originPx.y) * fy;
+  }
+  imgX.sx *= fx; imgX.sy *= fy;
+  applyImgTransform();
+}
+function imgRotateBy(deg){
+  imgX.rot += deg;
+  applyImgTransform();
+}
 
 // ── HEX MATH ──────────────────────────────────────────────────────────────────
 function colStep(){ return cal.hexSize*1.5; }
@@ -1214,6 +1353,23 @@ function wireEvents(){
   // Pan
   wrap.addEventListener('mousedown',e=>{
     if(e.button!==0||state.calMode) return;
+    // Image-align mode: drag moves image; shift+drag rotates.
+    if (state.imgAlignMode){
+      e.preventDefault();
+      if (e.shiftKey){
+        state.imgRotDragging = true;
+        const rect = wrap.getBoundingClientRect();
+        const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+        state.imgRotStartAngle = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI;
+        state.imgRotStart = imgX.rot;
+      } else {
+        state.imgDragging = true;
+        state.imgDragStart = { x: e.clientX, y: e.clientY };
+        state.imgDragStartTx = imgX.tx;
+        state.imgDragStartTy = imgX.ty;
+      }
+      return;
+    }
     state.dragging=true;
     state.didDrag=false;
     state.dragStartX=e.clientX; state.dragStartY=e.clientY;
@@ -1221,6 +1377,23 @@ function wireEvents(){
     wrap.classList.add('grabbing');
   });
   window.addEventListener('mousemove',e=>{
+    // Image-align drag
+    if (state.imgDragging){
+      const dx = (e.clientX - state.imgDragStart.x) / state.zoom;
+      const dy = (e.clientY - state.imgDragStart.y) / state.zoom;
+      imgX.tx = state.imgDragStartTx + dx;
+      imgX.ty = state.imgDragStartTy + dy;
+      applyImgTransform();
+      return;
+    }
+    if (state.imgRotDragging){
+      const rect = wrap.getBoundingClientRect();
+      const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+      const ang = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI;
+      imgX.rot = state.imgRotStart + (ang - state.imgRotStartAngle);
+      applyImgTransform();
+      return;
+    }
     if(!state.dragging) return;
     const dx=e.clientX-state.dragStartX, dy=e.clientY-state.dragStartY;
     if(!state.didDrag){
@@ -1232,6 +1405,12 @@ function wireEvents(){
     clampPan(); applyTransform();
   });
   window.addEventListener('mouseup',e=>{
+    if (state.imgDragging || state.imgRotDragging){
+      state.imgDragging = false;
+      state.imgRotDragging = false;
+      saveImgTransform();
+      return;
+    }
     if(state.dragging){
       const dx=e.clientX-state.dragStartX, dy=e.clientY-state.dragStartY;
       if(Math.abs(dx)<=3&&Math.abs(dy)<=3) state.didDrag=false;
@@ -1241,7 +1420,7 @@ function wireEvents(){
 
   // Hex click via coordinate math
   wrap.addEventListener('click',e=>{
-    if(state.calMode||state.didDrag) return;
+    if(state.calMode||state.didDrag||state.imgAlignMode) return;
     const m=screenToMap(e.clientX,e.clientY);
     const hit=mapToHex(m.x,m.y);
     if(hit) onHexClick(hit.col,hit.row);
@@ -1249,11 +1428,25 @@ function wireEvents(){
 
   // Hex hover via coordinate math
   wrap.addEventListener('mousemove',e=>{
-    if(state.dragging) return;
+    if(state.dragging||state.imgAlignMode) return;
     const m=screenToMap(e.clientX,e.clientY);
     onHexHover(m.x,m.y);
   });
-  wrap.addEventListener('wheel',e=>{ e.preventDefault(); const topOff=(document.getElementById('gcc-bar')?.offsetHeight||0)+46; doZoom(e.deltaY<0?1.12:.89,e.clientX,e.clientY-topOff); },{passive:false});
+  wrap.addEventListener('wheel',e=>{
+    e.preventDefault();
+    // Image-align mode: wheel scales the image instead of zooming the view.
+    if (state.imgAlignMode){
+      const factor = e.deltaY < 0 ? 1.015 : 0.9852; // ~1.5% per tick
+      const fx = e.ctrlKey ? 1 : factor;
+      const fy = e.shiftKey ? 1 : factor;
+      // For now scale around image center (no origin compensation). Users can
+      // re-center with translate if scaling drifts the image off-screen.
+      imgScaleBy(fx, fy, null);
+      return;
+    }
+    const topOff=(document.getElementById('gcc-bar')?.offsetHeight||0)+46;
+    doZoom(e.deltaY<0?1.12:.89,e.clientX,e.clientY-topOff);
+  },{passive:false});
 
   // Toolbar
   document.getElementById('btn-zoom-in').addEventListener('click',()=>doZoom(1.25));
@@ -1305,6 +1498,14 @@ function wireEvents(){
   document.getElementById('btn-cal-close').addEventListener('click',exitCalMode);
   document.getElementById('btn-cal-redo').addEventListener('click',redoCalClicks);
 
+  // Image-align panel
+  document.getElementById('btn-image-align').addEventListener('click', ()=>{
+    state.imgAlignMode ? exitImgAlignMode() : enterImgAlignMode();
+  });
+  document.querySelector('#img-align-panel .iap-close').addEventListener('click', exitImgAlignMode);
+  document.getElementById('iap-reset').addEventListener('click', resetImgTransform);
+  document.getElementById('iap-save').addEventListener('click', exitImgAlignMode);
+
   // Cal overlay click capture
   wireCalOverlay();
 
@@ -1329,6 +1530,25 @@ function wireEvents(){
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' ||
               t.tagName === 'SELECT' || t.isContentEditable)) return;
+
+    // Image-align mode: arrows nudge, R resets, I/Esc exits. Suppress all
+    // other letter hotkeys while aligning so they don't stomp on the work.
+    if (state.imgAlignMode){
+      const big = e.shiftKey;
+      if (e.key === 'ArrowLeft') { imgNudge(big?-5:-1, 0);  e.preventDefault(); return; }
+      if (e.key === 'ArrowRight'){ imgNudge(big? 5: 1, 0);  e.preventDefault(); return; }
+      if (e.key === 'ArrowUp')   { imgNudge(0, big?-5:-1);  e.preventDefault(); return; }
+      if (e.key === 'ArrowDown') { imgNudge(0, big? 5: 1);  e.preventDefault(); return; }
+      if (e.key === 'r' || e.key === 'R'){ resetImgTransform(); e.preventDefault(); return; }
+      if (e.key === 'i' || e.key === 'I' || e.key === 'Escape'){ exitImgAlignMode(); e.preventDefault(); return; }
+      // Swallow other single-letter hotkeys while in align mode.
+      if (e.key.length === 1) { e.preventDefault(); return; }
+    }
+
+    // `I` toggles image-align mode from anywhere (when not in align mode).
+    if (!state.imgAlignMode && (e.key === 'i' || e.key === 'I')){
+      enterImgAlignMode(); e.preventDefault(); return;
+    }
 
     // In cal mode: arrow keys nudge offset, +/- nudge size
     if(state.calMode){
@@ -1374,8 +1594,10 @@ function init(){
       }
     }
   }catch(e){}
+  loadImgTransform();
   const img=document.getElementById('map-img');
   const start=()=>{
+    applyImgTransform();
     buildHexGrid(); wireEvents();
     const w=document.getElementById('map-wrap');
     state.zoom=.5;
