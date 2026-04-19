@@ -1199,6 +1199,14 @@ function wireEvents(){
 
   // Keyboard
   window.addEventListener('keydown',e=>{
+    // Don't treat letters as hotkeys when the user is typing in an input,
+    // textarea, select, or contenteditable (e.g. the landmark editor's
+    // "New landmark" name/region fields). Otherwise typing "Molag" fires
+    // move-mode (M) and hex-labels (l), each triggering a full rebuild.
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' ||
+              t.tagName === 'SELECT' || t.isContentEditable)) return;
+
     // In cal mode: arrow keys nudge offset, +/- nudge size
     if(state.calMode){
       const big=e.shiftKey;
