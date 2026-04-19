@@ -674,10 +674,10 @@ function computeStageBounds(){
     + rowStep() * 0.5 + 4;
 
   stageBounds = {
-    minX: Math.min(0, left),
-    minY: Math.min(0, top),
-    maxX: Math.max(MAP_W, right),
-    maxY: Math.max(MAP_H, bottom),
+    minX: Math.min(0, left)   - LABEL_PAD,
+    minY: Math.min(0, top)    - LABEL_PAD,
+    maxX: Math.max(MAP_W, right)  + LABEL_PAD,
+    maxY: Math.max(MAP_H, bottom) + LABEL_PAD,
     width: 0,
     height: 0
   };
@@ -1058,7 +1058,15 @@ function clampPan(){
 function doZoom(factor,cx,cy){
   const w=document.getElementById('map-wrap');
   cx=cx??w.clientWidth/2; cy=cy??w.clientHeight/2;
-  const nz=Math.max(.25,Math.min(5,state.zoom*factor));
+  // Lower bound: whichever is smaller — fixed floor (.15) or the zoom at
+  // which the padded stage fits in the wrap. Keeps the full map visible
+  // even in narrow browsers.
+  const fitZoom = Math.min(
+    w.clientWidth  / stageBounds.width,
+    w.clientHeight / stageBounds.height
+  );
+  const floor = Math.min(0.15, fitZoom * 0.95);
+  const nz=Math.max(floor,Math.min(5,state.zoom*factor));
   const r=nz/state.zoom;
   state.panX=cx-r*(cx-state.panX); state.panY=cy-r*(cy-state.panY);
   state.zoom=nz; clampPan(); applyTransform();
