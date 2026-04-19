@@ -296,9 +296,18 @@
   }
 
   function redrawOverlay(){
-    if (typeof rebuildGrid === 'function'){ LOG('rebuildGrid()'); rebuildGrid(); }
-    else if (typeof buildHexGrid === 'function'){ LOG('buildHexGrid()'); buildHexGrid(); }
-    else LOG('✗ no rebuildGrid or buildHexGrid available');
+    // Prefer the targeted overlay rebuild — ~1ms vs ~130ms for full grid.
+    // Full rebuildGrid() is only needed when hex positions change (after
+    // alignFromPlaced/alignReset), not when landmark data changes.
+    if (typeof rebuildLandmarkOverlay === 'function'){
+      LOG('rebuildLandmarkOverlay()'); rebuildLandmarkOverlay();
+    } else if (typeof rebuildGrid === 'function'){
+      LOG('rebuildGrid() (fallback)'); rebuildGrid();
+    } else if (typeof buildHexGrid === 'function'){
+      LOG('buildHexGrid() (fallback)'); buildHexGrid();
+    } else {
+      LOG('✗ no rebuild path available');
+    }
   }
 
   // ── Enter / exit mode ────────────────────────────────────────────────────

@@ -285,8 +285,8 @@
 <div id="toast"></div>
 
 <script src="gcc-regions.js?v=6"></script>
-<script src="gcc-landmarks.js?v=5"></script>
-<script src="gcc-landmark-edit.js?v=5"></script>
+<script src="gcc-landmarks.js?v=6"></script>
+<script src="gcc-landmark-edit.js?v=6"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
 // Darlene World of Greyhawk map: 145 cols x 97 rows of flat-top hexes.
@@ -671,6 +671,17 @@ function buildLandmarkOverlay(){
   return g;
 }
 function rebuildGrid(){ buildHexGrid(); updateCalDisplays(); }
+// Targeted rebuild: swap just the landmark overlay group in place. ~1ms
+// vs 130ms for buildHexGrid. Use when only overlay data changed (placing/
+// removing landmarks), not when hex positions changed (calibration).
+function rebuildLandmarkOverlay(){
+  const svg = document.getElementById('hex-svg');
+  if (!svg) return;
+  const old = document.getElementById('landmark-overlay');
+  const next = buildLandmarkOverlay();
+  if (old && old.parentNode) old.parentNode.replaceChild(next, old);
+  else svg.appendChild(next);
+}
 function updatePartyMarker(){
   const {x:mx,y:my}=hexCenterDisplay(state.partyCol,state.partyRow);
   const {x,y}=mapToStage(mx,my);
