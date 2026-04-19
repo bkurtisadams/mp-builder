@@ -40,8 +40,8 @@
   #map-wrap.grabbing { cursor:grabbing; }
   #map-wrap.move-mode { cursor:crosshair; }
   #map-wrap.cal-mode { cursor:crosshair; }
-  #map-stage { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; overflow:visible; }
-  #map-img { position:absolute; top:0; left:0; display:block; width:100%; height:100%; pointer-events:none; }
+  #map-stage { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; overflow:visible; background:#f0e6d0; }
+  #map-img { position:absolute; top:0; left:0; display:block; pointer-events:none; }
   #hex-svg { position:absolute; top:0; left:0; overflow:visible; pointer-events:all; }
 
   /* HEX CELLS */
@@ -52,10 +52,9 @@
   .hex-cell.party-hex { stroke:#cc2200; stroke-width:1.8; }
   .hex-label { font-family:'Cinzel',serif; font-size:5px; fill:rgba(0,0,0,.45); text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
   .coord-letter, .coord-number { display:none; font-family:'Cinzel',serif; font-weight:600;
-    fill:#1a0f03; stroke:#f4e4b8; stroke-width:.6; paint-order:stroke;
-    pointer-events:none; letter-spacing:.05em; }
-  .coord-letter  { font-size:8px; }
-  .coord-number  { font-size:7px; }
+    fill:#1a0f03; stroke:none; pointer-events:none; letter-spacing:.03em; }
+  .coord-letter  { font-size:16px; }
+  .coord-number  { font-size:13px; font-style:italic; }
   body.coords-shown .coord-letter, body.coords-shown .coord-number { display:block; }
   #btn-coord-labels.active { background:rgba(200,148,26,.28); color:#ffeebb; border-color:#c8941a; }
   .landmark-mark  { filter: drop-shadow(0 0 2px rgba(0,0,0,.5)); }
@@ -398,7 +397,16 @@ function affIsIdentity(M){
 }
 const MAP_W = Math.ceil((GRID_COLS - 1) * 1.5 * HEX_R + 2 * HEX_R);          // 4360
 const MAP_H = Math.ceil(GRID_ROWS * Math.sqrt(3) * HEX_R + Math.sqrt(3) * HEX_R / 2); // 3378
-let stageBounds = { minX:0, minY:0, maxX:MAP_W, maxY:MAP_H, width:MAP_W, height:MAP_H };
+// Reserved strip around the hex grid for Darlene-style edge labels (column
+// letters, diagonal numbers). Stage extends into this area; image is sized
+// to MAP_W × MAP_H and offset to sit inside the hex area, leaving the
+// padding visible for label rendering.
+const LABEL_PAD = 40;
+let stageBounds = {
+  minX: -LABEL_PAD, minY: -LABEL_PAD,
+  maxX: MAP_W + LABEL_PAD, maxY: MAP_H + LABEL_PAD,
+  width: MAP_W + 2*LABEL_PAD, height: MAP_H + 2*LABEL_PAD,
+};
 function gridSize(){ return { cols:GRID_COLS, rows:GRID_ROWS }; }
 
 // new
@@ -685,6 +693,10 @@ function updateStageFrame(){
   const svg=document.getElementById('hex-svg');
   stage.style.width=stageBounds.width+'px';
   stage.style.height=stageBounds.height+'px';
+  // Image occupies the hex area only; LABEL_PAD padding on all sides is
+  // reserved for edge labels (and the stage's cream-colored margin).
+  img.style.width =MAP_W+'px';
+  img.style.height=MAP_H+'px';
   img.style.left=(-stageBounds.minX)+'px';
   img.style.top=(-stageBounds.minY)+'px';
   svg.style.left='0';
@@ -748,66 +760,72 @@ function buildHexGrid(){
 }
 
 // ── DARLENE COORDINATE LABELS ─────────────────────────────────────────────────
-// Renders column letters across the top/bottom edges and diagonal numbers
-// along the right/bottom edges, matching the printed labels on the original
-// Darlene map. Hidden by default; toggled via body.coords-shown (see toolbar
-// button "⌨ Coords"). Useful after image alignment for reading a hex's
-// authoritative Darlene ID directly off the edges, bypassing any formula
-// drift in darleneColLabel / darleneDiagonal for mid-map hexes.
+// Renders labels on the four edges matching the printed Darlene map layout:
+//   Top edge:    column letters (A rightmost, P6 leftmost)
+//   Right edge:  diagonal numbers 1..97 going down
+//   Bottom edge: diagonal numbers 98..170-ish going leftward
+//   Left edge:   diagonal numbers 74..170-ish going down
+// Labels sit in the LABEL_PAD strip added to stageBounds; hidden by default,
+// toggled via body.coords-shown.
 function buildCoordLabels(){
   const ns = 'http://www.w3.org/2000/svg';
   const g = document.createElementNS(ns, 'g');
   g.id = 'coord-labels';
   g.style.pointerEvents = 'none';
 
-  // Column letters at top and bottom of every column.
+  const padOffsetLetter = LABEL_PAD * 0.55;   // how far into the padding strip
+  const padOffsetNumber = LABEL_PAD * 0.55;
+
+  // Top edge — column letters above row 0.
   for (let c = 0; c < GRID_COLS; c++){
-    const label = darleneColLabel(c);
     const topC = hexCenterDisplay(c, 0);
     const topS = mapToStage(topC.x, topC.y);
-    const top = document.createElementNS(ns, 'text');
-    top.setAttribute('x', topS.x.toFixed(1));
-    top.setAttribute('y', (topS.y - cal.hexSize * 0.95).toFixed(1));
-    top.setAttribute('text-anchor', 'middle');
-    top.setAttribute('class', 'coord-letter');
-    top.textContent = label;
-    g.appendChild(top);
-
-    const botC = hexCenterDisplay(c, GRID_ROWS - 1);
-    const botS = mapToStage(botC.x, botC.y);
-    const bot = document.createElementNS(ns, 'text');
-    bot.setAttribute('x', botS.x.toFixed(1));
-    bot.setAttribute('y', (botS.y + cal.hexSize * 2.3).toFixed(1));
-    bot.setAttribute('text-anchor', 'middle');
-    bot.setAttribute('class', 'coord-letter');
-    bot.textContent = label;
-    g.appendChild(bot);
-  }
-
-  // Diagonal numbers along right edge (diagonals 1..97 at col=145).
-  for (let r = 0; r < GRID_ROWS; r++){
-    const d = darleneDiagonal(GRID_COLS - 1, r);
-    const c = hexCenterDisplay(GRID_COLS - 1, r);
-    const s = mapToStage(c.x, c.y);
     const t = document.createElementNS(ns, 'text');
-    t.setAttribute('x', (s.x + cal.hexSize * 0.95).toFixed(1));
-    t.setAttribute('y', (s.y + 1.5).toFixed(1));
-    t.setAttribute('text-anchor', 'start');
-    t.setAttribute('class', 'coord-number');
-    t.textContent = String(d);
+    t.setAttribute('x', topS.x.toFixed(1));
+    t.setAttribute('y', (topS.y - cal.hexSize - padOffsetLetter).toFixed(1));
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('class', 'coord-letter');
+    t.textContent = darleneColLabel(c);
     g.appendChild(t);
   }
 
-  // Diagonal numbers along bottom edge (diagonals 98+ at row=96, skipping
-  // ones already placed on the right edge).
-  for (let c = 0; c < GRID_COLS - 1; c++){
+  // Right edge — diagonals 1..97 next to col=GRID_COLS-1.
+  for (let r = 0; r < GRID_ROWS; r++){
+    const c = hexCenterDisplay(GRID_COLS - 1, r);
+    const s = mapToStage(c.x, c.y);
+    const t = document.createElementNS(ns, 'text');
+    t.setAttribute('x', (s.x + cal.hexSize + padOffsetNumber).toFixed(1));
+    t.setAttribute('y', (s.y + 3).toFixed(1));
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('class', 'coord-number');
+    t.textContent = String(darleneDiagonal(GRID_COLS - 1, r));
+    g.appendChild(t);
+  }
+
+  // Left edge — diagonals 74..170-ish next to col=0.
+  for (let r = 0; r < GRID_ROWS; r++){
+    const c = hexCenterDisplay(0, r);
+    const s = mapToStage(c.x, c.y);
+    const t = document.createElementNS(ns, 'text');
+    t.setAttribute('x', (s.x - cal.hexSize - padOffsetNumber).toFixed(1));
+    t.setAttribute('y', (s.y + 3).toFixed(1));
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('class', 'coord-number');
+    t.textContent = String(darleneDiagonal(0, r));
+    g.appendChild(t);
+  }
+
+  // Bottom edge — diagonals > 97 below row=GRID_ROWS-1. Skip diagonals
+  // already placed on the right edge (≤ 97). Also skip col=0 since that's
+  // the left-edge corner which gets its number from the left-edge pass.
+  for (let c = 1; c < GRID_COLS - 1; c++){
     const d = darleneDiagonal(c, GRID_ROWS - 1);
     if (d <= 97) continue;
     const pos = hexCenterDisplay(c, GRID_ROWS - 1);
     const s = mapToStage(pos.x, pos.y);
     const t = document.createElementNS(ns, 'text');
     t.setAttribute('x', s.x.toFixed(1));
-    t.setAttribute('y', (s.y + cal.hexSize * 1.45).toFixed(1));
+    t.setAttribute('y', (s.y + cal.hexSize + padOffsetNumber + 2).toFixed(1));
     t.setAttribute('text-anchor', 'middle');
     t.setAttribute('class', 'coord-number');
     t.textContent = String(d);
