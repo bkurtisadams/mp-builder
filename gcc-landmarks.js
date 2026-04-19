@@ -1,6 +1,9 @@
-// gcc-landmarks.js v0.3.0 — 2026-04-18
+// gcc-landmarks.js v0.4.0 — 2026-04-18
 // World of Greyhawk landmarks, keyed by Darlene hex ID.
 // Layered store: BASE file data + PENDING (no hex yet) + OVERRIDES (localStorage).
+//
+// v0.4.0: setOverride now accepts optional clickPixel:{mx,my} so placed
+// landmarks can feed the affine calibration solver.
 //
 // Format: "Letter[Rep]-Diag": { name, kind, ... }
 //   kind: "city" | "town" | "castle" | "ruin" | "village" | "feature" | "landmark"
@@ -100,7 +103,7 @@
   function setOverride(entry){
     if (!entry || !entry.name || !entry.id) return false;
     const existing = getByName(entry.name) || {};
-    OVERRIDES[entry.name] = {
+    const merged = {
       name: entry.name,
       id: entry.id,
       kind: entry.kind || existing.kind || 'feature',
@@ -108,6 +111,14 @@
       ...(entry.notes  || existing.notes  ? { notes:  entry.notes  || existing.notes  } : {}),
       _override: true,
     };
+    // clickPixel: {mx, my} in canonical map space (output of screenToMap).
+    // Recorded at placement so calibration can solve affine from placed landmarks.
+    if (entry.clickPixel && typeof entry.clickPixel.mx === 'number' && typeof entry.clickPixel.my === 'number'){
+      merged.clickPixel = { mx: entry.clickPixel.mx, my: entry.clickPixel.my };
+    } else if (OVERRIDES[entry.name] && OVERRIDES[entry.name].clickPixel){
+      merged.clickPixel = OVERRIDES[entry.name].clickPixel;
+    }
+    OVERRIDES[entry.name] = merged;
     saveOverrides();
     return true;
   }

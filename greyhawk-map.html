@@ -282,8 +282,8 @@
 </div>
 <div id="toast"></div>
 
-<script src="gcc-landmarks.js?v=4"></script>
-<script src="gcc-landmark-edit.js?v=4"></script>
+<script src="gcc-landmarks.js?v=5"></script>
+<script src="gcc-landmark-edit.js?v=5"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
 // Darlene World of Greyhawk map: 145 cols x 97 rows of flat-top hexes.
@@ -295,8 +295,28 @@ const cal = {
   hexSize: HEX_R,
   offsetX: HEX_R,                        // col 0 left edge at x=0
   offsetY: HEX_R * Math.sqrt(3) / 2,     // row 0 top edge at y=0
+  // Affine residual correction applied AFTER canonical hexCenter.
+  // [a b c]  sx = a*cx + b*cy + c
+  // [d e f]  sy = d*cx + e*cy + f
+  matrix: [1, 0, 0, 0, 1, 0],
 };
-const DEFAULTS = { hexSize: cal.hexSize, offsetX: cal.offsetX, offsetY: cal.offsetY };
+const DEFAULTS = { hexSize: cal.hexSize, offsetX: cal.offsetX, offsetY: cal.offsetY, matrix: [1,0,0,0,1,0] };
+
+// ── AFFINE UTILITIES ──────────────────────────────────────────────────────────
+function affApply(M, x, y){
+  return { x: M[0]*x + M[1]*y + M[2], y: M[3]*x + M[4]*y + M[5] };
+}
+function affInvert(M){
+  const d = M[0]*M[4] - M[1]*M[3];
+  if (Math.abs(d) < 1e-12) return [1,0,0,0,1,0];
+  const a = M[4]/d, b = -M[1]/d, dd = -M[3]/d, e = M[0]/d;
+  const c = -(a*M[2] + b*M[5]);
+  const f = -(dd*M[2] + e*M[5]);
+  return [a, b, c, dd, e, f];
+}
+function affIsIdentity(M){
+  return M[0]===1 && M[1]===0 && M[2]===0 && M[3]===0 && M[4]===1 && M[5]===0;
+}
 const MAP_W = Math.ceil((GRID_COLS - 1) * 1.5 * HEX_R + 2 * HEX_R);          // 4360
 const MAP_H = Math.ceil(GRID_ROWS * Math.sqrt(3) * HEX_R + Math.sqrt(3) * HEX_R / 2); // 3378
 let stageBounds = { minX:0, minY:0, maxX:MAP_W, maxY:MAP_H, width:MAP_W, height:MAP_H };
@@ -449,15 +469,33 @@ function hexCenter(col,row){
   return { x:cal.offsetX+col*colStep(),
            y:cal.offsetY+row*rowStep()+(col%2===1?rowStep()*.5:0) };
 }
+function hexCenterDisplay(col,row){
+  const c = hexCenter(col,row);
+  if (affIsIdentity(cal.matrix)) return c;
+  return affApply(cal.matrix, c.x, c.y);
+}
 function hexCorners(cx,cy){
   return Array.from({length:6},(_,i)=>{
     const a=(Math.PI/180)*(60*i);
     return [cx+cal.hexSize*Math.cos(a),cy+cal.hexSize*Math.sin(a)];
   });
 }
+function hexCornersDisplay(col, row){
+  const c = hexCenter(col, row);
+  const corners = hexCorners(c.x, c.y);
+  if (affIsIdentity(cal.matrix)) return corners;
+  return corners.map(([x,y]) => {
+    const p = affApply(cal.matrix, x, y);
+    return [p.x, p.y];
+  });
+}
 // new
 function hexIdStr(col, row){ return `${darleneColLabel(col)}-${darleneDiagonal(col, row)}`; }
 function mapToHex(mx,my){
+  if (!affIsIdentity(cal.matrix)){
+    const p = affApply(affInvert(cal.matrix), mx, my);
+    mx = p.x; my = p.y;
+  }
   const cs=colStep(),rs=rowStep(),g=gridSize();
   let bestCol=0,bestRow=0,bestDist=Infinity;
   const estCol=Math.round((mx-cal.offsetX)/cs);
@@ -559,9 +597,12 @@ function buildHexGrid(){
   const g=gridSize();
   for(let col=0;col<g.cols;col++){
     for(let row=0;row<g.rows;row++){
-      const {x:mx,y:my}=hexCenter(col,row);
+      const {x:mx,y:my}=hexCenterDisplay(col,row);
       const {x,y}=mapToStage(mx,my);
-      const pts=hexCorners(x,y).map(([px,py])=>`${px.toFixed(1)},${py.toFixed(1)}`).join(' ');
+      const cornersD=hexCornersDisplay(col,row).map(([cx,cy])=>{
+        const s=mapToStage(cx,cy); return [s.x,s.y];
+      });
+      const pts=cornersD.map(([px,py])=>`${px.toFixed(1)},${py.toFixed(1)}`).join(' ');
       const poly=document.createElementNS(ns,'polygon');
       poly.setAttribute('points',pts);
       let cls='hex-cell';
@@ -600,7 +641,7 @@ function buildLandmarkOverlay(){
   for(const [id, lm] of GCCLandmarks.all()){
     const hit = GCCLandmarks.hex(id);
     if(!hit) continue;
-    const {x:mx, y:my} = hexCenter(hit.col, hit.row);
+    const {x:mx, y:my} = hexCenterDisplay(hit.col, hit.row);
     const {x, y} = mapToStage(mx, my);
     const style = KIND_STYLE[lm.kind] || KIND_STYLE.feature;
     const overrideFill   = '#44ffbb';
@@ -654,7 +695,7 @@ function buildLandmarkOverlay(){
 }
 function rebuildGrid(){ buildHexGrid(); updateCalDisplays(); }
 function updatePartyMarker(){
-  const {x:mx,y:my}=hexCenter(state.partyCol,state.partyRow);
+  const {x:mx,y:my}=hexCenterDisplay(state.partyCol,state.partyRow);
   const {x,y}=mapToStage(mx,my);
   ['party-pulse','party-dot'].forEach(id=>{
     const el=document.getElementById(id);
@@ -754,7 +795,7 @@ function doZoom(factor,cx,cy){
   state.zoom=nz; clampPan(); applyTransform();
 }
 function centerOnHex(col,row){
-  const {x:mx,y:my}=hexCenter(col,row);
+  const {x:mx,y:my}=hexCenterDisplay(col,row);
   const {x,y}=mapToStage(mx,my);
   const w=document.getElementById('map-wrap');
   state.panX=w.clientWidth/2-x*state.zoom;
@@ -813,11 +854,17 @@ function nudgeCal(param,delta){
   positionCalMarkers();
 }
 function saveCal(){
-  try{ localStorage.setItem('gh-cal',JSON.stringify({hexSize:cal.hexSize,offsetX:cal.offsetX,offsetY:cal.offsetY})); }catch(e){}
-  showToast(`Saved — size:${cal.hexSize.toFixed(2)} x:${cal.offsetX.toFixed(1)} y:${cal.offsetY.toFixed(1)}`);
+  try{ localStorage.setItem('gh-cal',JSON.stringify({
+    hexSize:cal.hexSize, offsetX:cal.offsetX, offsetY:cal.offsetY, matrix:cal.matrix
+  })); }catch(e){}
+  const isAff = !affIsIdentity(cal.matrix);
+  showToast(isAff
+    ? `Saved — affine matrix active (rms below; identity=no)`
+    : `Saved — size:${cal.hexSize.toFixed(2)} x:${cal.offsetX.toFixed(1)} y:${cal.offsetY.toFixed(1)}`);
 }
 function resetCal(){
   cal.hexSize=DEFAULTS.hexSize; cal.offsetX=DEFAULTS.offsetX; cal.offsetY=DEFAULTS.offsetY;
+  cal.matrix=[1,0,0,0,1,0];
   try{ localStorage.removeItem('gh-cal'); }catch(e){}
   state.calClick1=null; state.calClick2=null;
   rebuildGrid();
@@ -896,60 +943,75 @@ function applyTwoClickCal(){
     `Applied — hexSize:${cal.hexSize.toFixed(2)} (Δcol:${hsFromCol.toFixed(2)} Δrow:${hsFromRow.toFixed(2)}).\nNudge with arrows / +− if needed, then Save.`;
 }
 
-// ── LANDMARK CALIBRATION ──────────────────────────────────────────────────────
-// landmarks: [{mx, my, col, row}]  — pixel coords of clicks + expected hex (col,row)
+// ── LANDMARK CALIBRATION (full 6-param affine) ────────────────────────────────
+// landmarks: [{mx, my, col, row}]  — pixel coords of scan-truth + expected hex.
+// Solves affine matrix M s.t. M * canonical_center(col,row) ≈ (mx, my).
+// Canonical coords use DEFAULTS; the matrix captures scale+rotation+shear+translation.
 function applyLandmarkCal(landmarks){
   if(!landmarks || landmarks.length < 3){
     showToast('Need at least 3 landmarks');
     return false;
   }
-  const sqrt3 = Math.sqrt(3);
-  // hexCenter(c,r) = offsetX + c*hexSize*1.5,  offsetY + r*hexSize*sqrt3 + (c%2?hexSize*sqrt3/2:0)
-  // Let s = hexSize, ox = offsetX, oy = offsetY. For each landmark i:
-  //   mx_i = ox + c_i * 1.5 * s
-  //   my_i = oy + (r_i*sqrt3 + (c_i%2?sqrt3/2:0)) * s
-  // Two linear equations per landmark in (ox, oy, s). Stack and solve via normal equations.
-  let A=[[0,0,0],[0,0,0],[0,0,0]], b=[0,0,0];
-  const addRow = (coef, rhs) => {
-    for(let i=0;i<3;i++){
-      for(let j=0;j<3;j++) A[i][j] += coef[i]*coef[j];
-      b[i] += coef[i]*rhs;
+  // Reset canonical to defaults so the matrix is absolute, not a delta.
+  cal.hexSize = DEFAULTS.hexSize;
+  cal.offsetX = DEFAULTS.offsetX;
+  cal.offsetY = DEFAULTS.offsetY;
+
+  const pts = landmarks.map(L => {
+    const c = hexCenter(L.col, L.row);
+    return { cx: c.x, cy: c.y, sx: L.mx, sy: L.my };
+  });
+
+  // Two independent 3-param LS: one for the x-row of M, one for the y-row.
+  // For target t ∈ {sx, sy}, solve [a b c] minimizing Σ (a·cx + b·cy + c - t_i)^2
+  // via normal equations S·[a;b;c] = rhs with S = Σ r·r^T, rhs = Σ r·t_i, r = [cx;cy;1].
+  const solve3 = (targetKey) => {
+    const S=[[0,0,0],[0,0,0],[0,0,0]], rhs=[0,0,0];
+    for(const p of pts){
+      const r=[p.cx, p.cy, 1];
+      for(let i=0;i<3;i++){
+        for(let j=0;j<3;j++) S[i][j] += r[i]*r[j];
+        rhs[i] += r[i]*p[targetKey];
+      }
     }
+    const det3 = M =>
+      M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1])
+    - M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0])
+    + M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0]);
+    const D = det3(S);
+    if(Math.abs(D) < 1e-9) return null;
+    const sub = k => S.map((row,i) => row.map((v,j) => j===k ? rhs[i] : v));
+    return [det3(sub(0))/D, det3(sub(1))/D, det3(sub(2))/D];
   };
-  for(const L of landmarks){
-    addRow([1, 0, L.col*1.5], L.mx);
-    addRow([0, 1, L.row*sqrt3 + (L.col%2?sqrt3/2:0)], L.my);
+
+  const abc = solve3('sx');
+  const def = solve3('sy');
+  if(!abc || !def){
+    showToast('Landmarks degenerate — need variety (non-colinear)');
+    return false;
   }
-  // Solve 3x3 via Cramer's rule
-  const det3 = M => (
-    M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1])
-  - M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0])
-  + M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0])
-  );
-  const D = det3(A);
-  if(Math.abs(D) < 1e-9){ showToast('Landmarks colinear — add variety'); return false; }
-  const sub = k => A.map((row,i) => row.map((v,j) => j===k ? b[i] : v));
-  const ox = det3(sub(0))/D;
-  const oy = det3(sub(1))/D;
-  const s  = det3(sub(2))/D;
-  if(s < 2 || s > 500){ showToast(`Bad fit (s=${s.toFixed(1)})`); return false; }
-  cal.offsetX = +ox.toFixed(3);
-  cal.offsetY = +oy.toFixed(3);
-  cal.hexSize = +s.toFixed(3);
-  // Residuals for diagnostics
-  let maxRes = 0, sumSq = 0;
-  for(const L of landmarks){
-    const {x, y} = hexCenter(L.col, L.row);
-    const dx = x - L.mx, dy = y - L.my;
-    const r2 = dx*dx + dy*dy;
-    sumSq += r2;
-    if(r2 > maxRes) maxRes = r2;
-  }
-  const rms = Math.sqrt(sumSq / landmarks.length).toFixed(2);
-  const peak = Math.sqrt(maxRes).toFixed(2);
+
+  cal.matrix = [abc[0], abc[1], abc[2], def[0], def[1], def[2]];
+
+  // Per-landmark residuals (px).
+  const residuals = pts.map(p => {
+    const proj = affApply(cal.matrix, p.cx, p.cy);
+    const dx = proj.x - p.sx, dy = proj.y - p.sy;
+    return Math.sqrt(dx*dx + dy*dy);
+  });
+  const rms  = Math.sqrt(residuals.reduce((a,v)=>a+v*v,0)/residuals.length);
+  const peak = Math.max(...residuals);
+
   rebuildGrid();
-  showToast(`Fit: s=${s.toFixed(2)} ox=${ox.toFixed(1)} oy=${oy.toFixed(1)}  rms=${rms}px peak=${peak}px`);
-  return true;
+  console.log('[affine cal] matrix (a b c d e f):',
+    cal.matrix.map(v => v.toFixed(4)).join(', '));
+  console.log('[affine cal] per-landmark residuals:');
+  landmarks.forEach((L,i) => {
+    const id = hexIdStr(L.col, L.row);
+    console.log(`  ${id.padEnd(8)} (${L.col},${L.row}): ${residuals[i].toFixed(2)}px`);
+  });
+  showToast(`Affine fit: ${landmarks.length} pts, rms=${rms.toFixed(2)}px peak=${peak.toFixed(2)}px`);
+  return { rms, peak, residuals };
 }
 
 // Console-driven landmark calibration.
@@ -1177,6 +1239,9 @@ function init(){
       cal.hexSize=saved.hexSize;
       cal.offsetX=saved.offsetX;
       cal.offsetY=saved.offsetY;
+      if(Array.isArray(saved.matrix) && saved.matrix.length===6){
+        cal.matrix=saved.matrix.slice();
+      }
     }
   }catch(e){}
   const img=document.getElementById('map-img');

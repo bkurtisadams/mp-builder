@@ -1,12 +1,12 @@
-// gcc-landmark-edit.js v0.3.0 — 2026-04-18
-// Click-to-place landmark editor for greyhawk-map.html.
+// gcc-landmark-edit.js v0.2.0 — 2026-04-18
+// Click-to-place landmark editor + affine alignment from placed landmarks.
 // Requires globals: GCCLandmarks, hexIdStr, darleneToInternal, mapToHex,
-//   clientToMap (on the wrap element), showToast, buildHexGrid / rebuildGrid.
+//   screenToMap, showToast, buildHexGrid/rebuildGrid, applyLandmarkCal, cal, saveCal.
 
 (function(){
   if (typeof window === 'undefined') return;
   const LOG = (...a) => console.log('[landmark-edit]', ...a);
-  LOG('gcc-landmark-edit.js v0.1.0 loaded');
+  LOG('gcc-landmark-edit.js v0.2.0 loaded');
 
   const KINDS = ['city','town','castle','ruin','village','feature','landmark'];
 
@@ -50,6 +50,10 @@
           <button class="le-btn" id="le-export">Export</button>
           <button class="le-btn le-danger" id="le-reset">Reset All</button>
         </div>
+        <div class="le-btns" style="margin-top:4px">
+          <button class="le-btn le-align" id="le-align" title="Solve 6-param affine from placed landmarks">📐 Align from Placed</button>
+          <button class="le-btn" id="le-align-reset" title="Revert to identity matrix">↺ Reset Align</button>
+        </div>
       </div>
     `;
     document.body.appendChild(p);
@@ -60,6 +64,8 @@
     p.querySelector('#le-remove').onclick  = onRemove;
     p.querySelector('#le-export').onclick  = onExport;
     p.querySelector('#le-reset').onclick   = onReset;
+    p.querySelector('#le-align').onclick         = onAlignFromPlaced;
+    p.querySelector('#le-align-reset').onclick   = onAlignReset;
     p.querySelector('#le-new-name').oninput  = e => state.newFields.name   = e.target.value;
     p.querySelector('#le-new-kind').onchange = e => state.newFields.kind   = e.target.value;
     p.querySelector('#le-new-region').oninput= e => state.newFields.region = e.target.value;
@@ -111,6 +117,8 @@
       #landmark-edit-panel .le-btn:hover { background:rgba(200,148,26,.25); color:#e8b840; border-color:#c8941a; }
       #landmark-edit-panel .le-btn.le-danger { color:#cc6644; border-color:#663311; }
       #landmark-edit-panel .le-btn.le-danger:hover { background:rgba(180,50,20,.2); color:#ff7755; }
+      #landmark-edit-panel .le-btn.le-align { color:#44ffbb; border-color:#005544; }
+      #landmark-edit-panel .le-btn.le-align:hover { background:rgba(68,255,187,.18); color:#aaffdd; }
       body.le-placing #map-wrap { cursor:crosshair !important; }
     `;
     document.head.appendChild(s);
@@ -200,8 +208,11 @@
     }
 
     const id = hexIdStr(hit.col, hit.row);
-    const ok = GCCLandmarks.setOverride({ name, id, kind, region, notes });
-    LOG('setOverride →', { name, id, kind, ok });
+    const ok = GCCLandmarks.setOverride({
+      name, id, kind, region, notes,
+      clickPixel: { mx: m.x, my: m.y }  // scan-pixel ground truth for affine cal
+    });
+    LOG('setOverride →', { name, id, kind, ok, clickPixel: { mx: m.x, my: m.y } });
     LOG('merged count now:', GCCLandmarks.all().length, 'overrides:', Object.keys(GCCLandmarks.exportOverrides()));
     showToast(`${name} → ${id}`);
     setStatus(`Placed: ${name} at ${id}. Pick next.`, false);
@@ -246,6 +257,42 @@
     showToast('All overrides cleared');
     refreshSelect();
     redrawOverlay();
+  }
+
+  // Collect every override that has both a hex id and a recorded clickPixel,
+  // convert to the [{mx,my,col,row}, ...] shape applyLandmarkCal wants, and solve.
+  function onAlignFromPlaced(){
+    if (typeof applyLandmarkCal !== 'function' || typeof darleneToInternal !== 'function'){
+      setStatus('Affine solver not loaded (need greyhawk-map.html update).', false);
+      return;
+    }
+    const ovs = GCCLandmarks.exportOverrides();
+    const landmarks = [];
+    for (const [name, o] of Object.entries(ovs)){
+      if (!o.clickPixel || !o.id) continue;
+      const hit = darleneToInternal(o.id);
+      if (!hit) continue;
+      landmarks.push({ mx: o.clickPixel.mx, my: o.clickPixel.my, col: hit.col, row: hit.row, name });
+    }
+    LOG('alignFromPlaced:', landmarks.length, 'landmarks with clickPixel');
+    if (landmarks.length < 3){
+      setStatus(`Need 3+ placed landmarks with click data. Have ${landmarks.length}. Re-click landmarks in Place mode to seed.`, false);
+      return;
+    }
+    const result = applyLandmarkCal(landmarks);
+    if (result && result.rms !== undefined){
+      setStatus(`Aligned from ${landmarks.length}. rms=${result.rms.toFixed(2)}px peak=${result.peak.toFixed(2)}px (console for per-landmark).`, true);
+      if (typeof saveCal === 'function') saveCal();
+    }
+  }
+
+  function onAlignReset(){
+    if (typeof cal === 'undefined' || typeof rebuildGrid !== 'function') return;
+    if (!confirm('Reset affine alignment to identity? Hex grid will revert to canonical positions.')) return;
+    cal.matrix = [1,0,0,0,1,0];
+    if (typeof saveCal === 'function') saveCal();
+    rebuildGrid();
+    setStatus('Alignment reset to identity.', false);
   }
 
   function redrawOverlay(){
@@ -313,5 +360,5 @@
     document.addEventListener('DOMContentLoaded', wire);
   else wire();
 
-  window.GCCLandmarkEdit = { enter, exit, toggle };
+  window.GCCLandmarkEdit = { enter, exit, toggle, alignFromPlaced: onAlignFromPlaced, alignReset: onAlignReset };
 })();
