@@ -63,10 +63,6 @@
                     fill:#2a1a08; stroke:#f4e4b8; stroke-width:0.3;
                     paint-order:stroke; text-anchor:middle;
                     pointer-events:none; letter-spacing:.05em; }
-  .landmark-residual { stroke:#ff3355; stroke-width:0.8; opacity:.75;
-                       stroke-dasharray:2,1.5; pointer-events:none; }
-  .landmark-fit-residual { stroke:#44ccff; stroke-width:0.8; opacity:.85;
-                           stroke-dasharray:1,1.5; pointer-events:none; }
   .party-pulse { animation:pulse 2.2s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:.5;r:7}50%{opacity:.12;r:12} }
 
@@ -857,53 +853,14 @@ function buildLandmarkOverlay(){
     if(!hit) continue;
     // Marker position: prefer the landmark's symbolPixel (where the Darlene
     // city art is drawn on the scan). Fall back to the current hex center
-    // (post-transform) for landmarks that haven't been click-placed yet.
+    // for landmarks that haven't been click-placed yet.
     const hexC = hexCenterDisplay(hit.col, hit.row);
     const sym = lm.symbolPixel;
     const haveSym = lm._override && sym && typeof sym.mx === 'number';
     const markMx = haveSym ? sym.mx : hexC.x;
     const markMy = haveSym ? sym.my : hexC.y;
     const {x, y} = mapToStage(markMx, markMy);
-    const hexS = mapToStage(hexC.x, hexC.y);
 
-    // Diagnostic line from symbol to its hex center. This is NOT a TPS
-    // residual — TPS uses hexCenterPixel and fits zero residual by
-    // construction. Instead this line shows how off-center the Darlene city
-    // art is within its hex, which is a characteristic of the hand-drawn map.
-    // Short or absent = city art is near hex center. Long = art is far from
-    // center (also correct; just means you'll see the marker offset inside
-    // the hex outline, matching Darlene's original).
-    if (haveSym){
-      const dx = hexS.x - x, dy = hexS.y - y;
-      const mag = Math.sqrt(dx*dx + dy*dy);
-      if (mag > 0.5){
-        const line = document.createElementNS(ns,'line');
-        line.setAttribute('x1', x.toFixed(1));
-        line.setAttribute('y1', y.toFixed(1));
-        line.setAttribute('x2', hexS.x.toFixed(1));
-        line.setAttribute('y2', hexS.y.toFixed(1));
-        line.setAttribute('class','landmark-residual');
-        g.appendChild(line);
-      }
-    }
-    // Secondary diagnostic: if a hex-center pixel was placed, draw a thin
-    // cyan line from that click to the current hex center. Should be ~0
-    // after a TPS fit; any visible length means the fit is imperfect (e.g.
-    // still on affine mode) or the placement hasn't been used yet.
-    if (lm.hexCenterPixel && typeof lm.hexCenterPixel.mx === 'number'){
-      const hp = mapToStage(lm.hexCenterPixel.mx, lm.hexCenterPixel.my);
-      const dx = hexS.x - hp.x, dy = hexS.y - hp.y;
-      const mag = Math.sqrt(dx*dx + dy*dy);
-      if (mag > 0.5){
-        const line = document.createElementNS(ns,'line');
-        line.setAttribute('x1', hp.x.toFixed(1));
-        line.setAttribute('y1', hp.y.toFixed(1));
-        line.setAttribute('x2', hexS.x.toFixed(1));
-        line.setAttribute('y2', hexS.y.toFixed(1));
-        line.setAttribute('class','landmark-fit-residual');
-        g.appendChild(line);
-      }
-    }
     const style = KIND_STYLE[lm.kind] || KIND_STYLE.feature;
     const overrideFill   = '#44ffbb';
     const overrideStroke = '#aaffdd';
