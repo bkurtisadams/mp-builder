@@ -184,6 +184,19 @@
   }
   #img-align-panel .iap-btns button:hover { background:rgba(68,204,255,.25); color:#aaffff; }
   #img-align-panel .iap-btns .iap-primary { background:rgba(68,204,255,.25); color:#ffffff; border-color:#66ccff; }
+  #img-align-panel .iap-secondary-btns { display:flex; gap:6px; margin-top:6px; }
+  #img-align-panel .iap-secondary-btns button {
+    flex:1; background:rgba(68,204,255,.06); border:1px solid #3a5a6e;
+    color:#66aabb; padding:5px 6px; border-radius:2px; font-family:inherit;
+    font-size:10px; cursor:pointer; letter-spacing:.04em;
+  }
+  #img-align-panel .iap-secondary-btns button:hover { background:rgba(68,204,255,.18); color:#aaffff; border-color:#4488aa; }
+  #img-align-panel .iap-history-row { margin-top:8px; font-size:10px; display:flex; gap:6px; align-items:center; }
+  #img-align-panel .iap-history-row label { color:#88ccdd; letter-spacing:.05em; flex-shrink:0; }
+  #img-align-panel .iap-history-row select {
+    flex:1; background:rgba(0,0,0,.4); color:#ffeebb; border:1px solid #3a5a6e;
+    font-family:inherit; font-size:10px; padding:3px 4px; border-radius:2px;
+  }
   body.img-aligning #map-wrap { cursor:move !important; }
   body.img-aligning #hex-cells path { stroke:#ff44aa !important; stroke-width:0.4 !important; opacity:1 !important; }
   #btn-image-align.active { background:rgba(68,204,255,.25); color:#88ddff; border-color:#44ccff; }
@@ -349,6 +362,14 @@
     <div class="iap-btns">
       <button id="iap-reset">Reset</button>
       <button id="iap-save" class="iap-primary">Save &amp; Close</button>
+    </div>
+    <div class="iap-secondary-btns">
+      <button id="iap-revert" title="Undo all changes made this session">↺ Revert</button>
+      <button id="iap-download" title="Download full state (image + grid + landmarks) as JSON file">⬇ Download</button>
+    </div>
+    <div class="iap-history-row">
+      <label>History</label>
+      <select id="iap-history"><option value="">— pick a saved state —</option></select>
     </div>
   </div>
 </div>
@@ -542,12 +563,96 @@ function resetImgTransform(){
   saveImgTransform();
   showToast('Image transform reset');
 }
+
+// ── IMAGE-ALIGN BACKUP/HISTORY SAFETY NET ────────────────────────────────────
+// Three layers of protection against losing a working alignment:
+//  1. Session backup: snapshot on entering align mode; "↺ Revert" restores it.
+//  2. Rolling history: every Save & Close pushes onto a 10-entry ring buffer
+//     in localStorage; dropdown lets you load any past saved state.
+//  3. Download: exports the full running state (image + grid cal + landmarks)
+//     as a JSON file the user can keep outside the browser.
+const HISTORY_KEY = 'gh-img-xform-history';
+const HISTORY_CAP = 10;
+const SESSION_BACKUP_KEY = 'gh-img-xform-session-backup';
+let sessionBackup = null; // cleared on successful Save & Close
+
+function snapshotImgTransform(){
+  // Return a plain clone of the current imgX suitable for JSON round-trip.
+  return { tx:imgX.tx, ty:imgX.ty, sx:imgX.sx, sy:imgX.sy, rot:imgX.rot };
+}
+function applyImgSnapshot(snap){
+  if (!snap || typeof snap.tx !== 'number') return false;
+  imgX.tx = snap.tx; imgX.ty = snap.ty;
+  imgX.sx = snap.sx ?? 1; imgX.sy = snap.sy ?? 1;
+  imgX.rot = snap.rot ?? 0;
+  applyImgTransform();
+  saveImgTransform();
+  return true;
+}
+function readHistory(){
+  try{ return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]') || []; }
+  catch(e){ return []; }
+}
+function writeHistory(arr){
+  try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(arr.slice(0, HISTORY_CAP))); }catch(e){}
+}
+function pushHistoryEntry(){
+  // Only push if meaningfully different from the most recent entry.
+  const hist = readHistory();
+  const cur  = snapshotImgTransform();
+  const last = hist[0];
+  const same = last
+    && Math.abs(last.tx - cur.tx) < 0.01 && Math.abs(last.ty - cur.ty) < 0.01
+    && Math.abs(last.sx - cur.sx) < 1e-6 && Math.abs(last.sy - cur.sy) < 1e-6
+    && Math.abs((last.rot||0) - (cur.rot||0)) < 1e-6;
+  if (same) return;
+  hist.unshift({ ...cur, savedAt: new Date().toISOString() });
+  writeHistory(hist);
+}
+function refreshHistoryDropdown(){
+  const sel = document.getElementById('iap-history');
+  if (!sel) return;
+  const hist = readHistory();
+  sel.innerHTML = '<option value="">— pick a saved state —</option>';
+  hist.forEach((h, idx)=>{
+    const opt = document.createElement('option');
+    opt.value = String(idx);
+    const when = h.savedAt ? new Date(h.savedAt) : null;
+    const label = when ? when.toLocaleString() : `entry ${idx+1}`;
+    opt.textContent = `${label}  (Tx ${h.tx.toFixed(0)}, Ty ${h.ty.toFixed(0)}, Sx ${h.sx.toFixed(3)})`;
+    sel.appendChild(opt);
+  });
+}
+function downloadStateFile(){
+  const payload = {
+    savedAt: new Date().toISOString(),
+    note:    'Greyhawk map state backup. Paste into localStorage to restore.',
+    'gh-img-xform':                 localStorage.getItem('gh-img-xform'),
+    'gh-cal':                       localStorage.getItem('gh-cal'),
+    'gcc-landmark-overrides-v1':    localStorage.getItem('gcc-landmark-overrides-v1'),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+  a.href = url;
+  a.download = `greyhawk-map-state-${stamp}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  showToast('State downloaded');
+}
+
 function enterImgAlignMode(){
   if (state.calMode){ showToast('Exit grid alignment first'); return; }
   state.imgAlignMode = true;
+  // Session backup: clone the current (pre-edit) transform so "Revert" can
+  // restore it even if the user closes and re-enters mode mid-session.
+  sessionBackup = snapshotImgTransform();
+  try{ localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify(sessionBackup)); }catch(e){}
   document.body.classList.add('img-aligning');
   document.getElementById('btn-image-align').classList.add('active');
   document.getElementById('img-align-panel').classList.add('open');
+  refreshHistoryDropdown();
   updateImgReadout();
   showToast('Image align: drag/scale/rotate to match hexes');
 }
@@ -557,6 +662,31 @@ function exitImgAlignMode(){
   document.getElementById('btn-image-align').classList.remove('active');
   document.getElementById('img-align-panel').classList.remove('open');
   saveImgTransform();
+  pushHistoryEntry();          // commit this exit's state to history
+  sessionBackup = null;
+  try{ localStorage.removeItem(SESSION_BACKUP_KEY); }catch(e){}
+}
+function revertImgAlign(){
+  // Prefer the in-memory backup; fall back to localStorage if a reload wiped it.
+  let src = sessionBackup;
+  if (!src){
+    try{ src = JSON.parse(localStorage.getItem(SESSION_BACKUP_KEY) || 'null'); }catch(e){}
+  }
+  if (!src){ showToast('No session backup to revert to'); return; }
+  if (applyImgSnapshot(src)){
+    updateImgReadout();
+    showToast('Reverted to state at entry');
+  }
+}
+function loadHistoryByIndex(idx){
+  const hist = readHistory();
+  const snap = hist[idx];
+  if (!snap){ return; }
+  if (applyImgSnapshot(snap)){
+    updateImgReadout();
+    const when = snap.savedAt ? new Date(snap.savedAt).toLocaleString() : 'entry';
+    showToast(`Loaded: ${when}`);
+  }
 }
 function imgNudge(dx, dy){
   imgX.tx += dx; imgX.ty += dy;
@@ -1623,6 +1753,14 @@ function wireEvents(){
   document.querySelector('#img-align-panel .iap-close').addEventListener('click', exitImgAlignMode);
   document.getElementById('iap-reset').addEventListener('click', resetImgTransform);
   document.getElementById('iap-save').addEventListener('click', exitImgAlignMode);
+  document.getElementById('iap-revert').addEventListener('click', revertImgAlign);
+  document.getElementById('iap-download').addEventListener('click', downloadStateFile);
+  document.getElementById('iap-history').addEventListener('change', e=>{
+    const v = e.target.value;
+    if (v === '') return;
+    loadHistoryByIndex(parseInt(v, 10));
+    e.target.value = '';  // reset selector so picking same index again still fires
+  });
 
   // Cal overlay click capture
   wireCalOverlay();
