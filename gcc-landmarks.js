@@ -1,7 +1,15 @@
-// gcc-landmarks.js v0.6.0 — 2026-04-19
+// gcc-landmarks.js v0.6.2 — 2026-04-19
 // World of Greyhawk landmarks, keyed by Darlene hex ID.
 // Layered store: BASE file data + PENDING (no hex yet) + OVERRIDES (localStorage).
 //
+// v0.6.2: added 13 canonical landmarks — Highport, Eastfair, Highfolk,
+//   Critwall, Forgotten City, Gryrax, Rookroost, Hochoch, Enstad, Jurnre
+//   region, Kro Terlep, Admundfort, Zelradton. Saltmarsh dropped from
+//   PENDING (not on Darlene map — U1-U3 publication era, non-canon here).
+// v0.6.1: canonical ID sweep. All 17 pre-existing BASE entries re-pinned to
+//   canonical Darlene hex IDs against the image-align transform. Four former
+//   pendings placed (Mitrik, Rel Mord, Irongate, Maure Castle); two new
+//   entries (Ekbir, Yecha) added. Nulb and Saltmarsh remain pending.
 // v0.6.0: single pixel field per override (symbolPixel). hexCenterPixel
 //   retired along with the landmark-based affine/TPS solvers; image-align
 //   transform replaces that workflow.
@@ -16,34 +24,48 @@
 
   // ── BASE: verified via the landmark editor against 27MB Darlene scan ──────
   const GH_LANDMARKS = {
-    "A2-69":  { name: "Rauxes",             kind: "city", region: "Great Kingdom" },
-    "C4-86":  { name: "City of Greyhawk",   kind: "city", size: "metropolis", pop: 58000, region: "Domain of Greyhawk" },
+    "A4-101": { name: "Highport",           kind: "city" },
+    "B2-56":  { name: "Eastfair",           kind: "city" },
+    "B3-75":  { name: "Rel Mord",           kind: "city", region: "Kingdom of Nyrond" },
+    "B5-90":  { name: "Highfolk",           kind: "city" },
+    "B5-95":  { name: "Mitrik",             kind: "city", region: "Archclericy of Veluna" },
+    "C4-78":  { name: "Critwall",           kind: "city", region: "Shield Lands" },
     "C4-91":  { name: "Hardby",             kind: "town", size: "small-city", pop: 7500,  region: "Domain of Greyhawk" },
-    "E4-74":  { name: "Molag",              kind: "city", region: "Horned Society" },
-    "E4-83":  { name: "Willip",             kind: "city", region: "Kingdom of Furyondy" },
-    "F4-95":  { name: "Safeton",            kind: "town", region: "Wild Coast" },
-    "G4-89":  { name: "Dyvers",             kind: "city", size: "city",       pop: 42000, region: "Wild Coast" },
-    "H4-70":  { name: "Dorakaa",            kind: "city", region: "Empire of Iuz" },
-    "H4-95":  { name: "Narwell",            kind: "town", region: "Wild Coast" },
-    "N4-97":  { name: "Hommlet",            kind: "village" },
-    "O4-95":  { name: "Verbobonc",          kind: "city", region: "Viscounty of Verbobonc" },
-    "P4-85":  { name: "Chendl",             kind: "city", region: "Kingdom of Furyondy" },
-    "P4-117": { name: "Gradsul",            kind: "city", region: "Kingdom of Keoland" },
-    "Q3-74":  { name: "Radigast City",      kind: "city", region: "County of Urnst" },
-    "R-72":   { name: "Rel Astra",          kind: "city", region: "Great Kingdom" },
-    "R3-81":  { name: "Leukish",            kind: "city", region: "Duchy of Urnst" },
-    "X4-113": { name: "Niole Dra",          kind: "city", size: "city",                   region: "Kingdom of Keoland" },
+    "D4-86":  { name: "City of Greyhawk",   kind: "city", size: "metropolis", pop: 58000, region: "Domain of Greyhawk" },
+    "E3-98":  { name: "Irongate",           kind: "city", region: "Iron League" },
+    "E4-73":  { name: "Molag",              kind: "city", region: "Horned Society" },
+    "E4-82":  { name: "Willip",             kind: "city", region: "Kingdom of Furyondy" },
+    "F4-94":  { name: "Safeton",            kind: "town", region: "Wild Coast" },
+    "H4-89":  { name: "Dyvers",             kind: "city", size: "city",       pop: 42000, region: "Wild Coast" },
+    "H6-95":  { name: "Ekbir",              kind: "city" },
+    "I4-68":  { name: "Dorakaa",            kind: "city", region: "Empire of Iuz" },
+    "I4-94":  { name: "Narwell",            kind: "town", region: "Wild Coast" },
+    "J6-163": { name: "Forgotten City",     kind: "city" },
+    "L4-113": { name: "Gryrax",             kind: "city" },
+    "N3-58":  { name: "Rookroost",          kind: "city" },
+    "N5-114": { name: "Hochoch",            kind: "city", region: "Grand Duchy of Geoff" },
+    "O4-96":  { name: "Hommlet",            kind: "village" },
+    "P-70":   { name: "Rel Astra",          kind: "city", region: "Great Kingdom" },
+    "P4-100": { name: "Enstad",             kind: "city", region: "Celene" },
+    "P4-95":  { name: "Verbobonc",          kind: "city", region: "Viscounty of Verbobonc" },
+    "Q3-73":  { name: "Radigast City",      kind: "city", region: "County of Urnst" },
+    "Q4-117": { name: "Gradsul",            kind: "city", region: "Kingdom of Keoland" },
+    "Q4-83":  { name: "Chendl",             kind: "city", region: "Kingdom of Furyondy" },
+    "R3-80":  { name: "Leukish",            kind: "city", region: "Duchy of Urnst" },
+    "R4-112": { name: "Jurnre",             kind: "city", region: "County of Ulek" },
+    "V2-112": { name: "Kro Terlep",         kind: "city" },
+    "X3-77":  { name: "Admundfort",         kind: "city", region: "Shield Lands" },
+    "X3-86":  { name: "Maure Castle",       kind: "castle", notes: "Maure family ruin" },
+    "Y-68":   { name: "Rauxes",             kind: "city", region: "Great Kingdom" },
+    "Y2-92":  { name: "Zelradton",          kind: "city" },
+    "Y4-113": { name: "Niole Dra",          kind: "city", size: "city",                   region: "Kingdom of Keoland" },
+    "Y5-79":  { name: "Yecha",              kind: "city" },
   };
 
   // ── PENDING: known cities still waiting for hex ID assignment ─────────────
   // Place via the landmark editor (gcc-landmark-edit.js).
   const GH_PENDING = [
-    { name: "Mitrik",       kind: "city",   region: "Archclericy of Veluna" },
-    { name: "Nulb",         kind: "village" },
-    { name: "Rel Mord",     kind: "city",   region: "Kingdom of Nyrond" },
-    { name: "Irongate",     kind: "city",   region: "Iron League" },
-    { name: "Saltmarsh",    kind: "town",   region: "Kingdom of Keoland" },
-    { name: "Maure Castle", kind: "castle", notes: "Maure family ruin" },
+    { name: "Nulb", kind: "village" },
   ];
 
   // ── OVERRIDES: user placements via editor, persisted to localStorage ──────
