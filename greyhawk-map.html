@@ -51,6 +51,13 @@
   .hex-cell.selected { fill:var(--hex-selected)!important; stroke:var(--gold); stroke-width:1.5; }
   .hex-cell.party-hex { stroke:#cc2200; stroke-width:1.8; }
   .hex-label { font-family:'Cinzel',serif; font-size:5px; fill:rgba(0,0,0,.45); text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
+  .coord-letter, .coord-number { display:none; font-family:'Cinzel',serif; font-weight:600;
+    fill:#1a0f03; stroke:#f4e4b8; stroke-width:.6; paint-order:stroke;
+    pointer-events:none; letter-spacing:.05em; }
+  .coord-letter  { font-size:8px; }
+  .coord-number  { font-size:7px; }
+  body.coords-shown .coord-letter, body.coords-shown .coord-number { display:block; }
+  #btn-coord-labels.active { background:rgba(200,148,26,.28); color:#ffeebb; border-color:#c8941a; }
   .landmark-mark  { filter: drop-shadow(0 0 2px rgba(0,0,0,.5)); }
   .landmark-override { filter: drop-shadow(0 0 3px rgba(68,255,187,.7)); }
   .landmark-label { font-family:'Cinzel',serif; font-size:4.5px; font-weight:600;
@@ -201,6 +208,7 @@
   <div class="sep"></div>
   <button class="tb-btn" id="btn-move-mode">☩ Move</button>
   <button class="tb-btn" id="btn-hex-labels">IDs</button>
+  <button class="tb-btn" id="btn-coord-labels" title="Show Darlene column/diagonal labels along map edges">⌨ Coords</button>
   <div class="sep"></div>
   <button class="tb-btn" id="btn-calibrate">⊹ Align</button>
   <button class="tb-btn" id="btn-image-align" title="Drag/scale/rotate the Darlene map to match SVG hexes">🖼 Image</button>
@@ -733,9 +741,79 @@ function buildHexGrid(){
     }
   }
   svg.appendChild(cellsG); svg.appendChild(labelsG);
+  svg.appendChild(buildCoordLabels());
   svg.appendChild(buildLandmarkOverlay());
   svg.appendChild(markerG);
   updatePartyMarker();
+}
+
+// ── DARLENE COORDINATE LABELS ─────────────────────────────────────────────────
+// Renders column letters across the top/bottom edges and diagonal numbers
+// along the right/bottom edges, matching the printed labels on the original
+// Darlene map. Hidden by default; toggled via body.coords-shown (see toolbar
+// button "⌨ Coords"). Useful after image alignment for reading a hex's
+// authoritative Darlene ID directly off the edges, bypassing any formula
+// drift in darleneColLabel / darleneDiagonal for mid-map hexes.
+function buildCoordLabels(){
+  const ns = 'http://www.w3.org/2000/svg';
+  const g = document.createElementNS(ns, 'g');
+  g.id = 'coord-labels';
+  g.style.pointerEvents = 'none';
+
+  // Column letters at top and bottom of every column.
+  for (let c = 0; c < GRID_COLS; c++){
+    const label = darleneColLabel(c);
+    const topC = hexCenterDisplay(c, 0);
+    const topS = mapToStage(topC.x, topC.y);
+    const top = document.createElementNS(ns, 'text');
+    top.setAttribute('x', topS.x.toFixed(1));
+    top.setAttribute('y', (topS.y - cal.hexSize * 0.95).toFixed(1));
+    top.setAttribute('text-anchor', 'middle');
+    top.setAttribute('class', 'coord-letter');
+    top.textContent = label;
+    g.appendChild(top);
+
+    const botC = hexCenterDisplay(c, GRID_ROWS - 1);
+    const botS = mapToStage(botC.x, botC.y);
+    const bot = document.createElementNS(ns, 'text');
+    bot.setAttribute('x', botS.x.toFixed(1));
+    bot.setAttribute('y', (botS.y + cal.hexSize * 2.3).toFixed(1));
+    bot.setAttribute('text-anchor', 'middle');
+    bot.setAttribute('class', 'coord-letter');
+    bot.textContent = label;
+    g.appendChild(bot);
+  }
+
+  // Diagonal numbers along right edge (diagonals 1..97 at col=145).
+  for (let r = 0; r < GRID_ROWS; r++){
+    const d = darleneDiagonal(GRID_COLS - 1, r);
+    const c = hexCenterDisplay(GRID_COLS - 1, r);
+    const s = mapToStage(c.x, c.y);
+    const t = document.createElementNS(ns, 'text');
+    t.setAttribute('x', (s.x + cal.hexSize * 0.95).toFixed(1));
+    t.setAttribute('y', (s.y + 1.5).toFixed(1));
+    t.setAttribute('text-anchor', 'start');
+    t.setAttribute('class', 'coord-number');
+    t.textContent = String(d);
+    g.appendChild(t);
+  }
+
+  // Diagonal numbers along bottom edge (diagonals 98+ at row=96, skipping
+  // ones already placed on the right edge).
+  for (let c = 0; c < GRID_COLS - 1; c++){
+    const d = darleneDiagonal(c, GRID_ROWS - 1);
+    if (d <= 97) continue;
+    const pos = hexCenterDisplay(c, GRID_ROWS - 1);
+    const s = mapToStage(pos.x, pos.y);
+    const t = document.createElementNS(ns, 'text');
+    t.setAttribute('x', s.x.toFixed(1));
+    t.setAttribute('y', (s.y + cal.hexSize * 1.45).toFixed(1));
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('class', 'coord-number');
+    t.textContent = String(d);
+    g.appendChild(t);
+  }
+  return g;
 }
 
 function buildLandmarkOverlay(){
@@ -1479,6 +1557,10 @@ function wireEvents(){
     state.showLabels=!state.showLabels;
     document.getElementById('hex-labels').style.display=state.showLabels?'':'none';
     document.getElementById('btn-hex-labels').classList.toggle('active',state.showLabels);
+  });
+  document.getElementById('btn-coord-labels').addEventListener('click',()=>{
+    const on = document.body.classList.toggle('coords-shown');
+    document.getElementById('btn-coord-labels').classList.toggle('active', on);
   });
 
   // Side panel
