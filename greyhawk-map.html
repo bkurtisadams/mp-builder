@@ -282,6 +282,7 @@
 </div>
 <div id="toast"></div>
 
+<script src="gcc-regions.js?v=6"></script>
 <script src="gcc-landmarks.js?v=5"></script>
 <script src="gcc-landmark-edit.js?v=5"></script>
 <script>
@@ -397,58 +398,7 @@ const TERRAIN={
 };
 
 // ── REGIONS ───────────────────────────────────────────────────────────────────
-const REGIONS=[
-  {name:'Icy Sea',              cols:[46,104],rows:[0,9]  },
-  {name:'Land of Black Ice',    cols:[37,64], rows:[0,12] },
-  {name:'Blackmoor',            cols:[51,69], rows:[5,16] },
-  {name:'Iuz',                  cols:[55,76], rows:[12,32]},
-  {name:'Horned Society',       cols:[69,83], rows:[23,37]},
-  {name:'Shield Lands',         cols:[76,90], rows:[23,37]},
-  {name:'Bandit Kingdoms',      cols:[83,101],rows:[16,32]},
-  {name:'Duchy of Tenh',        cols:[97,111],rows:[18,32]},
-  {name:'Theocracy of the Pale',cols:[101,120],rows:[18,37]},
-  {name:'Perrenland',           cols:[51,64], rows:[18,32]},
-  {name:'Kingdom of Furyondy',  cols:[64,83], rows:[30,46]},
-  {name:'Veluna',               cols:[55,69], rows:[37,51]},
-  {name:'Verbobonc',            cols:[67,78], rows:[41,53]},
-  {name:'Nyr Dyv',              cols:[76,88], rows:[37,46]},
-  {name:'City of Greyhawk',     cols:[81,88], rows:[41,51]},
-  {name:'Kingdom of Nyrond',    cols:[97,120],rows:[32,51]},
-  {name:'County of Urnst',      cols:[88,101],rows:[32,46]},
-  {name:'Duchy of Urnst',       cols:[97,111],rows:[28,41]},
-  {name:'Bissel',               cols:[51,64], rows:[46,58]},
-  {name:'Gran March',           cols:[55,69], rows:[55,67]},
-  {name:'Celene',               cols:[69,85], rows:[51,64]},
-  {name:'Duchy of Ulek',        cols:[60,74], rows:[60,71]},
-  {name:'County of Ulek',       cols:[64,78], rows:[67,78]},
-  {name:'Principality of Ulek', cols:[58,69], rows:[69,81]},
-  {name:'Keoland',              cols:[51,64], rows:[69,83]},
-  {name:'Wild Coast',           cols:[78,92], rows:[55,69]},
-  {name:'Prelacy of Almor',     cols:[106,120],rows:[46,60]},
-  {name:'The Great Kingdom',    cols:[115,138],rows:[37,60]},
-  {name:'Adri Forest',          cols:[115,129],rows:[41,55]},
-  {name:'South Province',       cols:[111,129],rows:[55,69]},
-  {name:'Idee',                 cols:[115,129],rows:[64,78]},
-  {name:'Lordship of the Isles',cols:[129,145],rows:[69,83]},
-  {name:'Sea Barons',           cols:[134,145],rows:[51,69]},
-  {name:'Relmor Bay',           cols:[101,124],rows:[55,69]},
-  {name:'Sea of Gearnat',       cols:[78,120], rows:[69,83]},
-  {name:'Azure Sea',            cols:[64,97],  rows:[78,92]},
-  {name:'Woolly Bay',           cols:[74,92],  rows:[64,78]},
-  {name:'Bright Desert',        cols:[83,97],  rows:[51,64]},
-  {name:'Dry Steppes',          cols:[14,41],  rows:[64,83]},
-  {name:'Plains of the Paynims',cols:[14,51],  rows:[46,64]},
-  {name:'Sultanate of Zeif',    cols:[9,32],   rows:[41,60]},
-  {name:'Caliphate of Ekbir',   cols:[14,32],  rows:[28,46]},
-  {name:'Tiger Nomads',         cols:[18,41],  rows:[14,32]},
-  {name:'Wolf Nomads',          cols:[37,60],  rows:[14,28]},
-  {name:'Yeomanry',             cols:[41,60],  rows:[78,92]},
-  {name:'Sea of Dust',          cols:[9,46],   rows:[83,97]},
-  {name:'Solnor Ocean',         cols:[124,145],rows:[14,51]},
-  {name:'Dramidj Ocean',        cols:[0,23],   rows:[14,51]},
-  {name:'Amedio Jungle',        cols:[46,78],  rows:[88,97]},
-  {name:'Hepmonaland',          cols:[106,145],rows:[88,97]},
-];
+// Region data lives in gcc-regions.js (loaded above). See getRegion() below.
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 const state={
@@ -518,8 +468,9 @@ function hexDistance(c1,r1,c2,r2){
   return Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y),Math.abs(a.z-b.z));
 }
 function getRegion(col,row){
-  for(const r of REGIONS) if(col>=r.cols[0]&&col<r.cols[1]&&row>=r.rows[0]&&row<r.rows[1]) return r.name;
-  return 'Unknown Reaches';
+  return (typeof GCCRegions !== 'undefined')
+    ? GCCRegions.getRegion(col, row)
+    : 'Unknown Reaches';
 }
 function getHexTerrain(col,row){ return state.hexData[`${col}-${row}`]?.terrain||'plains'; }
 function travelTime(terrain,dist){
