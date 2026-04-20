@@ -1,9 +1,14 @@
-// gcc-hex-edit.js v0.5.0 — 2026-04-19
+// gcc-hex-edit.js v0.5.1 — 2026-04-19
 // Hex Editor: tab shell for Landmarks / Paint / Outline / Draw.
 // Requires globals: GCCLandmarks, GCCTerrain, TERRAIN, hexIdStr,
 //   darleneToInternal, mapToHex, screenToMap, showToast,
 //   rebuildLandmarkOverlay/rebuildGrid/buildHexGrid.
 //
+// v0.5.1: opacity slider on Paint tab controls the --hex-paint-alpha
+//   CSS var on :root; all painted hexes re-render via browser cascade
+//   (no JS iteration). Slider value persisted to localStorage and
+//   applied on script load so first paint-session render matches
+//   last-saved opacity.
 // v0.5.0: Phase 2 — Paint tab live. 2-col terrain palette + Erase,
 //   click-to-paint plus drag-paint (mousedown/mousemove/mouseup capture
 //   while Paint tab is active, stopImmediatePropagation beats the map's
@@ -32,6 +37,26 @@
     { id:'draw',      label:'Draw' },
   ];
 
+  // ── Paint overlay opacity ─────────────────────────────────────────────────
+  // Persisted 0..1; applied to :root as --hex-paint-alpha so all painted
+  // hexes re-render via the CSS cascade whenever it changes. Loaded at
+  // script start so the initial buildHexGrid renders at the right opacity.
+  const PAINT_OPACITY_KEY = 'gcc-terrain-opacity';
+  const DEFAULT_PAINT_OPACITY = 0.4;
+  function loadPaintOpacity(){
+    try {
+      const raw = localStorage.getItem(PAINT_OPACITY_KEY);
+      if (raw == null) return DEFAULT_PAINT_OPACITY;
+      const v = parseFloat(raw);
+      return (isFinite(v) && v >= 0 && v <= 1) ? v : DEFAULT_PAINT_OPACITY;
+    } catch(e){ return DEFAULT_PAINT_OPACITY; }
+  }
+  function applyPaintOpacity(v){
+    document.documentElement.style.setProperty('--hex-paint-alpha', String(v));
+  }
+  const initialOpacity = loadPaintOpacity();
+  applyPaintOpacity(initialOpacity);
+
   const state = {
     active: false,
     activeTab: 'landmarks',
@@ -39,6 +64,7 @@
     newMode: false,
     newFields: { name:'', kind:'city', region:'' },
     paintTerrain: 'plains',
+    paintOpacity: initialOpacity,
     paintDragging: false,
     lastPaintKey: null,
     panelEl: null,
@@ -90,6 +116,20 @@
       sw.onclick = () => setPaintTerrain(sw.dataset.terrain));
     p.querySelector('#he-paint-export').onclick = onPaintExport;
     p.querySelector('#he-paint-reset').onclick  = onPaintReset;
+    const opacityInput = p.querySelector('#he-opacity');
+    const opacityVal   = p.querySelector('#he-opacity-val');
+    opacityInput.addEventListener('input', e => {
+      const pct = parseInt(e.target.value, 10) || 0;
+      const v = pct / 100;
+      state.paintOpacity = v;
+      applyPaintOpacity(v);
+      opacityVal.textContent = `${pct}%`;
+    });
+    opacityInput.addEventListener('change', e => {
+      // Persist on release rather than every 'input' tick to avoid
+      // localStorage churn while dragging the slider.
+      try { localStorage.setItem(PAINT_OPACITY_KEY, String(state.paintOpacity)); } catch(err){}
+    });
     setPaintTerrain(state.paintTerrain);
     updatePaintStats();
 
@@ -117,16 +157,26 @@
       { id:'water',        short:'Water'     },
     ];
     const swatches = types.map(({id, short}) => {
-      const fill = (typeof TERRAIN !== 'undefined' && TERRAIN[id]?.fill) || 'transparent';
+      // Swatch chip always shows full-saturation rgb so the palette stays
+      // legible regardless of the overlay opacity slider.
+      const rgb = (typeof TERRAIN !== 'undefined' && TERRAIN[id]?.rgb) || '0, 0, 0';
       const full = (typeof TERRAIN !== 'undefined' && TERRAIN[id]?.label) || id;
-      return `<button class="he-swatch" data-terrain="${id}" style="--swatch:${fill}" title="${full}"><span class="he-swatch-chip"></span><span class="he-swatch-lbl">${short}</span></button>`;
+      return `<button class="he-swatch" data-terrain="${id}" style="--swatch:rgb(${rgb})" title="${full}"><span class="he-swatch-chip"></span><span class="he-swatch-lbl">${short}</span></button>`;
     }).join('');
+    const pct = Math.round(state.paintOpacity * 100);
     return `
       <div class="he-pane" id="he-pane-paint">
         <label class="he-lbl">Terrain</label>
         <div class="he-palette">
           ${swatches}
           <button class="he-swatch he-swatch-erase" data-terrain="__erase" title="Clear paint on clicked hex (reverts to base)"><span class="he-swatch-chip he-swatch-chip-erase">⌫</span><span class="he-swatch-lbl">Erase</span></button>
+        </div>
+        <div class="he-opacity-row">
+          <label class="he-lbl">Overlay Opacity</label>
+          <div class="he-opacity-controls">
+            <input type="range" class="he-opacity" id="he-opacity" min="0" max="100" step="1" value="${pct}">
+            <span class="he-opacity-val" id="he-opacity-val">${pct}%</span>
+          </div>
         </div>
         <div class="he-status" id="he-paint-status">Pick a terrain, then click or drag over hexes.</div>
         <div class="he-btns">
@@ -293,6 +343,28 @@
         margin-top:8px; padding:5px 8px; background:rgba(0,0,0,.25);
         border-left:2px solid #8b6e45; font-family:'Crimson Text',Georgia,serif;
         font-size:11px; line-height:1.35; color:#c8a96e; word-wrap:break-word;
+      }
+      #hex-edit-panel .he-opacity-row { margin-top:8px; }
+      #hex-edit-panel .he-opacity-controls {
+        display:flex; align-items:center; gap:8px;
+      }
+      #hex-edit-panel .he-opacity {
+        flex:1; -webkit-appearance:none; appearance:none;
+        height:4px; background:rgba(0,0,0,.4); border:1px solid #8b6e45;
+        border-radius:2px; outline:none; cursor:pointer;
+      }
+      #hex-edit-panel .he-opacity::-webkit-slider-thumb {
+        -webkit-appearance:none; appearance:none;
+        width:14px; height:14px; background:#c8941a; border:1px solid #5a3d0a;
+        border-radius:50%; cursor:pointer;
+      }
+      #hex-edit-panel .he-opacity::-moz-range-thumb {
+        width:14px; height:14px; background:#c8941a; border:1px solid #5a3d0a;
+        border-radius:50%; cursor:pointer;
+      }
+      #hex-edit-panel .he-opacity-val {
+        flex:0 0 auto; min-width:36px; text-align:right;
+        font-family:monospace; font-size:11px; color:#ffeebb;
       }
       body.he-editing #map-wrap { cursor:crosshair !important; }
       body.he-painting #map-wrap { cursor:cell !important; }
@@ -526,10 +598,10 @@
     const el = document.getElementById(`hex-${col}-${row}`);
     if (!el) return;
     const t = GCCTerrain.get(col, row);
-    if (t && typeof TERRAIN !== 'undefined' && TERRAIN[t]?.fill){
-      el.style.setProperty('--hex-paint', TERRAIN[t].fill);
+    if (t && typeof TERRAIN !== 'undefined' && TERRAIN[t]?.rgb){
+      el.style.setProperty('--hex-paint-rgb', TERRAIN[t].rgb);
     } else {
-      el.style.removeProperty('--hex-paint');
+      el.style.removeProperty('--hex-paint-rgb');
     }
   }
 
@@ -604,7 +676,7 @@
     if (n === 0){ showToast('No terrain overrides to clear'); return; }
     if (!confirm(`Clear ${n} terrain override${n===1?'':'s'}? File-data entries are not touched.`)) return;
     // Capture the currently-overridden set BEFORE clearing so we can
-    // remove their --hex-paint without a full grid rebuild.
+    // remove their --hex-paint-rgb without a full grid rebuild.
     const overridden = GCCTerrain.allOverridden();
     GCCTerrain.clearAll();
     for (const { col, row } of overridden){
