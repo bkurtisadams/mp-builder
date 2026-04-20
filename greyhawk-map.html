@@ -45,7 +45,7 @@
   #hex-svg { position:absolute; top:0; left:0; overflow:visible; pointer-events:all; }
 
   /* HEX CELLS */
-  .hex-cell { fill:transparent; stroke:var(--hex-stroke); stroke-width:.6; cursor:pointer; transition:fill .1s; }
+  .hex-cell { fill:var(--hex-paint, transparent); stroke:var(--hex-stroke); stroke-width:.6; cursor:pointer; transition:fill .1s; }
   .hex-cell:hover { fill:var(--hex-hover); stroke:rgba(255,200,80,.5); stroke-width:1; }
   .hex-cell.explored { fill:var(--hex-explored); }
   .hex-cell.selected { fill:var(--hex-selected)!important; stroke:var(--gold); stroke-width:1.5; }
@@ -285,7 +285,8 @@
 
 <script src="gcc-regions.js?v=6"></script>
 <script src="gcc-landmarks.js?v=9"></script>
-<script src="gcc-hex-edit.js?v=1"></script>
+<script src="gcc-terrain.js?v=1"></script>
+<script src="gcc-hex-edit.js?v=2"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
 // Darlene World of Greyhawk map: 145 cols x 97 rows of flat-top hexes.
@@ -390,14 +391,22 @@ window.darleneQA = function(){
 
 // ── TERRAIN ───────────────────────────────────────────────────────────────────
 const TERRAIN={
-  clear:    {label:'Clear/Road', footDays:.33,mountDays:.17},
-  plains:   {label:'Plains',     footDays:.33,mountDays:.25},
-  forest:   {label:'Forest',     footDays:.5, mountDays:.5 },
-  hills:    {label:'Hills',      footDays:.5, mountDays:.33},
-  mountains:{label:'Mountains',  footDays:1.0,mountDays:.75},
-  water:    {label:'Water/Sea',  footDays:null,mountDays:null},
-  desert:   {label:'Desert',     footDays:.67,mountDays:.5 },
-  swamp:    {label:'Swamp/Marsh',footDays:1.0,mountDays:1.0},
+  // Canon terrain (1980 WoG rates + 1983 Darlene key). footDays/mountDays
+  // for the 5 new entries mirror the closest existing pattern — tune as
+  // the movement/CTT integration firms up.
+  clear:        {label:'Clear/Road',     footDays:.33, mountDays:.17, fill:'rgba(245,232,190,.45)'},
+  plains:       {label:'Plains',         footDays:.33, mountDays:.25, fill:'rgba(195,215,100,.35)'},
+  forest:       {label:'Forest',         footDays:.5,  mountDays:.5,  fill:'rgba(70,120,55,.45)'  },
+  hardwood:     {label:'Hardwood Forest',footDays:.5,  mountDays:.5,  fill:'rgba(100,150,70,.4)'  },
+  conifer:      {label:'Conifer Forest', footDays:.6,  mountDays:.5,  fill:'rgba(50,100,55,.4)'   },
+  jungle:       {label:'Jungle',         footDays:1.25,mountDays:1.0, fill:'rgba(35,75,40,.45)'   },
+  hills:        {label:'Hills',          footDays:.5,  mountDays:.33, fill:'rgba(150,120,80,.4)'  },
+  forest_hills: {label:'Forested Hills', footDays:.67, mountDays:.5,  fill:'rgba(120,130,80,.4)'  },
+  mountains:    {label:'Mountains',      footDays:1.0, mountDays:.75, fill:'rgba(110,90,75,.45)'  },
+  desert:       {label:'Desert',         footDays:.67, mountDays:.5,  fill:'rgba(220,150,90,.4)'  },
+  barrens:      {label:'Barrens',        footDays:.67, mountDays:.5,  fill:'rgba(175,140,95,.4)'  },
+  swamp:        {label:'Swamp/Marsh',    footDays:1.0, mountDays:1.0, fill:'rgba(90,100,65,.4)'   },
+  water:        {label:'Water/Sea',      footDays:null,mountDays:null,fill:'rgba(55,105,155,.4)'  },
 };
 
 // ── REGIONS ───────────────────────────────────────────────────────────────────
@@ -651,7 +660,13 @@ function getRegion(col,row){
     ? GCCRegions.getRegion(col, row)
     : 'Unknown Reaches';
 }
-function getHexTerrain(col,row){ return state.hexData[`${col}-${row}`]?.terrain||'plains'; }
+function getHexTerrain(col,row){
+  if (typeof GCCTerrain !== 'undefined'){
+    const t = GCCTerrain.get(col, row);
+    if (t) return t;
+  }
+  return state.hexData[`${col}-${row}`]?.terrain||'plains';
+}
 function travelTime(terrain,dist){
   const t=TERRAIN[terrain];
   if(!t||t.footDays===null) return 'Impassable';
@@ -744,6 +759,12 @@ function buildHexGrid(){
       if(state.selectedCol===col && state.selectedRow===row) cls+=' selected';
       poly.setAttribute('class',cls);
       poly.dataset.col=col; poly.dataset.row=row; poly.id=`hex-${col}-${row}`;
+      // Terrain paint (GCCTerrain overrides) — applied as a CSS var so the
+      // :hover / .explored / .selected rules can override via cascade.
+      if (typeof GCCTerrain !== 'undefined'){
+        const t = GCCTerrain.get(col, row);
+        if (t && TERRAIN[t]?.fill) poly.style.setProperty('--hex-paint', TERRAIN[t].fill);
+      }
       cellsG.appendChild(poly);
       const txt=document.createElementNS(ns,'text');
       txt.setAttribute('x',x.toFixed(1)); txt.setAttribute('y',y.toFixed(1));

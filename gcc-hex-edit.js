@@ -1,11 +1,17 @@
-// gcc-hex-edit.js v0.4.0 — 2026-04-19
+// gcc-hex-edit.js v0.5.0 — 2026-04-19
 // Hex Editor: tab shell for Landmarks / Paint / Outline / Draw.
-// Replaces gcc-landmark-edit.js. Landmarks tab is the former landmark
-// editor unchanged; Paint / Outline / Draw are Phase 2 / 3 / 4 stubs.
+// Requires globals: GCCLandmarks, GCCTerrain, TERRAIN, hexIdStr,
+//   darleneToInternal, mapToHex, screenToMap, showToast,
+//   rebuildLandmarkOverlay/rebuildGrid/buildHexGrid.
 //
-// Requires globals: GCCLandmarks, hexIdStr, darleneToInternal, mapToHex,
-//   screenToMap, showToast, rebuildLandmarkOverlay/rebuildGrid/buildHexGrid.
-//
+// v0.5.0: Phase 2 — Paint tab live. 2-col terrain palette + Erase,
+//   click-to-paint plus drag-paint (mousedown/mousemove/mouseup capture
+//   while Paint tab is active, stopImmediatePropagation beats the map's
+//   pan handler). Paint writes to GCCTerrain and updates the hex
+//   polygon's --hex-paint CSS var directly (no grid rebuild). Per-hex
+//   dedup prevents re-paint across a single hex during a drag. Paint tab
+//   has its own status line, per-terrain count stats, Export, Reset All.
+//   Outline and Draw remain stubs.
 // v0.4.0: Phase 1 refactor. Renamed #landmark-edit-panel → #hex-edit-panel,
 //   #btn-landmark-edit → #btn-hex-edit, body.le-placing → body.he-editing,
 //   CSS prefix le- → he-, window.GCCLandmarkEdit → window.GCCHexEdit.
@@ -32,6 +38,9 @@
     selectedName: null,
     newMode: false,
     newFields: { name:'', kind:'city', region:'' },
+    paintTerrain: 'plains',
+    paintDragging: false,
+    lastPaintKey: null,
     panelEl: null,
   };
 
@@ -48,9 +57,7 @@
         ${TABS.map(t => `<button class="he-tab" data-tab="${t.id}">${t.label}</button>`).join('')}
       </div>
       ${buildLandmarksPane()}
-      ${buildStubPane('paint', 'Terrain Paint',
-        'Click hexes to assign terrain types (plains, forest, hills, mountains, swamp, desert, …). Currently terrain is served by a static lookup; this tab will let you paint overrides and persist them per-hex.',
-        'Phase 2')}
+      ${buildPaintPane()}
       ${buildStubPane('outline', 'Region Outlines',
         'Draw polygon outlines for regions (Domain of Greyhawk, Empire of Iuz, …), replacing the rough-bbox placeholder in gcc-regions.js. The polygon editor is generic — the same tool will draw zones inside sub-hex scenes at Maure Castle Environs scale.',
         'Phase 3')}
@@ -78,10 +85,57 @@
     p.querySelector('#he-new-kind').onchange  = e => state.newFields.kind   = e.target.value;
     p.querySelector('#he-new-region').oninput = e => state.newFields.region = e.target.value;
 
+    // Paint tab wiring
+    p.querySelectorAll('.he-swatch').forEach(sw =>
+      sw.onclick = () => setPaintTerrain(sw.dataset.terrain));
+    p.querySelector('#he-paint-export').onclick = onPaintExport;
+    p.querySelector('#he-paint-reset').onclick  = onPaintReset;
+    setPaintTerrain(state.paintTerrain);
+    updatePaintStats();
+
     injectStyles();
     setActiveTab(state.activeTab);
     refreshSelect();
     return p;
+  }
+
+  function buildPaintPane(){
+    // Canon-driven palette (1980 WoG + 1983 Darlene key). Order flows open
+    // → forested → rough → water. Short labels fit the 3-col narrow cells;
+    // full labels live in TERRAIN[id].label and show in the hover readout.
+    const types = [
+      { id:'plains',       short:'Plains'    },
+      { id:'hardwood',     short:'Hwd Forest'},
+      { id:'conifer',      short:'Con Forest'},
+      { id:'jungle',       short:'Jungle'    },
+      { id:'hills',        short:'Hills'     },
+      { id:'forest_hills', short:'Fst Hills' },
+      { id:'mountains',    short:'Mountains' },
+      { id:'desert',       short:'Desert'    },
+      { id:'barrens',      short:'Barrens'   },
+      { id:'swamp',        short:'Swamp'     },
+      { id:'water',        short:'Water'     },
+    ];
+    const swatches = types.map(({id, short}) => {
+      const fill = (typeof TERRAIN !== 'undefined' && TERRAIN[id]?.fill) || 'transparent';
+      const full = (typeof TERRAIN !== 'undefined' && TERRAIN[id]?.label) || id;
+      return `<button class="he-swatch" data-terrain="${id}" style="--swatch:${fill}" title="${full}"><span class="he-swatch-chip"></span><span class="he-swatch-lbl">${short}</span></button>`;
+    }).join('');
+    return `
+      <div class="he-pane" id="he-pane-paint">
+        <label class="he-lbl">Terrain</label>
+        <div class="he-palette">
+          ${swatches}
+          <button class="he-swatch he-swatch-erase" data-terrain="__erase" title="Clear paint on clicked hex (reverts to base)"><span class="he-swatch-chip he-swatch-chip-erase">⌫</span><span class="he-swatch-lbl">Erase</span></button>
+        </div>
+        <div class="he-status" id="he-paint-status">Pick a terrain, then click or drag over hexes.</div>
+        <div class="he-btns">
+          <button class="he-btn" id="he-paint-export">Export</button>
+          <button class="he-btn he-danger" id="he-paint-reset">Reset All</button>
+        </div>
+        <div class="he-paint-stats" id="he-paint-stats">Nothing painted yet.</div>
+      </div>
+    `;
   }
 
   function buildLandmarksPane(){
@@ -209,7 +263,39 @@
         border:1px solid #8b6e45; border-radius:2px; font-size:9.5px;
         letter-spacing:.1em; color:#c8a96e; text-transform:uppercase;
       }
+      #hex-edit-panel .he-palette {
+        display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-top:4px;
+      }
+      #hex-edit-panel .he-swatch {
+        display:flex; align-items:center; gap:5px; padding:4px 5px;
+        background:rgba(0,0,0,.25); border:1px solid #8b6e45; border-radius:2px;
+        color:#c8a96e; font-family:'Crimson Text',Georgia,serif; font-size:11px;
+        cursor:pointer; transition:all .1s; text-align:left; min-width:0;
+      }
+      #hex-edit-panel .he-swatch:hover { border-color:#c8941a; color:#e8b840; }
+      #hex-edit-panel .he-swatch.active {
+        border-color:#e8b840; background:rgba(200,148,26,.15); color:#ffeebb;
+        box-shadow:inset 0 0 0 1px rgba(232,184,64,.4);
+      }
+      #hex-edit-panel .he-swatch-chip {
+        display:inline-block; width:14px; height:14px; border-radius:2px;
+        background:var(--swatch, transparent); border:1px solid rgba(0,0,0,.4); flex-shrink:0;
+      }
+      #hex-edit-panel .he-swatch-chip-erase {
+        display:flex; align-items:center; justify-content:center;
+        background:rgba(180,50,20,.2); color:#cc6644; font-size:10px;
+      }
+      #hex-edit-panel .he-swatch-erase.active { border-color:#cc6644; background:rgba(180,50,20,.15); color:#ff7755; }
+      #hex-edit-panel .he-swatch-lbl {
+        flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      }
+      #hex-edit-panel .he-paint-stats {
+        margin-top:8px; padding:5px 8px; background:rgba(0,0,0,.25);
+        border-left:2px solid #8b6e45; font-family:'Crimson Text',Georgia,serif;
+        font-size:11px; line-height:1.35; color:#c8a96e; word-wrap:break-word;
+      }
       body.he-editing #map-wrap { cursor:crosshair !important; }
+      body.he-painting #map-wrap { cursor:cell !important; }
       #btn-hex-edit.active { background:rgba(200,148,26,.28); color:#ffeebb; border-color:#c8941a; }
     `;
     document.head.appendChild(s);
@@ -423,6 +509,111 @@
     redrawOverlay();
   }
 
+  // ── Paint tab ─────────────────────────────────────────────────────────────
+  function setPaintTerrain(t){
+    state.paintTerrain = t;
+    if (!state.panelEl) return;
+    state.panelEl.querySelectorAll('.he-swatch').forEach(sw =>
+      sw.classList.toggle('active', sw.dataset.terrain === t));
+    const label = t === '__erase'
+      ? 'Erase'
+      : (typeof TERRAIN !== 'undefined' && TERRAIN[t]?.label) || t;
+    const el = state.panelEl.querySelector('#he-paint-status');
+    if (el) el.textContent = `Armed: ${label}. Click or drag over hexes.`;
+  }
+
+  function applyPaintToCell(col, row){
+    const el = document.getElementById(`hex-${col}-${row}`);
+    if (!el) return;
+    const t = GCCTerrain.get(col, row);
+    if (t && typeof TERRAIN !== 'undefined' && TERRAIN[t]?.fill){
+      el.style.setProperty('--hex-paint', TERRAIN[t].fill);
+    } else {
+      el.style.removeProperty('--hex-paint');
+    }
+  }
+
+  function paintAt(ev){
+    if (typeof screenToMap !== 'function' || typeof mapToHex !== 'function') return;
+    const m = screenToMap(ev.clientX, ev.clientY);
+    if (!m) return;
+    const hit = mapToHex(m.x, m.y);
+    if (!hit) return;
+    const key = `${hit.col}-${hit.row}`;
+    if (key === state.lastPaintKey) return;
+    state.lastPaintKey = key;
+    if (state.paintTerrain === '__erase'){
+      GCCTerrain.clear(hit.col, hit.row);
+    } else {
+      GCCTerrain.set(hit.col, hit.row, state.paintTerrain);
+    }
+    applyPaintToCell(hit.col, hit.row);
+    updatePaintStats();
+  }
+
+  function onPaintMousedown(ev){
+    if (!state.active || state.activeTab !== 'paint') return;
+    if (ev.button !== 0) return;
+    ev.stopPropagation();
+    ev.stopImmediatePropagation();
+    ev.preventDefault();
+    state.paintDragging = true;
+    state.lastPaintKey = null;
+    document.body.classList.add('he-painting');
+    paintAt(ev);
+  }
+
+  function onPaintMousemove(ev){
+    if (!state.paintDragging) return;
+    paintAt(ev);
+  }
+
+  function onPaintMouseup(ev){
+    if (!state.paintDragging) return;
+    state.paintDragging = false;
+    state.lastPaintKey = null;
+    document.body.classList.remove('he-painting');
+  }
+
+  function updatePaintStats(){
+    if (!state.panelEl) return;
+    const el = state.panelEl.querySelector('#he-paint-stats');
+    if (!el) return;
+    const by = GCCTerrain.countByTerrain();
+    const total = GCCTerrain.count();
+    if (total === 0){ el.textContent = 'Nothing painted yet.'; return; }
+    const details = Object.entries(by)
+      .sort((a, b) => b[1] - a[1])
+      .map(([t, c]) => `${t}:${c}`)
+      .join(' · ');
+    el.textContent = `${total} painted · ${details}`;
+  }
+
+  function onPaintExport(){
+    const src = GCCTerrain.exportMergedSource();
+    console.log('── gcc-terrain.js export ──');
+    console.log(src);
+    navigator.clipboard && navigator.clipboard.writeText(src).then(
+      () => showToast('Terrain exported to clipboard (also in console)'),
+      () => showToast('Terrain exported to console (clipboard blocked)')
+    );
+  }
+
+  function onPaintReset(){
+    const n = Object.keys(GCCTerrain.exportOverrides()).length;
+    if (n === 0){ showToast('No terrain overrides to clear'); return; }
+    if (!confirm(`Clear ${n} terrain override${n===1?'':'s'}? File-data entries are not touched.`)) return;
+    // Capture the currently-overridden set BEFORE clearing so we can
+    // remove their --hex-paint without a full grid rebuild.
+    const overridden = GCCTerrain.allOverridden();
+    GCCTerrain.clearAll();
+    for (const { col, row } of overridden){
+      applyPaintToCell(col, row); // re-reads GCCTerrain → now returns null → clears
+    }
+    showToast('Terrain overrides cleared');
+    updatePaintStats();
+  }
+
   function redrawOverlay(){
     if (typeof rebuildLandmarkOverlay === 'function'){
       rebuildLandmarkOverlay();
@@ -446,7 +637,15 @@
     else state.panelEl.style.display = 'block';
     refreshSelect();
     const wrap = document.getElementById('map-wrap');
-    if (wrap) wrap.addEventListener('click', onMapClick, true);
+    if (wrap){
+      wrap.addEventListener('click', onMapClick, true);
+      // Paint drag: mousedown must be capture-phase on the wrap to beat the
+      // map's bubble-phase pan-arming handler. mousemove/mouseup live on
+      // window so we catch the drag even if the cursor leaves the wrap.
+      wrap.addEventListener('mousedown', onPaintMousedown, true);
+      window.addEventListener('mousemove', onPaintMousemove);
+      window.addEventListener('mouseup', onPaintMouseup);
+    }
     document.addEventListener('keydown', onKey, true);
     const btn = document.getElementById('btn-hex-edit');
     if (btn) btn.classList.add('active');
@@ -457,9 +656,17 @@
     if (!state.active) return;
     state.active = false;
     document.body.classList.remove('he-editing');
+    document.body.classList.remove('he-painting');
+    state.paintDragging = false;
+    state.lastPaintKey = null;
     if (state.panelEl) state.panelEl.style.display = 'none';
     const wrap = document.getElementById('map-wrap');
-    if (wrap) wrap.removeEventListener('click', onMapClick, true);
+    if (wrap){
+      wrap.removeEventListener('click', onMapClick, true);
+      wrap.removeEventListener('mousedown', onPaintMousedown, true);
+    }
+    window.removeEventListener('mousemove', onPaintMousemove);
+    window.removeEventListener('mouseup', onPaintMouseup);
     document.removeEventListener('keydown', onKey, true);
     const btn = document.getElementById('btn-hex-edit');
     if (btn) btn.classList.remove('active');
