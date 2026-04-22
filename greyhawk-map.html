@@ -435,7 +435,12 @@ const state={
 // the image (drag / scale / rotate), not the grid. The SVG grid is ground
 // truth. Applied via CSS transform on the <img> element with origin at
 // stage center. See gh-img-xform in localStorage for persistence.
-const imgX = { tx:0, ty:0, sx:1, sy:1, rot:0 };
+// Default below is the canonical aligned transform (baked 2026-04-22) from the
+// Apr 19 alignment pass — verifies against Greyhawk D4-86, Highport A4-101,
+// Rauxes Y-68, Rel Astra P-70, Gradsul Q4-117, Dyvers H4-89, Dorakaa I4-68.
+// loadImgTransform() still overrides this from localStorage, so anyone who
+// re-aligns keeps their own copy; fresh devices start aligned.
+const imgX = { tx:-0.081475302718232, ty:-42.38657072504594, sx:1.0427791124276655, sy:1.053243463445003, rot:0 };
 function applyImgTransform(){
   const img = document.getElementById('map-img');
   if (!img) return;
