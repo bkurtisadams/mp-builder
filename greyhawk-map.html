@@ -36,7 +36,8 @@
   #mode-label { font-family:'Cinzel',serif; font-size:10px; letter-spacing:.1em; color:var(--gold); padding:3px 9px; border:1px solid var(--gold); border-radius:2px; background:rgba(200,148,26,.08); white-space:nowrap; flex-shrink:0; }
 
   /* MAP */
-  #map-wrap { position:fixed; top:calc(var(--gcc-bar-h) + 46px); left:0; right:0; bottom:0; overflow:hidden; cursor:grab; background:#050200; }
+  #map-wrap { position:fixed; top:calc(var(--gcc-bar-h) + 46px); left:0; right:0; bottom:0; overflow:hidden; cursor:grab; background:#050200;
+    touch-action:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
   #map-wrap.grabbing { cursor:grabbing; }
   #map-wrap.move-mode { cursor:crosshair; }
   #map-wrap.cal-mode { cursor:crosshair; }
@@ -1262,6 +1263,81 @@ function wireEvents(){
   document.getElementById('p-btn-rest').addEventListener('click',()=>showToast('Camp — CTT Phase 3'));
   document.getElementById('p-btn-build').addEventListener('click',()=>showToast('Stronghold — Phase 4'));
 
+  // ── TOUCH: one-finger pan, two-finger pinch-zoom, single-tap hex click ──
+  // Mirrors the mouse pan/wheel-zoom logic using the same state vars (panX/panY/zoom)
+  // and reuses doZoom/clampPan/applyTransform. touch-action:none on #map-wrap
+  // blocks the browser's default scroll/zoom so we have full gesture control.
+  const tState = { active:false, mode:null, sx:0, sy:0, pStartX:0, pStartY:0,
+                   didMove:false, pinchD0:0, pinchZ0:1, pinchCX:0, pinchCY:0 };
+  const _tDist = (a,b)=>Math.hypot(b.clientX-a.clientX, b.clientY-a.clientY);
+
+  wrap.addEventListener('touchstart', e=>{
+    if (state.imgAlignMode) return;  // image-align stays mouse/keyboard-only
+    if (e.touches.length === 1){
+      const t = e.touches[0];
+      tState.active = true; tState.mode = 'pan';
+      tState.sx = t.clientX; tState.sy = t.clientY;
+      tState.pStartX = state.panX; tState.pStartY = state.panY;
+      tState.didMove = false;
+    } else if (e.touches.length === 2){
+      tState.active = true; tState.mode = 'pinch';
+      tState.pinchD0 = _tDist(e.touches[0], e.touches[1]);
+      tState.pinchZ0 = state.zoom;
+      tState.pinchCX = (e.touches[0].clientX + e.touches[1].clientX)/2;
+      tState.pinchCY = (e.touches[0].clientY + e.touches[1].clientY)/2;
+      tState.didMove = true;  // suppress tap after pinch
+    }
+  }, {passive:true});
+
+  wrap.addEventListener('touchmove', e=>{
+    if (!tState.active) return;
+    if (e.cancelable) e.preventDefault();
+    if (tState.mode === 'pan' && e.touches.length === 1){
+      const t = e.touches[0];
+      const dx = t.clientX - tState.sx, dy = t.clientY - tState.sy;
+      if (!tState.didMove){
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) tState.didMove = true;
+        else return;
+      }
+      state.panX = tState.pStartX + dx; state.panY = tState.pStartY + dy;
+      clampPan(); applyTransform();
+    } else if (tState.mode === 'pinch' && e.touches.length >= 2){
+      const d = _tDist(e.touches[0], e.touches[1]);
+      if (d <= 0 || tState.pinchD0 <= 0) return;
+      const target = tState.pinchZ0 * (d / tState.pinchD0);
+      const rel = target / state.zoom;
+      const topOff = (document.getElementById('gcc-bar')?.offsetHeight||0) + 46;
+      doZoom(rel, tState.pinchCX, tState.pinchCY - topOff);
+    }
+  }, {passive:false});
+
+  wrap.addEventListener('touchend', e=>{
+    if (!tState.active) return;
+    // Tap (single finger, no drag) → hex click
+    if (tState.mode === 'pan' && !tState.didMove && e.changedTouches.length === 1){
+      if (!document.body.classList.contains('he-editing')){
+        const t = e.changedTouches[0];
+        const m = screenToMap(t.clientX, t.clientY);
+        const hit = mapToHex(m.x, m.y);
+        if (hit) onHexClick(hit.col, hit.row);
+      }
+    }
+    if (e.touches.length === 0){
+      tState.active = false; tState.mode = null;
+    } else if (tState.mode === 'pinch' && e.touches.length === 1){
+      // Downgrade pinch → pan with the remaining finger (no jump).
+      const t = e.touches[0];
+      tState.mode = 'pan';
+      tState.sx = t.clientX; tState.sy = t.clientY;
+      tState.pStartX = state.panX; tState.pStartY = state.panY;
+      tState.didMove = true;  // suppress tap
+    }
+  }, {passive:true});
+
+  wrap.addEventListener('touchcancel', ()=>{
+    tState.active = false; tState.mode = null;
+  });
+
   // Keyboard
   window.addEventListener('keydown',e=>{
     // Don't treat letters as hotkeys when the user is typing in an input,
@@ -1301,10 +1377,20 @@ function wireEvents(){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
+// Measure the actual .gcc-bar rendered height and publish as --gcc-bar-h so
+// #topbar and #map-wrap stay below the bar when it wraps onto multiple lines
+// on narrow (mobile) viewports. The hardcoded 44px only matches desktop.
+function syncBarHeight(){
+  const bar=document.getElementById('gcc-bar');
+  if(!bar) return;
+  const h=bar.offsetHeight||44;
+  document.documentElement.style.setProperty('--gcc-bar-h', h+'px');
+}
 function init(){
   // Legacy gh-cal load removed 2026-04-19 — cal is now compile-time geometry
   // (hexSize/offsetX/offsetY constants). Any stored gh-cal from the old
   // landmark-cal era is ignored.
+  syncBarHeight();
   loadImgTransform();
   const img=document.getElementById('map-img');
   const start=()=>{
@@ -1320,6 +1406,12 @@ function init(){
   };
   if(img.complete&&img.naturalWidth>0) start();
   else img.addEventListener('load',start);
+  // Keep bar-height and pan clamp in sync across rotation / resize / soft-keyboard events.
+  let _rz=null;
+  window.addEventListener('resize',()=>{
+    clearTimeout(_rz);
+    _rz=setTimeout(()=>{ syncBarHeight(); clampPan(); applyTransform(); },80);
+  });
 }
 window.addEventListener('load',init);
 </script>
