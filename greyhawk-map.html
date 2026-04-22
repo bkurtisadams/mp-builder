@@ -1171,8 +1171,24 @@ function showToast(msg){
 function wireEvents(){
   const wrap=document.getElementById('map-wrap');
 
+  // Suppress the native browser context menu on the map wrap so right-click
+  // can be used as a pan gesture without the menu popping up over it.
+  wrap.addEventListener('contextmenu', e => e.preventDefault());
+
   // Pan
   wrap.addEventListener('mousedown',e=>{
+    // Right-click pans in all modes — useful when Hex Editor paint / image-align
+    // / other tools own the left button, so the map can be navigated without
+    // first exiting the active tool.
+    if (e.button === 2){
+      e.preventDefault();
+      state.dragging = true;
+      state.didDrag = false;
+      state.dragStartX = e.clientX; state.dragStartY = e.clientY;
+      state.panStartX = state.panX; state.panStartY = state.panY;
+      wrap.classList.add('grabbing');
+      return;
+    }
     if(e.button!==0) return;
     // Image-align mode: drag moves image; shift+drag rotates.
     if (state.imgAlignMode){
