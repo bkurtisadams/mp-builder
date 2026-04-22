@@ -194,6 +194,7 @@
   <div class="sep"></div>
   <button class="tb-btn" id="btn-image-align" title="Drag/scale/rotate the Darlene map to match SVG hexes">🖼 Image</button>
   <button class="tb-btn" id="btn-hex-edit" title="Open the Hex Editor (Landmarks / Paint / Outline / Draw)">🧰 Hex</button>
+  <button class="tb-btn" id="btn-voyage" title="Open the Voyage Simulator (plan sea/river routes, simulate days at sea)">⚓ Voyage</button>
   <div class="spacer"></div>
   <div id="mode-label">OVERWORLD · 30 MI/HEX</div>
   <div class="sep"></div>
@@ -290,6 +291,7 @@
 <script src="gcc-landmarks.js?v=9"></script>
 <script src="gcc-terrain.js?v=1"></script>
 <script src="gcc-hex-edit.js?v=4"></script>
+<script src="gcc-voyage.js?v=1"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
 // Darlene World of Greyhawk map: 145 cols x 97 rows of flat-top hexes.
@@ -1506,6 +1508,11 @@ function init(){
     clampPan(); applyTransform();
     setTimeout(()=>centerOnHex(state.partyCol,state.partyRow),120);
     showToast('H=center party  M=move mode  L=labels');
+    // Auto-open a tool panel if the URL hash asks for it
+    // (dropdown link: greyhawk-map.html#voyage → opens Voyage Simulator)
+    if (location.hash === '#voyage' && window.GCCVoyage){
+      setTimeout(()=>window.GCCVoyage.enter(), 250);
+    }
   };
   if(img.complete&&img.naturalWidth>0) start();
   else img.addEventListener('load',start);
