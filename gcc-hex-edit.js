@@ -1,9 +1,15 @@
-// gcc-hex-edit.js v0.5.1 — 2026-04-19
+// gcc-hex-edit.js v0.6.0 — 2026-04-22
 // Hex Editor: tab shell for Landmarks / Paint / Outline / Draw.
 // Requires globals: GCCLandmarks, GCCTerrain, TERRAIN, hexIdStr,
 //   darleneToInternal, mapToHex, screenToMap, showToast,
-//   rebuildLandmarkOverlay/rebuildGrid/buildHexGrid.
+//   rebuildLandmarkOverlay/rebuildGrid/buildHexGrid,
+//   makeDraggable (from greyhawk-map.html inline script).
 //
+// v0.6.0: Panel is now draggable by its header — calls global
+//   makeDraggable helper on buildPanel and restores saved position on
+//   re-enter (re-clamps into viewport if browser was resized). Drag
+//   state persisted to 'gh-hex-edit-pos' in localStorage. Dblclick
+//   header to reset to default (top:72px right:16px).
 // v0.5.1: opacity slider on Paint tab controls the --hex-paint-alpha
 //   CSS var on :root; all painted hexes re-render via browser cascade
 //   (no JS iteration). Slider value persisted to localStorage and
@@ -27,7 +33,7 @@
 (function(){
   if (typeof window === 'undefined') return;
   const LOG = (...a) => console.log('[hex-edit]', ...a);
-  LOG('gcc-hex-edit.js v0.4.0 loaded');
+  LOG('gcc-hex-edit.js v0.6.0 loaded');
 
   const KINDS = ['city','town','castle','ruin','village','feature','landmark'];
   const TABS = [
@@ -93,6 +99,18 @@
     `;
     document.body.appendChild(p);
     state.panelEl = p;
+
+    // Make the panel draggable by its header. makeDraggable is defined as a
+    // global in greyhawk-map.html's inline script. Drag ignores button clicks
+    // inside the header (so .he-close still works). Position persists to
+    // localStorage; double-click the header to reset to default.
+    if (typeof window.makeDraggable === 'function'){
+      const hdr = p.querySelector('.he-hdr');
+      if (hdr){
+        state.heDrag = window.makeDraggable(p, hdr, 'gh-hex-edit-pos');
+        state.heDrag.restore();  // apply saved pos if any; CSS default otherwise
+      }
+    }
 
     p.querySelector('.he-close').onclick = exit;
     p.querySelectorAll('.he-tab').forEach(t =>
@@ -250,7 +268,9 @@
         display:flex; justify-content:space-between; align-items:center;
         padding:8px 10px; background:rgba(200,148,26,.18); border-bottom:1px solid #8b6e45;
         font-size:13px; font-weight:600; letter-spacing:.05em;
+        cursor:grab; user-select:none;
       }
+      #hex-edit-panel .he-hdr.dragging { cursor:grabbing; }
       #hex-edit-panel .he-close {
         background:none; border:none; color:#c8a96e; font-size:14px; cursor:pointer; padding:0 4px;
       }
@@ -706,7 +726,12 @@
     state.active = true;
     document.body.classList.add('he-editing');
     if (!state.panelEl) buildPanel();
-    else state.panelEl.style.display = 'block';
+    else {
+      state.panelEl.style.display = 'block';
+      // Re-clamp position into viewport in case browser was resized while
+      // the panel was hidden (restore() clamps via place()).
+      if (state.heDrag) state.heDrag.restore();
+    }
     refreshSelect();
     const wrap = document.getElementById('map-wrap');
     if (wrap){
