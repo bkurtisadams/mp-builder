@@ -1,4 +1,4 @@
-// gcc-voyage.js v0.1.0 — 2026-04-22
+// gcc-voyage.js v0.2.0 — 2026-04-22
 // Voyage Simulator plugin for greyhawk-map.html. Replaces the standalone
 // voyage-map.html (Leaflet-based, separate hex grid, no GCC integration).
 // Ports reference GCCLandmarks by name — hex positions resolve at runtime
@@ -6,10 +6,18 @@
 // as the rest of the map and inherits touch/drag/zoom/alignment for free.
 //
 // Requires globals from greyhawk-map.html:
-//   hexCenterDisplay, mapToStage, darleneToInternal, showToast, makeDraggable
+//   hexCenterDisplay, mapToStage, darleneToInternal, showToast, makeDraggable,
+//   GRID_COLS, GRID_ROWS
 // Requires gcc-landmarks.js:
 //   GCCLandmarks.getByName(name) → { id, name, kind, ... }
+// Requires gcc-terrain.js:
+//   GCCTerrain.get(col, row) → terrain key or null (used for water routing)
 //
+// v0.2.0: ship now follows water. Each route leg is pathfound through water
+//   hexes (A* on flat-top odd-q offset grid) at add-time and again at
+//   startVoyage (to pick up hexes painted since). Ship interpolates along
+//   the hex sequence rather than port-to-port straight line. Unpathable
+//   legs still render as a dashed red fallback line with a warning toast.
 // v0.1.0: initial port — setup/voyage/log tabs, per-leg route planning,
 //   per-day weather/encounters/navigation/hull damage, ship marker + route
 //   polyline overlays on map-stage. Port economy (cargo/ledger) stubbed
@@ -18,7 +26,7 @@
 (function(){
   if (typeof window === 'undefined') return;
   const LOG = (...a) => console.log('[voyage]', ...a);
-  LOG('gcc-voyage.js v0.1.0 loaded');
+  LOG('gcc-voyage.js v0.2.0 loaded');
 
   // ── DATA ──────────────────────────────────────────────────────────────────
   // Ship templates: dailySail in miles-per-10-hour-sailing-day, hull in HP.
@@ -117,6 +125,86 @@
     return darleneToInternal(lm.id);  // { col, row } or null
   }
   function portAvailable(name){ return !!portHex(name); }
+
+  // ── HEX GEOMETRY + WATER PATHFINDING ──────────────────────────────────────
+  // Flat-top hex grid in odd-q offset (odd columns shifted DOWN — matches
+  // greyhawk-map.html hexCenter: y += rowStep*0.5 when col is odd).
+  // Neighbor deltas [NW, N, NE, SE, S, SW] depend on column parity.
+  const HEX_NB_EVEN = [[-1,-1],[0,-1],[1,-1],[1,0],[0,1],[-1,0]];
+  const HEX_NB_ODD  = [[-1, 0],[0,-1],[1, 0],[1,1],[0,1],[-1,1]];
+  function hexNeighbors(col, row){
+    const deltas = (col & 1) ? HEX_NB_ODD : HEX_NB_EVEN;
+    return deltas.map(([dc,dr]) => ({ col:col+dc, row:row+dr }));
+  }
+  // Axial conversion for admissible A* heuristic.
+  function hexDistance(a, b){
+    const aq = a.col, ar = a.row - ((a.col - (a.col & 1)) >> 1);
+    const bq = b.col, br = b.row - ((b.col - (b.col & 1)) >> 1);
+    const dq = aq - bq, dr = ar - br;
+    return (Math.abs(dq) + Math.abs(dq + dr) + Math.abs(dr)) / 2;
+  }
+  function isWaterHex(col, row){
+    if (typeof GCCTerrain === 'undefined') return false;
+    return GCCTerrain.get(col, row) === 'water';
+  }
+  function inGrid(col, row){
+    const gc = (typeof GRID_COLS !== 'undefined') ? GRID_COLS : 146;
+    const gr = (typeof GRID_ROWS !== 'undefined') ? GRID_ROWS : 97;
+    return col >= 0 && row >= 0 && col < gc && row < gr;
+  }
+  // A* water-hex search. Land allowed only at start and goal (so a port on
+  // a land hex can launch from / arrive at, but intermediates must be water).
+  // Returns array of {col,row} including both endpoints, or null if no path.
+  function findWaterPath(start, goal, opts){
+    opts = opts || {};
+    const maxIter = opts.maxIter || 10000;
+    if (!start || !goal) return null;
+    const startKey = `${start.col}-${start.row}`;
+    const goalKey  = `${goal.col}-${goal.row}`;
+    if (startKey === goalKey) return [{ col:start.col, row:start.row }];
+    const open = new Map();   // key → node {col,row,f}
+    const closed = new Set();
+    const came = new Map();
+    const gScore = new Map();
+    open.set(startKey, { col:start.col, row:start.row, f: hexDistance(start, goal) });
+    gScore.set(startKey, 0);
+    let iter = 0;
+    while (open.size && iter++ < maxIter){
+      // Pick node with lowest f (linear scan — trivially fast for this grid).
+      let bestKey = null, bestNode = null, bestF = Infinity;
+      for (const [k, v] of open){
+        if (v.f < bestF){ bestF = v.f; bestKey = k; bestNode = v; }
+      }
+      if (bestKey === goalKey){
+        const path = [];
+        let k = bestKey;
+        while (k){
+          const [c, r] = k.split('-').map(Number);
+          path.unshift({ col:c, row:r });
+          k = came.get(k);
+        }
+        return path;
+      }
+      open.delete(bestKey);
+      closed.add(bestKey);
+      for (const nb of hexNeighbors(bestNode.col, bestNode.row)){
+        if (!inGrid(nb.col, nb.row)) continue;
+        const nbKey = `${nb.col}-${nb.row}`;
+        if (closed.has(nbKey)) continue;
+        // Water-only, except allow start and goal (for land-side ports).
+        const atEndpoint = (nbKey === startKey || nbKey === goalKey);
+        if (!atEndpoint && !isWaterHex(nb.col, nb.row)) continue;
+        const tentativeG = (gScore.get(bestKey) || 0) + 1;
+        if (tentativeG < (gScore.get(nbKey) ?? Infinity)){
+          came.set(nbKey, bestKey);
+          gScore.set(nbKey, tentativeG);
+          const f = tentativeG + hexDistance(nb, goal);
+          open.set(nbKey, { col:nb.col, row:nb.row, f });
+        }
+      }
+    }
+    return null;
+  }
 
   function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
@@ -232,9 +320,16 @@
       const last = v.legs[v.legs.length-1];
       return last ? portHex(last.to) : null;
     }
+    const progress = leg.distance>0 ? v.milesOnLeg/leg.distance : 0;
+    // If the leg has a pathfound water route, interpolate along it by
+    // hex-count so the ship follows coastlines/rivers. Otherwise fall back
+    // to straight-line port-to-port interpolation.
+    if (leg.path && leg.path.length > 1){
+      const idx = Math.min(leg.path.length - 1, Math.max(0, Math.floor(progress * (leg.path.length - 1))));
+      return { ...leg.path[idx] };
+    }
     const from = portHex(leg.from), to = portHex(leg.to);
     if (!from || !to) return null;
-    const progress = leg.distance>0 ? v.milesOnLeg/leg.distance : 0;
     return {
       col: Math.round(from.col + (to.col-from.col)*progress),
       row: Math.round(from.row + (to.row-from.row)*progress)
@@ -425,6 +520,9 @@
       #voyage-overlay { pointer-events:none; }
       #voyage-overlay .voyage-route {
         fill:none; stroke:#4488cc; stroke-width:1.4; stroke-dasharray:3,2; opacity:.75;
+      }
+      #voyage-overlay .voyage-route-fallback {
+        fill:none; stroke:#cc3322; stroke-width:1.4; stroke-dasharray:5,3; opacity:.7;
       }
       #voyage-overlay .voyage-trail {
         fill:none; stroke:#88ccee; stroke-width:1; opacity:.55;
@@ -646,13 +744,21 @@
     const fp = PORTS[from];
     const dist = fp?.connections[to];
     if (!dist){ setStatus('No direct route between those ports.', 'warn'); return; }
-    state.routeLegs.push({ from, to, waterType, distance:dist });
+    // Pathfind a water route through painted water hexes. Success → ship
+    // follows the path; failure → dashed red fallback line + warning toast.
+    const fromHex = portHex(from), toHex = portHex(to);
+    const path = (fromHex && toHex) ? findWaterPath(fromHex, toHex) : null;
+    state.routeLegs.push({ from, to, waterType, distance:dist, path });
     // Auto-chain: next leg starts from the port we just arrived at
     p.querySelector('#ve-from').value = to;
     p.querySelector('#ve-from').dispatchEvent(new Event('change'));
     renderLegsUI();
     renderRouteOverlay();
-    setStatus(`Added ${from} → ${to} (${dist} mi).`);
+    if (path){
+      setStatus(`Added ${from} → ${to} (${dist} mi, ${path.length} hex route).`);
+    } else {
+      setStatus(`Added ${from} → ${to} (${dist} mi). ⚠ No water path — paint hexes via 🧰 Hex → Paint.`, 'warn');
+    }
   }
 
   function removeLeg(i){
@@ -683,6 +789,11 @@
     const sy = parseInt(p.querySelector('#ve-syear').value,10)   || 576;
 
     let cum = 0;
+    // Recompute water paths in case user painted more water since adding legs.
+    state.routeLegs.forEach(leg => {
+      const fh = portHex(leg.from), th = portHex(leg.to);
+      if (fh && th) leg.path = findWaterPath(fh, th);
+    });
     const legs = state.routeLegs.map(l => { cum += l.distance; return { ...l, cumDist:cum }; });
 
     state.voyage = {
@@ -835,17 +946,18 @@
   function renderRouteOverlay(){
     const g = ensureOverlay();
     if (!g) return;
-    g.querySelectorAll('.voyage-route, .voyage-port').forEach(el => el.remove());
-    // Route line through all legs
+    g.querySelectorAll('.voyage-route, .voyage-route-fallback, .voyage-port').forEach(el => el.remove());
     const legs = state.voyage ? state.voyage.legs : state.routeLegs;
     if (!legs.length){ if (!state.voyage) clearVoyageOverlays(); return; }
     const ns = 'http://www.w3.org/2000/svg';
-    const pts = [];
-    const addPt = name => {
-      const h = portHex(name); if (!h) return;
+    const hexToScreen = h => {
       const c = hexCenterDisplay(h.col, h.row);
-      const s = mapToStage(c.x, c.y);
-      pts.push(`${s.x.toFixed(1)},${s.y.toFixed(1)}`);
+      return mapToStage(c.x, c.y);
+    };
+    // Port dots at each leg endpoint
+    const drawPort = name => {
+      const h = portHex(name); if (!h) return;
+      const s = hexToScreen(h);
       const dot = document.createElementNS(ns, 'circle');
       dot.setAttribute('class', 'voyage-port');
       dot.setAttribute('cx', s.x.toFixed(1));
@@ -853,14 +965,26 @@
       dot.setAttribute('r', '3');
       g.appendChild(dot);
     };
-    addPt(legs[0].from);
-    legs.forEach(l => addPt(l.to));
-    if (pts.length > 1){
+    drawPort(legs[0].from);
+    legs.forEach(l => drawPort(l.to));
+    // One polyline per leg. Prefer the pathfound water route; fall back to
+    // a dashed red port-to-port line when pathfinding failed.
+    legs.forEach(leg => {
+      let pts = null, cls = 'voyage-route';
+      if (leg.path && leg.path.length > 1){
+        pts = leg.path.map(h => { const s = hexToScreen(h); return `${s.x.toFixed(1)},${s.y.toFixed(1)}`; });
+      } else {
+        const fh = portHex(leg.from), th = portHex(leg.to);
+        if (!fh || !th) return;
+        const fs = hexToScreen(fh), ts = hexToScreen(th);
+        pts = [`${fs.x.toFixed(1)},${fs.y.toFixed(1)}`, `${ts.x.toFixed(1)},${ts.y.toFixed(1)}`];
+        cls = 'voyage-route-fallback';
+      }
       const poly = document.createElementNS(ns, 'polyline');
-      poly.setAttribute('class', 'voyage-route');
+      poly.setAttribute('class', cls);
       poly.setAttribute('points', pts.join(' '));
       g.insertBefore(poly, g.firstChild);
-    }
+    });
   }
 
   function renderTrailOverlay(){
