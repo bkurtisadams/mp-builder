@@ -1,7 +1,12 @@
-// gcc-landmarks.js v0.7.1 — 2026-04-23
+// gcc-landmarks.js v0.7.2 — 2026-04-23
 // World of Greyhawk landmarks, keyed by Darlene hex ID.
 // Layered store: BASE file data + PENDING (no hex yet) + OVERRIDES (localStorage).
 //
+// v0.7.2: added LGG header fields — rulerName, rulerTitle, popTotal,
+//   demihumans, humanoids, resources. pop (existing) is now editable
+//   through overrides too. All plumbed through setOverride and
+//   exportMergedSource. Supports the henchmen-recruitment use case
+//   (DMG tables reference population + racial density).
 // v0.7.1: added `desc` field — long-form landmark description surfaced in
 //   the map's landmark info panel (Layer 1 of the landmark-details work).
 //   Editable via the hex editor's Landmarks pane. Plumbed through
@@ -30,14 +35,22 @@
 // v0.4.0: setOverride accepted optional clickPixel for affine calibration.
 //
 // Format: "Letter[Rep]-Diag": { name, kind, ... }
-//   kind:    "city" | "town" | "castle" | "ruin" | "village" | "feature" | "landmark"
-//   notes:   short freeform text (existing field, shown on map hover via id)
-//   desc:    long-form description — player-visible, shown in landmark info panel
-//   onWater: true (optional) — landmark is on or adjacent to water (river,
-//            lake, coast). Renders a wave ≈ overlay on the map. Broad tag.
-//   isPort:  true (optional, reserved) — landmark is a true trading seaport
-//            for the voyage simulator. Renders an anchor ⚓ overlay. Narrow
-//            subset of onWater cities; not user-exposed yet.
+//   kind:       "city" | "town" | "castle" | "ruin" | "village" | "feature" | "landmark"
+//   size:       size qualifier — "metropolis" | "city" | "small-city" | etc.
+//   pop:        primary population (number, matches LGG "Population")
+//   popTotal:   total population including surrounding area (number, LGG "total")
+//   rulerName:  ruler's given name (e.g. "Nerof Gasgol")
+//   rulerTitle: ruler's title/honorifics (e.g. "Lord Mayor")
+//   demihumans: density qualifier — "None" | "Few" | "Some" | "Many" | freeform
+//   humanoids:  density qualifier — same vocabulary as demihumans
+//   resources:  comma-separated string (e.g. "silver, gold, gems (I-IV)")
+//   notes:      short freeform text (shown on map hover via id)
+//   desc:       long-form description — player-visible, shown in landmark info panel
+//   onWater:    true (optional) — landmark is on or adjacent to water (river,
+//               lake, coast). Renders a wave ≈ overlay on the map. Broad tag.
+//   isPort:     true (optional, reserved) — landmark is a true trading seaport
+//               for the voyage simulator. Renders an anchor ⚓ overlay. Narrow
+//               subset of onWater cities; not user-exposed yet.
 
 (function(){
   const LS_KEY = 'gcc-landmark-overrides-v1';
@@ -239,6 +252,29 @@
     // new data, no legacy to preserve.)
     if (typeof entry.desc === 'string') merged.desc = entry.desc;
     else if (existing.desc) merged.desc = existing.desc;
+    // LGG header fields (v0.7.2). All use the same explicit-empty-clears
+    // semantics as desc: caller passes '' to wipe, undefined to inherit.
+    // rulerName / rulerTitle split so long honorifics don't crowd the name
+    // ("His Solemn Authority, the Lord Mayor of Greyhawk" + "Nerof Gasgol").
+    ['rulerName','rulerTitle','demihumans','humanoids','resources'].forEach(k => {
+      if (typeof entry[k] === 'string') merged[k] = entry[k];
+      else if (existing[k]) merged[k] = existing[k];
+    });
+    // Numeric pop fields: accept number or numeric string (with commas/
+    // non-digits stripped, since <input type=number> and copy-paste from
+    // LGG both happen). 0 or unparseable → cleared; undefined → inherit.
+    ['pop','popTotal'].forEach(k => {
+      if (entry[k] !== undefined){
+        const n = parseInt(String(entry[k]).replace(/[^0-9]/g,''), 10);
+        if (!isNaN(n) && n > 0) merged[k] = n;
+        // else: explicit clear — leave merged[k] unset
+      } else if (existing[k]){
+        merged[k] = existing[k];
+      }
+    });
+    // size: also inherit through overrides now that LGG-editing is in play
+    // (metropolis / city / small-city etc). Inherit-only; no editor toggle.
+    if (existing.size) merged.size = existing.size;
     // onWater (broad water-adjacent) and isPort (narrow trading seaport —
     // reserved for voyage sim). Both booleans use three-state logic: an
     // explicit boolean in `entry` wins, otherwise inherit from base.
@@ -309,13 +345,19 @@
     const entries = Object.entries(merged).sort((a,b)=>a[0].localeCompare(b[0]));
     for (const [id, e] of entries){
       const parts = [`name: ${JSON.stringify(e.name)}`, `kind: ${JSON.stringify(e.kind)}`];
-      if (e.size)   parts.push(`size: ${JSON.stringify(e.size)}`);
-      if (e.pop)    parts.push(`pop: ${e.pop}`);
-      if (e.region) parts.push(`region: ${JSON.stringify(e.region)}`);
-      if (e.notes)   parts.push(`notes: ${JSON.stringify(e.notes)}`);
-      if (e.desc)    parts.push(`desc: ${JSON.stringify(e.desc)}`);
-      if (e.onWater) parts.push(`onWater: true`);
-      if (e.isPort)  parts.push(`isPort: true`);
+      if (e.size)       parts.push(`size: ${JSON.stringify(e.size)}`);
+      if (e.pop)        parts.push(`pop: ${e.pop}`);
+      if (e.popTotal)   parts.push(`popTotal: ${e.popTotal}`);
+      if (e.rulerName)  parts.push(`rulerName: ${JSON.stringify(e.rulerName)}`);
+      if (e.rulerTitle) parts.push(`rulerTitle: ${JSON.stringify(e.rulerTitle)}`);
+      if (e.demihumans) parts.push(`demihumans: ${JSON.stringify(e.demihumans)}`);
+      if (e.humanoids)  parts.push(`humanoids: ${JSON.stringify(e.humanoids)}`);
+      if (e.resources)  parts.push(`resources: ${JSON.stringify(e.resources)}`);
+      if (e.region)     parts.push(`region: ${JSON.stringify(e.region)}`);
+      if (e.notes)      parts.push(`notes: ${JSON.stringify(e.notes)}`);
+      if (e.desc)       parts.push(`desc: ${JSON.stringify(e.desc)}`);
+      if (e.onWater)    parts.push(`onWater: true`);
+      if (e.isPort)     parts.push(`isPort: true`);
       lines.push(`    ${JSON.stringify(id).padEnd(10)}: { ${parts.join(', ')} },`);
     }
     lines.push('  };');

@@ -1,10 +1,17 @@
-// gcc-hex-edit.js v0.6.3 — 2026-04-23
+// gcc-hex-edit.js v0.6.4 — 2026-04-23
 // Hex Editor: tab shell for Landmarks / Paint / Outline / Draw.
 // Requires globals: GCCLandmarks, GCCTerrain, TERRAIN, hexIdStr,
 //   darleneToInternal, mapToHex, screenToMap, showToast,
 //   rebuildLandmarkOverlay/rebuildGrid/buildHexGrid,
 //   makeDraggable (from greyhawk-map.html inline script).
 //
+// v0.6.4: LGG Header group — rulerName, rulerTitle, pop, popTotal,
+//   demihumans, humanoids, resources. Seven inputs wired through a
+//   shared LGG_FIELDS table and a unified persistLandmarkFields() save
+//   function that writes all editor state (desc + LGG) in a single
+//   setOverride call on any field blur. Datalist offers None/Few/Some/
+//   Many suggestions for the two density fields. Supports the henchmen-
+//   recruitment use case.
 // v0.6.3: Description textarea on Landmarks pane — long-form landmark
 //   text surfaced in the map's new landmark info panel (Layer 1+2 of
 //   landmark-details). Saves on blur for placed landmarks; captured in
@@ -54,6 +61,21 @@
   LOG('gcc-hex-edit.js v0.6.0 loaded');
 
   const KINDS = ['city','town','castle','ruin','village','feature','landmark'];
+
+  // LGG header fields — single source of truth for the Landmarks pane's
+  // input wiring, new-mode state capture, and existing-mode blur save.
+  // `id`: DOM element id. `key`: field name in GCCLandmarks schema.
+  // `numeric`: true → value is parsed to int before persist + compared/
+  // displayed as number. Everything else is stored as a string.
+  const LGG_FIELDS = [
+    { id:'he-ruler-name',  key:'rulerName' },
+    { id:'he-ruler-title', key:'rulerTitle' },
+    { id:'he-pop',         key:'pop',        numeric:true },
+    { id:'he-pop-total',   key:'popTotal',   numeric:true },
+    { id:'he-demihumans',  key:'demihumans' },
+    { id:'he-humanoids',   key:'humanoids' },
+    { id:'he-resources',   key:'resources' },
+  ];
   const TABS = [
     { id:'landmarks', label:'Landmarks' },
     { id:'paint',     label:'Paint' },
@@ -86,7 +108,14 @@
     activeTab: 'landmarks',
     selectedName: null,
     newMode: false,
-    newFields: { name:'', kind:'city', region:'', onWater:false, desc:'' },
+    newFields: {
+      name:'', kind:'city', region:'',
+      onWater:false, desc:'',
+      rulerName:'', rulerTitle:'',
+      pop:'', popTotal:'',
+      demihumans:'', humanoids:'',
+      resources:''
+    },
     paintTerrain: 'plains',
     paintOpacity: initialOpacity,
     paintDragging: false,
@@ -158,6 +187,22 @@
       else if (state.selectedName){ hint.textContent = 'unsaved — click out to save'; }
     });
     descEl.addEventListener('blur', onDescBlur);
+    // LGG header fields — unified handler. Each input captures to
+    // state.newFields in new-mode; on blur for a placed existing landmark,
+    // the full LGG block is written via persistLandmarkLggFields() so we
+    // only hit setOverride once per field-exit regardless of how many
+    // fields the user touched.
+    LGG_FIELDS.forEach(({id, key, numeric}) => {
+      const el = p.querySelector('#' + id);
+      if (!el) return;
+      el.addEventListener('input', () => {
+        if (state.newMode){
+          state.newFields[key] = numeric ? (el.value.replace(/[^0-9]/g,'') || '') : el.value;
+        }
+        setLggHint(state.newMode ? 'saved on place' : 'unsaved — click out to save');
+      });
+      el.addEventListener('blur', onLggFieldBlur);
+    });
 
     // Paint tab wiring
     p.querySelectorAll('.he-swatch').forEach(sw =>
@@ -256,6 +301,30 @@
           <span>On Water ≈</span>
           <span class="he-water-hint" id="he-water-hint" style="color:#88ccdd;font-weight:normal;font-size:9px;margin-left:auto">—</span>
         </label>
+
+        <div class="he-group-hdr" style="margin-top:10px;padding-top:6px;border-top:1px solid rgba(139,110,69,.3);font-family:'Cinzel',serif;font-size:9px;color:#8b6e45;letter-spacing:.1em;text-transform:uppercase">LGG Header
+          <span class="he-lgg-hint" id="he-lgg-hint" style="color:#88ccdd;font-weight:normal;font-size:9px;letter-spacing:normal;text-transform:none;float:right;font-family:inherit">—</span>
+        </div>
+        <label class="he-lbl">Ruler Name</label>
+        <input class="he-input he-lgg-field" id="he-ruler-name" type="text" placeholder="e.g. Nerof Gasgol" autocomplete="off">
+        <label class="he-lbl">Ruler Title</label>
+        <input class="he-input he-lgg-field" id="he-ruler-title" type="text" placeholder="e.g. Lord Mayor" autocomplete="off">
+        <label class="he-lbl">Population</label>
+        <input class="he-input he-lgg-field" id="he-pop" type="number" min="0" placeholder="e.g. 58000">
+        <label class="he-lbl">Pop. Total</label>
+        <input class="he-input he-lgg-field" id="he-pop-total" type="number" min="0" placeholder="e.g. 75000 (including surroundings)">
+        <label class="he-lbl">Demi-humans</label>
+        <input class="he-input he-lgg-field" id="he-demihumans" type="text" list="he-density-list" placeholder="None / Few / Some / Many" autocomplete="off">
+        <label class="he-lbl">Humanoids</label>
+        <input class="he-input he-lgg-field" id="he-humanoids" type="text" list="he-density-list" placeholder="None / Few / Some / Many" autocomplete="off">
+        <label class="he-lbl">Resources</label>
+        <input class="he-input he-lgg-field" id="he-resources" type="text" placeholder="e.g. silver, gold, gems (I-IV)" autocomplete="off">
+        <datalist id="he-density-list">
+          <option value="None">
+          <option value="Few">
+          <option value="Some">
+          <option value="Many">
+        </datalist>
 
         <label class="he-lbl" style="margin-top:8px;display:flex;justify-content:space-between;align-items:center">
           <span>Description</span>
@@ -478,6 +547,14 @@
     const waterHint = state.panelEl.querySelector('#he-water-hint');
     const descEl    = state.panelEl.querySelector('#he-desc');
     const descHint  = state.panelEl.querySelector('#he-desc-hint');
+    // Small helper — fills an LGG input from a source object, tolerating
+    // missing keys (bare landmarks just show empty fields).
+    const fillLgg = src => {
+      LGG_FIELDS.forEach(({id, key}) => {
+        const el = state.panelEl.querySelector('#' + id);
+        if (el) el.value = (src && src[key] != null) ? src[key] : '';
+      });
+    };
     if (v === '__new__'){
       state.newMode = true;
       state.selectedName = null;
@@ -488,6 +565,8 @@
       waterHint.textContent = 'applied on place';
       descEl.value = state.newFields.desc || '';
       descHint.textContent = 'saved on place';
+      fillLgg(state.newFields);
+      setLggHint('saved on place');
       setStatus('Fill in name + kind, then click a hex.', false);
     } else if (v){
       state.newMode = false;
@@ -502,6 +581,8 @@
       waterHint.textContent = existing && existing.id ? 'toggle to apply' : 'place landmark first';
       descEl.value = (existing && existing.desc) || '';
       descHint.textContent = existing && existing.id ? 'edit, then click out to save' : 'place landmark first';
+      fillLgg(existing);
+      setLggHint(existing && existing.id ? 'edit, then click out to save' : 'place landmark first');
       const idLabel = existing && existing.id ? ` (currently ${existing.id})` : ' (unplaced)';
       setStatus(`Armed: ${v}${idLabel}. Click a hex, or type an ID above.`, true);
     } else {
@@ -514,6 +595,8 @@
       waterHint.textContent = '—';
       descEl.value = '';
       descHint.textContent = '—';
+      fillLgg({});
+      setLggHint('—');
       setStatus('Pick a landmark, then click a hex.', false);
     }
   }
@@ -561,33 +644,89 @@
 
   // Description blur: for new-mode, state.newFields already holds current
   // value (via input handler) — nothing to persist until placement. For an
-  // existing placed landmark, write the current textarea value to its
-  // override via setOverride so the landmark info panel on the map reflects
-  // it immediately.
+  // existing placed landmark, write all editor fields (desc + LGG header)
+  // to the override in one setOverride call via persistLandmarkFields.
   function onDescBlur(e){
-    if (state.newMode) return;  // captured in newFields; written on placement
-    const name = state.selectedName;
-    const descEl = e.currentTarget;
+    if (state.newMode) return;
     const hint = state.panelEl.querySelector('#he-desc-hint');
-    if (!name){ return; }
+    const ok = persistLandmarkFields();
+    if (ok === null){ hint.textContent = 'place landmark first'; return; }
+    if (ok === 'nochange'){ hint.textContent = e.currentTarget.value ? 'saved' : 'optional'; return; }
+    hint.textContent = ok ? (e.currentTarget.value ? '✓ saved' : '✓ cleared') : 'save failed';
+  }
+
+  // LGG header blur: same unified save path. One hint span covers the
+  // whole block since users can't tell which field's blur fired.
+  function onLggFieldBlur(){
+    if (state.newMode) return;
+    const ok = persistLandmarkFields();
+    if (ok === null){ setLggHint('place landmark first'); return; }
+    if (ok === 'nochange'){ setLggHint('saved'); return; }
+    setLggHint(ok ? '✓ saved' : 'save failed');
+  }
+
+  function setLggHint(msg){
+    const h = state.panelEl.querySelector('#he-lgg-hint');
+    if (h) h.textContent = msg;
+  }
+
+  // Unified save for existing-mode landmark editing. Reads every editor
+  // field and writes a single setOverride. Returns:
+  //   true         — saved with changes
+  //   'nochange'   — nothing differed from existing, skip save
+  //   null         — no selection, or landmark not placed yet
+  //   false        — setOverride failed
+  // Called from onDescBlur and onLggFieldBlur so one user blur persists
+  // the whole editor state, and hints can report meaningful status.
+  function persistLandmarkFields(){
+    const name = state.selectedName;
+    if (!name) return null;
     const existing = GCCLandmarks.getByName(name) || {};
-    if (!existing.id){ hint.textContent = 'place landmark first'; return; }
-    const newDesc = descEl.value;
-    if ((existing.desc || '') === newDesc){ hint.textContent = existing.desc ? 'saved' : 'optional'; return; }
-    const payload = {
+    if (!existing.id) return null;
+
+    const getVal = id => {
+      const el = state.panelEl.querySelector('#' + id);
+      return el ? el.value : '';
+    };
+    const parseNum = v => {
+      const n = parseInt(String(v).replace(/[^0-9]/g,''), 10);
+      return isNaN(n) || n <= 0 ? '' : n;
+    };
+
+    // Collect current editor state
+    const current = {
+      desc:       getVal('he-desc'),
+      rulerName:  getVal('he-ruler-name'),
+      rulerTitle: getVal('he-ruler-title'),
+      pop:        parseNum(getVal('he-pop')),
+      popTotal:   parseNum(getVal('he-pop-total')),
+      demihumans: getVal('he-demihumans'),
+      humanoids:  getVal('he-humanoids'),
+      resources:  getVal('he-resources'),
+    };
+
+    // Change detection — every tracked field must match existing
+    const unchanged = Object.keys(current).every(k => {
+      const cur = current[k] === '' ? undefined : current[k];
+      const exi = existing[k] === '' ? undefined : existing[k];
+      return (cur || '') === (exi || '') || (cur === undefined && exi === undefined);
+    });
+    if (unchanged) return 'nochange';
+
+    const payload = Object.assign({
       name,
       id:      existing.id,
       kind:    existing.kind || 'city',
       region:  existing.region,
       notes:   existing.notes,
-      desc:    newDesc,
       onWater: !!existing.onWater,
       isPort:  !!existing.isPort,
-    };
+    }, current);
     if (existing.symbolPixel) payload.symbolPixel = existing.symbolPixel;
+
     const ok = GCCLandmarks.setOverride(payload);
-    LOG('desc saved →', { name, length: newDesc.length, ok });
-    hint.textContent = ok ? (newDesc ? '✓ saved' : '✓ cleared') : 'save failed';
+    LOG('landmark fields saved →', { name, ok, fields: Object.keys(current).filter(k => current[k]) });
+    return ok;
   }
 
   function onSetCanonicalId(){
@@ -615,13 +754,20 @@
     const existing = GCCLandmarks.getByName(name) || {};
     const payload = {
       name,
-      id:      normalized,
-      kind:    existing.kind   || 'city',
-      region:  existing.region,
-      notes:   existing.notes,
-      desc:    existing.desc || '',
-      onWater: !!existing.onWater,
-      isPort:  !!existing.isPort,
+      id:         normalized,
+      kind:       existing.kind   || 'city',
+      region:     existing.region,
+      notes:      existing.notes,
+      desc:       existing.desc || '',
+      rulerName:  existing.rulerName  || '',
+      rulerTitle: existing.rulerTitle || '',
+      pop:        existing.pop,
+      popTotal:   existing.popTotal,
+      demihumans: existing.demihumans || '',
+      humanoids:  existing.humanoids  || '',
+      resources:  existing.resources  || '',
+      onWater:    !!existing.onWater,
+      isPort:     !!existing.isPort,
     };
     if (existing.symbolPixel) payload.symbolPixel = existing.symbolPixel;
     const ok = GCCLandmarks.setOverride(payload);
@@ -670,7 +816,7 @@
     const hit = mapToHex(m.x, m.y);
     if (!hit){ setStatus('Click was outside the hex grid.', false); return; }
 
-    let name, kind, region, notes, desc, onWater, isPort;
+    let name, kind, region, notes, desc, onWater, isPort, lgg;
     if (state.newMode){
       name = (state.newFields.name || '').trim();
       if (!name){ setStatus('Enter a name first.', false); return; }
@@ -679,6 +825,15 @@
       desc = state.newFields.desc || '';
       onWater = !!state.newFields.onWater;
       isPort = false;  // reserved: voyage sim owns this later
+      lgg = {
+        rulerName:  state.newFields.rulerName  || '',
+        rulerTitle: state.newFields.rulerTitle || '',
+        pop:        state.newFields.pop        || undefined,
+        popTotal:   state.newFields.popTotal   || undefined,
+        demihumans: state.newFields.demihumans || '',
+        humanoids:  state.newFields.humanoids  || '',
+        resources:  state.newFields.resources  || '',
+      };
     } else if (state.selectedName){
       name = state.selectedName;
       const existing = GCCLandmarks.getByName(name) || {};
@@ -690,13 +845,22 @@
       // both flags on re-placement so dragging to a new hex doesn't lose them.
       onWater = !!existing.onWater;
       isPort  = !!existing.isPort;
+      lgg = {
+        rulerName:  existing.rulerName  || '',
+        rulerTitle: existing.rulerTitle || '',
+        pop:        existing.pop,
+        popTotal:   existing.popTotal,
+        demihumans: existing.demihumans || '',
+        humanoids:  existing.humanoids  || '',
+        resources:  existing.resources  || '',
+      };
     } else {
       setStatus('Pick a landmark first.', false);
       return;
     }
 
     const id = hexIdStr(hit.col, hit.row);
-    const payload = { name, id, kind, region, notes, desc, onWater, isPort };
+    const payload = Object.assign({ name, id, kind, region, notes, desc, onWater, isPort }, lgg);
     payload.symbolPixel = { mx: m.x, my: m.y };
     const ok = GCCLandmarks.setOverride(payload);
     LOG('setOverride →', { name, id, kind, ok, pixel: { mx: m.x, my: m.y } });
@@ -709,6 +873,11 @@
       state.panelEl.querySelector('#he-new-kind').value = 'city';
       state.panelEl.querySelector('#he-on-water').checked = false;
       state.panelEl.querySelector('#he-desc').value = '';
+      LGG_FIELDS.forEach(({id, key}) => {
+        const el = state.panelEl.querySelector('#' + id);
+        if (el) el.value = '';
+        state.newFields[key] = '';
+      });
       state.newFields.name = '';
       state.newFields.region = '';
       state.newFields.kind = 'city';

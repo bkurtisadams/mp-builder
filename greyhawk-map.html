@@ -1133,23 +1133,28 @@ function openLandmarkInfo(id){
   const lm = GCCLandmarks.getById(id);
   if (!lm) return;
   const ESC = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
-  // Header: name + summary line (kind · size · population)
+  const fmtPop = n => (typeof n === 'number') ? n.toLocaleString() : '';
+  // Header: name + summary line (kind · size · pop, plus popTotal when
+  // present so the metro-area figure reads alongside the city proper).
   document.getElementById('li-name').textContent = lm.name;
   const summaryBits = [];
   if (lm.kind) summaryBits.push(lm.kind.charAt(0).toUpperCase() + lm.kind.slice(1));
   if (lm.size) summaryBits.push(lm.size.charAt(0).toUpperCase() + lm.size.slice(1));
-  if (lm.pop)  summaryBits.push(`pop ${lm.pop.toLocaleString()}`);
+  if (lm.pop){
+    const totalTag = lm.popTotal ? ` (total ${fmtPop(lm.popTotal)})` : '';
+    summaryBits.push(`pop ${fmtPop(lm.pop)}${totalTag}`);
+  }
   document.getElementById('li-subtitle').textContent = summaryBits.join(' · ') || '—';
 
-  // Body sections: details / features / notes / desc. Each appears only if
-  // the corresponding fields have content, so a bare landmark just shows
-  // hex ID + region without a bunch of empty frames.
+  // Body sections: Details / Government / Population / Features / Resources
+  // / Notes / Description. Each appears only if its fields have content,
+  // so a bare landmark just shows hex ID + region without empty frames.
   const body = document.getElementById('li-body');
   body.innerHTML = '';
   const hit = GCCLandmarks.hex(id);
   const terrainLabel = hit ? (TERRAIN[getHexTerrain(hit.col, hit.row)]?.label || '—') : '—';
 
-  // Details section — always present, minimally hex ID + terrain
+  // Details — always present, minimally hex ID + terrain
   const details = document.createElement('div');
   details.className = 'li-section';
   let dHtml = '<div class="li-section-title">Details</div>';
@@ -1159,6 +1164,36 @@ function openLandmarkInfo(id){
     dHtml += `<div class="li-detail-row"><span class="label">Region</span><span class="value">${ESC(lm.region)}</span></div>`;
   details.innerHTML = dHtml;
   body.appendChild(details);
+
+  // Government — rulerName and/or rulerTitle. Title can be long ("His
+  // Solemn Authority, the Lord Mayor of Greyhawk") so render it on its
+  // own line below the name rather than cramming onto one row.
+  if (lm.rulerName || lm.rulerTitle){
+    const gov = document.createElement('div');
+    gov.className = 'li-section';
+    let gHtml = '<div class="li-section-title">Government</div>';
+    const rulerParts = [];
+    if (lm.rulerName)  rulerParts.push(`<div class="value">${ESC(lm.rulerName)}</div>`);
+    if (lm.rulerTitle) rulerParts.push(`<div class="value" style="font-style:italic;color:#c8a96e">${ESC(lm.rulerTitle)}</div>`);
+    gHtml += `<div class="li-detail-row" style="align-items:flex-start"><span class="label">Ruler</span><div style="text-align:right;display:flex;flex-direction:column;gap:2px">${rulerParts.join('')}</div></div>`;
+    gov.innerHTML = gHtml;
+    body.appendChild(gov);
+  }
+
+  // Population (density) — demi-humans / humanoids, not the count
+  // (primary pop shows in the subtitle). Useful for henchmen-recruitment
+  // decisions per the DMG tables.
+  if (lm.demihumans || lm.humanoids){
+    const pop = document.createElement('div');
+    pop.className = 'li-section';
+    let pHtml = '<div class="li-section-title">Population</div>';
+    if (lm.demihumans)
+      pHtml += `<div class="li-detail-row"><span class="label">Demi-humans</span><span class="value">${ESC(lm.demihumans)}</span></div>`;
+    if (lm.humanoids)
+      pHtml += `<div class="li-detail-row"><span class="label">Humanoids</span><span class="value">${ESC(lm.humanoids)}</span></div>`;
+    pop.innerHTML = pHtml;
+    body.appendChild(pop);
+  }
 
   // Features: port/water chips (only if applicable)
   if (lm.isPort || lm.onWater){
@@ -1170,6 +1205,13 @@ function openLandmarkInfo(id){
     fHtml += '</div>';
     feats.innerHTML = fHtml;
     body.appendChild(feats);
+  }
+
+  if (lm.resources){
+    const r = document.createElement('div');
+    r.className = 'li-section';
+    r.innerHTML = `<div class="li-section-title">Resources</div><div class="li-text">${ESC(lm.resources)}</div>`;
+    body.appendChild(r);
   }
 
   if (lm.notes){
@@ -1184,7 +1226,7 @@ function openLandmarkInfo(id){
     d.className = 'li-section';
     d.innerHTML = `<div class="li-section-title">Description</div><div class="li-text">${ESC(lm.desc)}</div>`;
     body.appendChild(d);
-  } else if (!lm.notes){
+  } else if (!lm.notes && !lm.rulerName && !lm.rulerTitle && !lm.resources && !lm.demihumans && !lm.humanoids){
     // Completely bare landmark — leave a hint so the panel doesn't look broken.
     const empty = document.createElement('div');
     empty.className = 'li-empty';
