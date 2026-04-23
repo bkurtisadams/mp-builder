@@ -655,6 +655,27 @@ async function renderCampaigns() {
   // Resolve campaign images from IndexedDB
   const imgKeys = camps.map(c => c.campaignImage).filter(v => v && GCCImages.isKey(v));
   const imgMap = await GCCImages.getBulk(imgKeys);
+
+  // Cross-device fallback: IndexedDB is per-device, so a key uploaded on
+  // desktop won't resolve on mobile. If pushSharedData has run for this
+  // campaign, the shared Firestore doc at campaigns/{id} holds a Firebase
+  // Storage download URL we can use instead. Cache the URL back into local
+  // gcc-campaigns so subsequent renders skip the Firestore round-trip.
+  const unresolved = camps.filter(c =>
+    c.campaignImage && GCCImages.isKey(c.campaignImage) && !imgMap[c.campaignImage]);
+  if (unresolved.length && typeof GCCInvite !== 'undefined' && GCCAuth?.getUser()) {
+    await Promise.all(unresolved.map(async c => {
+      try {
+        const shared = await GCCInvite.getSharedData(c.id);
+        const url = shared && shared.campaignImage;
+        if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+          imgMap[c.campaignImage] = url;
+          GCC.updateCampaign(c.id, { campaignImage: url });
+        }
+      } catch(e) { /* leave image empty; next render will retry */ }
+    }));
+  }
+
   const resolveImg = v => { if (!v) return ''; if (GCCImages.isKey(v)) return imgMap[v] || ''; return v; };
 
   grid.innerHTML = camps.map(c => {
