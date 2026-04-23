@@ -1082,6 +1082,16 @@ function onHexClick(col,row){
 }
 
 // ── PANELS ────────────────────────────────────────────────────────────────────
+// Place the side panel at its persisted location, or default to the
+// top-right of the map area if nothing is saved. Used by both the
+// hex-click path and the Party button so they stay in sync.
+function ensureSidePanelPlaced(){
+  const sp=document.getElementById('side-panel');
+  if (!spDrag) return;
+  if (spDrag.restore()) return;
+  const topOff=(document.getElementById('gcc-bar')?.offsetHeight||0)+46;
+  spDrag.place(window.innerWidth - sp.offsetWidth - 14, topOff + 14);
+}
 function updateSidePanel(col,row,terrain,region,dist){
   const _id = hexIdStr(col,row);
   const _lm = (typeof GCCLandmarks !== 'undefined') ? GCCLandmarks.getById(_id) : null;
@@ -1103,7 +1113,9 @@ function updateSidePanel(col,row,terrain,region,dist){
       delete liBtn.dataset.landmarkId;
     }
   }
-  document.getElementById('side-panel').classList.add('open');
+  const sp=document.getElementById('side-panel');
+  if (!sp.classList.contains('open')) ensureSidePanelPlaced();
+  sp.classList.add('open');
   document.getElementById('btn-panel-toggle').textContent='Party ◂';
 }
 function showMoveDialog(col,row,terrain,dist){
@@ -1558,13 +1570,7 @@ function wireEvents(){
   document.getElementById('btn-panel-toggle').addEventListener('click',()=>{
     const sp=document.getElementById('side-panel');
     const willOpen=!sp.classList.contains('open');
-    if (willOpen && spDrag){
-      if (!spDrag.restore()){
-        // Default: top-right of the map area, below the toolbars
-        const topOff=(document.getElementById('gcc-bar')?.offsetHeight||0)+46;
-        spDrag.place(window.innerWidth - sp.offsetWidth - 14, topOff + 14);
-      }
-    }
+    if (willOpen) ensureSidePanelPlaced();
     sp.classList.toggle('open');
     document.getElementById('btn-panel-toggle').textContent=willOpen?'Party ◂':'Party ▸';
   });
