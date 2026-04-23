@@ -130,6 +130,43 @@
   #btn-cancel-move { background:rgba(200,148,26,.08); border:1px solid var(--panel-border); color:#c8a96e; }
   #btn-cancel-move:hover { background:rgba(200,148,26,.18); border-color:var(--gold); }
 
+  /* LANDMARK INFO — floating details panel, draggable by header */
+  #landmark-info { position:fixed; top:0; left:0; width:260px; max-height:70vh; overflow:hidden;
+    background:#120900; border:1px solid var(--gold); border-radius:2px; z-index:60;
+    box-shadow:0 8px 32px rgba(0,0,0,.7); opacity:0; pointer-events:none;
+    transition:opacity .18s ease; display:flex; flex-direction:column; }
+  #landmark-info.open { opacity:1; pointer-events:all; }
+  #li-header { padding:9px 30px 6px 11px; border-bottom:1px solid var(--panel-border);
+    position:relative; cursor:grab; user-select:none; }
+  #li-header.dragging { cursor:grabbing; }
+  #li-header h2 { font-family:'Cinzel',serif; font-size:12px; color:var(--gold-light);
+    letter-spacing:.08em; margin-bottom:3px; }
+  #li-subtitle { font-size:10px; color:#c8a96e; font-style:italic; line-height:1.3; }
+  #li-close { position:absolute; top:6px; right:8px; background:rgba(200,148,26,.1);
+    border:1px solid var(--panel-border); color:#c8a96e; font-size:12px; cursor:pointer;
+    padding:2px 6px; border-radius:2px; line-height:1; z-index:10; }
+  #li-close:hover { background:rgba(200,148,26,.3); color:#ffeebb; }
+  #li-body { overflow-y:auto; padding:9px 11px; display:flex; flex-direction:column; gap:9px; }
+  #li-body::-webkit-scrollbar { width:4px; }
+  #li-body::-webkit-scrollbar-thumb { background:rgba(200,148,26,.3); }
+  .li-section { display:flex; flex-direction:column; gap:4px; }
+  .li-section-title { font-family:'Cinzel',serif; font-size:9px; color:#8b6e45;
+    letter-spacing:.1em; text-transform:uppercase; border-bottom:1px solid rgba(139,110,69,.3);
+    padding-bottom:2px; }
+  .li-detail-row { display:flex; justify-content:space-between; gap:8px; font-size:11px;
+    color:var(--parchment-light); line-height:1.3; }
+  .li-detail-row .label { color:#8b6e45; flex-shrink:0; }
+  .li-detail-row .value { text-align:right; color:var(--parchment-light); }
+  .li-features { display:flex; flex-wrap:wrap; gap:4px; }
+  .li-feature-chip { font-size:10px; color:#7ab8d4; background:rgba(122,184,212,.12);
+    border:1px solid rgba(122,184,212,.35); padding:2px 7px; border-radius:2px;
+    letter-spacing:.03em; }
+  .li-feature-chip.port { color:#e8b840; background:rgba(200,148,26,.12);
+    border-color:rgba(200,148,26,.4); }
+  .li-text { font-size:11px; color:var(--parchment-light); line-height:1.4;
+    white-space:pre-wrap; word-wrap:break-word; }
+  .li-empty { font-size:11px; color:#6e5a40; font-style:italic; }
+
   /* TOAST */
   #toast { position:fixed; bottom:56px; left:50%; transform:translateX(-50%) translateY(16px); background:var(--panel-bg); border:1px solid var(--gold); color:var(--gold-light); font-family:'Cinzel',serif; font-size:11px; letter-spacing:.06em; padding:7px 16px; border-radius:2px; z-index:300; opacity:0; pointer-events:none; transition:all .25s; white-space:nowrap; }
   #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
@@ -233,6 +270,7 @@
     <div class="panel-row"><label>Est. Travel Time</label><div class="value" id="p-travel">—</div></div>
     <div class="panel-row"><label>Hexes Explored</label><div class="value" id="p-explored">0</div></div>
     <hr class="panel-divider">
+    <button class="panel-btn" id="p-btn-landmark-info" style="display:none">ℹ Landmark Info</button>
     <button class="panel-btn primary" id="p-btn-explore">⬡ Explore Sub-Map</button>
     <button class="panel-btn" id="p-btn-encounter">⚄ Check Encounter</button>
     <button class="panel-btn" id="p-btn-rest">⛺ Make Camp</button>
@@ -264,6 +302,15 @@
     <button id="btn-cancel-move">Cancel</button>
     <button id="btn-confirm-move">Confirm Move</button>
   </div>
+</div>
+
+<div id="landmark-info">
+  <button id="li-close" title="Close">✕</button>
+  <div id="li-header">
+    <h2 id="li-name">—</h2>
+    <div id="li-subtitle">—</div>
+  </div>
+  <div id="li-body"></div>
 </div>
 <!-- Image alignment panel -->
 <div id="img-align-panel">
@@ -1044,6 +1091,18 @@ function updateSidePanel(col,row,terrain,region,dist){
   document.getElementById('p-region').textContent=region;
   document.getElementById('p-travel').textContent=dist>0?travelTime(terrain,dist):'Current position';
   document.getElementById('p-explored').textContent=Object.values(state.hexData).filter(h=>h.explored).length;
+  // Landmark Info button — only shown when the clicked hex hosts a landmark.
+  // Clicking it opens the #landmark-info floating panel with full details.
+  const liBtn = document.getElementById('p-btn-landmark-info');
+  if (liBtn){
+    if (_lm){
+      liBtn.style.display = '';
+      liBtn.dataset.landmarkId = _id;
+    } else {
+      liBtn.style.display = 'none';
+      delete liBtn.dataset.landmarkId;
+    }
+  }
   document.getElementById('side-panel').classList.add('open');
   document.getElementById('btn-panel-toggle').textContent='Party ◂';
 }
@@ -1060,6 +1119,85 @@ function showMoveDialog(col,row,terrain,dist){
 function closeMoveDialog(){
   document.getElementById('move-dialog').classList.remove('open');
   state.pendingMove=null;
+}
+
+// ── LANDMARK INFO PANEL ──────────────────────────────────────────────────────
+// Opens a floating, draggable details panel for the landmark at hex `id`
+// (Darlene hex ID). Populates sections conditionally — empty fields are
+// hidden rather than rendered as empty rows. First open centers the panel
+// in the visible map area via liDrag.placeCenter(); subsequent opens
+// restore the last-saved drag position.
+let liDrag = null;
+function openLandmarkInfo(id){
+  if (typeof GCCLandmarks === 'undefined') return;
+  const lm = GCCLandmarks.getById(id);
+  if (!lm) return;
+  const ESC = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+  // Header: name + summary line (kind · size · population)
+  document.getElementById('li-name').textContent = lm.name;
+  const summaryBits = [];
+  if (lm.kind) summaryBits.push(lm.kind.charAt(0).toUpperCase() + lm.kind.slice(1));
+  if (lm.size) summaryBits.push(lm.size.charAt(0).toUpperCase() + lm.size.slice(1));
+  if (lm.pop)  summaryBits.push(`pop ${lm.pop.toLocaleString()}`);
+  document.getElementById('li-subtitle').textContent = summaryBits.join(' · ') || '—';
+
+  // Body sections: details / features / notes / desc. Each appears only if
+  // the corresponding fields have content, so a bare landmark just shows
+  // hex ID + region without a bunch of empty frames.
+  const body = document.getElementById('li-body');
+  body.innerHTML = '';
+  const hit = GCCLandmarks.hex(id);
+  const terrainLabel = hit ? (TERRAIN[getHexTerrain(hit.col, hit.row)]?.label || '—') : '—';
+
+  // Details section — always present, minimally hex ID + terrain
+  const details = document.createElement('div');
+  details.className = 'li-section';
+  let dHtml = '<div class="li-section-title">Details</div>';
+  dHtml += `<div class="li-detail-row"><span class="label">Hex ID</span><span class="value">${ESC(id)}</span></div>`;
+  dHtml += `<div class="li-detail-row"><span class="label">Terrain</span><span class="value">${ESC(terrainLabel)}</span></div>`;
+  if (lm.region)
+    dHtml += `<div class="li-detail-row"><span class="label">Region</span><span class="value">${ESC(lm.region)}</span></div>`;
+  details.innerHTML = dHtml;
+  body.appendChild(details);
+
+  // Features: port/water chips (only if applicable)
+  if (lm.isPort || lm.onWater){
+    const feats = document.createElement('div');
+    feats.className = 'li-section';
+    let fHtml = '<div class="li-section-title">Features</div><div class="li-features">';
+    if (lm.isPort)       fHtml += `<span class="li-feature-chip port">⚓ Seaport</span>`;
+    else if (lm.onWater) fHtml += `<span class="li-feature-chip">≈ On water</span>`;
+    fHtml += '</div>';
+    feats.innerHTML = fHtml;
+    body.appendChild(feats);
+  }
+
+  if (lm.notes){
+    const n = document.createElement('div');
+    n.className = 'li-section';
+    n.innerHTML = `<div class="li-section-title">Notes</div><div class="li-text">${ESC(lm.notes)}</div>`;
+    body.appendChild(n);
+  }
+
+  if (lm.desc){
+    const d = document.createElement('div');
+    d.className = 'li-section';
+    d.innerHTML = `<div class="li-section-title">Description</div><div class="li-text">${ESC(lm.desc)}</div>`;
+    body.appendChild(d);
+  } else if (!lm.notes){
+    // Completely bare landmark — leave a hint so the panel doesn't look broken.
+    const empty = document.createElement('div');
+    empty.className = 'li-empty';
+    empty.textContent = 'No description yet.';
+    body.appendChild(empty);
+  }
+
+  const panel = document.getElementById('landmark-info');
+  panel.classList.add('open');
+  if (liDrag && !liDrag.restore()) liDrag.placeCenter();
+}
+function closeLandmarkInfo(){
+  document.getElementById('landmark-info').classList.remove('open');
 }
 function confirmMove(){
   if(!state.pendingMove) return;
@@ -1425,6 +1563,14 @@ function wireEvents(){
   document.getElementById('p-btn-rest').addEventListener('click',()=>showToast('Camp — CTT Phase 3'));
   document.getElementById('p-btn-build').addEventListener('click',()=>showToast('Stronghold — Phase 4'));
 
+  // Landmark info panel — opens from the Party Position side panel's
+  // ℹ Landmark Info button when the clicked hex has a landmark.
+  document.getElementById('p-btn-landmark-info').addEventListener('click', e=>{
+    const id = e.currentTarget.dataset.landmarkId;
+    if (id) openLandmarkInfo(id);
+  });
+  document.getElementById('li-close').addEventListener('click', closeLandmarkInfo);
+
   // ── TOUCH: one-finger pan, two-finger pinch-zoom, single-tap hex click ──
   // Mirrors the mouse pan/wheel-zoom logic using the same state vars (panX/panY/zoom)
   // and reuses doZoom/clampPan/applyTransform. touch-action:none on #map-wrap
@@ -1534,7 +1680,7 @@ function wireEvents(){
     if(e.key==='h'||e.key==='H') centerOnHex(state.partyCol,state.partyRow);
     if(e.key==='='||e.key==='+') doZoom(1.2);
     if(e.key==='-') doZoom(.83);
-    if(e.key==='Escape'){ closeMoveDialog(); }
+    if(e.key==='Escape'){ closeMoveDialog(); closeLandmarkInfo(); }
   });
 }
 
@@ -1569,6 +1715,11 @@ function init(){
       document.getElementById('move-dialog'),
       document.getElementById('move-dialog').querySelector('h3'),
       'gh-move-dlg-pos'
+    );
+    liDrag = makeDraggable(
+      document.getElementById('landmark-info'),
+      document.getElementById('li-header'),
+      'gh-landmark-info-pos'
     );
     const w=document.getElementById('map-wrap');
     // Start at whichever is smaller: the default 0.5, or a zoom that fits the

@@ -1,10 +1,15 @@
-// gcc-hex-edit.js v0.6.2 — 2026-04-23
+// gcc-hex-edit.js v0.6.3 — 2026-04-23
 // Hex Editor: tab shell for Landmarks / Paint / Outline / Draw.
 // Requires globals: GCCLandmarks, GCCTerrain, TERRAIN, hexIdStr,
 //   darleneToInternal, mapToHex, screenToMap, showToast,
 //   rebuildLandmarkOverlay/rebuildGrid/buildHexGrid,
 //   makeDraggable (from greyhawk-map.html inline script).
 //
+// v0.6.3: Description textarea on Landmarks pane — long-form landmark
+//   text surfaced in the map's new landmark info panel (Layer 1+2 of
+//   landmark-details). Saves on blur for placed landmarks; captured in
+//   state.newFields for new-mode and applied on placement. Threaded
+//   through canonical-ID override + hex-click paths.
 // v0.6.2: Rename "Port ⚓" checkbox → "On Water ≈" (broad water-adjacent
 //   tag). Element IDs he-is-port/he-port-hint/he-port-row → he-on-water/
 //   he-water-hint/he-water-row; handler onPortToggle → onWaterToggle.
@@ -81,7 +86,7 @@
     activeTab: 'landmarks',
     selectedName: null,
     newMode: false,
-    newFields: { name:'', kind:'city', region:'', onWater:false },
+    newFields: { name:'', kind:'city', region:'', onWater:false, desc:'' },
     paintTerrain: 'plains',
     paintOpacity: initialOpacity,
     paintDragging: false,
@@ -143,6 +148,16 @@
     p.querySelector('#he-new-region').oninput = e => state.newFields.region = e.target.value;
     p.querySelector('#he-on-water').onchange  = onWaterToggle;
     p.querySelector('#he-filter').oninput     = e => refreshSelect(e.target.value);
+    // Description textarea: in new-mode, capture state; for existing placed
+    // landmarks, persist on blur (so we don't thrash setOverride every
+    // keystroke). Hint text mirrors the pattern used by the water toggle.
+    const descEl = p.querySelector('#he-desc');
+    descEl.addEventListener('input', () => {
+      const hint = p.querySelector('#he-desc-hint');
+      if (state.newMode){ state.newFields.desc = descEl.value; hint.textContent = descEl.value ? 'saved on place' : 'optional'; }
+      else if (state.selectedName){ hint.textContent = 'unsaved — click out to save'; }
+    });
+    descEl.addEventListener('blur', onDescBlur);
 
     // Paint tab wiring
     p.querySelectorAll('.he-swatch').forEach(sw =>
@@ -241,6 +256,12 @@
           <span>On Water ≈</span>
           <span class="he-water-hint" id="he-water-hint" style="color:#88ccdd;font-weight:normal;font-size:9px;margin-left:auto">—</span>
         </label>
+
+        <label class="he-lbl" style="margin-top:8px;display:flex;justify-content:space-between;align-items:center">
+          <span>Description</span>
+          <span class="he-desc-hint" id="he-desc-hint" style="color:#88ccdd;font-weight:normal;font-size:9px">—</span>
+        </label>
+        <textarea class="he-input" id="he-desc" rows="5" placeholder="Long-form description shown in the map's landmark info panel. Player-visible." style="resize:vertical;min-height:70px;font-family:inherit"></textarea>
 
         <div class="he-new" id="he-new" style="display:none">
           <label class="he-lbl">Name</label>
@@ -455,6 +476,8 @@
     const idHint   = state.panelEl.querySelector('#he-id-hint');
     const waterCb   = state.panelEl.querySelector('#he-on-water');
     const waterHint = state.panelEl.querySelector('#he-water-hint');
+    const descEl    = state.panelEl.querySelector('#he-desc');
+    const descHint  = state.panelEl.querySelector('#he-desc-hint');
     if (v === '__new__'){
       state.newMode = true;
       state.selectedName = null;
@@ -463,6 +486,8 @@
       idHint.textContent = 'New landmarks get their ID from the hex you click.';
       waterCb.checked = !!state.newFields.onWater;
       waterHint.textContent = 'applied on place';
+      descEl.value = state.newFields.desc || '';
+      descHint.textContent = 'saved on place';
       setStatus('Fill in name + kind, then click a hex.', false);
     } else if (v){
       state.newMode = false;
@@ -475,6 +500,8 @@
         : 'No ID yet — type the canonical ID or click a hex.';
       waterCb.checked = !!(existing && existing.onWater);
       waterHint.textContent = existing && existing.id ? 'toggle to apply' : 'place landmark first';
+      descEl.value = (existing && existing.desc) || '';
+      descHint.textContent = existing && existing.id ? 'edit, then click out to save' : 'place landmark first';
       const idLabel = existing && existing.id ? ` (currently ${existing.id})` : ' (unplaced)';
       setStatus(`Armed: ${v}${idLabel}. Click a hex, or type an ID above.`, true);
     } else {
@@ -485,6 +512,8 @@
       idHint.textContent = 'Select a landmark first.';
       waterCb.checked = false;
       waterHint.textContent = '—';
+      descEl.value = '';
+      descHint.textContent = '—';
       setStatus('Pick a landmark, then click a hex.', false);
     }
   }
@@ -530,6 +559,37 @@
     }
   }
 
+  // Description blur: for new-mode, state.newFields already holds current
+  // value (via input handler) — nothing to persist until placement. For an
+  // existing placed landmark, write the current textarea value to its
+  // override via setOverride so the landmark info panel on the map reflects
+  // it immediately.
+  function onDescBlur(e){
+    if (state.newMode) return;  // captured in newFields; written on placement
+    const name = state.selectedName;
+    const descEl = e.currentTarget;
+    const hint = state.panelEl.querySelector('#he-desc-hint');
+    if (!name){ return; }
+    const existing = GCCLandmarks.getByName(name) || {};
+    if (!existing.id){ hint.textContent = 'place landmark first'; return; }
+    const newDesc = descEl.value;
+    if ((existing.desc || '') === newDesc){ hint.textContent = existing.desc ? 'saved' : 'optional'; return; }
+    const payload = {
+      name,
+      id:      existing.id,
+      kind:    existing.kind || 'city',
+      region:  existing.region,
+      notes:   existing.notes,
+      desc:    newDesc,
+      onWater: !!existing.onWater,
+      isPort:  !!existing.isPort,
+    };
+    if (existing.symbolPixel) payload.symbolPixel = existing.symbolPixel;
+    const ok = GCCLandmarks.setOverride(payload);
+    LOG('desc saved →', { name, length: newDesc.length, ok });
+    hint.textContent = ok ? (newDesc ? '✓ saved' : '✓ cleared') : 'save failed';
+  }
+
   function onSetCanonicalId(){
     const idInput = state.panelEl.querySelector('#he-canon-id');
     const idHint  = state.panelEl.querySelector('#he-id-hint');
@@ -559,6 +619,7 @@
       kind:    existing.kind   || 'city',
       region:  existing.region,
       notes:   existing.notes,
+      desc:    existing.desc || '',
       onWater: !!existing.onWater,
       isPort:  !!existing.isPort,
     };
@@ -609,12 +670,13 @@
     const hit = mapToHex(m.x, m.y);
     if (!hit){ setStatus('Click was outside the hex grid.', false); return; }
 
-    let name, kind, region, notes, onWater, isPort;
+    let name, kind, region, notes, desc, onWater, isPort;
     if (state.newMode){
       name = (state.newFields.name || '').trim();
       if (!name){ setStatus('Enter a name first.', false); return; }
       kind = state.newFields.kind || 'city';
       region = state.newFields.region || '';
+      desc = state.newFields.desc || '';
       onWater = !!state.newFields.onWater;
       isPort = false;  // reserved: voyage sim owns this later
     } else if (state.selectedName){
@@ -623,6 +685,7 @@
       kind = existing.kind || 'city';
       region = existing.region;
       notes = existing.notes;
+      desc = existing.desc || '';
       // On-water is governed by the checkbox (onWaterToggle). Preserve
       // both flags on re-placement so dragging to a new hex doesn't lose them.
       onWater = !!existing.onWater;
@@ -633,7 +696,7 @@
     }
 
     const id = hexIdStr(hit.col, hit.row);
-    const payload = { name, id, kind, region, notes, onWater, isPort };
+    const payload = { name, id, kind, region, notes, desc, onWater, isPort };
     payload.symbolPixel = { mx: m.x, my: m.y };
     const ok = GCCLandmarks.setOverride(payload);
     LOG('setOverride →', { name, id, kind, ok, pixel: { mx: m.x, my: m.y } });
@@ -645,10 +708,12 @@
       state.panelEl.querySelector('#he-new-region').value = '';
       state.panelEl.querySelector('#he-new-kind').value = 'city';
       state.panelEl.querySelector('#he-on-water').checked = false;
+      state.panelEl.querySelector('#he-desc').value = '';
       state.newFields.name = '';
       state.newFields.region = '';
       state.newFields.kind = 'city';
       state.newFields.onWater = false;
+      state.newFields.desc = '';
     }
     state.selectedName = null;
     refreshSelect();

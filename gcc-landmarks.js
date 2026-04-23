@@ -1,7 +1,11 @@
-// gcc-landmarks.js v0.7.0 — 2026-04-23
+// gcc-landmarks.js v0.7.1 — 2026-04-23
 // World of Greyhawk landmarks, keyed by Darlene hex ID.
 // Layered store: BASE file data + PENDING (no hex yet) + OVERRIDES (localStorage).
 //
+// v0.7.1: added `desc` field — long-form landmark description surfaced in
+//   the map's landmark info panel (Layer 1 of the landmark-details work).
+//   Editable via the hex editor's Landmarks pane. Plumbed through
+//   setOverride and exportMergedSource.
 // v0.7.0: `isPort` (broad "water-accessible") renamed to `onWater`; the
 //   name `isPort` is now reserved for a narrower "trading seaport"
 //   designation the voyage simulator will own later. Legacy override
@@ -27,6 +31,8 @@
 //
 // Format: "Letter[Rep]-Diag": { name, kind, ... }
 //   kind:    "city" | "town" | "castle" | "ruin" | "village" | "feature" | "landmark"
+//   notes:   short freeform text (existing field, shown on map hover via id)
+//   desc:    long-form description — player-visible, shown in landmark info panel
 //   onWater: true (optional) — landmark is on or adjacent to water (river,
 //            lake, coast). Renders a wave ≈ overlay on the map. Broad tag.
 //   isPort:  true (optional, reserved) — landmark is a true trading seaport
@@ -227,6 +233,12 @@
     const existing = getByName(entry.name) || {};
     if (entry.region || existing.region) merged.region = entry.region || existing.region;
     if (entry.notes  || existing.notes)  merged.notes  = entry.notes  || existing.notes;
+    // desc: long-form landmark description surfaced in the info panel
+    // on the map. Explicit empty string clears an existing desc; undefined
+    // inherits. (Notes/region use || so '' falls through — desc is
+    // new data, no legacy to preserve.)
+    if (typeof entry.desc === 'string') merged.desc = entry.desc;
+    else if (existing.desc) merged.desc = existing.desc;
     // onWater (broad water-adjacent) and isPort (narrow trading seaport —
     // reserved for voyage sim). Both booleans use three-state logic: an
     // explicit boolean in `entry` wins, otherwise inherit from base.
@@ -301,6 +313,7 @@
       if (e.pop)    parts.push(`pop: ${e.pop}`);
       if (e.region) parts.push(`region: ${JSON.stringify(e.region)}`);
       if (e.notes)   parts.push(`notes: ${JSON.stringify(e.notes)}`);
+      if (e.desc)    parts.push(`desc: ${JSON.stringify(e.desc)}`);
       if (e.onWater) parts.push(`onWater: true`);
       if (e.isPort)  parts.push(`isPort: true`);
       lines.push(`    ${JSON.stringify(id).padEnd(10)}: { ${parts.join(', ')} },`);
