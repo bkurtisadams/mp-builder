@@ -1103,10 +1103,15 @@ function makeDraggable(target, handle, key){
   const st={active:false, sx:0, sy:0, startX:0, startY:0};
   const load=()=>{ try{ return JSON.parse(localStorage.getItem(key)||'null'); }catch(e){ return null; } };
   const save=(x,y)=>{ try{ localStorage.setItem(key, JSON.stringify({x,y})); }catch(e){} };
+  // Minimum y so draggables don't end up under the fixed gcc-bar + #topbar
+  // (46px). Computed dynamically because gcc-bar-h changes when the bar
+  // wraps on narrow viewports (mobile).
+  const topOffset=()=>((document.getElementById('gcc-bar')?.offsetHeight||44)+46+4);
   const clamp=(x,y)=>{
     const vw=window.innerWidth, vh=window.innerHeight;
     const w=target.offsetWidth||240, h=target.offsetHeight||120;
-    return { x:Math.max(4, Math.min(vw-w-4, x)), y:Math.max(4, Math.min(vh-h-4, y)) };
+    const top=topOffset();
+    return { x:Math.max(4, Math.min(vw-w-4, x)), y:Math.max(top, Math.min(vh-h-4, y)) };
   };
   const place=(x,y)=>{
     const c=clamp(x,y);
@@ -1115,7 +1120,11 @@ function makeDraggable(target, handle, key){
   };
   const placeCenter=()=>{
     const w=target.offsetWidth||240, h=target.offsetHeight||120;
-    place((window.innerWidth-w)/2, (window.innerHeight-h)/2);
+    const top=topOffset();
+    // Center horizontally; vertically center within the area below the
+    // header strip rather than the full window so the drag handle never
+    // slides under the toolbar on first open.
+    place((window.innerWidth-w)/2, top + Math.max(0, (window.innerHeight-top-h)/2));
   };
   const restore=()=>{
     const p=load();
