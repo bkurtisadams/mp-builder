@@ -65,6 +65,14 @@
                     fill:#2a1a08; stroke:#f4e4b8; stroke-width:0.3;
                     paint-order:stroke; text-anchor:middle;
                     pointer-events:none; letter-spacing:.05em; }
+  /* Broad water-adjacent tag: wave glyph, light blue, low visual weight
+     so it reads as an accent rather than competing with the kind marker. */
+  .landmark-water { font-size:5.5px; font-weight:700; fill:#7ab8d4; stroke:#0a2030; stroke-width:0.25;
+                    paint-order:stroke; text-anchor:middle; dominant-baseline:central;
+                    pointer-events:none;
+                    filter: drop-shadow(0 0 1px rgba(0,0,0,.5)); }
+  /* Reserved: narrower "trading seaport" tag (voyage sim). Rendered when
+     isPort:true supersedes onWater:true for that landmark. */
   .landmark-port  { font-size:6.5px; fill:#1a2a3a; stroke:#d4e8ff; stroke-width:0.35;
                     paint-order:stroke; text-anchor:middle; dominant-baseline:central;
                     pointer-events:none;
@@ -959,9 +967,10 @@ function buildLandmarkOverlay(){
     label.textContent = lm.name;
     g.appendChild(label);
 
-    // Port overlay: anchor glyph offset to the upper-right of the main
-    // marker. Composes with any kind (a city can also be a port), so this
-    // is drawn after the kind symbol rather than replacing it.
+    // Water/port overlay: composes with any kind marker. isPort (narrow
+    // trading-seaport tag, reserved for voyage sim) wins over onWater
+    // (broad water-adjacent tag) since a seaport implies water access,
+    // and we don't want to stack two glyphs in the same upper-right slot.
     if (lm.isPort){
       const anchor = document.createElementNS(ns,'text');
       anchor.setAttribute('x', (x + 4.5).toFixed(1));
@@ -970,6 +979,14 @@ function buildLandmarkOverlay(){
       anchor.textContent = '⚓';
       anchor.dataset.id = id;
       g.appendChild(anchor);
+    } else if (lm.onWater){
+      const wave = document.createElementNS(ns,'text');
+      wave.setAttribute('x', (x + 4.5).toFixed(1));
+      wave.setAttribute('y', (y - 3.5).toFixed(1));
+      wave.setAttribute('class','landmark-water');
+      wave.textContent = '≈';
+      wave.dataset.id = id;
+      g.appendChild(wave);
     }
   }
   return g;

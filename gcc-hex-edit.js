@@ -1,10 +1,18 @@
-// gcc-hex-edit.js v0.6.1 — 2026-04-23
+// gcc-hex-edit.js v0.6.2 — 2026-04-23
 // Hex Editor: tab shell for Landmarks / Paint / Outline / Draw.
 // Requires globals: GCCLandmarks, GCCTerrain, TERRAIN, hexIdStr,
 //   darleneToInternal, mapToHex, screenToMap, showToast,
 //   rebuildLandmarkOverlay/rebuildGrid/buildHexGrid,
 //   makeDraggable (from greyhawk-map.html inline script).
 //
+// v0.6.2: Rename "Port ⚓" checkbox → "On Water ≈" (broad water-adjacent
+//   tag). Element IDs he-is-port/he-port-hint/he-port-row → he-on-water/
+//   he-water-hint/he-water-row; handler onPortToggle → onWaterToggle.
+//   Type-filter input above landmark dropdown — case-insensitive substring
+//   filter via refreshSelect(filter). Filter hides "+ New landmark…"
+//   option while active so it doesn't match unintentionally. isPort +
+//   anchor ⚓ are retained in the overlay path but reserved for voyage
+//   sim; no UI toggle for it yet.
 // v0.6.1: Port ⚓ checkbox on Landmarks pane — toggles isPort attribute
 //   on landmarks. Immediate apply for placed landmarks (setOverride +
 //   redrawOverlay so ⚓ appears/disappears without re-clicking the hex).
@@ -73,7 +81,7 @@
     activeTab: 'landmarks',
     selectedName: null,
     newMode: false,
-    newFields: { name:'', kind:'city', region:'', isPort:false },
+    newFields: { name:'', kind:'city', region:'', onWater:false },
     paintTerrain: 'plains',
     paintOpacity: initialOpacity,
     paintDragging: false,
@@ -133,7 +141,8 @@
     p.querySelector('#he-new-name').oninput   = e => state.newFields.name   = e.target.value;
     p.querySelector('#he-new-kind').onchange  = e => state.newFields.kind   = e.target.value;
     p.querySelector('#he-new-region').oninput = e => state.newFields.region = e.target.value;
-    p.querySelector('#he-is-port').onchange   = onPortToggle;
+    p.querySelector('#he-on-water').onchange  = onWaterToggle;
+    p.querySelector('#he-filter').oninput     = e => refreshSelect(e.target.value);
 
     // Paint tab wiring
     p.querySelectorAll('.he-swatch').forEach(sw =>
@@ -216,6 +225,7 @@
     return `
       <div class="he-pane" id="he-pane-landmarks">
         <label class="he-lbl">Landmark</label>
+        <input class="he-input" id="he-filter" type="text" placeholder="Filter…" autocomplete="off" spellcheck="false" style="margin-bottom:4px">
         <select class="he-select" id="he-select"></select>
 
         <label class="he-lbl" style="margin-top:8px">Canonical Hex ID</label>
@@ -226,10 +236,10 @@
         </div>
         <div class="he-id-hint" id="he-id-hint">Select a landmark first.</div>
 
-        <label class="he-lbl he-port-row" style="margin-top:8px;display:flex;align-items:center;gap:6px;cursor:pointer">
-          <input type="checkbox" id="he-is-port" style="margin:0;cursor:pointer">
-          <span>Port ⚓</span>
-          <span class="he-port-hint" id="he-port-hint" style="color:#88ccdd;font-weight:normal;font-size:9px;margin-left:auto">—</span>
+        <label class="he-lbl he-water-row" style="margin-top:8px;display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="he-on-water" style="margin:0;cursor:pointer">
+          <span>On Water ≈</span>
+          <span class="he-water-hint" id="he-water-hint" style="color:#88ccdd;font-weight:normal;font-size:9px;margin-left:auto">—</span>
         </label>
 
         <div class="he-new" id="he-new" style="display:none">
@@ -415,20 +425,26 @@
   }
 
   // ── Landmarks tab ─────────────────────────────────────────────────────────
-  function refreshSelect(){
+  // Rebuilds the <select>'s options. Optional filter string hides names
+  // that don't contain it (case-insensitive substring) — called on every
+  // keystroke from #he-filter. Current state.selectedName is preserved
+  // even if filtered out; clearing the filter restores the full list.
+  function refreshSelect(filter){
     const sel = state.panelEl.querySelector('#he-select');
     const names = GCCLandmarks.allNames();
     const unplaced = new Set(GCCLandmarks.unplacedPending().map(p => p.name));
     const overridden = new Set(Object.keys(GCCLandmarks.exportOverrides()));
+    const f = (filter || '').trim().toLowerCase();
+    const visible = f ? names.filter(n => n.toLowerCase().includes(f)) : names;
     sel.innerHTML =
       '<option value="">— choose —</option>' +
-      names.map(n => {
+      visible.map(n => {
         let tag = '';
         if (unplaced.has(n)) tag = ' ◇';
         else if (overridden.has(n)) tag = ' ●';
         return `<option value="${n}">${n}${tag}</option>`;
       }).join('') +
-      '<option value="__new__">+ New landmark…</option>';
+      (f ? '' : '<option value="__new__">+ New landmark…</option>');
     sel.value = state.selectedName || '';
   }
 
@@ -437,16 +453,16 @@
     const newBlock = state.panelEl.querySelector('#he-new');
     const idInput  = state.panelEl.querySelector('#he-canon-id');
     const idHint   = state.panelEl.querySelector('#he-id-hint');
-    const portCb   = state.panelEl.querySelector('#he-is-port');
-    const portHint = state.panelEl.querySelector('#he-port-hint');
+    const waterCb   = state.panelEl.querySelector('#he-on-water');
+    const waterHint = state.panelEl.querySelector('#he-water-hint');
     if (v === '__new__'){
       state.newMode = true;
       state.selectedName = null;
       newBlock.style.display = 'block';
       idInput.value = '';
       idHint.textContent = 'New landmarks get their ID from the hex you click.';
-      portCb.checked = !!state.newFields.isPort;
-      portHint.textContent = 'applied on place';
+      waterCb.checked = !!state.newFields.onWater;
+      waterHint.textContent = 'applied on place';
       setStatus('Fill in name + kind, then click a hex.', false);
     } else if (v){
       state.newMode = false;
@@ -457,8 +473,8 @@
       idHint.textContent = existing && existing.id
         ? 'Type the canonical ID and press Enter (or Set) to override.'
         : 'No ID yet — type the canonical ID or click a hex.';
-      portCb.checked = !!(existing && existing.isPort);
-      portHint.textContent = existing && existing.id ? 'toggle to apply' : 'place landmark first';
+      waterCb.checked = !!(existing && existing.onWater);
+      waterHint.textContent = existing && existing.id ? 'toggle to apply' : 'place landmark first';
       const idLabel = existing && existing.id ? ` (currently ${existing.id})` : ' (unplaced)';
       setStatus(`Armed: ${v}${idLabel}. Click a hex, or type an ID above.`, true);
     } else {
@@ -467,50 +483,50 @@
       newBlock.style.display = 'none';
       idInput.value = '';
       idHint.textContent = 'Select a landmark first.';
-      portCb.checked = false;
-      portHint.textContent = '—';
+      waterCb.checked = false;
+      waterHint.textContent = '—';
       setStatus('Pick a landmark, then click a hex.', false);
     }
   }
 
-  // Port toggle: for new-mode, capture the flag for use at placement.
+  // On-water toggle: for new-mode, capture the flag for use at placement.
   // For an existing landmark already assigned to a hex, apply immediately
-  // via setOverride + redraw so the ⚓ overlay updates without requiring
-  // a re-click on the map.
-  function onPortToggle(e){
+  // via setOverride + redraw so the ≈ overlay updates without a re-click.
+  function onWaterToggle(e){
     const checked = !!e.target.checked;
-    const portHint = state.panelEl.querySelector('#he-port-hint');
+    const waterHint = state.panelEl.querySelector('#he-water-hint');
     if (state.newMode){
-      state.newFields.isPort = checked;
-      portHint.textContent = checked ? 'will be a port' : 'applied on place';
+      state.newFields.onWater = checked;
+      waterHint.textContent = checked ? 'will be on water' : 'applied on place';
       return;
     }
     const name = state.selectedName;
     if (!name){ e.target.checked = false; return; }
     const existing = GCCLandmarks.getByName(name) || {};
     if (!existing.id){
-      e.target.checked = !!existing.isPort;
-      portHint.textContent = 'place landmark first';
+      e.target.checked = !!existing.onWater;
+      waterHint.textContent = 'place landmark first';
       return;
     }
     const payload = {
       name,
-      id:     existing.id,
-      kind:   existing.kind || 'city',
-      region: existing.region,
-      notes:  existing.notes,
-      isPort: checked,
+      id:      existing.id,
+      kind:    existing.kind || 'city',
+      region:  existing.region,
+      notes:   existing.notes,
+      onWater: checked,
+      isPort:  !!existing.isPort,  // preserve reserved flag (seaport)
     };
     if (existing.symbolPixel) payload.symbolPixel = existing.symbolPixel;
     const ok = GCCLandmarks.setOverride(payload);
-    LOG('port toggle →', { name, isPort: checked, ok });
+    LOG('onWater toggle →', { name, onWater: checked, ok });
     if (ok){
-      portHint.textContent = checked ? '✓ port' : '✓ not a port';
-      showToast(`${name} ${checked ? 'is now a port ⚓' : 'is no longer a port'}`);
+      waterHint.textContent = checked ? '✓ on water' : '✓ not on water';
+      showToast(`${name} ${checked ? 'is now on water ≈' : 'is no longer on water'}`);
       redrawOverlay();
     } else {
       e.target.checked = !checked;
-      portHint.textContent = 'failed';
+      waterHint.textContent = 'failed';
     }
   }
 
@@ -539,11 +555,12 @@
     const existing = GCCLandmarks.getByName(name) || {};
     const payload = {
       name,
-      id:     normalized,
-      kind:   existing.kind   || 'city',
-      region: existing.region,
-      notes:  existing.notes,
-      isPort: !!existing.isPort,
+      id:      normalized,
+      kind:    existing.kind   || 'city',
+      region:  existing.region,
+      notes:   existing.notes,
+      onWater: !!existing.onWater,
+      isPort:  !!existing.isPort,
     };
     if (existing.symbolPixel) payload.symbolPixel = existing.symbolPixel;
     const ok = GCCLandmarks.setOverride(payload);
@@ -592,29 +609,31 @@
     const hit = mapToHex(m.x, m.y);
     if (!hit){ setStatus('Click was outside the hex grid.', false); return; }
 
-    let name, kind, region, notes, isPort;
+    let name, kind, region, notes, onWater, isPort;
     if (state.newMode){
       name = (state.newFields.name || '').trim();
       if (!name){ setStatus('Enter a name first.', false); return; }
       kind = state.newFields.kind || 'city';
       region = state.newFields.region || '';
-      isPort = !!state.newFields.isPort;
+      onWater = !!state.newFields.onWater;
+      isPort = false;  // reserved: voyage sim owns this later
     } else if (state.selectedName){
       name = state.selectedName;
       const existing = GCCLandmarks.getByName(name) || {};
       kind = existing.kind || 'city';
       region = existing.region;
       notes = existing.notes;
-      // Port status is governed by the checkbox (onPortToggle). Preserve
-      // whatever is currently stored when the user re-places the landmark.
-      isPort = !!existing.isPort;
+      // On-water is governed by the checkbox (onWaterToggle). Preserve
+      // both flags on re-placement so dragging to a new hex doesn't lose them.
+      onWater = !!existing.onWater;
+      isPort  = !!existing.isPort;
     } else {
       setStatus('Pick a landmark first.', false);
       return;
     }
 
     const id = hexIdStr(hit.col, hit.row);
-    const payload = { name, id, kind, region, notes, isPort };
+    const payload = { name, id, kind, region, notes, onWater, isPort };
     payload.symbolPixel = { mx: m.x, my: m.y };
     const ok = GCCLandmarks.setOverride(payload);
     LOG('setOverride →', { name, id, kind, ok, pixel: { mx: m.x, my: m.y } });
@@ -625,11 +644,11 @@
       state.panelEl.querySelector('#he-new-name').value = '';
       state.panelEl.querySelector('#he-new-region').value = '';
       state.panelEl.querySelector('#he-new-kind').value = 'city';
-      state.panelEl.querySelector('#he-is-port').checked = false;
+      state.panelEl.querySelector('#he-on-water').checked = false;
       state.newFields.name = '';
       state.newFields.region = '';
       state.newFields.kind = 'city';
-      state.newFields.isPort = false;
+      state.newFields.onWater = false;
     }
     state.selectedName = null;
     refreshSelect();
