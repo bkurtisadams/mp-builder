@@ -1,10 +1,16 @@
-// gcc-hex-edit.js v0.6.4 — 2026-04-23
+// gcc-hex-edit.js v0.6.5 — 2026-04-23
 // Hex Editor: tab shell for Landmarks / Paint / Outline / Draw.
 // Requires globals: GCCLandmarks, GCCTerrain, TERRAIN, hexIdStr,
 //   darleneToInternal, mapToHex, screenToMap, showToast,
 //   rebuildLandmarkOverlay/rebuildGrid/buildHexGrid,
 //   makeDraggable (from greyhawk-map.html inline script).
 //
+// v0.6.5: Panel now bounded to viewport height. LGG header + desc
+//   textarea made the Landmarks pane taller than the screen on many
+//   laptops — bottom fields were unreachable. Switched panel to a
+//   flex column (header + tabs fixed, active pane flex:1 with its
+//   own overflow-y:auto). Added a themed 6px scrollbar in the panel
+//   gold.
 // v0.6.4: LGG Header group — rulerName, rulerTitle, pop, popTotal,
 //   demihumans, humanoids, resources. Seven inputs wired through a
 //   shared LGG_FIELDS table and a unified persistLandmarkFields() save
@@ -375,12 +381,17 @@
         position:fixed; top:72px; right:16px; width:260px; z-index:2000;
         background:rgba(20,14,6,.96); border:1px solid #c8941a; border-radius:3px;
         font-family:'Cinzel',serif; color:#f4e4b8; box-shadow:0 4px 20px rgba(0,0,0,.6);
+        /* Bound the panel to the viewport so tall panes (LGG header + desc
+           textarea + paint palette) don't spill below the fold. Chrome rows
+           (header, tabs) stay fixed; the active pane scrolls internally. */
+        max-height: calc(100vh - 88px);
+        display: flex; flex-direction: column; overflow: hidden;
       }
       #hex-edit-panel .he-hdr {
         display:flex; justify-content:space-between; align-items:center;
         padding:8px 10px; background:rgba(200,148,26,.18); border-bottom:1px solid #8b6e45;
         font-size:13px; font-weight:600; letter-spacing:.05em;
-        cursor:grab; user-select:none;
+        cursor:grab; user-select:none; flex-shrink:0;
       }
       #hex-edit-panel .he-hdr.dragging { cursor:grabbing; }
       #hex-edit-panel .he-close {
@@ -389,6 +400,7 @@
       #hex-edit-panel .he-close:hover { color:#e8b840; }
       #hex-edit-panel .he-tabs {
         display:flex; border-bottom:1px solid #8b6e45; background:rgba(0,0,0,.25);
+        flex-shrink:0;
       }
       #hex-edit-panel .he-tab {
         flex:1; padding:7px 4px; background:none; border:none; color:#8b6e45;
@@ -399,8 +411,15 @@
       #hex-edit-panel .he-tab.active {
         color:#ffeebb; border-bottom-color:#c8941a; background:rgba(200,148,26,.12);
       }
+      /* Active pane takes remaining vertical space and scrolls its own
+         content. min-height:0 is the flex-child incantation that lets the
+         pane actually shrink + scroll instead of ballooning past its parent. */
       #hex-edit-panel .he-pane { display:none; padding:10px; }
-      #hex-edit-panel .he-pane.active { display:block; }
+      #hex-edit-panel .he-pane.active { display:block; flex:1 1 auto; min-height:0; overflow-y:auto; }
+      #hex-edit-panel .he-pane::-webkit-scrollbar { width:6px; }
+      #hex-edit-panel .he-pane::-webkit-scrollbar-track { background:rgba(0,0,0,.2); }
+      #hex-edit-panel .he-pane::-webkit-scrollbar-thumb { background:rgba(200,148,26,.35); border-radius:3px; }
+      #hex-edit-panel .he-pane::-webkit-scrollbar-thumb:hover { background:rgba(200,148,26,.55); }
       #hex-edit-panel .he-lbl {
         display:block; font-size:10px; text-transform:uppercase; letter-spacing:.08em;
         color:#c8a96e; margin:6px 0 3px;
