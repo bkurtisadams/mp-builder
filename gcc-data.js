@@ -50,7 +50,6 @@ const GCC = (function() {
         { id: 'mp-char', name: 'Character Builder', href: 'character.html', charList: 'mp-char-list' },
         { id: 'mp-veh', name: 'Vehicle Builder', href: 'vehicle.html', charList: 'mp-veh-list' },
         { id: 'mp-r20', name: 'Roll20 Import', href: 'character.html?r20=1' },
-        { id: 'mp-canvas', name: 'Canvas (Layout Editor)', href: null },
       ]
     },
     {
@@ -61,7 +60,6 @@ const GCC = (function() {
       tools: [
         { id: 'fas-char', name: 'Character Sheet', href: 'faserip.html', charList: 'gcc-faserip-chars' },
         { id: 'fas-table', name: 'Universal Table', href: 'faserip-table.html' },
-        { id: 'fas-combat', name: 'Combat Tracker', href: null },
         { id: 'fas-karma', name: 'Karma Log', href: null },
       ]
     },
@@ -71,13 +69,13 @@ const GCC = (function() {
       icon: '🗡',
       color: '#5a8a30',
       tools: [
+        { id: 'add1-map', name: 'Campaign Map', href: 'greyhawk-map.html' },
         { id: 'add1-char', name: 'Character Sheet', href: 'adnd.html', charList: 'gcc-add1e-chars' },
         { id: 'add1-enc', name: 'Encounter Generator', href: null },
         { id: 'add1-trs', name: 'Treasure Generator', href: null },
         { id: 'add1-wild', name: 'Wilderness Generator', href: null },
         { id: 'add1-dun', name: 'DMG Dungeon Builder', href: null },
         { id: 'add1-voy', name: 'Voyage Simulator', href: 'greyhawk-map.html#voyage' },
-        { id: 'add1-map', name: 'Campaign Map', href: 'greyhawk-map.html' },
       ]
     },
 
