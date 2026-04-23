@@ -1,7 +1,11 @@
-// gcc-landmark-edit.js v0.3.1 — 2026-04-19
+// gcc-landmark-edit.js v0.4.0 — 2026-04-23
 // Click-to-place landmark editor + canonical hex ID override input.
 // Requires globals: GCCLandmarks, hexIdStr, darleneToInternal, mapToHex,
 //   screenToMap, showToast, buildHexGrid/rebuildGrid.
+// v0.4.0: Port ⚓ checkbox — toggles isPort attribute on landmarks.
+//   Immediate apply for placed landmarks (via setOverride + redrawOverlay),
+//   captured on state for new-landmark creation. Port status preserved
+//   through hex-click re-placement and canonical-ID override.
 // v0.3.1: UX fixes — switched input font to Crimson Text so lowercase
 //   typed names render as typed (Cinzel has no lowercase glyphs and was
 //   making all typed names appear uppercase); clear region + kind in the
@@ -16,7 +20,7 @@
 (function(){
   if (typeof window === 'undefined') return;
   const LOG = (...a) => console.log('[landmark-edit]', ...a);
-  LOG('gcc-landmark-edit.js v0.3.0 loaded');
+  LOG('gcc-landmark-edit.js v0.4.0 loaded');
 
   const KINDS = ['city','town','castle','ruin','village','feature','landmark'];
 
@@ -24,7 +28,7 @@
     active: false,
     selectedName: null,       // landmark name currently armed for placement
     newMode: false,           // creating a brand-new landmark
-    newFields: { name:'', kind:'city', region:'' },
+    newFields: { name:'', kind:'city', region:'', isPort:false },
     panelEl: null,
   };
 
@@ -48,6 +52,12 @@
           <button class="le-btn le-id-btn" id="le-set-id" title="Apply this ID directly, overriding any placed pixel position">Set</button>
         </div>
         <div class="le-id-hint" id="le-id-hint">Select a landmark first.</div>
+
+        <label class="le-lbl le-port-row" style="margin-top:8px;display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="le-is-port" style="margin:0;cursor:pointer">
+          <span>Port ⚓</span>
+          <span class="le-port-hint" id="le-port-hint" style="color:#88ccdd;font-weight:normal;font-size:9px;margin-left:auto">—</span>
+        </label>
 
         <div class="le-new" id="le-new" style="display:none">
           <label class="le-lbl">Name</label>
@@ -84,6 +94,7 @@
     p.querySelector('#le-new-name').oninput  = e => state.newFields.name   = e.target.value;
     p.querySelector('#le-new-kind').onchange = e => state.newFields.kind   = e.target.value;
     p.querySelector('#le-new-region').oninput= e => state.newFields.region = e.target.value;
+    p.querySelector('#le-is-port').onchange  = onPortToggle;
 
     injectStyles();
     refreshSelect();
@@ -168,12 +179,16 @@
     const newBlock = state.panelEl.querySelector('#le-new');
     const idInput  = state.panelEl.querySelector('#le-canon-id');
     const idHint   = state.panelEl.querySelector('#le-id-hint');
+    const portCb   = state.panelEl.querySelector('#le-is-port');
+    const portHint = state.panelEl.querySelector('#le-port-hint');
     if (v === '__new__'){
       state.newMode = true;
       state.selectedName = null;
       newBlock.style.display = 'block';
       idInput.value = '';
       idHint.textContent = 'New landmarks get their ID from the hex you click.';
+      portCb.checked = !!state.newFields.isPort;
+      portHint.textContent = 'applied on place';
       setStatus('Fill in name + kind, then click a hex.', false);
     } else if (v){
       state.newMode = false;
@@ -184,6 +199,8 @@
       idHint.textContent = existing && existing.id
         ? 'Type the canonical ID and press Enter (or Set) to override.'
         : 'No ID yet — type the canonical ID or click a hex.';
+      portCb.checked = !!(existing && existing.isPort);
+      portHint.textContent = existing && existing.id ? 'toggle to apply' : 'place landmark first';
       const idLabel = existing && existing.id ? ` (currently ${existing.id})` : ' (unplaced)';
       setStatus(`Armed: ${v}${idLabel}. Click a hex, or type an ID above.`, true);
     } else {
@@ -192,7 +209,50 @@
       newBlock.style.display = 'none';
       idInput.value = '';
       idHint.textContent = 'Select a landmark first.';
+      portCb.checked = false;
+      portHint.textContent = '—';
       setStatus('Pick a landmark, then click a hex.', false);
+    }
+  }
+
+  // Port toggle: for new-mode, just capture the flag. For an existing
+  // landmark with a hex already assigned, apply the change immediately via
+  // setOverride + redraw so the anchor overlay updates without requiring a
+  // re-click on the map.
+  function onPortToggle(e){
+    const checked = !!e.target.checked;
+    const portHint = state.panelEl.querySelector('#le-port-hint');
+    if (state.newMode){
+      state.newFields.isPort = checked;
+      portHint.textContent = checked ? 'will be a port' : 'applied on place';
+      return;
+    }
+    const name = state.selectedName;
+    if (!name){ e.target.checked = false; return; }
+    const existing = GCCLandmarks.getByName(name) || {};
+    if (!existing.id){
+      e.target.checked = !!existing.isPort;
+      portHint.textContent = 'place landmark first';
+      return;
+    }
+    const payload = {
+      name,
+      id:     existing.id,
+      kind:   existing.kind || 'city',
+      region: existing.region,
+      notes:  existing.notes,
+      isPort: checked,
+    };
+    if (existing.symbolPixel) payload.symbolPixel = existing.symbolPixel;
+    const ok = GCCLandmarks.setOverride(payload);
+    LOG('port toggle →', { name, isPort: checked, ok });
+    if (ok){
+      portHint.textContent = checked ? '✓ port' : '✓ not a port';
+      showToast(`${name} ${checked ? 'is now a port ⚓' : 'is no longer a port'}`);
+      redrawOverlay();
+    } else {
+      e.target.checked = !checked;
+      portHint.textContent = 'failed';
     }
   }
 
@@ -233,6 +293,7 @@
       kind:   existing.kind   || 'city',
       region: existing.region,
       notes:  existing.notes,
+      isPort: !!existing.isPort,
     };
     // Preserve an existing symbolPixel if present (marker position on the
     // city art); drop hexCenterPixel since it's now derived from the id.
@@ -279,25 +340,29 @@
     LOG('mapToHex →', hit);
     if (!hit){ setStatus('Click was outside the hex grid.', false); return; }
 
-    let name, kind, region, notes;
+    let name, kind, region, notes, isPort;
     if (state.newMode){
       name = (state.newFields.name || '').trim();
       if (!name){ setStatus('Enter a name first.', false); return; }
       kind = state.newFields.kind || 'city';
       region = state.newFields.region || '';
+      isPort = !!state.newFields.isPort;
     } else if (state.selectedName){
       name = state.selectedName;
       const existing = GCCLandmarks.getByName(name) || {};
       kind = existing.kind || 'city';
       region = existing.region;
       notes = existing.notes;
+      // Preserve existing port status on re-placement; the checkbox controls
+      // changes via onPortToggle, not placement.
+      isPort = !!existing.isPort;
     } else {
       setStatus('Pick a landmark first.', false);
       return;
     }
 
     const id = hexIdStr(hit.col, hit.row);
-    const payload = { name, id, kind, region, notes };
+    const payload = { name, id, kind, region, notes, isPort };
     payload.symbolPixel = { mx: m.x, my: m.y };
     const ok = GCCLandmarks.setOverride(payload);
     LOG('setOverride →', { name, id, kind, ok, pixel: { mx: m.x, my: m.y } });
@@ -309,9 +374,11 @@
       state.panelEl.querySelector('#le-new-name').value = '';
       state.panelEl.querySelector('#le-new-region').value = '';
       state.panelEl.querySelector('#le-new-kind').value = 'city';
+      state.panelEl.querySelector('#le-is-port').checked = false;
       state.newFields.name = '';
       state.newFields.region = '';
       state.newFields.kind = 'city';
+      state.newFields.isPort = false;
     }
     state.selectedName = null;
     refreshSelect();

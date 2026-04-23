@@ -1,7 +1,11 @@
-// gcc-landmarks.js v0.6.2 — 2026-04-19
+// gcc-landmarks.js v0.6.3 — 2026-04-23
 // World of Greyhawk landmarks, keyed by Darlene hex ID.
 // Layered store: BASE file data + PENDING (no hex yet) + OVERRIDES (localStorage).
 //
+// v0.6.3: added isPort boolean attribute (composes with any kind — a
+//   landmark can be a city AND a port). Tagged 11 canonical ports on
+//   Nyr Dyv / Azure Sea / Solnor coasts. setOverride and
+//   exportMergedSource persist isPort through overrides.
 // v0.6.2: added 13 canonical landmarks — Highport, Eastfair, Highfolk,
 //   Critwall, Forgotten City, Gryrax, Rookroost, Hochoch, Enstad, Jurnre
 //   region, Kro Terlep, Admundfort, Zelradton. Saltmarsh dropped from
@@ -17,26 +21,28 @@
 // v0.4.0: setOverride accepted optional clickPixel for affine calibration.
 //
 // Format: "Letter[Rep]-Diag": { name, kind, ... }
-//   kind: "city" | "town" | "castle" | "ruin" | "village" | "feature" | "landmark"
+//   kind:   "city" | "town" | "castle" | "ruin" | "village" | "feature" | "landmark"
+//   isPort: true (optional) — renders an anchor overlay and surfaces the
+//           landmark to the voyage simulator's port auto-discovery.
 
 (function(){
   const LS_KEY = 'gcc-landmark-overrides-v1';
 
   // ── BASE: verified via the landmark editor against 27MB Darlene scan ──────
   const GH_LANDMARKS = {
-    "A4-101": { name: "Highport",           kind: "city" },
+    "A4-101": { name: "Highport",           kind: "city", isPort: true },
     "B2-56":  { name: "Eastfair",           kind: "city" },
-    "B3-75":  { name: "Rel Mord",           kind: "city", region: "Kingdom of Nyrond" },
+    "B3-75":  { name: "Rel Mord",           kind: "city", region: "Kingdom of Nyrond", isPort: true },
     "B5-90":  { name: "Highfolk",           kind: "city" },
     "B5-95":  { name: "Mitrik",             kind: "city", region: "Archclericy of Veluna" },
     "C4-78":  { name: "Critwall",           kind: "city", region: "Shield Lands" },
-    "C4-91":  { name: "Hardby",             kind: "town", size: "small-city", pop: 7500,  region: "Domain of Greyhawk" },
-    "D4-86":  { name: "City of Greyhawk",   kind: "city", size: "metropolis", pop: 58000, region: "Domain of Greyhawk" },
-    "E3-98":  { name: "Irongate",           kind: "city", region: "Iron League" },
+    "C4-91":  { name: "Hardby",             kind: "town", size: "small-city", pop: 7500,  region: "Domain of Greyhawk", isPort: true },
+    "D4-86":  { name: "City of Greyhawk",   kind: "city", size: "metropolis", pop: 58000, region: "Domain of Greyhawk", isPort: true },
+    "E3-98":  { name: "Irongate",           kind: "city", region: "Iron League", isPort: true },
     "E4-73":  { name: "Molag",              kind: "city", region: "Horned Society" },
     "E4-82":  { name: "Willip",             kind: "city", region: "Kingdom of Furyondy" },
     "F4-94":  { name: "Safeton",            kind: "town", region: "Wild Coast" },
-    "H4-89":  { name: "Dyvers",             kind: "city", size: "city",       pop: 42000, region: "Wild Coast" },
+    "H4-89":  { name: "Dyvers",             kind: "city", size: "city",       pop: 42000, region: "Wild Coast", isPort: true },
     "H6-95":  { name: "Ekbir",              kind: "city" },
     "I4-68":  { name: "Dorakaa",            kind: "city", region: "Empire of Iuz" },
     "I4-94":  { name: "Narwell",            kind: "town", region: "Wild Coast" },
@@ -45,16 +51,16 @@
     "N3-58":  { name: "Rookroost",          kind: "city" },
     "N5-114": { name: "Hochoch",            kind: "city", region: "Grand Duchy of Geoff" },
     "O4-96":  { name: "Hommlet",            kind: "village" },
-    "P-70":   { name: "Rel Astra",          kind: "city", region: "Great Kingdom" },
+    "P-70":   { name: "Rel Astra",          kind: "city", region: "Great Kingdom", isPort: true },
     "P4-100": { name: "Enstad",             kind: "city", region: "Celene" },
-    "P4-95":  { name: "Verbobonc",          kind: "city", region: "Viscounty of Verbobonc" },
+    "P4-95":  { name: "Verbobonc",          kind: "city", region: "Viscounty of Verbobonc", isPort: true },
     "Q3-73":  { name: "Radigast City",      kind: "city", region: "County of Urnst" },
-    "Q4-117": { name: "Gradsul",            kind: "city", region: "Kingdom of Keoland" },
+    "Q4-117": { name: "Gradsul",            kind: "city", region: "Kingdom of Keoland", isPort: true },
     "Q4-83":  { name: "Chendl",             kind: "city", region: "Kingdom of Furyondy" },
-    "R3-80":  { name: "Leukish",            kind: "city", region: "Duchy of Urnst" },
+    "R3-80":  { name: "Leukish",            kind: "city", region: "Duchy of Urnst", isPort: true },
     "R4-112": { name: "Jurnre",             kind: "city", region: "County of Ulek" },
     "V2-112": { name: "Kro Terlep",         kind: "city" },
-    "X3-77":  { name: "Admundfort",         kind: "city", region: "Shield Lands" },
+    "X3-77":  { name: "Admundfort",         kind: "city", region: "Shield Lands", isPort: true },
     "X3-86":  { name: "Maure Castle",       kind: "castle", notes: "Maure family ruin" },
     "Y-68":   { name: "Rauxes",             kind: "city", region: "Great Kingdom" },
     "Y2-92":  { name: "Zelradton",          kind: "city" },
@@ -136,6 +142,10 @@
     const existing = getByName(entry.name) || {};
     if (entry.region || existing.region) merged.region = entry.region || existing.region;
     if (entry.notes  || existing.notes)  merged.notes  = entry.notes  || existing.notes;
+    // isPort: caller can pass explicit boolean (even false, to un-port a
+    // landmark); otherwise inherit from base/pending data if present.
+    if (typeof entry.isPort === 'boolean') merged.isPort = entry.isPort;
+    else if (typeof existing.isPort === 'boolean') merged.isPort = existing.isPort;
 
     // v0.6.0: single pixel field. symbolPixel — where the city art is drawn
     // on the Darlene scan. Drives marker rendering in buildLandmarkOverlay.
@@ -195,6 +205,7 @@
       if (e.pop)    parts.push(`pop: ${e.pop}`);
       if (e.region) parts.push(`region: ${JSON.stringify(e.region)}`);
       if (e.notes)  parts.push(`notes: ${JSON.stringify(e.notes)}`);
+      if (e.isPort) parts.push(`isPort: true`);
       lines.push(`    ${JSON.stringify(id).padEnd(10)}: { ${parts.join(', ')} },`);
     }
     lines.push('  };');

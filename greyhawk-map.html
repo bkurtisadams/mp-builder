@@ -65,6 +65,10 @@
                     fill:#2a1a08; stroke:#f4e4b8; stroke-width:0.3;
                     paint-order:stroke; text-anchor:middle;
                     pointer-events:none; letter-spacing:.05em; }
+  .landmark-port  { font-size:6.5px; fill:#1a2a3a; stroke:#d4e8ff; stroke-width:0.35;
+                    paint-order:stroke; text-anchor:middle; dominant-baseline:central;
+                    pointer-events:none;
+                    filter: drop-shadow(0 0 1.5px rgba(0,0,0,.6)); }
   .party-pulse { animation:pulse 2.2s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:.5;r:7}50%{opacity:.12;r:12} }
 
@@ -954,6 +958,19 @@ function buildLandmarkOverlay(){
     label.setAttribute('class','landmark-label');
     label.textContent = lm.name;
     g.appendChild(label);
+
+    // Port overlay: anchor glyph offset to the upper-right of the main
+    // marker. Composes with any kind (a city can also be a port), so this
+    // is drawn after the kind symbol rather than replacing it.
+    if (lm.isPort){
+      const anchor = document.createElementNS(ns,'text');
+      anchor.setAttribute('x', (x + 4.5).toFixed(1));
+      anchor.setAttribute('y', (y - 3.5).toFixed(1));
+      anchor.setAttribute('class','landmark-port');
+      anchor.textContent = '⚓';
+      anchor.dataset.id = id;
+      g.appendChild(anchor);
+    }
   }
   return g;
 }
