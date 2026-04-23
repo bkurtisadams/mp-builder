@@ -312,11 +312,21 @@ const MAP_H = Math.ceil(GRID_ROWS * Math.sqrt(3) * HEX_R + Math.sqrt(3) * HEX_R 
 // letters, diagonal numbers). Stage extends into this area; image is sized
 // to MAP_W × MAP_H and offset to sit inside the hex area, leaving the
 // padding visible for label rendering.
-const LABEL_PAD = 40;
+// Left is the baseline (40); top/right/bottom are larger so the visible
+// margin is at least as generous on every side as it is on the left, and
+// the whole padded stage has room to breathe in the viewport.
+const LABEL_PAD_L = 40;
+const LABEL_PAD_T = 80;
+const LABEL_PAD_R = 80;
+const LABEL_PAD_B = 80;
+// How far into the padding strip the label text center sits, measured from
+// the hex edge. Kept fixed so labels hug the hex regardless of strip width.
+const LABEL_OFFSET = 22;
 let stageBounds = {
-  minX: -LABEL_PAD, minY: -LABEL_PAD,
-  maxX: MAP_W + LABEL_PAD, maxY: MAP_H + LABEL_PAD,
-  width: MAP_W + 2*LABEL_PAD, height: MAP_H + 2*LABEL_PAD,
+  minX: -LABEL_PAD_L, minY: -LABEL_PAD_T,
+  maxX: MAP_W + LABEL_PAD_R, maxY: MAP_H + LABEL_PAD_B,
+  width: MAP_W + LABEL_PAD_L + LABEL_PAD_R,
+  height: MAP_H + LABEL_PAD_T + LABEL_PAD_B,
 };
 function gridSize(){ return { cols:GRID_COLS, rows:GRID_ROWS }; }
 
@@ -701,10 +711,10 @@ function computeStageBounds(){
     + rowStep() * 0.5 + 4;
 
   stageBounds = {
-    minX: Math.min(0, left)   - LABEL_PAD,
-    minY: Math.min(0, top)    - LABEL_PAD,
-    maxX: Math.max(MAP_W, right)  + LABEL_PAD,
-    maxY: Math.max(MAP_H, bottom) + LABEL_PAD,
+    minX: Math.min(0, left)   - LABEL_PAD_L,
+    minY: Math.min(0, top)    - LABEL_PAD_T,
+    maxX: Math.max(MAP_W, right)  + LABEL_PAD_R,
+    maxY: Math.max(MAP_H, bottom) + LABEL_PAD_B,
     width: 0,
     height: 0
   };
@@ -720,7 +730,7 @@ function updateStageFrame(){
   const svg=document.getElementById('hex-svg');
   stage.style.width=stageBounds.width+'px';
   stage.style.height=stageBounds.height+'px';
-  // Image occupies the hex area only; LABEL_PAD padding on all sides is
+  // Image occupies the hex area only; LABEL_PAD_* padding on each side is
   // reserved for edge labels (and the stage's cream-colored margin).
   img.style.width =MAP_W+'px';
   img.style.height=MAP_H+'px';
@@ -800,7 +810,7 @@ function buildHexGrid(){
 //   Right edge:  diagonal numbers 1..97 going down
 //   Bottom edge: diagonal numbers 98..170-ish going leftward
 //   Left edge:   diagonal numbers 74..170-ish going down
-// Labels sit in the LABEL_PAD strip added to stageBounds; hidden by default,
+// Labels sit in the LABEL_PAD_* strip added to stageBounds; hidden by default,
 // toggled via body.coords-shown.
 function buildCoordLabels(){
   const ns = 'http://www.w3.org/2000/svg';
@@ -808,8 +818,8 @@ function buildCoordLabels(){
   g.id = 'coord-labels';
   g.style.pointerEvents = 'none';
 
-  const padOffsetLetter = LABEL_PAD * 0.55;   // how far into the padding strip
-  const padOffsetNumber = LABEL_PAD * 0.55;
+  const padOffsetLetter = LABEL_OFFSET;   // how far into the padding strip
+  const padOffsetNumber = LABEL_OFFSET;
 
   // Top edge — column letters above row 0.
   for (let c = 0; c < GRID_COLS; c++){
@@ -1518,7 +1528,15 @@ function init(){
       'gh-move-dlg-pos'
     );
     const w=document.getElementById('map-wrap');
-    state.zoom=.5;
+    // Start at whichever is smaller: the default 0.5, or a zoom that fits the
+    // full padded stage in the viewport. On smaller windows this ensures the
+    // entire map (and its padding strip) is visible on first load instead of
+    // being clipped off the edges.
+    const fitZoom = Math.min(
+      w.clientWidth  / stageBounds.width,
+      w.clientHeight / stageBounds.height
+    ) * 0.96;
+    state.zoom = Math.min(0.5, fitZoom);
     state.panX=(w.clientWidth-stageBounds.width*state.zoom)/2;
     state.panY=(w.clientHeight-stageBounds.height*state.zoom)/2;
     clampPan(); applyTransform();
