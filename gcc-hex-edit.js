@@ -1,10 +1,17 @@
-// gcc-hex-edit.js v0.6.5 — 2026-04-23
+// gcc-hex-edit.js v0.6.6 — 2026-04-23
 // Hex Editor: tab shell for Landmarks / Paint / Outline / Draw.
 // Requires globals: GCCLandmarks, GCCTerrain, TERRAIN, hexIdStr,
 //   darleneToInternal, mapToHex, screenToMap, showToast,
 //   rebuildLandmarkOverlay/rebuildGrid/buildHexGrid,
 //   makeDraggable (from greyhawk-map.html inline script).
 //
+// v0.6.6: Parse LGG ⚗ button — small button beside the Description
+//   label. Reads the textarea, runs parseLggHeader() to split the
+//   canonical LGG city-entry format into structured fields, and
+//   replaces desc with just the prose. Rejoins PDF-extracted mid-
+//   sentence line breaks (including hyphenated word breaks like
+//   "particu-\nlarly" → "particularly"). Idempotent: running it on
+//   already-parsed prose returns null and leaves state untouched.
 // v0.6.5: Panel now bounded to viewport height. LGG header + desc
 //   textarea made the Landmarks pane taller than the screen on many
 //   laptops — bottom fields were unreachable. Switched panel to a
@@ -82,6 +89,76 @@
     { id:'he-humanoids',   key:'humanoids' },
     { id:'he-resources',   key:'resources' },
   ];
+
+  // Parse a raw LGG gazetteer paragraph into structured fields. The LGG
+  // city-entry format is consistent:
+  //   <rulerTitle line(s)>            ← anything before the em-dash
+  //   — <rulerName>                   ← em-dash, en-dash, or leading "-"
+  //   Population: N (city)
+  //   N+ (total, including surrounding area)
+  //   Demi-humans: <density>
+  //   Humanoids:  <density>
+  //   Resources:  <comma-list>
+  //   <history + politics prose>
+  // Returns an object with the seven LGG fields + cleaned `desc` (prose),
+  // or null if no recognizable structured fields were found (don't touch
+  // the description in that case — probably already parsed or free-form).
+  // PDF-extracted prose usually has mid-sentence line breaks, which we
+  // rejoin with spaces; double-newline paragraph breaks are preserved.
+  function parseLggHeader(text){
+    if (!text || typeof text !== 'string') return null;
+    const lines = text.split(/\r?\n/);
+    const out = { rulerTitle:'', rulerName:'', pop:'', popTotal:'',
+                  demihumans:'', humanoids:'', resources:'', desc:'' };
+    const titleLines = [], proseLines = [];
+    let foundStructured = false, proseStarted = false;
+
+    for (const raw of lines){
+      if (proseStarted){ proseLines.push(raw); continue; }
+      const line = raw.trim();
+      if (!line) continue;  // blank lines in header zone: ignore
+
+      let m;
+      // em-dash ruler name (U+2014, U+2013, or leading ASCII hyphen)
+      if (!out.rulerName && (m = line.match(/^[\u2014\u2013\-]\s*(.+)$/))){
+        out.rulerName = m[1].trim(); foundStructured = true; continue;
+      }
+      // Population: N (optional parenthetical after)
+      if ((m = line.match(/^Population:\s*([0-9,]+)/i))){
+        out.pop = m[1].replace(/[^0-9]/g,''); foundStructured = true; continue;
+      }
+      // "N+ (total, including...)" or "(total, including surrounding area, N...)"
+      if ((m = line.match(/([0-9,]+)\+?\s*\(total/i)) ||
+          (m = line.match(/\(total[^0-9]*([0-9,]+)/i))){
+        out.popTotal = m[1].replace(/[^0-9]/g,''); foundStructured = true; continue;
+      }
+      if ((m = line.match(/^Demi[\s\-]?humans?:\s*(.+)$/i))){
+        out.demihumans = m[1].trim(); foundStructured = true; continue;
+      }
+      if ((m = line.match(/^Humanoids?:\s*(.+)$/i))){
+        out.humanoids = m[1].trim(); foundStructured = true; continue;
+      }
+      if ((m = line.match(/^Resources?:\s*(.+)$/i))){
+        out.resources = m[1].trim(); foundStructured = true; continue;
+      }
+      // No structured match: title if we haven't started structured parsing,
+      // otherwise this line begins the prose.
+      if (!foundStructured){ titleLines.push(line); }
+      else { proseStarted = true; proseLines.push(raw); }
+    }
+
+    out.rulerTitle = titleLines.join(' ').trim();
+    let desc = proseLines.join('\n').trim();
+    desc = desc.replace(/([a-z])-\n([a-z])/g, '$1$2');  // rejoin hyphenated word breaks
+    desc = desc.replace(/([^\n])\n([^\n])/g, '$1 $2');  // join single linebreaks with space
+    out.desc = desc;
+
+    // Nothing recognizable — caller should leave desc alone.
+    if (!out.rulerName && !out.pop && !out.demihumans && !out.humanoids && !out.resources){
+      return null;
+    }
+    return out;
+  }
   const TABS = [
     { id:'landmarks', label:'Landmarks' },
     { id:'paint',     label:'Paint' },
@@ -175,6 +252,7 @@
     p.querySelector('#he-export').onclick   = onExport;
     p.querySelector('#he-reset').onclick    = onReset;
     p.querySelector('#he-set-id').onclick   = onSetCanonicalId;
+    p.querySelector('#he-parse-lgg').onclick = onParseLggClick;
     p.querySelector('#he-canon-id').addEventListener('keydown', e => {
       if (e.key === 'Enter'){ e.preventDefault(); onSetCanonicalId(); }
     });
@@ -332,9 +410,12 @@
           <option value="Many">
         </datalist>
 
-        <label class="he-lbl" style="margin-top:8px;display:flex;justify-content:space-between;align-items:center">
-          <span>Description</span>
-          <span class="he-desc-hint" id="he-desc-hint" style="color:#88ccdd;font-weight:normal;font-size:9px">—</span>
+        <label class="he-lbl" style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:6px">
+          <span style="flex-shrink:0">Description</span>
+          <span style="display:flex;align-items:center;gap:6px;font-weight:normal">
+            <button class="he-btn he-btn-mini" id="he-parse-lgg" type="button" title="Parse LGG header from description: extracts ruler / population / density / resources fields, leaves the narrative prose behind.">Parse LGG ⚗</button>
+            <span class="he-desc-hint" id="he-desc-hint" style="color:#88ccdd;font-size:9px">—</span>
+          </span>
         </label>
         <textarea class="he-input" id="he-desc" rows="5" placeholder="Long-form description shown in the map's landmark info panel. Player-visible." style="resize:vertical;min-height:70px;font-family:inherit"></textarea>
 
@@ -451,6 +532,11 @@
       #hex-edit-panel .he-btn:hover { background:rgba(200,148,26,.25); color:#e8b840; border-color:#c8941a; }
       #hex-edit-panel .he-btn.he-danger { color:#cc6644; border-color:#663311; }
       #hex-edit-panel .he-btn.he-danger:hover { background:rgba(180,50,20,.2); color:#ff7755; }
+      /* Mini variant: inline alongside labels. No flex:1 / min-width, so
+         it sits snug next to the hint span instead of stretching. */
+      #hex-edit-panel .he-btn.he-btn-mini {
+        flex:0 0 auto; min-width:0; padding:2px 7px; font-size:9.5px; letter-spacing:.04em;
+      }
       #hex-edit-panel .he-stub { padding:10px 4px 6px; }
       #hex-edit-panel .he-stub-h {
         margin:0 0 8px; font-size:14px; font-weight:600; color:#e8b840; letter-spacing:.04em;
@@ -687,6 +773,61 @@
   function setLggHint(msg){
     const h = state.panelEl.querySelector('#he-lgg-hint');
     if (h) h.textContent = msg;
+  }
+
+  // Parse LGG button: reads the Description textarea, runs parseLggHeader,
+  // and splits the header fields out into the structured LGG inputs. The
+  // description is replaced with just the prose. If the parser returns
+  // null (no recognizable LGG markers) the current state is untouched and
+  // the hint tells the user why — safer than silently doing nothing.
+  // For new-mode: populates state.newFields + DOM; applied on placement.
+  // For existing placed landmarks: calls persistLandmarkFields() to write
+  // all seven LGG fields + desc in a single setOverride.
+  function onParseLggClick(){
+    const descEl = state.panelEl.querySelector('#he-desc');
+    const hint   = state.panelEl.querySelector('#he-desc-hint');
+    const raw    = descEl.value;
+    if (!raw.trim()){
+      hint.textContent = 'paste LGG text first';
+      return;
+    }
+    const parsed = parseLggHeader(raw);
+    if (!parsed){
+      hint.textContent = 'no LGG header found';
+      showToast('Parse LGG: no ruler / population / density / resources lines detected.');
+      return;
+    }
+    // Populate the seven structured inputs. Only overwrite when the parser
+    // found a value — a partial paste (e.g. just "Resources: gold") updates
+    // one field without wiping the others.
+    LGG_FIELDS.forEach(({id, key}) => {
+      const el = state.panelEl.querySelector('#' + id);
+      if (!el) return;
+      if (parsed[key] !== '' && parsed[key] !== undefined){
+        el.value = parsed[key];
+      }
+    });
+    // Replace desc with just the prose
+    descEl.value = parsed.desc;
+
+    const populated = LGG_FIELDS.filter(({key}) => parsed[key] !== '' && parsed[key] !== undefined).length;
+    if (state.newMode){
+      // Capture everything into state.newFields — applied on placement
+      LGG_FIELDS.forEach(({id, key, numeric}) => {
+        const el = state.panelEl.querySelector('#' + id);
+        if (el) state.newFields[key] = numeric ? (el.value.replace(/[^0-9]/g,'') || '') : el.value;
+      });
+      state.newFields.desc = parsed.desc;
+      setLggHint('saved on place');
+      hint.textContent = 'saved on place';
+    } else {
+      const ok = persistLandmarkFields();
+      setLggHint(ok === true ? '✓ saved' : ok === 'nochange' ? 'saved' : ok === null ? 'place landmark first' : 'save failed');
+      if (ok === true) hint.textContent = '✓ saved';
+      else if (ok === null) hint.textContent = 'place landmark first';
+    }
+    showToast(`Parsed ${populated} LGG field${populated === 1 ? '' : 's'}.`);
+    LOG('parseLgg →', { populated, newMode: state.newMode, descLen: parsed.desc.length });
   }
 
   // Unified save for existing-mode landmark editing. Reads every editor
