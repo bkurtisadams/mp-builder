@@ -1,5 +1,6 @@
-// gcc-images.js v1.0.0 — 2026-04-10
-// IndexedDB image store for Graycloak's Campaign Corner
+// gcc-images.js v1.1.0 — 2026-04-24
+// v1.1.0: add downscale() helper for capping data URL size before upload
+// IndexedDB image store for Graycloak's Campaign Corner// IndexedDB image store for Graycloak's Campaign Corner
 // Stores image data URLs in IndexedDB to avoid localStorage quota limits.
 // Campaign/session data stores an image key (e.g. "img_ses_1234") instead
 // of the raw data URL. This module handles put/get/delete/bulk operations.
@@ -136,6 +137,35 @@ const GCCImages = (function() {
     return val && typeof val === 'string' && val.startsWith('data:');
   }
 
+  // Downscale a data URL to fit within maxPx (longest edge) and maxBytes.
+  // Returns a new data URL (JPEG, quality 0.85 stepping down to 0.4).
+  // Passes through if already small.
+  async function downscale(dataUrl, maxPx, maxBytes) {
+    maxPx = maxPx || 1600;
+    maxBytes = maxBytes || 1.5 * 1024 * 1024;
+    if (!dataUrl || !dataUrl.startsWith('data:')) return dataUrl;
+    if (dataUrl.length * 0.75 < maxBytes) return dataUrl;
+    const img = new Image();
+    try {
+      await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = dataUrl; });
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const qualities = [0.85, 0.7, 0.55, 0.4];
+      let out = dataUrl;
+      for (const q of qualities) {
+        out = canvas.toDataURL('image/jpeg', q);
+        if (out.length * 0.75 < maxBytes) break;
+      }
+      canvas.width = 0; canvas.height = 0;
+      return out;
+    } finally {
+      img.src = '';
+    }
+  }
+  
   // Migrate an inline data URL to IndexedDB, returning the new key.
   // If already a key, returns it unchanged.
   async function migrate(val, prefix) {
@@ -157,5 +187,6 @@ const GCCImages = (function() {
     isKey,
     isDataUrl,
     migrate,
+    downscale,
   };
 })();
