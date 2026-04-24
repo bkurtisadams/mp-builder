@@ -105,9 +105,11 @@
   inset: 0;
   background: rgba(0,0,0,0.55);
   z-index: 9000;
-  align-items: center;
+  align-items: flex-start;              /* CHANGED from center */
   justify-content: center;
   padding: 20px;
+  overflow-y: auto;                     /* ADDED */
+  -webkit-overflow-scrolling: touch;    /* ADDED — iOS momentum */
 }
 .gcc-auth-overlay.open {
   display: flex;
@@ -123,6 +125,7 @@
   max-width: 380px;
   padding: 0;
   position: relative;
+  margin: auto 0;                       /* ADDED — keeps desktop centering */
   animation: gccAuthSlideIn 0.2s ease-out;
 }
 @keyframes gccAuthSlideIn {
