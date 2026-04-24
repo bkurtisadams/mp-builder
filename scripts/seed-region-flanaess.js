@@ -2,7 +2,8 @@
 // seed-region-flanaess.js - Seed Firestore regions/flanaess from gcc-terrain.js BASE_TERRAIN.
 //
 // Writes one packed document containing all painted hexes, keyed col-row,
-// with short-key objects { t: terrain } for future per-hex metadata.
+// with flat terrain string values. Flat (not wrapped in { t: terrain }) to
+// stay under Firestore's 40k indexed-field-paths per document limit.
 //
 // Prereq: 
 //   1. npm install  (in this scripts/ folder)
@@ -71,7 +72,7 @@ async function main() {
   const hexes = {};
   let maxCol = 0, maxRow = 0;
   for (const [key, terrain] of entries) {
-    hexes[key] = { t: terrain };
+    hexes[key] = terrain;
     const [c, r] = key.split('-').map(Number);
     if (c > maxCol) maxCol = c;
     if (r > maxRow) maxRow = r;
