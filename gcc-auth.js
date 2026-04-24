@@ -54,6 +54,7 @@ const GCCAuth = (function() {
         _updateHeaderUI();
         _notifyListeners();
       });
+      _auth.getRedirectResult().catch(e => console.warn('[GCCAuth] redirect result error:', e));
       _initialized = true;
     } catch(e) {
       console.error('[GCCAuth] Firebase init failed:', e);
@@ -87,11 +88,29 @@ const GCCAuth = (function() {
     return cred.user;
   }
 
+function _isMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|Mobile|CriOS|FxiOS/i.test(navigator.userAgent);
+  }
+
   async function signInWithGoogle() {
     if (!_auth) throw new Error('Auth not initialized');
     const provider = new firebase.auth.GoogleAuthProvider();
-    const cred = await _auth.signInWithPopup(provider);
-    return cred.user;
+    if (_isMobile()) {
+      await _auth.signInWithRedirect(provider);
+      return null;
+    }
+    try {
+      const cred = await _auth.signInWithPopup(provider);
+      return cred.user;
+    } catch (e) {
+      if (e.code === 'auth/popup-blocked' ||
+          e.code === 'auth/operation-not-supported-in-this-environment' ||
+          e.code === 'auth/cancelled-popup-request') {
+        await _auth.signInWithRedirect(provider);
+        return null;
+      }
+      throw e;
+    }
   }
 
   async function signOut() {

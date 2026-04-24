@@ -301,6 +301,18 @@ const GCCInvite = (function() {
       const hasStorage = typeof GCCStorage !== 'undefined';
       const sp = `campaigns/${campaignId}/`;
 
+      // Storage rules require campaigns/{id} to exist with ownerUid before allowing
+      // writes to campaigns/{id}/*. Pre-create the doc so first-time uploads succeed.
+      if (hasStorage) {
+        try {
+          await db.collection('campaigns').doc(campaignId).set(
+            { ownerUid: uid, _updated: shared._updated }, { merge: true }
+          );
+        } catch (e) {
+          console.warn('[GCCInvite] pre-create campaigns doc failed:', e);
+        }
+      }
+
       // ── Upload images to Firebase Storage (batched, skip already-uploaded) ──
       if (hasStorage) {
         await GCCStorage.init().catch(() => null);
