@@ -376,21 +376,22 @@
     // → forested → rough → water. Short labels fit the 3-col narrow cells;
     // full labels live in TERRAIN[id].label and show in the hover readout.
     const types = [
-      { id:'plains',       short:'Plains'    },
-      { id:'hardwood',     short:'Hwd Forest'},
-      { id:'conifer',      short:'Con Forest'},
-      { id:'jungle',       short:'Jungle'    },
-      { id:'hills',        short:'Hills'     },
-      { id:'forest_hills', short:'Fst Hills' },
-      { id:'mountains',    short:'Mountains' },
-      { id:'desert',       short:'Desert'    },
-      { id:'barrens',      short:'Barrens'   },
-      { id:'swamp',        short:'Swamp'     },
-      { id:'water',        short:'Water'     },
-      { id:'coast_warm',   short:'Cst Warm'  },
-      { id:'coast_cold',   short:'Cst Cold'  },
-      { id:'sea_warm',     short:'Sea Warm'  },
-      { id:'sea_cold',     short:'Sea Cold'  },
+      { id:'plains',           short:'Plains'    },
+      { id:'hardwood',         short:'Hwd Forest'},
+      { id:'conifer',          short:'Con Forest'},
+      { id:'jungle',           short:'Jungle'    },
+      { id:'hills',            short:'Hills'     },
+      { id:'forest_hills',     short:'Fst Hills' },
+      { id:'mountains',        short:'Mountains' },
+      { id:'desert',           short:'Desert'    },
+      { id:'barrens',          short:'Barrens'   },
+      { id:'swamp',            short:'Swamp'     },
+      { id:'water',            short:'Water'     },
+      { id:'water_fresh',      short:'Fresh'     },
+      { id:'water_inland_sea', short:'Inld Sea'  },
+      { id:'water_coastal',    short:'Coastal'   },
+      { id:'water_shallow',    short:'Shallow'   },
+      { id:'water_deep',       short:'Deep'      },
     ];
     const swatches = types.map(({id, short}) => {
       // Swatch chip always shows full-saturation rgb so the palette stays
