@@ -420,8 +420,9 @@ const PIP_COLORS=['#5090b0','#7a5a8a','#5a9a40','#d0a040','#c04040','#508a7a','#
 const SYSTEM_COLORS={};GCC.SYSTEM_DEFS.forEach(s=>{SYSTEM_COLORS[s.id]=s.color});
 const LORE_COLORS={npc:'var(--lore-npc)',location:'var(--lore-location)',faction:'var(--lore-faction)',item:'var(--lore-item)',other:'var(--lore-other)'};
 
-function formatDate(iso){if(!iso)return'—';return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
-function formatDateShort(iso){if(!iso)return'—';return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+function parseLocalDate(iso){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);return m?new Date(+m[1],+m[2]-1,+m[3]):new Date(iso)}
+function formatDate(iso){if(!iso)return'—';return parseLocalDate(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+function formatDateShort(iso){if(!iso)return'—';return parseLocalDate(iso).toLocaleDateString('en-US',{month:'short',day:'numeric'})}
 function formatDateTime(iso){if(!iso)return null;const d=new Date(iso);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' @ '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
 function sysColorCSS(sysId){const c=SYSTEM_COLORS[sysId]||'#888';return`background:${c}18;color:${c};border:1px solid ${c}30`}
 function statusLabel(s){return{active:'Active',hiatus:'On Hiatus',completed:'Completed',archived:'Archived'}[s]||s}
