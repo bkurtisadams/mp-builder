@@ -203,6 +203,12 @@
     paintOpacity: initialOpacity,
     paintDragging: false,
     lastPaintKey: null,
+    rgSelected: null,        // currently selected region name
+    rgMode: 'paint',         // 'paint' | 'erase' | 'trace'
+    rgOpacity: 0.55,
+    rgDragging: false,
+    rgLastKey: null,
+    rgTrace: [],             // [{col,row}] in-progress polygon vertices
     panelEl: null,
   };
 
@@ -220,9 +226,7 @@
       </div>
       ${buildLandmarksPane()}
       ${buildPaintPane()}
-      ${buildStubPane('outline', 'Region Outlines',
-        'Draw polygon outlines for regions (Domain of Greyhawk, Empire of Iuz, …), replacing the rough-bbox placeholder in gcc-regions.js. The polygon editor is generic — the same tool will draw zones inside sub-hex scenes at Maure Castle Environs scale.',
-        'Phase 3')}
+      ${buildOutlinePane()}
       ${buildStubPane('draw', 'Paths',
         'Draw roads, rivers, trails, and other linear features. Paths carry terrain-speed modifiers that feed the CTT-integrated movement system.',
         'Phase 4')}
@@ -309,6 +313,31 @@
     });
     setPaintTerrain(state.paintTerrain);
     updatePaintStats();
+
+    // Outline tab wiring
+    p.querySelector('#he-rg-select').onchange    = onRgSelect;
+    p.querySelector('#he-rg-newbtn').onclick     = onRgNewBtn;
+    p.querySelector('#he-rg-cancel').onclick     = onRgCancel;
+    p.querySelector('#he-rg-create').onclick     = onRgCreate;
+    p.querySelector('#he-rg-bootstrap').onclick  = onRgBootstrap;
+    p.querySelector('#he-rg-export').onclick     = onRgExport;
+    p.querySelector('#he-rg-reset').onclick      = onRgReset;
+    p.querySelector('#he-rg-trace-fill').onclick  = onRgTraceFill;
+    p.querySelector('#he-rg-trace-undo').onclick  = onRgTraceUndo;
+    p.querySelector('#he-rg-trace-clear').onclick = onRgTraceClear;
+    p.querySelectorAll('.he-rg-mode').forEach(b =>
+      b.onclick = () => setRgMode(b.dataset.mode));
+    const rgOp = p.querySelector('#he-rg-opacity');
+    const rgOpVal = p.querySelector('#he-rg-opacity-val');
+    rgOp.addEventListener('input', e => {
+      const pct = parseInt(e.target.value, 10) || 0;
+      state.rgOpacity = pct / 100;
+      rgOpVal.textContent = `${pct}%`;
+      if (state.activeTab === 'outline') redrawAllRegionOverlay();
+    });
+    refreshRegionSelect();
+    setRgMode(state.rgMode);
+    updateRgStats();
 
     injectStyles();
     setActiveTab(state.activeTab);
@@ -437,6 +466,61 @@
           <button class="he-btn" id="he-export">Export</button>
           <button class="he-btn he-danger" id="he-reset">Reset All</button>
         </div>
+      </div>
+    `;
+  }
+
+  function buildOutlinePane(){
+    return `
+      <div class="he-pane" id="he-pane-outline">
+        <label class="he-lbl">Region</label>
+        <select class="he-select" id="he-rg-select"></select>
+
+        <div class="he-rg-newrow" id="he-rg-newrow" style="display:none">
+          <label class="he-lbl" style="margin-top:6px">New Region Name</label>
+          <input class="he-input" id="he-rg-new-name" type="text" placeholder="e.g. Sea Princes" autocomplete="off">
+          <div class="he-rg-newctl">
+            <input class="he-input he-rg-color" id="he-rg-new-color" type="color" value="#888888" title="Region tint">
+            <select class="he-input he-rg-kind" id="he-rg-new-kind">
+              <option value="land">land</option>
+              <option value="water">water</option>
+            </select>
+            <button class="he-btn he-rg-create" id="he-rg-create">Create</button>
+            <button class="he-btn he-rg-cancel" id="he-rg-cancel">Cancel</button>
+          </div>
+        </div>
+
+        <div class="he-rg-modes">
+          <button class="he-rg-mode" data-mode="paint"  title="Click/drag hexes to add to selected region">Paint</button>
+          <button class="he-rg-mode" data-mode="erase"  title="Click/drag hexes to remove from any region">Erase</button>
+          <button class="he-rg-mode" data-mode="trace"  title="Click vertices, then Fill — claims all hexes inside the polygon for the selected region">Trace</button>
+        </div>
+
+        <div class="he-rg-traceaux" id="he-rg-traceaux" style="display:none">
+          <button class="he-btn" id="he-rg-trace-fill" title="Claim all hexes inside the traced polygon">Fill (0 pts)</button>
+          <button class="he-btn" id="he-rg-trace-undo" title="Undo last vertex">Undo</button>
+          <button class="he-btn he-danger" id="he-rg-trace-clear" title="Discard the polygon in progress">Clear</button>
+        </div>
+
+        <div class="he-opacity-row">
+          <label class="he-lbl">Overlay Opacity</label>
+          <div class="he-opacity-controls">
+            <input type="range" class="he-opacity" id="he-rg-opacity" min="0" max="100" step="1" value="55">
+            <span class="he-opacity-val" id="he-rg-opacity-val">55%</span>
+          </div>
+        </div>
+
+        <div class="he-status" id="he-rg-status">Pick a region, then click or drag.</div>
+
+        <div class="he-btns">
+          <button class="he-btn" id="he-rg-newbtn"  title="Create a new region">+ New</button>
+          <button class="he-btn" id="he-rg-bootstrap" title="Seed regions from landmark region tags">Bootstrap</button>
+        </div>
+        <div class="he-btns">
+          <button class="he-btn" id="he-rg-export" title="Print merged GH_REGIONS source for paste-back">Export</button>
+          <button class="he-btn he-danger" id="he-rg-reset" title="Clear all region overrides">Reset All</button>
+        </div>
+        <div class="he-paint-stats" id="he-rg-stats">No regions tagged.</div>
       </div>
     `;
   }
@@ -603,6 +687,43 @@
         flex:0 0 auto; min-width:36px; text-align:right;
         font-family:monospace; font-size:11px; color:#ffeebb;
       }
+      /* Outline tab — region editor */
+      #hex-edit-panel .he-rg-modes {
+        display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;
+        margin:6px 0 4px;
+      }
+      #hex-edit-panel .he-rg-mode {
+        background:#1a1408; color:#c8a96e; border:1px solid #5a3d0a;
+        padding:4px 6px; font-size:10px; font-family:inherit; cursor:pointer;
+        border-radius:2px; letter-spacing:.04em;
+      }
+      #hex-edit-panel .he-rg-mode:hover { border-color:#c8941a; color:#e8b840; }
+      #hex-edit-panel .he-rg-mode.active {
+        background:rgba(200,148,26,.22); color:#ffeebb; border-color:#c8941a;
+      }
+      #hex-edit-panel .he-rg-newrow {
+        margin:6px 0; padding:6px; background:rgba(20,14,6,.6);
+        border:1px solid #5a3d0a; border-radius:2px;
+      }
+      #hex-edit-panel .he-rg-newctl {
+        display:grid; grid-template-columns:36px 1fr 1fr 1fr; gap:4px;
+        margin-top:6px; align-items:center;
+      }
+      #hex-edit-panel .he-rg-color {
+        padding:0; height:24px; cursor:pointer; border:1px solid #5a3d0a;
+        background:none;
+      }
+      #hex-edit-panel .he-rg-kind {
+        font-size:10px; padding:2px 4px; height:24px;
+      }
+      #hex-edit-panel .he-rg-create, #hex-edit-panel .he-rg-cancel {
+        font-size:10px; padding:2px 4px; height:24px;
+      }
+      #hex-edit-panel .he-rg-traceaux {
+        display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;
+        margin-bottom:6px;
+      }
+      #hex-edit-panel .he-rg-traceaux .he-btn { font-size:10px; padding:3px 4px; }
       body.he-editing #map-wrap { cursor:crosshair !important; }
       body.he-painting #map-wrap { cursor:cell !important; }
       #btn-hex-edit.active { background:rgba(200,148,26,.28); color:#ffeebb; border-color:#c8941a; }
@@ -611,12 +732,20 @@
   }
 
   function setActiveTab(id){
+    const prev = state.activeTab;
     state.activeTab = id;
     if (!state.panelEl) return;
     state.panelEl.querySelectorAll('.he-tab').forEach(t =>
       t.classList.toggle('active', t.dataset.tab === id));
     state.panelEl.querySelectorAll('.he-pane').forEach(p =>
       p.classList.toggle('active', p.id === `he-pane-${id}`));
+    // Region overlay: paint when entering, restore terrain when leaving.
+    if (id === 'outline' && prev !== 'outline'){
+      redrawAllRegionOverlay();
+    } else if (prev === 'outline' && id !== 'outline'){
+      restoreTerrainOverlay();
+      clearTraceOverlay();
+    }
   }
 
   // ── Landmarks tab ─────────────────────────────────────────────────────────
@@ -961,9 +1090,10 @@
 
     if (state.activeTab === 'landmarks'){
       onLandmarksClick(ev);
+    } else if (state.activeTab === 'outline'){
+      onOutlineClick(ev);
     }
-    // Paint / Outline / Draw: no-op for Phase 1 — click is still swallowed
-    // so the map doesn't open the side panel or pop the move dialog.
+    // Paint / Draw: no-op for click — Paint uses mousedown/move/up.
   }
 
   function onLandmarksClick(ev){
@@ -1187,6 +1317,334 @@
     updatePaintStats();
   }
 
+  // ── Outline tab (region editor) ───────────────────────────────────────────
+  // Region overlay: while the Outline tab is active, every hex cell's
+  // --hex-paint-rgb is swapped to the region color (or unset). Leaving
+  // the tab restores the terrain colors via applyPaintToCell.
+
+  function refreshRegionSelect(){
+    if (!state.panelEl || typeof GCCRegions === 'undefined') return;
+    const sel = state.panelEl.querySelector('#he-rg-select');
+    if (!sel) return;
+    const stats = GCCRegions.stats();
+    const all = GCCRegions.all().slice().sort((a,b) => a.name.localeCompare(b.name));
+    sel.innerHTML =
+      '<option value="">— choose —</option>' +
+      all.map(r => {
+        const n = stats.counts[r.name] || 0;
+        const tag = n > 0 ? ` ● ${n}` : '';
+        return `<option value="${r.name}">${r.name}${tag}</option>`;
+      }).join('');
+    sel.value = state.rgSelected || '';
+  }
+
+  function onRgSelect(e){
+    state.rgSelected = e.target.value || null;
+    setRgStatus(state.rgSelected
+      ? `Armed: ${state.rgSelected}. ${state.rgMode === 'erase' ? 'Click/drag to erase.' : state.rgMode === 'trace' ? 'Click vertices, then Fill.' : 'Click/drag to add hexes.'}`
+      : 'Pick a region first.');
+  }
+
+  function setRgMode(mode){
+    state.rgMode = mode;
+    if (!state.panelEl) return;
+    state.panelEl.querySelectorAll('.he-rg-mode').forEach(b =>
+      b.classList.toggle('active', b.dataset.mode === mode));
+    const aux = state.panelEl.querySelector('#he-rg-traceaux');
+    if (aux) aux.style.display = mode === 'trace' ? '' : 'none';
+    if (mode !== 'trace') clearTraceOverlay();
+    if (state.rgSelected){
+      const hint = mode === 'erase' ? 'Click/drag to erase.'
+                 : mode === 'trace' ? 'Click vertices, then Fill.'
+                 : 'Click/drag to add hexes.';
+      setRgStatus(`Armed: ${state.rgSelected}. ${hint}`);
+    } else {
+      setRgStatus('Pick a region first.');
+    }
+  }
+
+  function setRgStatus(msg){
+    if (!state.panelEl) return;
+    const el = state.panelEl.querySelector('#he-rg-status');
+    if (el) el.textContent = msg;
+  }
+
+  function onRgNewBtn(){
+    if (!state.panelEl) return;
+    const row = state.panelEl.querySelector('#he-rg-newrow');
+    row.style.display = '';
+    state.panelEl.querySelector('#he-rg-new-name').focus();
+  }
+  function onRgCancel(){
+    if (!state.panelEl) return;
+    state.panelEl.querySelector('#he-rg-newrow').style.display = 'none';
+    state.panelEl.querySelector('#he-rg-new-name').value = '';
+  }
+  function onRgCreate(){
+    const name  = state.panelEl.querySelector('#he-rg-new-name').value.trim();
+    const color = state.panelEl.querySelector('#he-rg-new-color').value;
+    const kind  = state.panelEl.querySelector('#he-rg-new-kind').value;
+    if (!name){ setRgStatus('Enter a region name first.'); return; }
+    const ok = GCCRegions.addRegion({ name, kind, color });
+    if (!ok){ setRgStatus(`"${name}" already exists.`); return; }
+    showToast(`Created region: ${name}`);
+    state.rgSelected = name;
+    onRgCancel();
+    refreshRegionSelect();
+    setRgMode(state.rgMode);  // refresh status
+  }
+
+  function onRgBootstrap(){
+    if (typeof GCCRegions === 'undefined' || typeof GCCLandmarks === 'undefined'){
+      setRgStatus('Region or landmark module not loaded.'); return;
+    }
+    const r = GCCRegions.bootstrapFromLandmarks();
+    if (!r){ setRgStatus('Bootstrap failed.'); return; }
+    showToast(`Bootstrap: +${r.regions} regions, +${r.hexes} hexes (${r.total} regions tagged total)`);
+    refreshRegionSelect();
+    updateRgStats();
+    if (state.activeTab === 'outline') redrawAllRegionOverlay();
+  }
+
+  function onRgExport(){
+    const src = GCCRegions.exportMergedSource();
+    console.log('── gcc-regions.js export ──');
+    console.log(src);
+    navigator.clipboard && navigator.clipboard.writeText(src).then(
+      () => showToast('Regions exported to clipboard (also in console)'),
+      () => showToast('Regions exported to console (clipboard blocked)')
+    );
+  }
+
+  function onRgReset(){
+    const ov = GCCRegions.exportOverrides();
+    const n = Object.keys(ov.hexes).length + Object.keys(ov.defs).length;
+    if (n === 0){ showToast('No region overrides to clear'); return; }
+    if (!confirm(`Clear all region overrides (${Object.keys(ov.defs).length} defs, ${Object.keys(ov.hexes).length} hex sets)? BASE rect data is not touched.`)) return;
+    GCCRegions.clearOverrides();
+    state.rgSelected = null;
+    refreshRegionSelect();
+    updateRgStats();
+    redrawAllRegionOverlay();
+    showToast('Region overrides cleared');
+  }
+
+  function updateRgStats(){
+    if (!state.panelEl) return;
+    const el = state.panelEl.querySelector('#he-rg-stats');
+    if (!el) return;
+    const s = GCCRegions.stats();
+    if (s.total === 0){ el.textContent = `${s.regions} regions · no hexes tagged.`; return; }
+    el.textContent = `${s.regions} regions · ${s.total} hexes tagged.`;
+  }
+
+  // Apply the region overlay tint to a single cell. Returns true if a
+  // tint was applied. When force=false and no region claims the hex,
+  // the tint is cleared.
+  function applyRegionToCell(col, row){
+    const el = document.getElementById(`hex-${col}-${row}`);
+    if (!el) return false;
+    if (typeof GCCRegions === 'undefined') return false;
+    const m = GCCRegions.getMembership(col, row);
+    if (m){
+      const rgb = GCCRegions.colorToRgbTriplet(m.color);
+      el.style.setProperty('--hex-paint-rgb', rgb);
+      el.style.setProperty('--hex-paint-alpha', String(state.rgOpacity));
+      return true;
+    } else {
+      el.style.removeProperty('--hex-paint-rgb');
+      el.style.removeProperty('--hex-paint-alpha');
+      return false;
+    }
+  }
+
+  // Walk every hex cell once and paint the region overlay. Slow when
+  // the grid is large (~14k cells) but only fires on tab activate /
+  // bootstrap / reset, not per-paint-stroke.
+  function redrawAllRegionOverlay(){
+    const cells = document.querySelectorAll('.hex-cell');
+    cells.forEach(el => {
+      const m = /^hex-(\d+)-(\d+)$/.exec(el.id);
+      if (!m) return;
+      applyRegionToCell(+m[1], +m[2]);
+    });
+  }
+
+  // Restore terrain overlay across the grid when leaving the outline tab.
+  function restoreTerrainOverlay(){
+    document.documentElement.style.setProperty('--hex-paint-alpha', String(state.paintOpacity));
+    const cells = document.querySelectorAll('.hex-cell');
+    cells.forEach(el => {
+      const m = /^hex-(\d+)-(\d+)$/.exec(el.id);
+      if (!m) return;
+      el.style.removeProperty('--hex-paint-alpha');
+      applyPaintToCell(+m[1], +m[2]);
+    });
+  }
+
+  // Paint mode: drag-paint claims hexes for the selected region.
+  // Erase mode: drag-erase removes hex from any region's override set.
+  function rgPaintAt(ev){
+    if (typeof screenToMap !== 'function' || typeof mapToHex !== 'function') return;
+    const m = screenToMap(ev.clientX, ev.clientY);
+    if (!m) return;
+    const hit = mapToHex(m.x, m.y);
+    if (!hit) return;
+    const key = `${hit.col}-${hit.row}`;
+    if (key === state.rgLastKey) return;
+    state.rgLastKey = key;
+    if (state.rgMode === 'erase'){
+      const cleared = GCCRegions.erasePaintAt(hit.col, hit.row);
+      if (cleared) applyRegionToCell(hit.col, hit.row);
+    } else {
+      if (!state.rgSelected){ setRgStatus('Pick a region first.'); return; }
+      // If the hex was painted into a different region, repaint that
+      // cell (since addHexes silently moved it).
+      const prev = GCCRegions.getHexTagged(hit.col, hit.row);
+      GCCRegions.addHexes(state.rgSelected, [`${hit.col}-${hit.row}`]);
+      applyRegionToCell(hit.col, hit.row);
+      if (prev && prev.name !== state.rgSelected){
+        // The single cell already updated above, but the per-region
+        // tint changed for that hex. No additional cells affected.
+      }
+    }
+    updateRgStats();
+  }
+
+  function onOutlineMousedown(ev){
+    if (!state.active || state.activeTab !== 'outline') return;
+    if (state.rgMode === 'trace') return;          // trace uses click handler
+    if (ev.button !== 0) return;
+    if (state.rgMode === 'paint' && !state.rgSelected) return;
+    ev.stopPropagation();
+    ev.stopImmediatePropagation();
+    ev.preventDefault();
+    state.rgDragging = true;
+    state.rgLastKey = null;
+    document.body.classList.add('he-painting');
+    rgPaintAt(ev);
+  }
+  function onOutlineMousemove(ev){
+    if (!state.rgDragging) return;
+    rgPaintAt(ev);
+  }
+  function onOutlineMouseup(){
+    if (!state.rgDragging) return;
+    state.rgDragging = false;
+    state.rgLastKey = null;
+    document.body.classList.remove('he-painting');
+    refreshRegionSelect();
+  }
+
+  // Trace mode: each click adds a vertex. Vertices snap to hex
+  // centers (so polygon outlines lie exactly on the same lattice the
+  // hex-fill uses, avoiding sub-hex precision artifacts).
+  function onOutlineClick(ev){
+    if (state.rgMode !== 'trace') return;
+    if (!state.rgSelected){ setRgStatus('Pick a region first.'); return; }
+    if (typeof screenToMap !== 'function' || typeof mapToHex !== 'function') return;
+    const m = screenToMap(ev.clientX, ev.clientY);
+    if (!m) return;
+    const hit = mapToHex(m.x, m.y);
+    if (!hit) return;
+    state.rgTrace.push({ col: hit.col, row: hit.row });
+    drawTraceOverlay();
+    state.panelEl.querySelector('#he-rg-trace-fill').textContent =
+      `Fill (${state.rgTrace.length} pts)`;
+  }
+
+  function onRgTraceUndo(){
+    if (!state.rgTrace.length) return;
+    state.rgTrace.pop();
+    drawTraceOverlay();
+    state.panelEl.querySelector('#he-rg-trace-fill').textContent =
+      `Fill (${state.rgTrace.length} pts)`;
+  }
+  function onRgTraceClear(){
+    state.rgTrace = [];
+    clearTraceOverlay();
+    state.panelEl.querySelector('#he-rg-trace-fill').textContent = 'Fill (0 pts)';
+  }
+  function onRgTraceFill(){
+    if (state.rgTrace.length < 3){
+      setRgStatus(`Need at least 3 vertices (have ${state.rgTrace.length}).`);
+      return;
+    }
+    if (!state.rgSelected){ setRgStatus('Pick a region first.'); return; }
+    const verts = state.rgTrace.map(v => [v.col, v.row]);
+    const bounds = (typeof GRID_COLS !== 'undefined' && typeof GRID_ROWS !== 'undefined')
+      ? { colMax: GRID_COLS, rowMax: GRID_ROWS }
+      : undefined;
+    const n = GCCRegions.fillFromPolygon(verts, state.rgSelected, bounds);
+    showToast(`Filled ${n} hexes for ${state.rgSelected}`);
+    state.rgTrace = [];
+    clearTraceOverlay();
+    state.panelEl.querySelector('#he-rg-trace-fill').textContent = 'Fill (0 pts)';
+    refreshRegionSelect();
+    updateRgStats();
+    redrawAllRegionOverlay();
+  }
+
+  // Trace overlay: a transparent SVG sibling layer drawn into the
+  // map root showing in-progress polygon vertices and connecting lines.
+  // The map's hex grid root id varies; query for the SVG root once.
+  function getMapSvg(){
+    return document.getElementById('hex-svg');
+  }
+  function drawTraceOverlay(){
+    clearTraceOverlay();
+    if (!state.rgTrace.length) return;
+    const svg = getMapSvg();
+    if (!svg) return;
+    if (typeof hexCenter !== 'function'){
+      // No hex-center helper — can't render. Trace still works; user
+      // just doesn't get a preview overlay.
+      return;
+    }
+    const ns = 'http://www.w3.org/2000/svg';
+    const g = document.createElementNS(ns, 'g');
+    g.id = 'he-rg-trace-overlay';
+    g.setAttribute('pointer-events', 'none');
+    const pts = state.rgTrace.map(v => hexCenter(v.col, v.row));
+    if (pts.length >= 2){
+      const poly = document.createElementNS(ns, 'polyline');
+      poly.setAttribute('points', pts.map(p => `${p.x},${p.y}`).join(' '));
+      poly.setAttribute('fill', 'none');
+      poly.setAttribute('stroke', '#ffeebb');
+      poly.setAttribute('stroke-width', '2');
+      poly.setAttribute('stroke-dasharray', '4,3');
+      g.appendChild(poly);
+      // Closing edge (dotted) so users can see what the fill polygon
+      // would look like.
+      if (pts.length >= 3){
+        const close = document.createElementNS(ns, 'line');
+        close.setAttribute('x1', pts[pts.length - 1].x);
+        close.setAttribute('y1', pts[pts.length - 1].y);
+        close.setAttribute('x2', pts[0].x);
+        close.setAttribute('y2', pts[0].y);
+        close.setAttribute('stroke', '#ffeebb');
+        close.setAttribute('stroke-width', '1');
+        close.setAttribute('stroke-dasharray', '2,4');
+        g.appendChild(close);
+      }
+    }
+    for (const p of pts){
+      const dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', p.x);
+      dot.setAttribute('cy', p.y);
+      dot.setAttribute('r', '4');
+      dot.setAttribute('fill', '#ffeebb');
+      dot.setAttribute('stroke', '#553300');
+      dot.setAttribute('stroke-width', '1');
+      g.appendChild(dot);
+    }
+    svg.appendChild(g);
+  }
+  function clearTraceOverlay(){
+    const old = document.getElementById('he-rg-trace-overlay');
+    if (old) old.remove();
+  }
+
   function redrawOverlay(){
     if (typeof rebuildLandmarkOverlay === 'function'){
       rebuildLandmarkOverlay();
@@ -1221,8 +1679,11 @@
       // map's bubble-phase pan-arming handler. mousemove/mouseup live on
       // window so we catch the drag even if the cursor leaves the wrap.
       wrap.addEventListener('mousedown', onPaintMousedown, true);
+      wrap.addEventListener('mousedown', onOutlineMousedown, true);
       window.addEventListener('mousemove', onPaintMousemove);
+      window.addEventListener('mousemove', onOutlineMousemove);
       window.addEventListener('mouseup', onPaintMouseup);
+      window.addEventListener('mouseup', onOutlineMouseup);
     }
     document.addEventListener('keydown', onKey, true);
     const btn = document.getElementById('btn-hex-edit');
@@ -1237,14 +1698,23 @@
     document.body.classList.remove('he-painting');
     state.paintDragging = false;
     state.lastPaintKey = null;
+    state.rgDragging = false;
+    state.rgLastKey = null;
+    if (state.activeTab === 'outline'){
+      restoreTerrainOverlay();
+      clearTraceOverlay();
+    }
     if (state.panelEl) state.panelEl.style.display = 'none';
     const wrap = document.getElementById('map-wrap');
     if (wrap){
       wrap.removeEventListener('click', onMapClick, true);
       wrap.removeEventListener('mousedown', onPaintMousedown, true);
+      wrap.removeEventListener('mousedown', onOutlineMousedown, true);
     }
     window.removeEventListener('mousemove', onPaintMousemove);
+    window.removeEventListener('mousemove', onOutlineMousemove);
     window.removeEventListener('mouseup', onPaintMouseup);
+    window.removeEventListener('mouseup', onOutlineMouseup);
     document.removeEventListener('keydown', onKey, true);
     const btn = document.getElementById('btn-hex-edit');
     if (btn) btn.classList.remove('active');
