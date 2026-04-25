@@ -141,8 +141,8 @@
     { name:'Principality of Ulek',      kind:'land', color:'#bb6633', capital:'Gryrax'                              },
     { name:'Yeomanry',                  kind:'land', color:'#ddaa55', capital:'Loftwick'                            },
     { name:'Gran March',                kind:'land', color:'#cc9944', capital:'Hookhill'                            },
-    { name:'Bissel',                    kind:'land', color:'#ccaa66', capital:'Thornward'                           },
-    { name:'Geoff',                     kind:'land', color:'#aa8855', capital:'Gorna'                               },
+    { name:'March of Bissel',           kind:'land', color:'#ccaa66', capital:'Thornward'                           },
+    { name:'Grand Duchy of Geoff',      kind:'land', color:'#aa8855', capital:'Gorna'                               },
     { name:'Sterich',                   kind:'land', color:'#998866', capital:'Istivin'                             },
     // ── Veluna / Furyondy / Iuz frontier (north-west) ───────────────────
     { name:'Archclericy of Veluna',     kind:'land', color:'#dddd99', capital:'Mitrik'                              },
@@ -150,21 +150,24 @@
     { name:'Kingdom of Furyondy',       kind:'land', color:'#4488cc', capital:'Chendl',           anchors:['P4-85','E4-83'] },
     { name:'Shield Lands',              kind:'land', color:'#5577aa', capital:'Critwall'                            },
     { name:'Highfolk',                  kind:'land', color:'#66aabb', capital:'Highfolk Town'                       },
+    { name:'Valley of the Highfolk',    kind:'land', color:'#7abbcc', capital:null                                  },
+    { name:'Perrenland',                kind:'land', color:'#cccc77', capital:'Schwartzenbruin'                     },
     { name:'Horned Society',            kind:'land', color:'#552255', capital:'Molag',            anchors:['E4-74'] },
     { name:'Empire of Iuz',             kind:'land', color:'#660000', capital:'Dorakaa',          anchors:['H4-70'] },
     { name:'Bandit Kingdoms',           kind:'land', color:'#774422', capital:'Rookroost'                           },
     // ── Far north and north-east ────────────────────────────────────────
     { name:'Wolf Nomads',               kind:'land', color:'#999966', capital:'Eru-Tovar'                           },
     { name:'Tiger Nomads',              kind:'land', color:'#aaaa55', capital:'Yecha'                               },
-    { name:'Rovers of the Barrens',     kind:'land', color:'#886633', capital:null                                  }, // nomadic, no fixed capital
+    { name:'Rovers of the Barrens',     kind:'land', color:'#886633', capital:null                                  },
     { name:'Hold of Stonefist',         kind:'land', color:'#7788aa', capital:'Vlekstaad'                           },
     { name:'Theocracy of the Pale',     kind:'land', color:'#ddddee', capital:'Wintershiven'                        },
-    { name:'Tenh',                      kind:'land', color:'#aa9988', capital:'Nevond Nevnend'                      },
+    { name:'Duchy of Tenh',             kind:'land', color:'#aa9988', capital:'Nevond Nevnend'                      },
     { name:'Frost Barbarians',          kind:'land', color:'#bbccdd', capital:'Krakenheim'                          },
     { name:'Snow Barbarians',           kind:'land', color:'#ccddee', capital:'Soull'                               },
     { name:'Ice Barbarians',            kind:'land', color:'#aaccdd', capital:'Glot'                                },
     { name:'Bone March',                kind:'land', color:'#ccccaa', capital:'Spinecastle'                         },
     { name:'Archbarony of Ratik',       kind:'land', color:'#bbaa77', capital:'Marner'                              },
+    { name:'Archbarony of Blackmoor',   kind:'land', color:'#7090a8', capital:'Dantredun'                           },
     // ── Central / east (Nyrond and around) ──────────────────────────────
     { name:'Kingdom of Nyrond',         kind:'land', color:'#88bb55', capital:'Rel Mord'                            },
     // ── Great Kingdom and successors ────────────────────────────────────
@@ -172,23 +175,34 @@
     { name:'North Province',            kind:'land', color:'#993333', capital:'Eastfair'                            },
     { name:'South Province',            kind:'land', color:'#aa3333', capital:'Zelradton'                           },
     { name:'See of Medegia',            kind:'land', color:'#aa4455', capital:'Mentrey'                             },
+    { name:'City of Rel Astra',         kind:'land', color:'#aa5544', capital:'Rel Astra'                           },
     { name:'County of Sunndi',          kind:'land', color:'#669966', capital:'Pitchfield'                          },
-    { name:'Idee',                      kind:'land', color:'#aabb66', capital:'Naerie'                              },
-    { name:'Onnwal',                    kind:'land', color:'#88aa66', capital:'Scant'                               },
-    { name:'Irongate',                  kind:'land', color:'#776655', capital:'Irongate'                            },
-    { name:'County of Almor',           kind:'land', color:'#ccbb88', capital:'Chathold'                            },
+    { name:'County of Idee',            kind:'land', color:'#aabb66', capital:'Naerie'                              },
+    { name:'State of Onnwal',           kind:'land', color:'#88aa66', capital:'Scant'                               },
+    { name:'Free City of Irongate',     kind:'land', color:'#776655', capital:'Irongate'                            },
+    { name:'Prelacy of Almor',          kind:'land', color:'#ccbb88', capital:'Chathold'                            },
     { name:'Lordship of the Isles',     kind:'land', color:'#558899', capital:'Sulward'                             },
+    { name:'Sea Barons',                kind:'land', color:'#446677', capital:'Asperdi'                             },
+    { name:'Spindrift Isles',           kind:'land', color:'#5588aa', capital:'Lo Reltarma'                         },
     // ── South coast ─────────────────────────────────────────────────────
-    { name:'Sea Princes',               kind:'land', color:'#aa6688', capital:'Hokar'                               },
+    { name:'Hold of the Sea Princes',   kind:'land', color:'#aa6688', capital:'Monmurg'                             }, // 1983 says Monmurg; "Hokar" was an earlier alt
     { name:'Pomarj',                    kind:'land', color:'#aa3322', capital:'Highport'                            },
-    // Note: "Iron League" is an alliance of southern polities (Idee,
-    // Sunndi, Onnwal, Irongate, Lordship of the Isles), not a polity
-    // itself. Member states are listed individually above. If you
-    // need to tag a hex with Iron League membership specifically,
-    // that's better handled as a future cultural/alliance tag rather
-    // than a region.
+    { name:'Scarlet Brotherhood',       kind:'land', color:'#990000', capital:null                                  }, // hidden city; territory not on map
+    // ── Baklunish west (off-map for most Flanaess play, but in 1983 source) ─
+    { name:'Caliphate of Ekbir',        kind:'land', color:'#cc9955', capital:'Ekbir'                               },
+    { name:'Sultanate of Zeif',         kind:'land', color:'#aa8844', capital:'Zeif'                                },
+    { name:'Pashalik of Tusmit',        kind:'land', color:'#bb9966', capital:'Sefmur'                              },
+    { name:'Ull',                       kind:'land', color:'#aa9955', capital:'Ulakand'                             },
+    { name:'Plains of the Paynims',     kind:'land', color:'#bbaa66', capital:null                                  },
+    // ── Misc small domains ──────────────────────────────────────────────
+    { name:'Valley of the Mage',        kind:'land', color:'#774499', capital:null                                  },
     // ── City-states ────────────────────────────────────────────────────
     { name:'City of Dyvers',            kind:'land', color:'#cc7755', capital:'Dyvers'                              },
+    // Note: the Iron League is an alliance of southern polities (County
+    // of Idee, County of Sunndi, State of Onnwal, Free City of Irongate,
+    // Lordship of the Isles), not a polity itself. Members are listed
+    // individually above. A future cultural/alliance tag can capture
+    // Iron League membership without conflating it with a region.
 
     // ── GEOGRAPHIC FEATURES (named natural regions) ─────────────────────
     // Forests, mountain ranges, hill chains, lakes, rivers, swamps, and
@@ -207,7 +221,7 @@
     // ── Forests ─────────────────────────────────────────────────────────
     { name:'Vesve Forest',          category:'geographic', subkind:'forest', kind:'land', color:'#3d6630' },
     { name:'Gnarley Forest',        category:'geographic', subkind:'forest', kind:'land', color:'#406b32' },
-    { name:'Welkwood Forest',       category:'geographic', subkind:'forest', kind:'land', color:'#4a7338' },
+    { name:'Welkwood',              category:'geographic', subkind:'forest', kind:'land', color:'#4a7338' },
     { name:'Suss Forest',           category:'geographic', subkind:'forest', kind:'land', color:'#3a5d2c' },
     { name:'Dim Forest',            category:'geographic', subkind:'forest', kind:'land', color:'#2d4823' },
     { name:'Oytwood',               category:'geographic', subkind:'forest', kind:'land', color:'#446a36' },
@@ -261,10 +275,10 @@
 
     // ── Swamps / marshes ────────────────────────────────────────────────
     { name:'Vast Swamp',            category:'geographic', subkind:'swamp',  kind:'land', color:'#5a6840' },
-    { name:'Pelisso Swamp',         category:'geographic', subkind:'swamp',  kind:'land', color:'#5a6840' },
+    { name:'Pelisso Swamps',        category:'geographic', subkind:'swamp',  kind:'land', color:'#5a6840' },
     { name:'Ghastly Swamp',         category:'geographic', subkind:'swamp',  kind:'land', color:'#4d5933' },
     { name:'Mistmarsh',             category:'geographic', subkind:'swamp',  kind:'land', color:'#5a6840' },
-    { name:'Rushmoors',             category:'geographic', subkind:'swamp',  kind:'land', color:'#5a6840' },
+    { name:'Rushmoor',              category:'geographic', subkind:'swamp',  kind:'land', color:'#5a6840' },
     { name:'Troll Fens',            category:'geographic', subkind:'swamp',  kind:'land', color:'#4d5933' },
 
     // ── Deserts and waste ───────────────────────────────────────────────
@@ -277,7 +291,6 @@
     { name:'Whyestil Lake',         category:'geographic', subkind:'lake',   kind:'water', color:'#3a6a8a' },
     { name:'Lake Quag',             category:'geographic', subkind:'lake',   kind:'water', color:'#3a6a8a' },
     { name:'Spendlowe Lake',        category:'geographic', subkind:'lake',   kind:'water', color:'#3a6a8a' },
-    { name:'Lake of Unknown Depths', category:'geographic', subkind:'lake',  kind:'water', color:'#2d5874' },
     { name:'Icy Sea',               category:'geographic', subkind:'sea',    kind:'water', color:'#5680a0' },
 
     // ── Rivers ──────────────────────────────────────────────────────────
@@ -289,7 +302,7 @@
     { name:'Att River',             category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
     { name:'Artonsamay River',      category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
     { name:'Harp River',            category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
-    { name:'Duntide River',         category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Duntide',               category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
     { name:'Franz River',           category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
     { name:'Flanmi River',          category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
     { name:'Grayflood',             category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
@@ -302,6 +315,48 @@
 
     // ── Other ──────────────────────────────────────────────────────────
     { name:'Rift Canyon',           category:'geographic', subkind:'canyon', kind:'land', color:'#7a5a3a' },
+
+    // ── Additional 1983 canon hills/highlands ──────────────────────────
+    { name:'Blemu Hills',           category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+    { name:'Drachensgrab Hills',    category:'geographic', subkind:'hills',  kind:'land', color:'#7a5a4a' },
+    { name:'Gull Cliffs',           category:'geographic', subkind:'hills',  kind:'land', color:'#a89a76' },
+    { name:'Hollow Highlands',      category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+    { name:'Howling Hills',         category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+    { name:'Little Hills',          category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+    { name:'Spine Ridge',           category:'geographic', subkind:'hills',  kind:'land', color:'#8a7855' },
+    { name:'Tors',                  category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+
+    // ── Additional 1983 canon mountain ranges ──────────────────────────
+    { name:'Drachensgrab Mountains', category:'geographic', subkind:'mountains', kind:'land', color:'#7a5a4a' },
+    { name:'Ulsprue Mountains',     category:'geographic', subkind:'mountains', kind:'land', color:'#7a6655' },
+
+    // ── Additional 1983 canon marshes ──────────────────────────────────
+    { name:'Gnatmarsh',             category:'geographic', subkind:'swamp',  kind:'land', color:'#5a6840' },
+    { name:'Lone Heath',            category:'geographic', subkind:'swamp',  kind:'land', color:'#5a6840' },
+
+    // ── Additional 1983 canon wastelands ───────────────────────────────
+    { name:'Dry Steppes',           category:'geographic', subkind:'desert', kind:'land', color:'#bca858' },
+
+    // ── Major bodies of water (1983 boxed set canon) ───────────────────
+    // The Darlene map calls these out by name. They sit at the edges of
+    // the Flanaess and form natural boundaries; encounter modules and
+    // the voyage simulator reference them by name.
+    { name:'Azure Sea',             category:'geographic', subkind:'sea',    kind:'water', color:'#3d7ba8' },
+    { name:'Solnor Ocean',          category:'geographic', subkind:'sea',    kind:'water', color:'#2d6090' },
+    { name:'Aerdi Sea',             category:'geographic', subkind:'sea',    kind:'water', color:'#3a6a8a' },
+    { name:'Sea of Gearnat',        category:'geographic', subkind:'sea',    kind:'water', color:'#3a6a8a' },
+    { name:'Dramidj Ocean',         category:'geographic', subkind:'sea',    kind:'water', color:'#3070a0' },
+    { name:'Densac Gulf',           category:'geographic', subkind:'sea',    kind:'water', color:'#3a6a8a' },
+    { name:'Oljatt Sea',            category:'geographic', subkind:'sea',    kind:'water', color:'#3a6a8a' },
+    { name:'Tilva Strait',          category:'geographic', subkind:'sea',    kind:'water', color:'#3a6a8a' },
+    { name:'Spindrift Sound',       category:'geographic', subkind:'sea',    kind:'water', color:'#3a6a8a' },
+
+    // ── Bays (lesser water) ────────────────────────────────────────────
+    { name:'Grendep Bay',           category:'geographic', subkind:'sea',    kind:'water', color:'#4080a8' },
+    { name:'Jeklea Bay',            category:'geographic', subkind:'sea',    kind:'water', color:'#4080a8' },
+    { name:'Relmor Bay',            category:'geographic', subkind:'sea',    kind:'water', color:'#4080a8' },
+    { name:'White Fanged Bay',      category:'geographic', subkind:'sea',    kind:'water', color:'#5e9bbe' },
+    { name:'Woolly Bay',            category:'geographic', subkind:'sea',    kind:'water', color:'#4080a8' },
   ];
   const BASE_REGION_NAMES = new Set(GH_REGIONS.map(r => r.name));
 
@@ -355,6 +410,79 @@
     }
   }
   applyDefs();
+
+  // ── Migrations ─────────────────────────────────────────────────────────
+  // One-time renames that move localStorage override hex sets from a
+  // legacy name to its current canonical name. Runs at module init. The
+  // migration LOG_KEY records which migrations have already run so they
+  // don't fire repeatedly. Hex data, region defs (color/category etc.),
+  // and user-meaningful identity are all preserved across the rename.
+  //
+  // When adding a migration: bump the version's name in MIGRATIONS, push
+  // the old→new rename, leave the old entries in this list forever (so
+  // users who haven't loaded recently still get migrated when they do).
+  const MIGRATIONS_KEY = 'gcc-region-migrations-v1';
+  const MIGRATIONS = [
+    // [oldName, newName]
+    ['Perren Land',          'Perrenland'],
+    ['Welkwood Forest',      'Welkwood'],
+    ['Pelisso Swamp',        'Pelisso Swamps'],
+    ['Rushmoors',            'Rushmoor'],
+    ['Duntide River',        'Duntide'],
+    ['County of Almor',      'Prelacy of Almor'],
+    ['Sea Princes',          'Hold of the Sea Princes'],
+    ['Tenh',                 'Duchy of Tenh'],
+    ['Idee',                 'County of Idee'],
+    ['Onnwal',               'State of Onnwal'],
+    ['Bissel',               'March of Bissel'],
+    ['Geoff',                'Grand Duchy of Geoff'],
+    // Lake of Unknown Depths is the alt name for Nyr Dyv — merge.
+    ['Lake of Unknown Depths', 'Nyr Dyv'],
+  ];
+
+  function runMigrations(){
+    let already = {};
+    try {
+      const raw = localStorage.getItem(MIGRATIONS_KEY);
+      if (raw) already = JSON.parse(raw) || {};
+    } catch(e){ already = {}; }
+
+    let migrated = 0;
+    for (const [oldName, newName] of MIGRATIONS){
+      const tag = `${oldName}=>${newName}`;
+      if (already[tag]) continue;
+      // Move override hexes (additive: union with any existing hexes
+      // under the new name, since BASE may have populated some).
+      if (OVERRIDE_HEXES[oldName] && OVERRIDE_HEXES[oldName].length){
+        const cur = new Set(OVERRIDE_HEXES[newName] || []);
+        for (const k of OVERRIDE_HEXES[oldName]) cur.add(k);
+        OVERRIDE_HEXES[newName] = Array.from(cur);
+        migrated += OVERRIDE_HEXES[oldName].length;
+      }
+      delete OVERRIDE_HEXES[oldName];
+      // Move override defs only if no def exists for the new name.
+      // Otherwise keep the new name's def (BASE-or-newer wins).
+      if (OVERRIDE_DEFS[oldName]){
+        if (!OVERRIDE_DEFS[newName]){
+          OVERRIDE_DEFS[newName] = OVERRIDE_DEFS[oldName];
+        }
+        delete OVERRIDE_DEFS[oldName];
+      }
+      already[tag] = true;
+    }
+    if (migrated > 0){
+      saveDefs();
+      saveHexes();
+      // Re-apply def overrides so the renamed entries pick up their BASE
+      // metadata if they exist there now.
+      applyDefs();
+      console.log(`[gcc-regions] migrated ${migrated} hex(es) across ${MIGRATIONS.length} renames`);
+    }
+    try {
+      localStorage.setItem(MIGRATIONS_KEY, JSON.stringify(already));
+    } catch(e){}
+  }
+  runMigrations();
 
   function applyHexes(){
     HEX_CACHE.clear();
