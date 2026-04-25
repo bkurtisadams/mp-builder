@@ -103,27 +103,85 @@
 
   // ── REGION DATA ────────────────────────────────────────────────────────────
   // BASE: file-baked region definitions. Just curated metadata —
-  // name, kind, color, and anchor landmarks for QA. Geometry comes
-  // from painted hex sets (Bootstrap / Outline editor). Empty BASE
-  // regions show in the picker so users can paint into a pre-named
-  // entry with a curated tint instead of inventing one ad-hoc.
+  // name, kind, color, capital, and anchor landmarks for QA.
+  // Geometry comes from painted hex sets (Bootstrap / Outline editor).
+  //
+  // Coverage: Flanaess polities at 1983 canonical baseline. Matches
+  // Darlene-map era naming. Post-Wars (569 CY) state for things like
+  // Iuz absorbing the Horned Society, Shield Lands occupation, etc.
+  // is deferred — when it lands it will layer on top via overrides.
+  //
+  // Naming convention: formal title where the polity has one in its
+  // LGG entry heading (Kingdom of Keoland, Archbarony of Ratik, See
+  // of Medegia, etc.); bare name otherwise (Wild Coast, Bandit
+  // Kingdoms, Sea Princes — territories without a formal title).
+  //
+  // Capital field is bibliographic (which city is the seat of
+  // government); editor consumers can use it as a reminder when
+  // tagging a city landmark with `region:` so the capital actually
+  // sits inside its own region's painted hexes.
   //
   // Order is no longer load-bearing — the two-pass lookup (hex-tags
   // first across all regions, then polygon vertices) means inner /
   // outer overlap resolves by which region painted the hex, not by
-  // file position.
+  // file position. Listed roughly clockwise from Greyhawk City for
+  // ease of human scanning.
   const GH_REGIONS = [
-    { name:'City of Greyhawk',        kind:'land',  color:'#cc4444', anchors:['C4-86'] },
-    { name:'Domain of Greyhawk',      kind:'land',  color:'#dd7755', anchors:['C4-91'] },
-    { name:'Viscounty of Verbobonc',  kind:'land',  color:'#aa6644', anchors:['O4-95'] },
-    { name:'County of Urnst',         kind:'land',  color:'#bbaa44', anchors:['Q3-74'] },
-    { name:'Duchy of Urnst',          kind:'land',  color:'#998822', anchors:['R3-81'] },
-    { name:'Horned Society',          kind:'land',  color:'#552255', anchors:['E4-74'] },
-    { name:'Kingdom of Furyondy',     kind:'land',  color:'#4488cc', anchors:['P4-85','E4-83'] },
-    { name:'Wild Coast',              kind:'land',  color:'#88aa44', anchors:['G4-89','F4-95','H4-95'] },
-    { name:'Empire of Iuz',           kind:'land',  color:'#660000', anchors:['H4-70'] },
-    { name:'Kingdom of Keoland',      kind:'land',  color:'#cc8822', anchors:['P4-117','X4-113'] },
-    { name:'The Great Kingdom',       kind:'land',  color:'#884444', anchors:['A2-69','R-72'] },
+    // ── Central Flanaess ────────────────────────────────────────────────
+    { name:'City of Greyhawk',          kind:'land', color:'#cc4444', capital:'Greyhawk',         anchors:['C4-86'] },
+    { name:'Domain of Greyhawk',        kind:'land', color:'#dd7755', capital:'Greyhawk',         anchors:['C4-91'] },
+    { name:'Hardby',                    kind:'land', color:'#cc6655', capital:'Hardby'                              },
+    { name:'Wild Coast',                kind:'land', color:'#88aa44', capital:'Safeton',          anchors:['G4-89','F4-95','H4-95'] },
+    { name:'County of Urnst',           kind:'land', color:'#bbaa44', capital:'Radigast City',    anchors:['Q3-74'] },
+    { name:'Duchy of Urnst',            kind:'land', color:'#998822', capital:'Leukish',          anchors:['R3-81'] },
+    // ── Sheldomar Valley (south-west) ───────────────────────────────────
+    { name:'Kingdom of Keoland',        kind:'land', color:'#cc8822', capital:'Niole Dra',        anchors:['P4-117','X4-113'] },
+    { name:'County of Ulek',            kind:'land', color:'#cc9966', capital:'Jurnre'                              },
+    { name:'Duchy of Ulek',             kind:'land', color:'#aa7744', capital:'Tringlee'                             },
+    { name:'Principality of Ulek',      kind:'land', color:'#bb6633', capital:'Gryrax'                              },
+    { name:'Yeomanry',                  kind:'land', color:'#ddaa55', capital:'Loftwick'                            },
+    { name:'Gran March',                kind:'land', color:'#cc9944', capital:'Hookhill'                            },
+    { name:'Bissel',                    kind:'land', color:'#ccaa66', capital:'Thornward'                           },
+    { name:'Geoff',                     kind:'land', color:'#aa8855', capital:'Gorna'                               },
+    { name:'Sterich',                   kind:'land', color:'#998866', capital:'Istivin'                             },
+    // ── Veluna / Furyondy / Iuz frontier (north-west) ───────────────────
+    { name:'Archclericy of Veluna',     kind:'land', color:'#dddd99', capital:'Mitrik'                              },
+    { name:'Viscounty of Verbobonc',    kind:'land', color:'#aa6644', capital:'Verbobonc',        anchors:['O4-95'] },
+    { name:'Kingdom of Furyondy',       kind:'land', color:'#4488cc', capital:'Chendl',           anchors:['P4-85','E4-83'] },
+    { name:'Shield Lands',              kind:'land', color:'#5577aa', capital:'Critwall'                            },
+    { name:'Highfolk',                  kind:'land', color:'#66aabb', capital:'Highfolk Town'                       },
+    { name:'Horned Society',            kind:'land', color:'#552255', capital:'Molag',            anchors:['E4-74'] },
+    { name:'Empire of Iuz',             kind:'land', color:'#660000', capital:'Dorakaa',          anchors:['H4-70'] },
+    { name:'Bandit Kingdoms',           kind:'land', color:'#774422', capital:'Rookroost'                           },
+    // ── Far north and north-east ────────────────────────────────────────
+    { name:'Wolf Nomads',               kind:'land', color:'#999966', capital:'Eru-Tovar'                           },
+    { name:'Tiger Nomads',              kind:'land', color:'#aaaa55', capital:'Yecha'                               },
+    { name:'Rovers of the Barrens',     kind:'land', color:'#886633', capital:null                                  }, // nomadic, no fixed capital
+    { name:'Hold of Stonefist',         kind:'land', color:'#7788aa', capital:'Vlekstaad'                           },
+    { name:'Theocracy of the Pale',     kind:'land', color:'#ddddee', capital:'Wintershiven'                        },
+    { name:'Tenh',                      kind:'land', color:'#aa9988', capital:'Nevond Nevnend'                      },
+    { name:'Frost Barbarians',          kind:'land', color:'#bbccdd', capital:'Krakenheim'                          },
+    { name:'Snow Barbarians',           kind:'land', color:'#ccddee', capital:'Soull'                               },
+    { name:'Ice Barbarians',            kind:'land', color:'#aaccdd', capital:'Glot'                                },
+    { name:'Bone March',                kind:'land', color:'#ccccaa', capital:'Spinecastle'                         },
+    { name:'Archbarony of Ratik',       kind:'land', color:'#bbaa77', capital:'Marner'                              },
+    // ── Central / east (Nyrond and around) ──────────────────────────────
+    { name:'Kingdom of Nyrond',         kind:'land', color:'#88bb55', capital:'Rel Mord'                            },
+    // ── Great Kingdom and successors ────────────────────────────────────
+    { name:'Great Kingdom',             kind:'land', color:'#884444', capital:'Rauxes',           anchors:['A2-69','R-72'] },
+    { name:'North Province',            kind:'land', color:'#993333', capital:'Eastfair'                            },
+    { name:'South Province',            kind:'land', color:'#aa3333', capital:'Zelradton'                           },
+    { name:'See of Medegia',            kind:'land', color:'#aa4455', capital:'Mentrey'                             },
+    { name:'County of Sunndi',          kind:'land', color:'#669966', capital:'Pitchfield'                          },
+    { name:'Idee',                      kind:'land', color:'#aabb66', capital:'Naerie'                              },
+    { name:'Onnwal',                    kind:'land', color:'#88aa66', capital:'Scant'                               },
+    { name:'Irongate',                  kind:'land', color:'#776655', capital:'Irongate'                            },
+    { name:'County of Almor',           kind:'land', color:'#ccbb88', capital:'Chathold'                            },
+    { name:'Lordship of the Isles',     kind:'land', color:'#558899', capital:'Sulward'                             },
+    // ── South coast ─────────────────────────────────────────────────────
+    { name:'Sea Princes',               kind:'land', color:'#aa6688', capital:'Hokar'                               },
+    // ── City-states ────────────────────────────────────────────────────
+    { name:'City of Dyvers',            kind:'land', color:'#cc7755', capital:'Dyvers'                              },
   ];
   const BASE_REGION_NAMES = new Set(GH_REGIONS.map(r => r.name));
 
