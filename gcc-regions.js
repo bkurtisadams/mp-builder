@@ -126,6 +126,587 @@
   // outer overlap resolves by which region painted the hex, not by
   // file position. Listed roughly clockwise from Greyhawk City for
   // ease of human scanning.
+  // ── REGION DETAILS (1983 boxed-set canon metadata) ───────────────────
+  // Keyed by BASE region name. Merged into each region at applyDefs
+  // time so consumers can read region.ruler / region.humanPop /
+  // region.resources / region.notes etc. Honorific prefixes have
+  // been stripped from ruler strings to factual name+title.
+  const REGION_DETAILS = {
+    "Prelacy of Almor": {
+      ruler: "Kevont, the Prelate of Almor",
+      capPop: "4,789",
+      humanPop: "200,000+",
+      demihumans: "Few",
+      humanoids: "Few",
+      resources: "foodstuffs, cloth, copper",
+    },
+    "Bandit Kingdoms": {
+      ruler: "Various claims to royal titles exist",
+      capPop: "17,310",
+      humanPop: "95,000+",
+      demihumans: "Few if any",
+      humanoids: "Many",
+      resources: "silver (mines in rift area)",
+      notes: "17 states ruled by robber chieftains.",
+    },
+    "March of Bissel": {
+      ruler: "Walgar, the Margrave of Bissel",
+      capPop: "3,430",
+      humanPop: "50,000",
+      demihumans: "Some",
+      humanoids: "Some",
+      resources: "foodstuffs, cloth, gold, gems (I)",
+    },
+    "Archbarony of Blackmoor": {
+      ruler: "Archbaron Bestmo of Blackmoor",
+      capPop: "666",
+      humanPop: "20,000 to 30,000+/-",
+      demihumans: "Unlikely",
+      humanoids: "Considerable numbers",
+      resources: "ivory, copper, gems (II)",
+    },
+    "Bone March": {
+      ruler: "The Marquis of Bonemarch (title currently held by no one)",
+      capPop: "6,300",
+      humanPop: "40,000+/-",
+      demihumans: "Few (beleaguered gnomes of the Flinty Hills)",
+      humanoids: "Many (gnolls, ogres, ores in numbers)",
+      resources: "silver, gems (I, II)",
+      notes: "Source spelling in OCR/text: Bonemarch.",
+    },
+    "Celene": {
+      ruler: "Yolande, Queen of Celene, Lady Rhalta of All Elvenkind",
+      capPop: "6,950",
+      humanPop: "20,000",
+      demihumans: "Gray Elves (9,500); Sylvan Elves (8,000); Gnomes (13,500); Halflings",
+      humanoids: "None",
+      resources: "foodstuffs, cloth, silver",
+    },
+    "City of Dyvers": {
+      ruler: "Margus, the Magister of Dyvers",
+      capPop: "42,000+ city",
+      humanPop: "42,000+ city; 53,000 total including surrounding area",
+      demihumans: "Some",
+      humanoids: "Few",
+      resources: "shipbuilding supplies",
+      notes: "Capital not separately listed because entry is a city-state.",
+    },
+    "Caliphate of Ekbir": {
+      ruler: "Xargun, the Caliph of Ekbir",
+      capPop: "29,400",
+      humanPop: "250,000",
+      demihumans: "Doubtful",
+      humanoids: "Few",
+      resources: "foodstuffs, cloth",
+    },
+    "Frost Barbarians": {
+      ruler: "King Ralff of the Fruztii",
+      capPop: "3,300",
+      humanPop: "50,000+/-",
+      demihumans: "Few",
+      humanoids: "Some",
+      resources: "foodstuffs, furs, silver, gold",
+    },
+    "Kingdom of Furyondy": {
+      ruler: "Belvor IV, the King of Furyondy",
+      capPop: "15,600",
+      humanPop: "350,000+",
+      demihumans: "Some",
+      humanoids: "Doubtful",
+      resources: "foodstuffs, cloth, gold",
+    },
+    "Grand Duchy of Geoff": {
+      ruler: "Owen I, Grand Duke of Geoff",
+      capPop: "4,800",
+      humanPop: "65,000",
+      demihumans: "High Elves (6,000); some others",
+      humanoids: "Some (see Crystalmist Mountains)",
+      resources: "cloth, copper, silver, gold, gems (I)",
+    },
+    "Gran March": {
+      ruler: "Petros, Commandant of Gran March",
+      capPop: "4,500",
+      humanPop: "80,000",
+      demihumans: "Some",
+      humanoids: "Few",
+      resources: "foodstuffs, cloth, copper, gems (III)",
+    },
+    "Great Kingdom": {
+      ruler: "Ivid V, the Overking of Aerdy, Grand Prince of the North",
+      capPop: "41,000",
+      humanPop: "5,000,000 (includes N. and S. Province and Medegia)",
+      demihumans: "Some (scattered on fringes of kingdom)",
+      humanoids: "Some (mixture)",
+      resources: "foodstuffs, cloth, copper, silver, gold, gems (IV)",
+    },
+    "City of Greyhawk": {
+      ruler: "Nerof Gasgol, the Lord Mayor of Greyhawk",
+      capPop: "58,000 city",
+      humanPop: "58,000 city; 75,000+ total including surrounding area",
+      demihumans: "Some",
+      humanoids: "Some",
+      resources: "silver, electrum, gold, platinum, gems (I-IV)",
+      notes: "Capital not separately listed because entry is a city-state.",
+    },
+    "Highfolk": {
+      ruler: "Loftin Graystand, Mayor of Highfolk",
+      humanPop: "2,500 (excluding demi-humans)",
+      demihumans: "High Elves (5,000) and some others",
+      humanoids: "None",
+      resources: "gold",
+      notes: "Town entry.",
+    },
+    "Valley of the Highfolk": {
+      ruler: "No single ruler; Lord of the High Elves serves as nominal authority",
+      humanPop: "20,000 (woodsmen)",
+      demihumans: "High Elves (12,000); Sylvan Elves (9,000); Gnomes (4,000); Halflings (2,000 Tallfellows); Gray Elves (1,000)",
+      humanoids: "Some (raiders only)",
+      resources: "gold, rare woods",
+    },
+    "Horned Society": {
+      ruler: "The Hierarchs (true names unknown)",
+      capPop: "16,200",
+      humanPop: "45,000 (?)",
+      demihumans: "Very doubtful",
+      humanoids: "Hobgoblins (12,000); others",
+    },
+    "Ice Barbarians": {
+      ruler: "Lolgoff Bearhear, the King of Cruski; Fasstal of all the Suelii",
+      capPop: "5,100",
+      humanPop: "60,000",
+      demihumans: "Few",
+      humanoids: "Likely in mountains",
+      resources: "furs, copper, gems (I)",
+    },
+    "County of Idee": {
+      ruler: "Count Fedorik Eddri of Idee",
+      capPop: "4,900",
+      humanPop: "60,000+",
+      demihumans: "Some",
+      humanoids: "Doubtful",
+      resources: "foodstuffs, copper, gold",
+    },
+    "Free City of Irongate": {
+      ruler: "Cobb Darg, Lord High Mayor of Irongate",
+      capPop: "44,000 city",
+      humanPop: "44,000 city; 57,000 total including surrounding area",
+      demihumans: "Many",
+      humanoids: "None",
+      resources: "gems (II, III)",
+      notes: "Capital not separately listed because entry is a city-state.",
+    },
+    "Empire of Iuz": {
+      ruler: "Iuz, Lord of Evil (evil demi-god)",
+      capPop: "10,000",
+      humanPop: "40,000",
+      demihumans: "None",
+      humanoids: "Many (numbers unknown)",
+      resources: "furs, electrum",
+    },
+    "Kingdom of Keoland": {
+      ruler: "Kimbertos Skotti, the King of Keoland; Lord of Gran March; Plar of Sterich",
+      capPop: "21,600",
+      humanPop: "300,000 (excluding dependencies)",
+      demihumans: "Sylvan Elves; Gnomes; Halflings",
+      humanoids: "Doubtful",
+      resources: "foodstuffs, cloth, gold, gems (III)",
+    },
+    "Ket": {
+      ruler: "Zoltan, the Beygraf of Ket and Shield of the True Faith",
+      capPop: "23,400",
+      humanPop: "85,000",
+      demihumans: "Few",
+      humanoids: "Few",
+      resources: "silver, gems (I, IV)",
+    },
+    "Lordship of the Isles": {
+      ruler: "Prince Latmac Ranold of Duxchan; Lord of the Isles",
+      capPop: "5,500",
+      humanPop: "80,000",
+      demihumans: "Few",
+      humanoids: "Doubtful",
+      resources: "rare woods, spices",
+    },
+    "North Province": {
+      ruler: "Grenell, the Herzog of the North Province",
+      capPop: "29,100",
+      humanPop: "750,000",
+      demihumans: "Few",
+      humanoids: "Some",
+      resources: "foodstuffs, cloth, electrum",
+    },
+    "Kingdom of Nyrond": {
+      ruler: "King Archbold III of Nyrond; Duke of Flinthill",
+      capPop: "46,500",
+      humanPop: "1,375,000",
+      demihumans: "Sylvan Elves; Gnomes; Halflings",
+      humanoids: "Few",
+      resources: "foodstuffs, cloth, copper, silver, gems (I, II)",
+      notes: "Ruler line appears after the stat block in extracted text.",
+    },
+    "State of Onnwal": {
+      ruler: "Ewerd Destron, the Szek of Onnwal",
+      capPop: "4,700",
+      humanPop: "40,000",
+      demihumans: "Dwarves (2,000)",
+      humanoids: "None",
+      resources: "platinum, gems (III)",
+    },
+    "Theocracy of the Pale": {
+      ruler: "Ogon Tillit, the Theocrat and Supreme Prelate of the Pale",
+      capPop: "21,500",
+      humanPop: "250,000",
+      demihumans: "Some",
+      humanoids: "Few",
+      resources: "foodstuffs, copper, gems (IV)",
+    },
+    "Perrenland": {
+      ruler: "Franz, Voormann of All Perrenland",
+      capPop: "25,000+",
+      humanPop: "200,000",
+      demihumans: "Some",
+      humanoids: "Some",
+      resources: "copper",
+    },
+    "Plains of the Paynims": {
+      ruler: "Various nomadic leaders (Amir, Khan, Ilkhan, Orakhon, Shah, etc.)",
+      humanPop: "Uncertain; possibly 500,000 or more",
+      demihumans: "Doubtful",
+      humanoids: "Doubtful but possible",
+      notes: "Leaders called Amir, Khan, Ilkhan, Orakhon, Shah, Tarkhan, Padishah, or Kha Khan depending on tribe.",
+    },
+    "Pomarj": {
+      ruler: "No single ruler; humanoid warlords contest control",
+      humanPop: "20,000 (?)",
+      demihumans: "None",
+      humanoids: "Ores (15,000); Goblins (10,000); others",
+      resources: "silver, electrum, gold, gems (I, II)",
+    },
+    "Archbarony of Ratik": {
+      ruler: "Lexnol, the Lord Baron of Ratik",
+      capPop: "3,240",
+      humanPop: "35,000",
+      demihumans: "Mountain Dwarves (8,000+); Gnomes (3,000+)",
+      humanoids: "Many",
+      resources: "shipbuilding supplies, furs, gold, gems (IV)",
+    },
+    "City of Rel Astra": {
+      ruler: "Drax, the Constable Mayor of Rel Astra",
+      capPop: "63,900",
+      humanPop: "90,000",
+      demihumans: "Very few",
+      humanoids: "Some",
+      notes: "Resources line not printed in source block.",
+    },
+    "Rovers of the Barrens": {
+      ruler: "Kishwa Dogteeth, Ataman of the Standards; Chief of the Wardogs",
+      humanPop: "65,000?",
+      demihumans: "Few",
+      humanoids: "Numerous",
+      resources: "furs, gold",
+    },
+    "Scarlet Brotherhood": {
+      ruler: "The Father of Obedience (true name unknown)",
+      humanPop: "35,000+/-",
+      demihumans: "Doubtful",
+      humanoids: "Highly probable",
+      resources: "rare woods, spices, gold, gems (I, III, IV)",
+    },
+    "Sea Barons": {
+      ruler: "Sencho Foy, Lord High Admiral of Asperdi; Commander of the Sea Barons",
+      capPop: "7,100",
+      humanPop: "55,000",
+      demihumans: "Few",
+      humanoids: "Few",
+    },
+    "Hold of the Sea Princes": {
+      ruler: "Prince Jeon II of Monmurg; Ruler of the Azure Sea",
+      capPop: "14,200",
+      humanPop: "100,000",
+      demihumans: "Few",
+      humanoids: "Probable",
+      resources: "foodstuffs",
+    },
+    "Shield Lands": {
+      ruler: "Holmer, the Earl of Walworth; Knight Commander of the Shield Lands",
+      capPop: "21,300",
+      humanPop: "65,000",
+      demihumans: "Few",
+      humanoids: "Few",
+      resources: "foodstuffs",
+    },
+    "Snow Barbarians": {
+      ruler: "King of the Schnai",
+      capPop: "5,400",
+      humanPop: "90,000+",
+      demihumans: "Some",
+      humanoids: "Many (in mountains)",
+      resources: "copper, gems (I, II)",
+    },
+    "South Province": {
+      ruler: "Chelor, the Herzog of the South Province",
+      capPop: "7,000",
+      humanPop: "400,000",
+      demihumans: "Doubtful",
+      humanoids: "Few",
+      resources: "foodstuffs, silver",
+    },
+    "Spindrift Isles": {
+      ruler: "The Councils of Five and Seven (true names unknown)",
+      capPop: "10,000",
+      humanPop: "30,000",
+      demihumans: "Many in the northern isles; 1,500+ on Lendore Isle",
+      humanoids: "Many on Lendore Isle, mainly ores and kobolds",
+    },
+    "Sterich": {
+      ruler: "Querchard, the Earl of Sterich",
+      capPop: "5,000",
+      humanPop: "40,000",
+      demihumans: "Mountain Dwarves (4,000); Gnomes; Halflings",
+      humanoids: "Some (in mountains)",
+      resources: "silver, electrum, gold, gems (II, III)",
+    },
+    "Hold of Stonefist": {
+      ruler: "Sevvord Redbeard, the Master of the Hold",
+      capPop: "2,100",
+      humanPop: "60,000+",
+      demihumans: "Doubtful",
+      humanoids: "Some",
+      resources: "furs, ivory, silver, gems (I)",
+    },
+    "County of Sunndi": {
+      ruler: "Count Hazendel of Sunndi; Olvensteward of the South",
+      capPop: "3,600",
+      humanPop: "60,000",
+      demihumans: "Gray Elves (7,000); Mountain Dwarves (3,000+); Gnomes (2,000+)",
+      humanoids: "Some (see Vast Swamp)",
+      resources: "electrum, platinum, gems (II, IV)",
+    },
+    "Duchy of Tenh": {
+      ruler: "Duke Ehyeh of Tenh",
+      capPop: "23,800",
+      humanPop: "200,000",
+      demihumans: "Some",
+      humanoids: "Numerous (in mountains)",
+      resources: "foodstuffs, platinum",
+    },
+    "Tiger Nomads": {
+      ruler: "Ilkhan Cligir of the Chakyik Hordes",
+      capPop: "3,800",
+      humanPop: "75,000+",
+      demihumans: "Few",
+      humanoids: "Few",
+      resources: "furs, silver, gems (I)",
+    },
+    "Pashalik of Tusmit": {
+      ruler: "Jadhim, the Pasha of Tusmit",
+      capPop: "18,500",
+      humanPop: "150,000",
+      demihumans: "Few",
+      humanoids: "Few",
+      resources: "foodstuffs, silver, gold",
+    },
+    "County of Ulek": {
+      ruler: "Lewenn, the Count Palatine of Ulek",
+      capPop: "10,900",
+      humanPop: "25,000",
+      demihumans: "Gnomes (5,000); Halflings (4,000); others",
+      humanoids: "None",
+      resources: "foodstuffs, copper, silver, gems (I, II)",
+    },
+    "Duchy of Ulek": {
+      ruler: "Grenowin, the Duke of Ulek",
+      capPop: "13,800",
+      humanPop: "15,000",
+      demihumans: "High Elves (12,000); Sylvan Elves (4,000); Gnomes",
+      humanoids: "Doubtful",
+      resources: "foodstuffs, cloth, electrum, gems (I, II)",
+    },
+    "Principality of Ulek": {
+      ruler: "Prince Olinstaad Corond of Ulek; Lord of the Peaks of Haven",
+      capPop: "17,200",
+      humanPop: "30,000+",
+      demihumans: "Dwarves (18,000); Mountain Dwarves (9,000); Gnomes; Halflings",
+      humanoids: "Doubtful",
+      resources: "foodstuffs, silver, gems (II, IV)",
+    },
+    "Ull": {
+      ruler: "Draske, the Orakhon of Ull",
+      capPop: "6,000+/-",
+      humanPop: "100,000+",
+      demihumans: "Doubtful",
+      humanoids: "Some (in mountains)",
+      resources: "silver, gems (II)",
+    },
+    "County of Urnst": {
+      ruler: "Countess Belissica of Urnst",
+      capPop: "39,100",
+      humanPop: "200,000",
+      demihumans: "Halflings (3,000); others few",
+      humanoids: "Few",
+      resources: "foodstuffs, cloth, gold",
+    },
+    "Duchy of Urnst": {
+      ruler: "Duke Karll of Urnst; Warden of the Abbor-Alz",
+      capPop: "20,900",
+      humanPop: "200,000",
+      demihumans: "Halflings (5,000); Gnomes (3,000); Dwarves (3,000)",
+      humanoids: "Few",
+      resources: "foodstuffs, silver, electrum, gold, platinum, gems (I-IV)",
+    },
+    "Valley of the Mage": {
+      ruler: "The Exalted Mage of the Valley; Laird of the Domain",
+      humanPop: "10,000 (?)",
+      demihumans: "Possibly Elves, Gnomes",
+      humanoids: "Unknown",
+    },
+    "Archclericy of Veluna": {
+      ruler: "Hazen, the Canon of Veluna; Shepherd of the Faithful",
+      capPop: "12,600",
+      humanPop: "250,000 (excluding Viscounty of Verbobonc)",
+      demihumans: "High Elves (10,000); Gnomes (7,000); others",
+      humanoids: "Few",
+      resources: "foodstuffs, copper, silver, gold",
+    },
+    "Viscounty of Verbobonc": {
+      ruler: "Wilfrick, the Viscount of Verbobonc",
+      capPop: "11,600",
+      humanPop: "35,000",
+      demihumans: "Gnomes (4,000); Sylvan Elves (2,500)",
+      humanoids: "Few",
+      resources: "copper, gems (I-IV)",
+    },
+    "Wild Coast": {
+      ruler: "No single ruler; major towns Safeton, Narwell, Fax, Badwall, Elredd",
+      capPop: "Safeton 4,600; Narwell 2,900; Fax 6,700; Badwall 5,200; Elredd 8,400",
+      humanPop: "150,000+(?)",
+      demihumans: "Many",
+      humanoids: "Many",
+    },
+    "Wolf Nomads": {
+      ruler: "Bargru, Tarkhan of the Wegwiur; Commander of the Relentless Horde",
+      capPop: "4,000",
+      humanPop: "80,000",
+      demihumans: "Few",
+      humanoids: "Few",
+      resources: "furs, copper",
+    },
+    "Yeomanry": {
+      ruler: "Crispin Redwell, the Freeholder; Spokesman for the Yeomanry League",
+      capPop: "6,000",
+      humanPop: "100,000",
+      demihumans: "High Elves (2,000); Dwarves; Halflings",
+      humanoids: "Few (many in mountains)",
+      resources: "foodstuffs, cloth, silver, gems (II)",
+    },
+    "Sultanate of Zeif": {
+      ruler: "Murad, the Sultan of Zeif",
+      capPop: "40,300",
+      humanPop: "200,000",
+      demihumans: "Doubtful",
+      humanoids: "Doubtful",
+      resources: "foodstuffs, gems (III)",
+    },
+    "Azure Sea": {
+      notes: "Main carrier of commerce between west and central nations.",
+    },
+    "Nyr Dyv": {
+      notes: "Largest known freshwater lake; home waters of the Rhennee bargefolk.",
+    },
+    "Abbor-Alz": {
+      notes: "Rocky hill chain between Nesser River and Woolly Bay; known mineral wealth in Urnst-held portion.",
+    },
+    "Cairn Hills": {
+      notes: "Borderland of Greyhawk and the Duchy of Urnst; known for ancient cairns and treasure finds.",
+    },
+    "Hestmark Highlands": {
+      notes: "Includes Dullstrand (pop. 5,500); precious metals and gems noted.",
+    },
+    "Kron Hills": {
+      notes: "Nearly 20,000 gnomes estimated; mined for metals, precious metals, and gems.",
+    },
+    "Cold Marshes": {
+      notes: "Fens and bogs north of the Howling Hills; sources of Dulsi and Opicm Rivers.",
+    },
+    "Vast Swamp": {
+      notes: "Large morass above the Tilvanot Peninsula; legends connect it to Acererak.",
+    },
+    "Corusk Mountains": {
+      notes: "Backbone of the Thillonrian Peninsula.",
+    },
+    "Crystalmist Mountains": {
+      notes: "Highest range in the Flanaess; precious metals and gems noted.",
+    },
+    "Griff Mountains": {
+      notes: "Range between Stonefist, Tenh, and the Pale; valuable mineral deposits noted.",
+    },
+    "Hellfurnaces": {
+      notes: "Volcanically active part of the Crystalmist range.",
+    },
+    "Yatil Mountains": {
+      notes: "Rich in ore deposits and gems.",
+    },
+    "Adri Forest": {
+      humanPop: "25,000-",
+      demihumans: "Few",
+      humanoids: "Few",
+    },
+    "Amedio Jungle": {
+      demihumans: "Unlikely",
+      humanoids: "Possible",
+      resources: "foodstuffs, rare woods, spices, ivory, platinum, gems (III, IV)",
+    },
+    "Celadon Forest": {
+      demihumans: "Sylvan Elves and Treants noted",
+    },
+    "Dreadwood": {
+      humanPop: "5,000",
+      demihumans: "Sylvan Elves (8,000); Gnomes (1,000); Halflings",
+      humanoids: "Some",
+    },
+    "Gamboge Forest": {
+      humanPop: "7,000",
+      demihumans: "Sylvan Elves (11,000); Gnomes (3,000); High Elves (1,500); Halflings",
+      humanoids: "Some",
+    },
+    "Gnarley Forest": {
+      humanPop: "12,000",
+      demihumans: "Sylvan Elves (7,000); Gnomes (3,000); others",
+      humanoids: "Some",
+    },
+    "Grandwood Forest": {
+      humanPop: "25,000",
+      demihumans: "Sylvan Elves (7,000); some others",
+      humanoids: "Some",
+    },
+    "Vesve Forest": {
+      humanPop: "20,000",
+      demihumans: "Sylvan Elves (10,000); Gnomes (6,000); High Elves (3,000); Halflings",
+      humanoids: "Hobgoblins (5,000); Gnolls (3,000)",
+    },
+    "Welkwood": {
+      humanPop: "10,000+",
+      demihumans: "Many",
+      humanoids: "Some (raiding parties)",
+    },
+    "Bright Desert": {
+      humanPop: "Unknown (scattered nomads)",
+      demihumans: "Doubtful",
+      humanoids: "Doubtful",
+      resources: "copper, silver, gold, and gem minerals noted",
+      notes: "Heading appears as Wastelands; first entry is Bright Desert.",
+    },
+    "Dry Steppes": {
+      notes: "Baklunish nomad hordes noted.",
+    },
+    "Rift Canyon": {
+      notes: "White Plume Mountain noted just south of the canyon.",
+    },
+    "Sea of Dust": {
+      notes: "Former Suel/Suloise Empire; Forgotten City legend noted.",
+    },
+  };
+
   const GH_REGIONS = [
     // ── Central Flanaess ────────────────────────────────────────────────
     { name:'City of Greyhawk',          kind:'land', color:'#cc4444', capital:'Greyhawk',         anchors:['C4-86'] },
@@ -407,6 +988,19 @@
     for (const r of GH_REGIONS){
       if (!r.color) r.color = defaultColor(r.name);
       if (!r.category) r.category = 'political';
+    }
+    // Merge REGION_DETAILS metadata onto each region by name. Fields
+    // are non-destructive: an explicit field on the region object wins
+    // over the details table, so user-set values via setRegionMeta
+    // don't get clobbered. Available fields: ruler, capPop, humanPop,
+    // demihumans, humanoids, resources, notes.
+    const DETAIL_FIELDS = ['ruler','capPop','humanPop','demihumans','humanoids','resources','notes'];
+    for (const r of GH_REGIONS){
+      const d = REGION_DETAILS[r.name];
+      if (!d) continue;
+      for (const f of DETAIL_FIELDS){
+        if (d[f] !== undefined && r[f] === undefined) r[f] = d[f];
+      }
     }
   }
   applyDefs();
@@ -846,6 +1440,13 @@
       parts.push(`kind:${JSON.stringify(r.kind || 'land')}`);
       parts.push(`color:${JSON.stringify(r.color || defaultColor(r.name))}`);
       if (r.capital) parts.push(`capital:${JSON.stringify(r.capital)}`);
+      if (r.ruler)      parts.push(`ruler:${JSON.stringify(r.ruler)}`);
+      if (r.capPop)     parts.push(`capPop:${JSON.stringify(r.capPop)}`);
+      if (r.humanPop)   parts.push(`humanPop:${JSON.stringify(r.humanPop)}`);
+      if (r.demihumans) parts.push(`demihumans:${JSON.stringify(r.demihumans)}`);
+      if (r.humanoids)  parts.push(`humanoids:${JSON.stringify(r.humanoids)}`);
+      if (r.resources)  parts.push(`resources:${JSON.stringify(r.resources)}`);
+      if (r.notes)      parts.push(`notes:${JSON.stringify(r.notes)}`);
       if (r.vertices) parts.push(`vertices:${JSON.stringify(r.vertices)}`);
       if (r.hexes && r.hexes.length){
         const sorted = r.hexes.slice().sort((a,b) => {
@@ -904,12 +1505,30 @@
     return { pass, fail };
   }
 
+  // Convenience accessor returning just the boxed-set canon metadata
+  // for a region (or null if the region doesn't exist). Skips the
+  // engine-internal fields (color, hexes, vertices, etc.) so consumers
+  // get a pure data view.
+  function getDetails(name){
+    const r = getByName(name);
+    if (!r) return null;
+    const out = {};
+    const FIELDS = ['kind','category','subkind','capital','ruler',
+                    'capPop','humanPop','demihumans','humanoids',
+                    'resources','notes','anchors'];
+    for (const f of FIELDS){
+      if (r[f] !== undefined) out[f] = r[f];
+    }
+    return out;
+  }
+
   window.GCCRegions = {
     data: GH_REGIONS,
     getRegion,
     getRegionInfo,
     getMembership,
     getHexTagged,
+    getDetails,
     all,
     names,
     getByName,
