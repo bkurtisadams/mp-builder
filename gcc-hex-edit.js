@@ -209,6 +209,7 @@
     rgDragging: false,
     rgLastKey: null,
     rgTrace: [],             // [{col,row}] in-progress polygon vertices
+    rgFormMode: null,        // null | 'new' | 'edit'
     panelEl: null,
   };
 
@@ -339,8 +340,11 @@
     // Outline tab wiring
     p.querySelector('#he-rg-select').onchange    = onRgSelect;
     p.querySelector('#he-rg-newbtn').onclick     = onRgNewBtn;
-    p.querySelector('#he-rg-cancel').onclick     = onRgCancel;
-    p.querySelector('#he-rg-create').onclick     = onRgCreate;
+    p.querySelector('#he-rg-editbtn').onclick    = onRgEditBtn;
+    p.querySelector('#he-rg-form-cancel').onclick   = onRgFormCancel;
+    p.querySelector('#he-rg-form-save').onclick     = onRgFormSave;
+    p.querySelector('#he-rg-form-clearhex').onclick = onRgFormClearHex;
+    p.querySelector('#he-rg-form-delete').onclick   = onRgFormDelete;
     p.querySelector('#he-rg-bootstrap').onclick  = onRgBootstrap;
     p.querySelector('#he-rg-export').onclick     = onRgExport;
     p.querySelector('#he-rg-reset').onclick      = onRgReset;
@@ -498,17 +502,31 @@
         <label class="he-lbl">Region</label>
         <select class="he-select" id="he-rg-select"></select>
 
-        <div class="he-rg-newrow" id="he-rg-newrow" style="display:none">
-          <label class="he-lbl" style="margin-top:6px">New Region Name</label>
-          <input class="he-input" id="he-rg-new-name" type="text" placeholder="e.g. Sea Princes" autocomplete="off">
+        <div class="he-rg-form" id="he-rg-form" style="display:none">
+          <label class="he-lbl" style="margin-top:6px">
+            <span id="he-rg-form-title">New Region</span>
+            <span class="he-rg-form-base" id="he-rg-form-base" style="display:none;color:#88ccdd;font-weight:normal;font-size:9px;float:right">BASE</span>
+          </label>
+          <input class="he-input" id="he-rg-form-name" type="text" placeholder="e.g. Sea Princes" autocomplete="off">
           <div class="he-rg-newctl">
-            <input class="he-input he-rg-color" id="he-rg-new-color" type="color" value="#888888" title="Region tint">
-            <select class="he-input he-rg-kind" id="he-rg-new-kind">
+            <input class="he-input he-rg-color" id="he-rg-form-color" type="color" value="#888888" title="Region tint">
+            <select class="he-input he-rg-kind" id="he-rg-form-kind">
               <option value="land">land</option>
               <option value="water">water</option>
             </select>
-            <button class="he-btn he-rg-create" id="he-rg-create">Create</button>
-            <button class="he-btn he-rg-cancel" id="he-rg-cancel">Cancel</button>
+          </div>
+          <label class="he-rg-suppress" id="he-rg-suppress-row" style="display:none">
+            <input type="checkbox" id="he-rg-form-suppress">
+            <span>Suppress rect fallback</span>
+            <span class="he-rg-suppress-hint">Once you've painted accurate boundaries, turn this on so the loose BASE rect stops claiming unpainted hexes.</span>
+          </label>
+          <div class="he-rg-form-btns">
+            <button class="he-btn" id="he-rg-form-save">Save</button>
+            <button class="he-btn" id="he-rg-form-cancel">Cancel</button>
+          </div>
+          <div class="he-rg-form-btns" id="he-rg-form-danger" style="display:none">
+            <button class="he-btn he-danger" id="he-rg-form-clearhex" title="Clear painted hexes for this region; metadata kept">Clear Hexes</button>
+            <button class="he-btn he-danger" id="he-rg-form-delete" title="Delete this region entirely (override-only)">Delete Region</button>
           </div>
         </div>
 
@@ -535,7 +553,8 @@
         <div class="he-status" id="he-rg-status">Pick a region, then click or drag.</div>
 
         <div class="he-btns">
-          <button class="he-btn" id="he-rg-newbtn"  title="Create a new region">+ New</button>
+          <button class="he-btn" id="he-rg-newbtn"   title="Create a new region">+ New</button>
+          <button class="he-btn" id="he-rg-editbtn"  title="Edit metadata for the selected region" disabled>Edit</button>
           <button class="he-btn" id="he-rg-bootstrap" title="Seed regions from landmark region tags">Bootstrap</button>
         </div>
         <div class="he-btns">
@@ -733,12 +752,12 @@
       #hex-edit-panel .he-rg-mode.active {
         background:rgba(200,148,26,.22); color:#ffeebb; border-color:#c8941a;
       }
-      #hex-edit-panel .he-rg-newrow {
+      #hex-edit-panel .he-rg-form {
         margin:6px 0; padding:6px; background:rgba(20,14,6,.6);
         border:1px solid #5a3d0a; border-radius:2px;
       }
       #hex-edit-panel .he-rg-newctl {
-        display:grid; grid-template-columns:36px 1fr 1fr 1fr; gap:4px;
+        display:grid; grid-template-columns:36px 1fr; gap:4px;
         margin-top:6px; align-items:center;
       }
       #hex-edit-panel .he-rg-color {
@@ -748,8 +767,22 @@
       #hex-edit-panel .he-rg-kind {
         font-size:10px; padding:2px 4px; height:24px;
       }
-      #hex-edit-panel .he-rg-create, #hex-edit-panel .he-rg-cancel {
-        font-size:10px; padding:2px 4px; height:24px;
+      #hex-edit-panel .he-rg-suppress {
+        display:flex; flex-wrap:wrap; align-items:flex-start; gap:4px 6px;
+        margin-top:8px; padding:6px; font-size:10px; cursor:pointer;
+        background:rgba(0,0,0,.2); border:1px solid rgba(139,110,69,.4); border-radius:2px;
+      }
+      #hex-edit-panel .he-rg-suppress input { margin:0; cursor:pointer; }
+      #hex-edit-panel .he-rg-suppress-hint {
+        flex-basis:100%; color:#88ccdd; font-size:9px; line-height:1.3;
+        font-weight:normal;
+      }
+      #hex-edit-panel .he-rg-form-btns {
+        display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:6px;
+      }
+      #hex-edit-panel .he-rg-form-btns .he-btn { font-size:10px; padding:4px 6px; }
+      #hex-edit-panel .he-btn[disabled] {
+        opacity:.4; cursor:not-allowed; color:#5a3d0a;
       }
       #hex-edit-panel .he-rg-traceaux {
         display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;
@@ -1375,6 +1408,10 @@
     setRgStatus(state.rgSelected
       ? `Armed: ${state.rgSelected}. ${state.rgMode === 'erase' ? 'Click/drag to erase.' : state.rgMode === 'trace' ? 'Click vertices, then Fill.' : 'Click/drag to add hexes.'}`
       : 'Pick a region first.');
+    const editBtn = state.panelEl.querySelector('#he-rg-editbtn');
+    if (editBtn) editBtn.disabled = !state.rgSelected;
+    // If the edit form is open for a different region, close it.
+    if (state.rgFormMode === 'edit') closeRgForm();
   }
 
   function setRgMode(mode){
@@ -1401,29 +1438,132 @@
     if (el) el.textContent = msg;
   }
 
-  function onRgNewBtn(){
+  function openRgForm(mode, name){
+    state.rgFormMode = mode;
     if (!state.panelEl) return;
-    const row = state.panelEl.querySelector('#he-rg-newrow');
-    row.style.display = '';
-    state.panelEl.querySelector('#he-rg-new-name').focus();
+    const form    = state.panelEl.querySelector('#he-rg-form');
+    const title   = state.panelEl.querySelector('#he-rg-form-title');
+    const baseTag = state.panelEl.querySelector('#he-rg-form-base');
+    const nameEl  = state.panelEl.querySelector('#he-rg-form-name');
+    const colorEl = state.panelEl.querySelector('#he-rg-form-color');
+    const kindEl  = state.panelEl.querySelector('#he-rg-form-kind');
+    const supRow  = state.panelEl.querySelector('#he-rg-suppress-row');
+    const supCk   = state.panelEl.querySelector('#he-rg-form-suppress');
+    const saveBtn = state.panelEl.querySelector('#he-rg-form-save');
+    const dangerRow = state.panelEl.querySelector('#he-rg-form-danger');
+    const delBtn  = state.panelEl.querySelector('#he-rg-form-delete');
+
+    if (mode === 'new'){
+      title.textContent = 'New Region';
+      baseTag.style.display = 'none';
+      nameEl.readOnly = false;
+      nameEl.value = '';
+      colorEl.value = '#888888';
+      kindEl.value = 'land';
+      supRow.style.display = 'none';
+      supCk.checked = false;
+      saveBtn.textContent = 'Create';
+      dangerRow.style.display = 'none';
+    } else if (mode === 'edit'){
+      const r = GCCRegions.getByName(name);
+      if (!r){ closeRgForm(); return; }
+      const isB = GCCRegions.isBase(name);
+      title.textContent = `Edit: ${name}`;
+      baseTag.style.display = isB ? '' : 'none';
+      nameEl.readOnly = true;
+      nameEl.value = name;
+      colorEl.value = r.color && r.color.startsWith('#') ? r.color : '#888888';
+      kindEl.value = r.kind || 'land';
+      // Suppress-rect only meaningful for regions that have a rect.
+      if (r.rect){
+        supRow.style.display = '';
+        supCk.checked = !!r.suppressRect;
+      } else {
+        supRow.style.display = 'none';
+        supCk.checked = false;
+      }
+      saveBtn.textContent = 'Save';
+      // Clear-hexes available if there's a hex-set; Delete only for non-BASE.
+      const hasHexes = (GCCRegions.exportOverrides().hexes[name] || []).length > 0;
+      const showDanger = hasHexes || !isB;
+      dangerRow.style.display = showDanger ? '' : 'none';
+      delBtn.style.display = isB ? 'none' : '';
+      state.panelEl.querySelector('#he-rg-form-clearhex').style.display = hasHexes ? '' : 'none';
+    }
+    form.style.display = '';
+    if (mode === 'new') nameEl.focus();
   }
-  function onRgCancel(){
+
+  function closeRgForm(){
+    state.rgFormMode = null;
     if (!state.panelEl) return;
-    state.panelEl.querySelector('#he-rg-newrow').style.display = 'none';
-    state.panelEl.querySelector('#he-rg-new-name').value = '';
+    state.panelEl.querySelector('#he-rg-form').style.display = 'none';
   }
-  function onRgCreate(){
-    const name  = state.panelEl.querySelector('#he-rg-new-name').value.trim();
-    const color = state.panelEl.querySelector('#he-rg-new-color').value;
-    const kind  = state.panelEl.querySelector('#he-rg-new-kind').value;
-    if (!name){ setRgStatus('Enter a region name first.'); return; }
-    const ok = GCCRegions.addRegion({ name, kind, color });
-    if (!ok){ setRgStatus(`"${name}" already exists.`); return; }
-    showToast(`Created region: ${name}`);
-    state.rgSelected = name;
-    onRgCancel();
+
+  function onRgNewBtn(){ openRgForm('new'); }
+  function onRgEditBtn(){
+    if (!state.rgSelected) return;
+    openRgForm('edit', state.rgSelected);
+  }
+  function onRgFormCancel(){ closeRgForm(); }
+
+  function onRgFormSave(){
+    const name  = state.panelEl.querySelector('#he-rg-form-name').value.trim();
+    const color = state.panelEl.querySelector('#he-rg-form-color').value;
+    const kind  = state.panelEl.querySelector('#he-rg-form-kind').value;
+    const suppress = state.panelEl.querySelector('#he-rg-form-suppress').checked;
+    if (state.rgFormMode === 'new'){
+      if (!name){ setRgStatus('Enter a region name first.'); return; }
+      const ok = GCCRegions.addRegion({ name, kind, color });
+      if (!ok){ setRgStatus(`"${name}" already exists.`); return; }
+      showToast(`Created region: ${name}`);
+      state.rgSelected = name;
+    } else if (state.rgFormMode === 'edit'){
+      const r = GCCRegions.getByName(name);
+      const opts = { color, kind };
+      if (r && r.rect) opts.suppressRect = suppress;
+      GCCRegions.setRegionMeta(name, opts);
+      showToast(`Saved: ${name}`);
+    }
+    closeRgForm();
     refreshRegionSelect();
-    setRgMode(state.rgMode);  // refresh status
+    setRgMode(state.rgMode);
+    if (state.activeTab === 'outline') redrawAllRegionOverlay();
+  }
+
+  function onRgFormClearHex(){
+    const name = state.panelEl.querySelector('#he-rg-form-name').value.trim();
+    if (!name) return;
+    const n = (GCCRegions.exportOverrides().hexes[name] || []).length;
+    if (!n) return;
+    if (!confirm(`Clear ${n} painted hex${n===1?'':'es'} for "${name}"? Region metadata is kept.`)) return;
+    GCCRegions.clearHexes(name);
+    showToast(`Cleared ${n} hex${n===1?'':'es'} from ${name}`);
+    closeRgForm();
+    refreshRegionSelect();
+    updateRgStats();
+    if (state.activeTab === 'outline') redrawAllRegionOverlay();
+  }
+
+  function onRgFormDelete(){
+    const name = state.panelEl.querySelector('#he-rg-form-name').value.trim();
+    if (!name) return;
+    if (GCCRegions.isBase(name)){
+      setRgStatus('BASE regions cannot be deleted; use Clear Hexes / Suppress rect.');
+      return;
+    }
+    const n = (GCCRegions.exportOverrides().hexes[name] || []).length;
+    const msg = n
+      ? `Delete region "${name}" and ${n} painted hex${n===1?'':'es'}?`
+      : `Delete region "${name}"?`;
+    if (!confirm(msg)) return;
+    GCCRegions.removeRegion(name);
+    showToast(`Deleted ${name}`);
+    state.rgSelected = null;
+    closeRgForm();
+    refreshRegionSelect();
+    updateRgStats();
+    redrawAllRegionOverlay();
   }
 
   function onRgBootstrap(){

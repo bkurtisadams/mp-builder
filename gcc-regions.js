@@ -159,6 +159,8 @@
       } else {
         if (def.kind)  GH_REGIONS[idx].kind  = def.kind;
         if (def.color) GH_REGIONS[idx].color = def.color;
+        if (def.suppressRect) GH_REGIONS[idx].suppressRect = true;
+        else delete GH_REGIONS[idx].suppressRect;
       }
     }
     for (const r of GH_REGIONS){
@@ -215,7 +217,7 @@
         if (pointInPoly(u.x, u.y, pts)) return 'vertices';
       }
     }
-    if (r.rect && inRect(col, row, r.rect)) return 'rect';
+    if (r.rect && !r.suppressRect && inRect(col, row, r.rect)) return 'rect';
     return false;
   }
 
@@ -319,6 +321,32 @@
     saveDefs();
     return true;
   }
+
+  // Unified metadata setter for the editor: any of color/kind/
+  // suppressRect can be passed; undefined fields are left alone.
+  function setRegionMeta(name, { color, kind, suppressRect } = {}){
+    const r = getByName(name);
+    if (!r) return false;
+    if (color !== undefined) r.color = color;
+    if (kind  !== undefined) r.kind  = kind;
+    if (suppressRect !== undefined){
+      if (suppressRect) r.suppressRect = true;
+      else delete r.suppressRect;
+    }
+    const cur = OVERRIDE_DEFS[name] || {};
+    const next = {
+      kind:  kind  !== undefined ? kind  : (cur.kind  || r.kind || 'land'),
+      color: color !== undefined ? color : (cur.color || r.color),
+    };
+    if (suppressRect !== undefined ? suppressRect : cur.suppressRect){
+      next.suppressRect = true;
+    }
+    OVERRIDE_DEFS[name] = next;
+    saveDefs();
+    return true;
+  }
+
+  function isBase(name){ return BASE_REGION_NAMES.has(name); }
 
   // Accept "col-row", [col,row], or Darlene ID. Always store internal
   // "col-row" form so overrides round-trip without darleneToInternal.
@@ -471,6 +499,7 @@
         GH_REGIONS.splice(i, 1);
       } else {
         delete GH_REGIONS[i].hexes;
+        delete GH_REGIONS[i].suppressRect;
       }
     }
     OVERRIDE_DEFS = {};
@@ -490,6 +519,7 @@
       parts.push(`kind:${JSON.stringify(r.kind || 'land')}`);
       parts.push(`color:${JSON.stringify(r.color || defaultColor(r.name))}`);
       if (r.rect)     parts.push(`rect:[${r.rect.join(',')}]`);
+      if (r.suppressRect) parts.push(`suppressRect:true`);
       if (r.vertices) parts.push(`vertices:${JSON.stringify(r.vertices)}`);
       if (r.hexes && r.hexes.length){
         const sorted = r.hexes.slice().sort((a,b) => {
@@ -561,6 +591,8 @@
     addRegion,
     removeRegion,
     setRegionColor,
+    setRegionMeta,
+    isBase,
     setHexes,
     addHexes,
     removeHexes,
