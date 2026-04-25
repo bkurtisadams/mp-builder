@@ -246,6 +246,28 @@
       }
     }
 
+    // Restore saved panel height. The CSS default is 50vh so first-time
+    // users get a compact panel; subsequent opens use whatever they
+    // dragged the resize grip to. ResizeObserver writes back on every
+    // size change (debounced via rAF) so closing-and-reopening preserves it.
+    try {
+      const savedH = parseInt(localStorage.getItem('gh-hex-edit-h'), 10);
+      if (savedH && savedH >= 200 && savedH <= window.innerHeight - 88){
+        p.style.height = savedH + 'px';
+      }
+    } catch(e){}
+    let resizeFrame = null;
+    if (typeof ResizeObserver === 'function'){
+      const ro = new ResizeObserver(() => {
+        if (resizeFrame) return;
+        resizeFrame = requestAnimationFrame(() => {
+          resizeFrame = null;
+          try { localStorage.setItem('gh-hex-edit-h', String(p.offsetHeight)); } catch(e){}
+        });
+      });
+      ro.observe(p);
+    }
+
     p.querySelector('.he-close').onclick = exit;
     p.querySelectorAll('.he-tab').forEach(t =>
       t.onclick = () => setActiveTab(t.dataset.tab));
@@ -546,11 +568,21 @@
         position:fixed; top:72px; right:16px; width:260px; z-index:2000;
         background:rgba(20,14,6,.96); border:1px solid #c8941a; border-radius:3px;
         font-family:'Cinzel',serif; color:#f4e4b8; box-shadow:0 4px 20px rgba(0,0,0,.6);
-        /* Bound the panel to the viewport so tall panes (LGG header + desc
-           textarea + paint palette) don't spill below the fold. Chrome rows
-           (header, tabs) stay fixed; the active pane scrolls internally. */
+        /* Default to half-height so the panel doesn't dominate the map.
+           User can drag the bottom-right grip to resize; height is
+           persisted in localStorage via the ResizeObserver below.
+           min/max bound the drag so the panel can't shrink past
+           usefulness or balloon past the viewport. */
+        height: 50vh;
+        min-height: 200px;
         max-height: calc(100vh - 88px);
+        resize: vertical;
         display: flex; flex-direction: column; overflow: hidden;
+      }
+      #hex-edit-panel::-webkit-resizer {
+        background:
+          linear-gradient(135deg, transparent 0 6px, #c8941a 6px 7px, transparent 7px 9px,
+                                  #c8941a 9px 10px, transparent 10px);
       }
       #hex-edit-panel .he-hdr {
         display:flex; justify-content:space-between; align-items:center;
