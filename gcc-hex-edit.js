@@ -1637,9 +1637,14 @@
     el.textContent = `${s.regions} regions · ${s.total} hexes tagged.`;
   }
 
-  // Apply the region overlay tint to a single cell. Returns true if a
-  // tint was applied. When force=false and no region claims the hex,
-  // the tint is cleared.
+  // Apply the region overlay tint to a single cell. When a region
+  // claims the hex, paint with the region's color. When no region
+  // claims it, fall back to the terrain tint so the user can still
+  // see the map (without this fallback, the map-wrap background
+  // shows through and the hex looks black, hiding both terrain
+  // context and the cursor target). The region opacity is used in
+  // both cases so painted-vs-unpainted regions read at the same
+  // visual weight.
   function applyRegionToCell(col, row){
     const el = document.getElementById(`hex-${col}-${row}`);
     if (!el) return false;
@@ -1650,11 +1655,20 @@
       el.style.setProperty('--hex-paint-rgb', rgb);
       el.style.setProperty('--hex-paint-alpha', String(state.rgOpacity));
       return true;
-    } else {
-      el.style.removeProperty('--hex-paint-rgb');
-      el.style.removeProperty('--hex-paint-alpha');
-      return false;
     }
+    // No region — show terrain underneath, dimmed to the region
+    // opacity so painted regions still pop above the unpainted base.
+    if (typeof GCCTerrain !== 'undefined' && typeof TERRAIN !== 'undefined'){
+      const t = GCCTerrain.get(col, row);
+      if (t && TERRAIN[t]?.rgb){
+        el.style.setProperty('--hex-paint-rgb', TERRAIN[t].rgb);
+        el.style.setProperty('--hex-paint-alpha', String(state.rgOpacity * 0.6));
+        return false;
+      }
+    }
+    el.style.removeProperty('--hex-paint-rgb');
+    el.style.removeProperty('--hex-paint-alpha');
+    return false;
   }
 
   // Walk every hex cell once and paint the region overlay. Slow when
