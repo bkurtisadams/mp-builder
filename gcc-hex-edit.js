@@ -508,9 +508,9 @@
     return `
       <div class="he-pane" id="he-pane-outline">
         <div class="he-rg-filter">
-          <button class="he-rg-filter-btn active" data-filter="all"        title="Show all regions">All</button>
-          <button class="he-rg-filter-btn"        data-filter="political"  title="Show only political regions (kingdoms, duchies, city-states)">Political</button>
-          <button class="he-rg-filter-btn"        data-filter="geographic" title="Show only named geographic features (forests, mountains, lakes, rivers)">Geographic</button>
+          <button class="he-rg-filter-btn active" data-filter="all"        title="Jump to top of list">All</button>
+          <button class="he-rg-filter-btn"        data-filter="political"  title="Jump to first political region">Political</button>
+          <button class="he-rg-filter-btn"        data-filter="geographic" title="Jump to first geographic feature">Geographic</button>
         </div>
         <label class="he-lbl">Region</label>
         <select class="he-select" id="he-rg-select"></select>
@@ -1443,30 +1443,55 @@
     const sel = state.panelEl.querySelector('#he-rg-select');
     if (!sel) return;
     const stats = GCCRegions.stats();
-    const filter = state.rgFilter || 'all';
-    const filtered = GCCRegions.all().filter(r => {
-      if (filter === 'all') return true;
-      const cat = r.category || 'political';
-      return cat === filter;
-    });
-    const all = filtered.slice().sort((a,b) => a.name.localeCompare(b.name));
+    // Always show every region, alphabetized. Filter buttons act as
+    // scroll shortcuts (jump-to-first-of-category), not concealment.
+    // This avoids the catch-22 where a misclassified region can't be
+    // reached to fix it: the region most needing Edit is exactly the
+    // one a hiding filter would hide. Subkind prefix glyphs cluster
+    // categories visually so the long list stays scannable.
+    const all = GCCRegions.all().slice().sort((a,b) => a.name.localeCompare(b.name));
     sel.innerHTML =
       '<option value="">— choose —</option>' +
       all.map(r => {
         const n = stats.counts[r.name] || 0;
         const tag = n > 0 ? ` ● ${n}` : '';
         const prefix = SUBKIND_PREFIX[r.subkind] ? `${SUBKIND_PREFIX[r.subkind]} ` : '';
-        return `<option value="${r.name}">${prefix}${r.name}${tag}</option>`;
+        return `<option value="${r.name}" data-cat="${r.category || 'political'}">${prefix}${r.name}${tag}</option>`;
       }).join('');
     sel.value = state.rgSelected || '';
   }
 
+  // Filter button = scroll-to shortcut. Selects the first region in
+  // the dropdown matching the chosen category and scrolls it into
+  // the select's visible range. The select doesn't open as a
+  // dropdown via JS, so this assists both keyboard navigation
+  // (selectedIndex sets the active item) and the visual selection
+  // shown on the closed select.
   function setRgFilter(filter){
     state.rgFilter = filter;
     if (!state.panelEl) return;
     state.panelEl.querySelectorAll('.he-rg-filter-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.filter === filter));
-    refreshRegionSelect();
+    const sel = state.panelEl.querySelector('#he-rg-select');
+    if (!sel) return;
+    let target = -1;
+    if (filter === 'all'){
+      target = 1;  // First real entry, skip the placeholder.
+    } else {
+      for (let i = 1; i < sel.options.length; i++){
+        if (sel.options[i].dataset.cat === filter){ target = i; break; }
+      }
+    }
+    if (target >= 0){
+      sel.selectedIndex = target;
+      // Read back so onRgSelect-equivalent state stays in sync.
+      state.rgSelected = sel.value || null;
+      const editBtn = state.panelEl.querySelector('#he-rg-editbtn');
+      if (editBtn) editBtn.disabled = !state.rgSelected;
+      setRgStatus(state.rgSelected
+        ? `Armed: ${state.rgSelected}. ${state.rgMode === 'erase' ? 'Click/drag to erase.' : state.rgMode === 'trace' ? 'Click vertices, then Fill.' : 'Click/drag to add hexes.'}`
+        : 'Pick a region first.');
+    }
   }
 
   function onRgSelect(e){
@@ -1587,18 +1612,8 @@
       GCCRegions.setRegionMeta(name, { color, kind, category, subkind });
       showToast(`Saved: ${name}`);
     }
-    // If the new/edited region's category doesn't match the active
-    // filter, the picker would silently hide it. Switch to a filter
-    // that includes it (its own category, not 'all', so the filter
-    // is still useful for the next click). This was the source of
-    // the "newly added region did not show" bug — adding a political
-    // region with the Geographic filter active hid it instantly.
-    if (state.rgFilter !== 'all' && state.rgFilter !== category){
-      setRgFilter(category);
-    } else {
-      refreshRegionSelect();
-    }
     closeRgForm();
+    refreshRegionSelect();
     setRgMode(state.rgMode);
     if (state.activeTab === 'outline') redrawAllRegionOverlay();
   }
