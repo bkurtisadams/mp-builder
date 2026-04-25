@@ -180,6 +180,13 @@
     { name:'Lordship of the Isles',     kind:'land', color:'#558899', capital:'Sulward'                             },
     // ── South coast ─────────────────────────────────────────────────────
     { name:'Sea Princes',               kind:'land', color:'#aa6688', capital:'Hokar'                               },
+    { name:'Pomarj',                    kind:'land', color:'#aa3322', capital:'Highport'                            },
+    // Note: "Iron League" is an alliance of southern polities (Idee,
+    // Sunndi, Onnwal, Irongate, Lordship of the Isles), not a polity
+    // itself. Member states are listed individually above. If you
+    // need to tag a hex with Iron League membership specifically,
+    // that's better handled as a future cultural/alliance tag rather
+    // than a region.
     // ── City-states ────────────────────────────────────────────────────
     { name:'City of Dyvers',            kind:'land', color:'#cc7755', capital:'Dyvers'                              },
 
