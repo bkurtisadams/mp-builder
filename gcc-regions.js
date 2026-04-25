@@ -182,6 +182,119 @@
     { name:'Sea Princes',               kind:'land', color:'#aa6688', capital:'Hokar'                               },
     // ── City-states ────────────────────────────────────────────────────
     { name:'City of Dyvers',            kind:'land', color:'#cc7755', capital:'Dyvers'                              },
+
+    // ── GEOGRAPHIC FEATURES (named natural regions) ─────────────────────
+    // Forests, mountain ranges, hill chains, lakes, rivers, swamps, and
+    // deserts that the LGG and Darlene map call out by name. category is
+    // 'geographic'; subkind narrows the type for downstream consumers
+    // (encounter tables, color schemes). Political regions above default
+    // to category:'political' via applyDefs, so explicit category is
+    // omitted there to keep BASE entries terse.
+    //
+    // Single-membership note: a hex painted into Vesve Forest is no
+    // longer in Kingdom of Furyondy from the engine's POV. The forest/
+    // kingdom overlap problem is acknowledged but out of scope for now;
+    // paint borders accordingly. Rivers (linear, narrow) tend to avoid
+    // this since they're typically painted on water hexes anyway.
+
+    // ── Forests ─────────────────────────────────────────────────────────
+    { name:'Vesve Forest',          category:'geographic', subkind:'forest', kind:'land', color:'#3d6630' },
+    { name:'Gnarley Forest',        category:'geographic', subkind:'forest', kind:'land', color:'#406b32' },
+    { name:'Welkwood Forest',       category:'geographic', subkind:'forest', kind:'land', color:'#4a7338' },
+    { name:'Suss Forest',           category:'geographic', subkind:'forest', kind:'land', color:'#3a5d2c' },
+    { name:'Dim Forest',            category:'geographic', subkind:'forest', kind:'land', color:'#2d4823' },
+    { name:'Oytwood',               category:'geographic', subkind:'forest', kind:'land', color:'#446a36' },
+    { name:'Hornwood',              category:'geographic', subkind:'forest', kind:'land', color:'#446a36' },
+    { name:'Dreadwood',             category:'geographic', subkind:'forest', kind:'land', color:'#2a3f20' },
+    { name:'Menowood',              category:'geographic', subkind:'forest', kind:'land', color:'#406b32' },
+    { name:'Celadon Forest',        category:'geographic', subkind:'forest', kind:'land', color:'#4d7740' },
+    { name:'Adri Forest',           category:'geographic', subkind:'forest', kind:'land', color:'#3a5a2e' },
+    { name:'Phostwood',             category:'geographic', subkind:'forest', kind:'land', color:'#3a5a2e' },
+    { name:'Burneal Forest',        category:'geographic', subkind:'forest', kind:'land', color:'#2d4823' },
+    { name:'Fellreev Forest',       category:'geographic', subkind:'forest', kind:'land', color:'#3a5a2e' },
+    { name:'Forlorn Forest',        category:'geographic', subkind:'forest', kind:'land', color:'#2d4823' },
+    { name:'Gamboge Forest',        category:'geographic', subkind:'forest', kind:'land', color:'#5a7a3a' },
+    { name:'Spikey Forest',         category:'geographic', subkind:'forest', kind:'land', color:'#3a5a2e' },
+    { name:'Loftwood',              category:'geographic', subkind:'forest', kind:'land', color:'#446a36' },
+    { name:'Grandwood Forest',      category:'geographic', subkind:'forest', kind:'land', color:'#3a5d2c' },
+    { name:'Timberway Forest',      category:'geographic', subkind:'forest', kind:'land', color:'#446a36' },
+    { name:'Rieuwood',              category:'geographic', subkind:'forest', kind:'land', color:'#406b32' },
+    { name:'Amedio Jungle',         category:'geographic', subkind:'forest', kind:'land', color:'#1f3818' },
+    { name:'Hool Marshes',          category:'geographic', subkind:'swamp',  kind:'land', color:'#5a6840' },
+
+    // ── Mountains ───────────────────────────────────────────────────────
+    { name:'Lortmil Mountains',     category:'geographic', subkind:'mountains', kind:'land', color:'#7a6855' },
+    { name:'Crystalmist Mountains', category:'geographic', subkind:'mountains', kind:'land', color:'#8a7866' },
+    { name:'Hellfurnaces',          category:'geographic', subkind:'mountains', kind:'land', color:'#6a4a3a' },
+    { name:'Sulhaut Mountains',     category:'geographic', subkind:'mountains', kind:'land', color:'#7a6655' },
+    { name:'Yatil Mountains',       category:'geographic', subkind:'mountains', kind:'land', color:'#7a6655' },
+    { name:'Clatspur Range',        category:'geographic', subkind:'mountains', kind:'land', color:'#75634f' },
+    { name:'Barrier Peaks',         category:'geographic', subkind:'mountains', kind:'land', color:'#7a6655' },
+    { name:'Jotens',                category:'geographic', subkind:'mountains', kind:'land', color:'#75634f' },
+    { name:'Griff Mountains',       category:'geographic', subkind:'mountains', kind:'land', color:'#7a6655' },
+    { name:'Corusk Mountains',      category:'geographic', subkind:'mountains', kind:'land', color:'#75634f' },
+    { name:'Rakers',                category:'geographic', subkind:'mountains', kind:'land', color:'#7a6655' },
+    { name:'Glorioles',             category:'geographic', subkind:'mountains', kind:'land', color:'#75634f' },
+    { name:'Hestmark Highlands',    category:'geographic', subkind:'mountains', kind:'land', color:'#75634f' },
+
+    // ── Hills ───────────────────────────────────────────────────────────
+    { name:'Cairn Hills',           category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+    { name:'Kron Hills',            category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+    { name:'Abbor-Alz',             category:'geographic', subkind:'hills',  kind:'land', color:'#a08a6a' },
+    { name:'Flinty Hills',          category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+    { name:'Good Hills',            category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+    { name:'Iron Hills',            category:'geographic', subkind:'hills',  kind:'land', color:'#8a7855' },
+    { name:'Headlands',             category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+    { name:'Stark Mounds',          category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+    { name:'Tusman Hills',          category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+    { name:'Yecha Hills',           category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+    { name:'Sepia Uplands',         category:'geographic', subkind:'hills',  kind:'land', color:'#a89a76' },
+    { name:'Lorridges',             category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+    { name:'Bluff Hills',           category:'geographic', subkind:'hills',  kind:'land', color:'#9a8866' },
+
+    // ── Swamps / marshes ────────────────────────────────────────────────
+    { name:'Vast Swamp',            category:'geographic', subkind:'swamp',  kind:'land', color:'#5a6840' },
+    { name:'Pelisso Swamp',         category:'geographic', subkind:'swamp',  kind:'land', color:'#5a6840' },
+    { name:'Ghastly Swamp',         category:'geographic', subkind:'swamp',  kind:'land', color:'#4d5933' },
+    { name:'Mistmarsh',             category:'geographic', subkind:'swamp',  kind:'land', color:'#5a6840' },
+    { name:'Rushmoors',             category:'geographic', subkind:'swamp',  kind:'land', color:'#5a6840' },
+    { name:'Troll Fens',            category:'geographic', subkind:'swamp',  kind:'land', color:'#4d5933' },
+
+    // ── Deserts and waste ───────────────────────────────────────────────
+    { name:'Bright Desert',         category:'geographic', subkind:'desert', kind:'land', color:'#c8a86a' },
+    { name:'Sea of Dust',           category:'geographic', subkind:'desert', kind:'land', color:'#cdb47a' },
+    { name:'Land of Black Ice',     category:'geographic', subkind:'desert', kind:'land', color:'#b0c4d4' },
+
+    // ── Inland water bodies ─────────────────────────────────────────────
+    { name:'Nyr Dyv',               category:'geographic', subkind:'lake',   kind:'water', color:'#3a6a8a' },
+    { name:'Whyestil Lake',         category:'geographic', subkind:'lake',   kind:'water', color:'#3a6a8a' },
+    { name:'Lake Quag',             category:'geographic', subkind:'lake',   kind:'water', color:'#3a6a8a' },
+    { name:'Spendlowe Lake',        category:'geographic', subkind:'lake',   kind:'water', color:'#3a6a8a' },
+    { name:'Lake of Unknown Depths', category:'geographic', subkind:'lake',  kind:'water', color:'#2d5874' },
+    { name:'Icy Sea',               category:'geographic', subkind:'sea',    kind:'water', color:'#5680a0' },
+
+    // ── Rivers ──────────────────────────────────────────────────────────
+    { name:'Velverdyva River',      category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Selintan River',        category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Nesser River',          category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Imeda River',           category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Veng River',            category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Att River',             category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Artonsamay River',      category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Harp River',            category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Duntide River',         category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Franz River',           category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Flanmi River',          category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Grayflood',             category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Javan River',           category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Sheldomar River',       category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Davish River',          category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Old River',             category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Yol River',             category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+    { name:'Dulsi River',           category:'geographic', subkind:'river',  kind:'water', color:'#4a7a9a' },
+
+    // ── Other ──────────────────────────────────────────────────────────
+    { name:'Rift Canyon',           category:'geographic', subkind:'canyon', kind:'land', color:'#7a5a3a' },
   ];
   const BASE_REGION_NAMES = new Set(GH_REGIONS.map(r => r.name));
 
@@ -210,18 +323,28 @@
     for (const [name, def] of Object.entries(OVERRIDE_DEFS)){
       const idx = GH_REGIONS.findIndex(r => r.name === name);
       if (idx < 0){
+        // Override-only region. If a Bootstrap-created override has
+        // metadata (color/category set explicitly), respect it; otherwise
+        // default to political (kingdoms/duchies are the common case).
         GH_REGIONS.push({
           name,
-          kind:  def.kind  || 'land',
-          color: def.color || defaultColor(name),
+          kind:     def.kind     || 'land',
+          color:    def.color    || defaultColor(name),
+          category: def.category || 'political',
         });
       } else {
+        // Override augments BASE. BASE wins on category/subkind so the
+        // curated geographic classification isn't overwritten by a
+        // Bootstrap entry that omits those fields.
         if (def.kind)  GH_REGIONS[idx].kind  = def.kind;
-        if (def.color) GH_REGIONS[idx].color = def.color;
+        if (def.color && !GH_REGIONS[idx].color) GH_REGIONS[idx].color = def.color;
       }
     }
+    // Apply defaults: BASE political entries omit category for terseness,
+    // so default any region without one to 'political' here.
     for (const r of GH_REGIONS){
       if (!r.color) r.color = defaultColor(r.name);
+      if (!r.category) r.category = 'political';
     }
   }
   applyDefs();
@@ -339,15 +462,24 @@
   function names(){ return GH_REGIONS.map(r => r.name); }
 
   // ── Editor mutations ──────────────────────────────────────────────────────
-  function addRegion({ name, kind, color }){
+  function addRegion({ name, kind, color, category, subkind }){
     if (!name || typeof name !== 'string') return false;
     if (GH_REGIONS.some(r => r.name === name)) return false;
     OVERRIDE_DEFS[name] = {
-      kind:  kind  || 'land',
-      color: color || defaultColor(name),
+      kind:     kind     || 'land',
+      color:    color    || defaultColor(name),
+      category: category || 'political',
     };
+    if (subkind) OVERRIDE_DEFS[name].subkind = subkind;
     saveDefs();
-    GH_REGIONS.push({ name, kind: OVERRIDE_DEFS[name].kind, color: OVERRIDE_DEFS[name].color });
+    const reg = {
+      name,
+      kind:     OVERRIDE_DEFS[name].kind,
+      color:    OVERRIDE_DEFS[name].color,
+      category: OVERRIDE_DEFS[name].category,
+    };
+    if (subkind) reg.subkind = subkind;
+    GH_REGIONS.push(reg);
     return true;
   }
 
@@ -378,18 +510,25 @@
     return true;
   }
 
-  // Unified metadata setter for the editor. color/kind only;
-  // suppressRect was retired in v0.3.0 along with rectangle regions.
-  function setRegionMeta(name, { color, kind } = {}){
+  // Unified metadata setter for the editor. color/kind/category/subkind;
+  // fields not passed are left alone. Pass null to a category/subkind
+  // field to clear it (treats as "no change" if undefined).
+  function setRegionMeta(name, { color, kind, category, subkind } = {}){
     const r = getByName(name);
     if (!r) return false;
-    if (color !== undefined) r.color = color;
-    if (kind  !== undefined) r.kind  = kind;
+    if (color    !== undefined) r.color    = color;
+    if (kind     !== undefined) r.kind     = kind;
+    if (category !== undefined) r.category = category;
+    if (subkind  !== undefined) r.subkind  = subkind;
     const cur = OVERRIDE_DEFS[name] || {};
     OVERRIDE_DEFS[name] = {
-      kind:  kind  !== undefined ? kind  : (cur.kind  || r.kind || 'land'),
-      color: color !== undefined ? color : (cur.color || r.color),
+      kind:     kind     !== undefined ? kind     : (cur.kind     || r.kind || 'land'),
+      color:    color    !== undefined ? color    : (cur.color    || r.color),
+      category: category !== undefined ? category : (cur.category || r.category || 'political'),
     };
+    if (subkind !== undefined ? subkind : cur.subkind){
+      OVERRIDE_DEFS[name].subkind = subkind !== undefined ? subkind : cur.subkind;
+    }
     saveDefs();
     return true;
   }
@@ -563,8 +702,15 @@
     for (const r of GH_REGIONS){
       const parts = [];
       parts.push(`name:${JSON.stringify(r.name)}`);
+      // Emit category before kind to match BASE entry shape; political
+      // is the default and is omitted to keep entries terse.
+      if (r.category && r.category !== 'political'){
+        parts.push(`category:${JSON.stringify(r.category)}`);
+      }
+      if (r.subkind) parts.push(`subkind:${JSON.stringify(r.subkind)}`);
       parts.push(`kind:${JSON.stringify(r.kind || 'land')}`);
       parts.push(`color:${JSON.stringify(r.color || defaultColor(r.name))}`);
+      if (r.capital) parts.push(`capital:${JSON.stringify(r.capital)}`);
       if (r.vertices) parts.push(`vertices:${JSON.stringify(r.vertices)}`);
       if (r.hexes && r.hexes.length){
         const sorted = r.hexes.slice().sort((a,b) => {

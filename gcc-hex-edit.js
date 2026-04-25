@@ -205,6 +205,7 @@
     lastPaintKey: null,
     rgSelected: null,        // currently selected region name
     rgMode: 'paint',         // 'paint' | 'erase' | 'trace'
+    rgFilter: 'all',         // 'all' | 'political' | 'geographic'
     rgOpacity: 0.55,
     rgDragging: false,
     rgLastKey: null,
@@ -351,6 +352,8 @@
     p.querySelector('#he-rg-trace-fill').onclick  = onRgTraceFill;
     p.querySelector('#he-rg-trace-undo').onclick  = onRgTraceUndo;
     p.querySelector('#he-rg-trace-clear').onclick = onRgTraceClear;
+    p.querySelectorAll('.he-rg-filter-btn').forEach(b =>
+      b.onclick = () => setRgFilter(b.dataset.filter));
     p.querySelectorAll('.he-rg-mode').forEach(b =>
       b.onclick = () => setRgMode(b.dataset.mode));
     const rgOp = p.querySelector('#he-rg-opacity');
@@ -504,6 +507,11 @@
   function buildOutlinePane(){
     return `
       <div class="he-pane" id="he-pane-outline">
+        <div class="he-rg-filter">
+          <button class="he-rg-filter-btn active" data-filter="all"        title="Show all regions">All</button>
+          <button class="he-rg-filter-btn"        data-filter="political"  title="Show only political regions (kingdoms, duchies, city-states)">Political</button>
+          <button class="he-rg-filter-btn"        data-filter="geographic" title="Show only named geographic features (forests, mountains, lakes, rivers)">Geographic</button>
+        </div>
         <label class="he-lbl">Region</label>
         <select class="he-select" id="he-rg-select"></select>
 
@@ -739,6 +747,19 @@
         font-family:monospace; font-size:11px; color:#ffeebb;
       }
       /* Outline tab — region editor */
+      #hex-edit-panel .he-rg-filter {
+        display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;
+        margin-bottom:6px;
+      }
+      #hex-edit-panel .he-rg-filter-btn {
+        background:#1a1408; color:#a89066; border:1px solid #5a3d0a;
+        padding:3px 4px; font-size:9px; font-family:inherit; cursor:pointer;
+        border-radius:2px; letter-spacing:.04em; text-transform:uppercase;
+      }
+      #hex-edit-panel .he-rg-filter-btn:hover { border-color:#c8941a; color:#e8b840; }
+      #hex-edit-panel .he-rg-filter-btn.active {
+        background:rgba(200,148,26,.22); color:#ffeebb; border-color:#c8941a;
+      }
       #hex-edit-panel .he-rg-modes {
         display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;
         margin:6px 0 4px;
@@ -1377,20 +1398,51 @@
   // --hex-paint-rgb is swapped to the region color (or unset). Leaving
   // the tab restores the terrain colors via applyPaintToCell.
 
+  // Subkind prefix: small unicode glyph that shows category at a
+  // glance. Skipped for political (no glyph keeps the 47 polities
+  // looking clean). Survives plain-text copy/paste better than
+  // colored badges.
+  const SUBKIND_PREFIX = {
+    forest:    '🌲',
+    mountains: '⛰',
+    hills:     '⛰',
+    swamp:     '〰',
+    desert:    '☼',
+    lake:      '◯',
+    sea:       '~',
+    river:     '~',
+    canyon:    'V',
+  };
+
   function refreshRegionSelect(){
     if (!state.panelEl || typeof GCCRegions === 'undefined') return;
     const sel = state.panelEl.querySelector('#he-rg-select');
     if (!sel) return;
     const stats = GCCRegions.stats();
-    const all = GCCRegions.all().slice().sort((a,b) => a.name.localeCompare(b.name));
+    const filter = state.rgFilter || 'all';
+    const filtered = GCCRegions.all().filter(r => {
+      if (filter === 'all') return true;
+      const cat = r.category || 'political';
+      return cat === filter;
+    });
+    const all = filtered.slice().sort((a,b) => a.name.localeCompare(b.name));
     sel.innerHTML =
       '<option value="">— choose —</option>' +
       all.map(r => {
         const n = stats.counts[r.name] || 0;
         const tag = n > 0 ? ` ● ${n}` : '';
-        return `<option value="${r.name}">${r.name}${tag}</option>`;
+        const prefix = SUBKIND_PREFIX[r.subkind] ? `${SUBKIND_PREFIX[r.subkind]} ` : '';
+        return `<option value="${r.name}">${prefix}${r.name}${tag}</option>`;
       }).join('');
     sel.value = state.rgSelected || '';
+  }
+
+  function setRgFilter(filter){
+    state.rgFilter = filter;
+    if (!state.panelEl) return;
+    state.panelEl.querySelectorAll('.he-rg-filter-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.filter === filter));
+    refreshRegionSelect();
   }
 
   function onRgSelect(e){
