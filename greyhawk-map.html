@@ -188,6 +188,53 @@
     white-space:pre-wrap; word-wrap:break-word; }
   .li-empty { font-size:11px; color:#6e5a40; font-style:italic; }
 
+  /* Side-panel Travel row — the value cell is a button so the whole
+     thing is tappable. Looks like the other .value cells but with a
+     subtle hover highlight to telegraph clickability. */
+  .p-travel-btn { background:transparent; border:1px dashed rgba(200,148,26,.25);
+    color:var(--parchment-light); font-family:inherit; font-size:11px;
+    cursor:pointer; padding:2px 6px; border-radius:2px; text-align:right; }
+  .p-travel-btn:hover { background:rgba(200,148,26,.12); border-color:rgba(200,148,26,.5);
+    color:var(--gold-light); }
+
+  /* Travel profile dialog — small floating panel, draggable header,
+     three fieldset blocks for mode/burden/mount. Disabled fieldset
+     fades out so the active one reads clearly. */
+  #travel-dialog { position:fixed; top:0; left:0; width:240px;
+    background:#120900; border:1px solid var(--gold); border-radius:2px;
+    z-index:65; box-shadow:0 8px 32px rgba(0,0,0,.7);
+    opacity:0; pointer-events:none; transition:opacity .18s ease;
+    display:flex; flex-direction:column; }
+  #travel-dialog.open { opacity:1; pointer-events:all; }
+  #td-header { padding:9px 30px 6px 11px; border-bottom:1px solid var(--panel-border);
+    position:relative; cursor:grab; user-select:none; }
+  #td-header.dragging { cursor:grabbing; }
+  #td-header h2 { font-family:'Cinzel',serif; font-size:12px; color:var(--gold-light);
+    letter-spacing:.08em; }
+  #td-close { position:absolute; top:6px; right:8px; background:rgba(200,148,26,.1);
+    border:1px solid var(--panel-border); color:#c8a96e; font-size:12px;
+    cursor:pointer; padding:2px 6px; border-radius:2px; line-height:1; }
+  #td-close:hover { background:rgba(200,148,26,.3); color:#ffeebb; }
+  #td-body { padding:9px 11px; display:flex; flex-direction:column; gap:8px; }
+  #td-body fieldset { border:1px solid rgba(200,148,26,.25); border-radius:2px;
+    padding:5px 8px; transition:opacity .15s ease; }
+  #td-body fieldset.disabled { opacity:.35; pointer-events:none; }
+  #td-body legend { font-family:'Cinzel',serif; font-size:9px; color:#8b6e45;
+    letter-spacing:.1em; text-transform:uppercase; padding:0 4px; }
+  #td-body label { display:flex; align-items:center; gap:6px; font-size:11px;
+    color:var(--parchment-light); padding:2px 0; cursor:pointer; }
+  #td-body input[type="radio"] { accent-color:var(--gold); }
+  .td-hint { color:#8b6e45; font-size:10px; font-style:italic; margin-left:auto; }
+  .td-warn { color:#b04830; font-size:10px; margin-left:auto; }
+  #td-footer { display:flex; gap:6px; padding:8px 11px;
+    border-top:1px solid var(--panel-border); }
+  #td-footer button { flex:1; background:rgba(200,148,26,.12); color:#c8a96e;
+    border:1px solid var(--panel-border); border-radius:2px; padding:5px;
+    font-size:11px; cursor:pointer; font-family:inherit; letter-spacing:.04em; }
+  #td-footer button:hover { background:rgba(200,148,26,.25); color:#ffeebb; }
+  #td-footer .td-primary { background:rgba(200,148,26,.25); color:var(--gold-light); }
+  #td-footer .td-primary:hover { background:rgba(200,148,26,.45); }
+
   /* TOAST */
   #toast { position:fixed; bottom:56px; left:50%; transform:translateX(-50%) translateY(16px); background:var(--panel-bg); border:1px solid var(--gold); color:var(--gold-light); font-family:'Cinzel',serif; font-size:11px; letter-spacing:.06em; padding:7px 16px; border-radius:2px; z-index:300; opacity:0; pointer-events:none; transition:all .25s; white-space:nowrap; }
   #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
@@ -289,6 +336,9 @@
     <div class="panel-row"><label>Terrain</label><div class="value" id="p-terrain">—</div></div>
     <div class="panel-row"><label>Region</label><div class="value" id="p-region">—</div></div>
     <div class="panel-row"><label>Est. Travel Time</label><div class="value" id="p-travel">—</div></div>
+    <div class="panel-row p-travel-row"><label>Travel</label>
+      <button class="value p-travel-btn" id="p-travel-profile" title="Click to change travel mode / burden / mount">—</button>
+    </div>
     <div class="panel-row"><label>Hexes Explored</label><div class="value" id="p-explored">0</div></div>
     <hr class="panel-divider">
     <button class="panel-btn" id="p-btn-landmark-info" style="display:none">ℹ Landmark Info</button>
@@ -346,6 +396,40 @@
     <div id="ri-subtitle">—</div>
   </div>
   <div id="ri-body"></div>
+</div>
+<!-- Travel profile dialog. Compact draggable panel; opens on click of
+     the side-panel Travel row. Burden block grays out when mounted;
+     mount block grays out on foot. Cart/wagon rows show a red note
+     about Very Rugged terrain impassability. -->
+<div id="travel-dialog">
+  <button id="td-close" title="Close">✕</button>
+  <div id="td-header"><h2>Travel Mode</h2></div>
+  <div id="td-body">
+    <fieldset class="td-fs">
+      <legend>Mode</legend>
+      <label><input type="radio" name="td-mode" value="foot"> Foot</label>
+      <label><input type="radio" name="td-mode" value="mounted"> Mounted</label>
+    </fieldset>
+    <fieldset class="td-fs" id="td-fs-burden">
+      <legend>Burden (foot only)</legend>
+      <label><input type="radio" name="td-burden" value="light"> Light <span class="td-hint">≤ 25 lb</span></label>
+      <label><input type="radio" name="td-burden" value="average"> Average <span class="td-hint">26–60 lb</span></label>
+      <label><input type="radio" name="td-burden" value="heavy"> Heavy <span class="td-hint">61–90 lb</span></label>
+    </fieldset>
+    <fieldset class="td-fs" id="td-fs-mount">
+      <legend>Mount (mounted only)</legend>
+      <label><input type="radio" name="td-mount" value="light"> Light horse</label>
+      <label><input type="radio" name="td-mount" value="medium"> Medium horse</label>
+      <label><input type="radio" name="td-mount" value="heavy"> Heavy horse</label>
+      <label><input type="radio" name="td-mount" value="draft"> Draft animal</label>
+      <label><input type="radio" name="td-mount" value="cart"> Cart <span class="td-warn">✗ very rugged</span></label>
+      <label><input type="radio" name="td-mount" value="wagon"> Wagon <span class="td-warn">✗ very rugged</span></label>
+    </fieldset>
+  </div>
+  <div id="td-footer">
+    <button id="td-cancel">Cancel</button>
+    <button id="td-apply" class="td-primary">Apply</button>
+  </div>
 </div>
 <!-- Image alignment panel -->
 <div id="img-align-panel">
@@ -503,25 +587,33 @@ window.darleneQA = function(){
 
 // ── TERRAIN ───────────────────────────────────────────────────────────────────
 const TERRAIN={
-  // Canon terrain (1980 WoG rates + 1983 Darlene key). footDays/mountDays
-  // for the 5 new entries mirror the closest existing pattern — tune as
-  // the movement/CTT integration firms up.
+  // Canon terrain (1983 Darlene key). The `difficulty` field maps each
+  // terrain to one of the DMG's three outdoor terrain categories
+  // (DMG p.58 OUTDOOR MOVEMENT table):
+  //   normal      = open ground, scrub, light forest, low hills,
+  //                 small watercourses, typical desert, plains
+  //   rugged      = rough ground, snow, forests, steep hills, large
+  //                 watercourses
+  //   very_rugged = broken ground, deep snow, heavy forests, marshy
+  //                 ground, bogs, mountains, broad watercourses, jungle
+  // Speed in days-per-30-mile-hex is computed from the TRAVEL_RATES
+  // table below using the party's current burden/mount profile.
   // rgb is just the RGB triple (no alpha); .hex-cell CSS composes final
   // fill as rgba(rgb, --hex-paint-alpha), so the Paint tab's opacity
   // slider controls all painted hexes via a single global CSS var.
-  clear:        {label:'Clear/Road',     footDays:.33, mountDays:.17, rgb:'245, 232, 190'},
-  plains:       {label:'Plains',         footDays:.33, mountDays:.25, rgb:'195, 215, 100'},
-  forest:       {label:'Forest',         footDays:.5,  mountDays:.5,  rgb:'70, 120, 55'  },
-  hardwood:     {label:'Hardwood Forest',footDays:.5,  mountDays:.5,  rgb:'100, 150, 70' },
-  conifer:      {label:'Conifer Forest', footDays:.6,  mountDays:.5,  rgb:'50, 100, 55'  },
-  jungle:       {label:'Jungle',         footDays:1.25,mountDays:1.0, rgb:'35, 75, 40'   },
-  hills:        {label:'Hills',          footDays:.5,  mountDays:.33, rgb:'150, 120, 80' },
-  forest_hills: {label:'Forested Hills', footDays:.67, mountDays:.5,  rgb:'120, 130, 80' },
-  mountains:    {label:'Mountains',      footDays:1.0, mountDays:.75, rgb:'110, 90, 75'  },
-  desert:       {label:'Desert',         footDays:.67, mountDays:.5,  rgb:'220, 150, 90' },
-  barrens:      {label:'Barrens',        footDays:.67, mountDays:.5,  rgb:'175, 140, 95' },
-  swamp:        {label:'Swamp/Marsh',    footDays:1.0, mountDays:1.0, rgb:'90, 100, 65'  },
-  water:        {label:'Water (generic)',footDays:null,mountDays:null,rgb:'55, 105, 155' },
+  clear:        {label:'Clear/Road',     difficulty:'normal',      rgb:'245, 232, 190'},
+  plains:       {label:'Plains',         difficulty:'normal',      rgb:'195, 215, 100'},
+  forest:       {label:'Forest',         difficulty:'rugged',      rgb:'70, 120, 55'  },
+  hardwood:     {label:'Hardwood Forest',difficulty:'rugged',      rgb:'100, 150, 70' },
+  conifer:      {label:'Conifer Forest', difficulty:'rugged',      rgb:'50, 100, 55'  },
+  jungle:       {label:'Jungle',         difficulty:'very_rugged', rgb:'35, 75, 40'   },
+  hills:        {label:'Hills',          difficulty:'rugged',      rgb:'150, 120, 80' },
+  forest_hills: {label:'Forested Hills', difficulty:'very_rugged', rgb:'120, 130, 80' },
+  mountains:    {label:'Mountains',      difficulty:'very_rugged', rgb:'110, 90, 75'  },
+  desert:       {label:'Desert',         difficulty:'normal',      rgb:'220, 150, 90' },
+  barrens:      {label:'Barrens',        difficulty:'normal',      rgb:'175, 140, 95' },
+  swamp:        {label:'Swamp/Marsh',    difficulty:'very_rugged', rgb:'90, 100, 65'  },
+  water:        {label:'Water (generic)',difficulty:null,          rgb:'55, 105, 155' },
   // DMG-flavored water variants. Names match the voyage sim's
   // encounter-system WATER_TYPES exactly so a hex's terrain string
   // can drive table selection without a translation map:
@@ -533,12 +625,39 @@ const TERRAIN={
   // Generic `water` stays in the palette as a safe fallback for hexes
   // that haven't been classified yet; the encounter system would need
   // a sensible default for unmapped water.
-  water_fresh:      {label:'Fresh (river/lake)',  footDays:null,mountDays:null,rgb:'90, 165, 175' },
-  water_inland_sea: {label:'Inland Sea',           footDays:null,mountDays:null,rgb:'70, 140, 175' },
-  water_coastal:    {label:'Coastal',              footDays:null,mountDays:null,rgb:'85, 130, 165' },
-  water_shallow:    {label:'Shallow Sea',          footDays:null,mountDays:null,rgb:'55, 110, 160' },
-  water_deep:       {label:'Deep Sea',             footDays:null,mountDays:null,rgb:'35, 75, 130'  },
+  water_fresh:      {label:'Fresh (river/lake)',  difficulty:null, rgb:'90, 165, 175' },
+  water_inland_sea: {label:'Inland Sea',           difficulty:null, rgb:'70, 140, 175' },
+  water_coastal:    {label:'Coastal',              difficulty:null, rgb:'85, 130, 165' },
+  water_shallow:    {label:'Shallow Sea',          difficulty:null, rgb:'55, 110, 160' },
+  water_deep:       {label:'Deep Sea',             difficulty:null, rgb:'35, 75, 130'  },
 };
+
+// ── DMG TRAVEL RATES ─────────────────────────────────────────────────────────
+// Movement in miles per day per the DMG p.58 OUTDOOR MOVEMENT table.
+// Indexed [mode]:
+//   foot[burden][difficulty]   — light/average/heavy × normal/rugged/very_rugged
+//   mounted[mount][difficulty] — light/medium/heavy/draft/cart/wagon × difficulty
+// `null` = impassable (cart/wagon in very rugged terrain).
+// `travelTime` divides 30 (the hex scale) by these to get hexes/day,
+// then inverts to get days/hex for the chosen profile.
+const TRAVEL_RATES = {
+  foot: {
+    light:   { normal: 30, rugged: 20, very_rugged: 10 },
+    average: { normal: 20, rugged: 10, very_rugged:  5 },
+    heavy:   { normal: 10, rugged:  5, very_rugged:  2 },
+  },
+  mounted: {
+    light:   { normal: 60, rugged: 25, very_rugged:  5 },
+    medium:  { normal: 40, rugged: 20, very_rugged:  5 },
+    heavy:   { normal: 30, rugged: 15, very_rugged:  5 },
+    draft:   { normal: 30, rugged: 15, very_rugged:  5 },
+    cart:    { normal: 25, rugged: 15, very_rugged: null },
+    wagon:   { normal: 25, rugged: 10, very_rugged: null },
+  },
+};
+
+// 30 miles per Darlene hex. Used to translate mi/day → days/hex.
+const HEX_MILES = 30;
 
 // ── REGIONS ───────────────────────────────────────────────────────────────────
 // Region data lives in gcc-regions.js (loaded above). See getRegion() below.
@@ -551,6 +670,9 @@ const state={
   partyCol:64,partyRow:44,
   selectedCol:null,selectedRow:null,
   hexData:{},pendingMove:null,
+  // Persisted across reloads via gh-travel-profile localStorage key.
+  // Affects travelTime() output everywhere it's called.
+  travelProfile: loadTravelProfile(),
   imgAlignMode:false,
   imgDragging:false, imgDragStart:null, imgDragStartTx:0, imgDragStartTy:0,
   imgRotDragging:false, imgRotStart:0, imgRotStartAngle:0,
@@ -803,11 +925,80 @@ function getHexTerrain(col,row){
   }
   return state.hexData[`${col}-${row}`]?.terrain||'plains';
 }
-function travelTime(terrain,dist){
-  const t=TERRAIN[terrain];
-  if(!t||t.footDays===null) return 'Impassable';
-  const d=t.footDays*dist;
-  return d<1?`~${Math.round(d*24)}h on foot`:`~${d.toFixed(1)} day(s) on foot`;
+function travelTime(terrain, dist, profile){
+  const t = TERRAIN[terrain];
+  if (!t || t.difficulty == null) return 'Impassable';
+  profile = profile || (state && state.travelProfile) || DEFAULT_TRAVEL_PROFILE;
+  const milesPerDay = travelMilesPerDay(t.difficulty, profile);
+  if (milesPerDay == null || milesPerDay <= 0) return 'Impassable';
+  const daysPerHex = HEX_MILES / milesPerDay;
+  const d = daysPerHex * dist;
+  if (d < 1){
+    const hours = Math.round(d * 24);
+    return `~${hours}h ${profile.mode === 'mounted' ? 'mounted' : 'on foot'}`;
+  }
+  return `~${d.toFixed(1)} day(s) ${profile.mode === 'mounted' ? 'mounted' : 'on foot'}`;
+}
+
+// Resolve mi/day for a given terrain difficulty + travel profile.
+// Returns null if the profile can't traverse the terrain at all
+// (e.g., cart/wagon in very rugged).
+function travelMilesPerDay(difficulty, profile){
+  if (difficulty == null) return null;
+  if (profile.mode === 'mounted'){
+    const r = TRAVEL_RATES.mounted[profile.mount];
+    return r ? r[difficulty] : null;
+  }
+  const r = TRAVEL_RATES.foot[profile.burden];
+  return r ? r[difficulty] : null;
+}
+
+// Default profile: average burden on foot. DMG-canonical adventuring
+// party assumption (armored, weapons + ~40 lb of gear/rations).
+const DEFAULT_TRAVEL_PROFILE = Object.freeze({
+  mode: 'foot',
+  burden: 'average',
+  mount: 'medium',
+});
+
+// Persisted profile load/save. Falls back to the default if storage
+// is empty or contains invalid data. Defined as a function declaration
+// so it's hoisted above the `state` initializer where it's first
+// called.
+function loadTravelProfile(){
+  // Fallback default inlined so this function can run before
+  // DEFAULT_TRAVEL_PROFILE's `const` is evaluated (state's initializer
+  // runs before later top-level consts in source order).
+  const FALLBACK = { mode: 'foot', burden: 'average', mount: 'medium' };
+  try {
+    const raw = localStorage.getItem('gh-travel-profile');
+    if (!raw) return { ...FALLBACK };
+    const parsed = JSON.parse(raw);
+    return {
+      mode:   ['foot','mounted'].includes(parsed.mode) ? parsed.mode : 'foot',
+      burden: ['light','average','heavy'].includes(parsed.burden) ? parsed.burden : 'average',
+      mount:  ['light','medium','heavy','draft','cart','wagon'].includes(parsed.mount) ? parsed.mount : 'medium',
+    };
+  } catch (e) {
+    return { ...FALLBACK };
+  }
+}
+function saveTravelProfile(p){
+  try { localStorage.setItem('gh-travel-profile', JSON.stringify(p)); }
+  catch (e) {}
+}
+
+// Short label like "Foot · Avg" or "Mounted · Medium" for the side
+// panel display.
+function travelProfileLabel(p){
+  p = p || (state && state.travelProfile) || DEFAULT_TRAVEL_PROFILE;
+  if (p.mode === 'foot'){
+    const burdens = { light: 'Light', average: 'Avg', heavy: 'Heavy' };
+    return `Foot · ${burdens[p.burden] || p.burden}`;
+  }
+  const mounts = { light: 'Light Mt.', medium: 'Medium Mt.', heavy: 'Heavy Mt.',
+                   draft: 'Draft', cart: 'Cart', wagon: 'Wagon' };
+  return `${mounts[p.mount] || p.mount}`;
 }
 
 // Screen <-> map coords
@@ -1154,6 +1345,10 @@ function updateSidePanel(col,row,terrain,region,dist){
   document.getElementById('p-terrain').textContent=TERRAIN[terrain]?.label||terrain;
   document.getElementById('p-region').textContent=region;
   document.getElementById('p-travel').textContent=dist>0?travelTime(terrain,dist):'Current position';
+  // Refresh the Travel profile label every time the panel updates so
+  // changes from the dialog show up immediately.
+  const tpBtn = document.getElementById('p-travel-profile');
+  if (tpBtn) tpBtn.textContent = travelProfileLabel(state.travelProfile);
   document.getElementById('p-explored').textContent=Object.values(state.hexData).filter(h=>h.explored).length;
   // Landmark Info button — only shown when the clicked hex hosts a landmark.
   // Clicking it opens the #landmark-info floating panel with full details.
@@ -1416,6 +1611,51 @@ function openRegionInfo(name){
 function closeRegionInfo(){
   document.getElementById('region-info').classList.remove('open');
 }
+
+// ── TRAVEL PROFILE DIALOG ────────────────────────────────────────────────────
+// Opens via the side-panel Travel row click. Pre-populates radios from
+// state.travelProfile, grays the burden block when mode=mounted (and
+// vice versa), and on Apply writes back to state, persists via
+// saveTravelProfile, then refreshes the side panel so the new profile
+// is reflected in the travel-time row and the profile label.
+let tdDrag = null;
+function openTravelDialog(){
+  const dlg = document.getElementById('travel-dialog');
+  const p = state.travelProfile || DEFAULT_TRAVEL_PROFILE;
+  for (const r of dlg.querySelectorAll('input[name="td-mode"]'))   r.checked = (r.value === p.mode);
+  for (const r of dlg.querySelectorAll('input[name="td-burden"]')) r.checked = (r.value === p.burden);
+  for (const r of dlg.querySelectorAll('input[name="td-mount"]'))  r.checked = (r.value === p.mount);
+  updateTravelDialogGrayState();
+  dlg.classList.add('open');
+  if (tdDrag && !tdDrag.restore()) tdDrag.placeCenter();
+}
+function closeTravelDialog(){
+  document.getElementById('travel-dialog').classList.remove('open');
+}
+function updateTravelDialogGrayState(){
+  const dlg = document.getElementById('travel-dialog');
+  const mode = dlg.querySelector('input[name="td-mode"]:checked')?.value || 'foot';
+  dlg.querySelector('#td-fs-burden').classList.toggle('disabled', mode !== 'foot');
+  dlg.querySelector('#td-fs-mount' ).classList.toggle('disabled', mode !== 'mounted');
+}
+function applyTravelProfile(){
+  const dlg = document.getElementById('travel-dialog');
+  const mode   = dlg.querySelector('input[name="td-mode"]:checked')?.value   || 'foot';
+  const burden = dlg.querySelector('input[name="td-burden"]:checked')?.value || 'average';
+  const mount  = dlg.querySelector('input[name="td-mount"]:checked')?.value  || 'medium';
+  state.travelProfile = { mode, burden, mount };
+  saveTravelProfile(state.travelProfile);
+  closeTravelDialog();
+  // Refresh side panel so the new profile is reflected immediately in
+  // both the travel-time row and the profile label. Reuse the last-
+  // clicked hex if there is one, otherwise the party hex.
+  const c = (state.selectedCol ?? state.partyCol);
+  const r = (state.selectedRow ?? state.partyRow);
+  const dist = (c === state.partyCol && r === state.partyRow) ? 0
+             : hexDistance(state.partyCol, state.partyRow, c, r);
+  updateSidePanel(c, r, getHexTerrain(c, r), getRegion(c, r), dist);
+}
+
 function confirmMove(){
   if(!state.pendingMove) return;
   const {col,row}=state.pendingMove;
@@ -1775,7 +2015,10 @@ function wireEvents(){
       showToast('Encounter system not loaded');
       return;
     }
-    const r = GCCEncounters.checkParty();
+    // Pass the party position directly — `state` is closure-scoped to
+    // this script and not on window, so GCCEncounters.checkParty()
+    // can't see it. Calling check() with explicit coords avoids that.
+    const r = GCCEncounters.check({ col: state.partyCol, row: state.partyRow });
     GCCEncounterPanel.show(r);
   });
   document.getElementById('p-btn-rest').addEventListener('click',()=>showToast('Camp — CTT Phase 3'));
@@ -1796,6 +2039,17 @@ function wireEvents(){
     if (name) openRegionInfo(name);
   });
   document.getElementById('ri-close').addEventListener('click', closeRegionInfo);
+
+  // Travel profile dialog — opened by clicking the Travel row in the
+  // side panel. Apply writes back to state + localStorage; live mode
+  // changes update the disabled-block visual state.
+  document.getElementById('p-travel-profile').addEventListener('click', openTravelDialog);
+  document.getElementById('td-close').addEventListener('click', closeTravelDialog);
+  document.getElementById('td-cancel').addEventListener('click', closeTravelDialog);
+  document.getElementById('td-apply').addEventListener('click', applyTravelProfile);
+  for (const r of document.querySelectorAll('input[name="td-mode"]')){
+    r.addEventListener('change', updateTravelDialogGrayState);
+  }
 
   // ── TOUCH: one-finger pan, two-finger pinch-zoom, single-tap hex click ──
   // Mirrors the mouse pan/wheel-zoom logic using the same state vars (panX/panY/zoom)
@@ -1951,6 +2205,11 @@ function init(){
       document.getElementById('region-info'),
       document.getElementById('ri-header'),
       'gh-region-info-pos'
+    );
+    tdDrag = makeDraggable(
+      document.getElementById('travel-dialog'),
+      document.getElementById('td-header'),
+      'gh-travel-dialog-pos'
     );
     const w=document.getElementById('map-wrap');
     // Start at whichever is smaller: the default 0.5, or a zoom that fits the
