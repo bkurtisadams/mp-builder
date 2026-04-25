@@ -528,6 +528,24 @@
               <option value="water">water</option>
             </select>
           </div>
+          <div class="he-rg-newctl he-rg-newctl-cat">
+            <select class="he-input" id="he-rg-form-category" title="political = kingdoms, duchies, city-states; geographic = forests, mountains, lakes, etc.">
+              <option value="political">political</option>
+              <option value="geographic">geographic</option>
+            </select>
+            <select class="he-input" id="he-rg-form-subkind" title="Only used for geographic regions; helps the picker show the right glyph and groups for filtering">
+              <option value="">(no subkind)</option>
+              <option value="forest">forest</option>
+              <option value="mountains">mountains</option>
+              <option value="hills">hills</option>
+              <option value="swamp">swamp</option>
+              <option value="desert">desert</option>
+              <option value="lake">lake</option>
+              <option value="sea">sea</option>
+              <option value="river">river</option>
+              <option value="canyon">canyon</option>
+            </select>
+          </div>
           <div class="he-rg-form-btns">
             <button class="he-btn" id="he-rg-form-save">Save</button>
             <button class="he-btn" id="he-rg-form-cancel">Cancel</button>
@@ -780,6 +798,12 @@
       #hex-edit-panel .he-rg-newctl {
         display:grid; grid-template-columns:36px 1fr; gap:4px;
         margin-top:6px; align-items:center;
+      }
+      #hex-edit-panel .he-rg-newctl-cat {
+        grid-template-columns:1fr 1fr;
+      }
+      #hex-edit-panel .he-rg-newctl-cat select {
+        font-size:10px; padding:2px 4px; height:24px;
       }
       #hex-edit-panel .he-rg-color {
         padding:0; height:24px; cursor:pointer; border:1px solid #5a3d0a;
@@ -1489,6 +1513,8 @@
     const nameEl  = state.panelEl.querySelector('#he-rg-form-name');
     const colorEl = state.panelEl.querySelector('#he-rg-form-color');
     const kindEl  = state.panelEl.querySelector('#he-rg-form-kind');
+    const catEl   = state.panelEl.querySelector('#he-rg-form-category');
+    const subEl   = state.panelEl.querySelector('#he-rg-form-subkind');
     const saveBtn = state.panelEl.querySelector('#he-rg-form-save');
     const dangerRow = state.panelEl.querySelector('#he-rg-form-danger');
     const delBtn  = state.panelEl.querySelector('#he-rg-form-delete');
@@ -1501,6 +1527,11 @@
       nameEl.value = '';
       colorEl.value = '#888888';
       kindEl.value = 'land';
+      // Pre-select category from active filter so a user filtering to
+      // Geographic and clicking + New gets a geographic region by
+      // default — matches their intent without an extra click.
+      catEl.value = (state.rgFilter === 'geographic') ? 'geographic' : 'political';
+      subEl.value = '';
       saveBtn.textContent = 'Create';
       dangerRow.style.display = 'none';
     } else if (mode === 'edit'){
@@ -1513,6 +1544,8 @@
       nameEl.value = name;
       colorEl.value = r.color && r.color.startsWith('#') ? r.color : '#888888';
       kindEl.value = r.kind || 'land';
+      catEl.value = r.category || 'political';
+      subEl.value = r.subkind || '';
       saveBtn.textContent = 'Save';
       // Clear-hexes available if there's a hex-set; Delete only for non-BASE.
       const hasHexes = (GCCRegions.exportOverrides().hexes[name] || []).length > 0;
@@ -1539,21 +1572,33 @@
   function onRgFormCancel(){ closeRgForm(); }
 
   function onRgFormSave(){
-    const name  = state.panelEl.querySelector('#he-rg-form-name').value.trim();
-    const color = state.panelEl.querySelector('#he-rg-form-color').value;
-    const kind  = state.panelEl.querySelector('#he-rg-form-kind').value;
+    const name     = state.panelEl.querySelector('#he-rg-form-name').value.trim();
+    const color    = state.panelEl.querySelector('#he-rg-form-color').value;
+    const kind     = state.panelEl.querySelector('#he-rg-form-kind').value;
+    const category = state.panelEl.querySelector('#he-rg-form-category').value;
+    const subkind  = state.panelEl.querySelector('#he-rg-form-subkind').value || null;
     if (state.rgFormMode === 'new'){
       if (!name){ setRgStatus('Enter a region name first.'); return; }
-      const ok = GCCRegions.addRegion({ name, kind, color });
+      const ok = GCCRegions.addRegion({ name, kind, color, category, subkind });
       if (!ok){ setRgStatus(`"${name}" already exists.`); return; }
       showToast(`Created region: ${name}`);
       state.rgSelected = name;
     } else if (state.rgFormMode === 'edit'){
-      GCCRegions.setRegionMeta(name, { color, kind });
+      GCCRegions.setRegionMeta(name, { color, kind, category, subkind });
       showToast(`Saved: ${name}`);
     }
+    // If the new/edited region's category doesn't match the active
+    // filter, the picker would silently hide it. Switch to a filter
+    // that includes it (its own category, not 'all', so the filter
+    // is still useful for the next click). This was the source of
+    // the "newly added region did not show" bug — adding a political
+    // region with the Geographic filter active hid it instantly.
+    if (state.rgFilter !== 'all' && state.rgFilter !== category){
+      setRgFilter(category);
+    } else {
+      refreshRegionSelect();
+    }
     closeRgForm();
-    refreshRegionSelect();
     setRgMode(state.rgMode);
     if (state.activeTab === 'outline') redrawAllRegionOverlay();
   }
