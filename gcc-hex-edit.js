@@ -515,11 +515,6 @@
               <option value="water">water</option>
             </select>
           </div>
-          <label class="he-rg-suppress" id="he-rg-suppress-row" style="display:none">
-            <input type="checkbox" id="he-rg-form-suppress">
-            <span>Suppress rect fallback</span>
-            <span class="he-rg-suppress-hint">Once you've painted accurate boundaries, turn this on so the loose BASE rect stops claiming unpainted hexes.</span>
-          </label>
           <div class="he-rg-form-btns">
             <button class="he-btn" id="he-rg-form-save">Save</button>
             <button class="he-btn" id="he-rg-form-cancel">Cancel</button>
@@ -766,16 +761,6 @@
       }
       #hex-edit-panel .he-rg-kind {
         font-size:10px; padding:2px 4px; height:24px;
-      }
-      #hex-edit-panel .he-rg-suppress {
-        display:flex; flex-wrap:wrap; align-items:flex-start; gap:4px 6px;
-        margin-top:8px; padding:6px; font-size:10px; cursor:pointer;
-        background:rgba(0,0,0,.2); border:1px solid rgba(139,110,69,.4); border-radius:2px;
-      }
-      #hex-edit-panel .he-rg-suppress input { margin:0; cursor:pointer; }
-      #hex-edit-panel .he-rg-suppress-hint {
-        flex-basis:100%; color:#88ccdd; font-size:9px; line-height:1.3;
-        font-weight:normal;
       }
       #hex-edit-panel .he-rg-form-btns {
         display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:6px;
@@ -1447,11 +1432,10 @@
     const nameEl  = state.panelEl.querySelector('#he-rg-form-name');
     const colorEl = state.panelEl.querySelector('#he-rg-form-color');
     const kindEl  = state.panelEl.querySelector('#he-rg-form-kind');
-    const supRow  = state.panelEl.querySelector('#he-rg-suppress-row');
-    const supCk   = state.panelEl.querySelector('#he-rg-form-suppress');
     const saveBtn = state.panelEl.querySelector('#he-rg-form-save');
     const dangerRow = state.panelEl.querySelector('#he-rg-form-danger');
     const delBtn  = state.panelEl.querySelector('#he-rg-form-delete');
+    const clearHexBtn = state.panelEl.querySelector('#he-rg-form-clearhex');
 
     if (mode === 'new'){
       title.textContent = 'New Region';
@@ -1460,8 +1444,6 @@
       nameEl.value = '';
       colorEl.value = '#888888';
       kindEl.value = 'land';
-      supRow.style.display = 'none';
-      supCk.checked = false;
       saveBtn.textContent = 'Create';
       dangerRow.style.display = 'none';
     } else if (mode === 'edit'){
@@ -1474,21 +1456,13 @@
       nameEl.value = name;
       colorEl.value = r.color && r.color.startsWith('#') ? r.color : '#888888';
       kindEl.value = r.kind || 'land';
-      // Suppress-rect only meaningful for regions that have a rect.
-      if (r.rect){
-        supRow.style.display = '';
-        supCk.checked = !!r.suppressRect;
-      } else {
-        supRow.style.display = 'none';
-        supCk.checked = false;
-      }
       saveBtn.textContent = 'Save';
       // Clear-hexes available if there's a hex-set; Delete only for non-BASE.
       const hasHexes = (GCCRegions.exportOverrides().hexes[name] || []).length > 0;
       const showDanger = hasHexes || !isB;
       dangerRow.style.display = showDanger ? '' : 'none';
       delBtn.style.display = isB ? 'none' : '';
-      state.panelEl.querySelector('#he-rg-form-clearhex').style.display = hasHexes ? '' : 'none';
+      clearHexBtn.style.display = hasHexes ? '' : 'none';
     }
     form.style.display = '';
     if (mode === 'new') nameEl.focus();
@@ -1511,7 +1485,6 @@
     const name  = state.panelEl.querySelector('#he-rg-form-name').value.trim();
     const color = state.panelEl.querySelector('#he-rg-form-color').value;
     const kind  = state.panelEl.querySelector('#he-rg-form-kind').value;
-    const suppress = state.panelEl.querySelector('#he-rg-form-suppress').checked;
     if (state.rgFormMode === 'new'){
       if (!name){ setRgStatus('Enter a region name first.'); return; }
       const ok = GCCRegions.addRegion({ name, kind, color });
@@ -1519,10 +1492,7 @@
       showToast(`Created region: ${name}`);
       state.rgSelected = name;
     } else if (state.rgFormMode === 'edit'){
-      const r = GCCRegions.getByName(name);
-      const opts = { color, kind };
-      if (r && r.rect) opts.suppressRect = suppress;
-      GCCRegions.setRegionMeta(name, opts);
+      GCCRegions.setRegionMeta(name, { color, kind });
       showToast(`Saved: ${name}`);
     }
     closeRgForm();
@@ -1549,7 +1519,7 @@
     const name = state.panelEl.querySelector('#he-rg-form-name').value.trim();
     if (!name) return;
     if (GCCRegions.isBase(name)){
-      setRgStatus('BASE regions cannot be deleted; use Clear Hexes / Suppress rect.');
+      setRgStatus('BASE regions cannot be deleted; use Clear Hexes.');
       return;
     }
     const n = (GCCRegions.exportOverrides().hexes[name] || []).length;
@@ -1592,7 +1562,7 @@
     const ov = GCCRegions.exportOverrides();
     const n = Object.keys(ov.hexes).length + Object.keys(ov.defs).length;
     if (n === 0){ showToast('No region overrides to clear'); return; }
-    if (!confirm(`Clear all region overrides (${Object.keys(ov.defs).length} defs, ${Object.keys(ov.hexes).length} hex sets)? BASE rect data is not touched.`)) return;
+    if (!confirm(`Clear all region overrides (${Object.keys(ov.defs).length} defs, ${Object.keys(ov.hexes).length} hex sets)? BASE region metadata is not touched.`)) return;
     GCCRegions.clearOverrides();
     state.rgSelected = null;
     refreshRegionSelect();

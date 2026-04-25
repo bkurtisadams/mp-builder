@@ -1,17 +1,25 @@
-// gcc-regions.js v0.2.0 — 2026-04-25
+// gcc-regions.js v0.3.0 — 2026-04-25
 // World of Greyhawk region boundaries, current-grid coordinate frame.
 //
-// Three formats per region, lookup precedence hexes → vertices → rect:
-//   { name, hexes: ["P4-85", ...] }        // explicit hex membership
-//   { name, vertices: [...] }              // closed polygon
-//   { name, rect: [cMin, cMax, rMin, rMax] } // AABB in (col,row)
+// Two formats per region, lookup precedence hex-tags (across all
+// regions) → polygon vertices:
+//   { name, hexes: ["P4-85", ...] }   // explicit hex membership (primary)
+//   { name, vertices: [...] }         // closed polygon (secondary)
 //
 // Hex-set entries and polygon vertices may be Darlene IDs ("P4-85") OR
 // [col,row] pairs. Point-in-polygon uses canonical unit-space hex centers.
 //
+// v0.3.0: rectangle regions removed. BASE entries now only carry
+//   name/kind/color/anchors — geometry comes from painted hex sets.
+//   Rects were a pre-hex-set placeholder and produced misclassification
+//   on a hex grid (a bbox in (col,row) doesn't trace a country's border).
+//   Bootstrap-from-landmarks + paint is the authoritative workflow now.
+//   Empty BASE regions sit in the picker waiting to be painted; QA
+//   is meaningful once Bootstrap has run. setRegionMeta no longer
+//   accepts suppressRect.
+//
 // v0.2.0: hex-set membership format and editor API.
-//   - GH_REGIONS entries can carry `hexes` (preferred), `vertices`, or
-//     `rect`. Lookup checks in that order within each region.
+//   - GH_REGIONS entries can carry `hexes` (preferred) or `vertices`.
 //   - localStorage overrides: new regions, hex membership edits, color
 //     and kind updates. Layered like gcc-terrain / gcc-landmarks.
 //   - addRegion / removeRegion / addHexes / removeHexes / setHexes /
@@ -19,8 +27,8 @@
 //     bootstrapFromLandmarks / exportOverrides / clearOverrides /
 //     exportMergedSource.
 //   - getMembership() returns { name, source } where source is
-//     'hexes' | 'vertices' | 'rect' — lets the editor distinguish
-//     painted hexes from polygon/bbox fallback.
+//     'hexes' | 'vertices' — lets the editor distinguish
+//     painted hexes from polygon fallback.
 //   - Each region carries a `color` for editor overlay rendering;
 //     defaulted by hash of name when not provided.
 //
@@ -61,10 +69,6 @@
     return inside;
   }
 
-  function inRect(col, row, rect){
-    return col >= rect[0] && col < rect[1] && row >= rect[2] && row < rect[3];
-  }
-
   function hashHue(name){
     let h = 0;
     for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
@@ -98,31 +102,28 @@
   }
 
   // ── REGION DATA ────────────────────────────────────────────────────────────
-  // BASE: file-baked. Order matters — inner/specific regions before
-  // their containers (City of Greyhawk before Domain of Greyhawk).
+  // BASE: file-baked region definitions. Just curated metadata —
+  // name, kind, color, and anchor landmarks for QA. Geometry comes
+  // from painted hex sets (Bootstrap / Outline editor). Empty BASE
+  // regions show in the picker so users can paint into a pre-named
+  // entry with a curated tint instead of inventing one ad-hoc.
+  //
+  // Order is no longer load-bearing — the two-pass lookup (hex-tags
+  // first across all regions, then polygon vertices) means inner /
+  // outer overlap resolves by which region painted the hex, not by
+  // file position.
   const GH_REGIONS = [
-    { name:'City of Greyhawk',        kind:'land',  color:'#cc4444', rect:[64, 67, 44, 47],
-      anchors:['C4-86'] },
-    { name:'Domain of Greyhawk',      kind:'land',  color:'#dd7755', rect:[63, 68, 43, 52],
-      anchors:['C4-91'] },
-    { name:'Viscounty of Verbobonc',  kind:'land',  color:'#aa6644', rect:[50, 58, 45, 52],
-      anchors:['O4-95'] },
-    { name:'County of Urnst',         kind:'land',  color:'#bbaa44', rect:[72, 84, 34, 42],
-      anchors:['Q3-74'] },
-    { name:'Duchy of Urnst',          kind:'land',  color:'#998822', rect:[72, 84, 42, 50],
-      anchors:['R3-81'] },
-    { name:'Horned Society',          kind:'land',  color:'#552255', rect:[58, 70, 28, 38],
-      anchors:['E4-74'] },
-    { name:'Kingdom of Furyondy',     kind:'land',  color:'#4488cc', rect:[48, 66, 32, 45],
-      anchors:['P4-85','E4-83'] },
-    { name:'Wild Coast',              kind:'land',  color:'#88aa44', rect:[57, 64, 44, 54],
-      anchors:['G4-89','F4-95','H4-95'] },
-    { name:'Empire of Iuz',           kind:'land',  color:'#660000', rect:[48, 72, 16, 32],
-      anchors:['H4-70'] },
-    { name:'Kingdom of Keoland',      kind:'land',  color:'#cc8822', rect:[40, 56, 58, 74],
-      anchors:['P4-117','X4-113'] },
-    { name:'The Great Kingdom',       kind:'land',  color:'#884444', rect:[110, 135, 48, 68],
-      anchors:['A2-69','R-72'] },
+    { name:'City of Greyhawk',        kind:'land',  color:'#cc4444', anchors:['C4-86'] },
+    { name:'Domain of Greyhawk',      kind:'land',  color:'#dd7755', anchors:['C4-91'] },
+    { name:'Viscounty of Verbobonc',  kind:'land',  color:'#aa6644', anchors:['O4-95'] },
+    { name:'County of Urnst',         kind:'land',  color:'#bbaa44', anchors:['Q3-74'] },
+    { name:'Duchy of Urnst',          kind:'land',  color:'#998822', anchors:['R3-81'] },
+    { name:'Horned Society',          kind:'land',  color:'#552255', anchors:['E4-74'] },
+    { name:'Kingdom of Furyondy',     kind:'land',  color:'#4488cc', anchors:['P4-85','E4-83'] },
+    { name:'Wild Coast',              kind:'land',  color:'#88aa44', anchors:['G4-89','F4-95','H4-95'] },
+    { name:'Empire of Iuz',           kind:'land',  color:'#660000', anchors:['H4-70'] },
+    { name:'Kingdom of Keoland',      kind:'land',  color:'#cc8822', anchors:['P4-117','X4-113'] },
+    { name:'The Great Kingdom',       kind:'land',  color:'#884444', anchors:['A2-69','R-72'] },
   ];
   const BASE_REGION_NAMES = new Set(GH_REGIONS.map(r => r.name));
 
@@ -159,8 +160,6 @@
       } else {
         if (def.kind)  GH_REGIONS[idx].kind  = def.kind;
         if (def.color) GH_REGIONS[idx].color = def.color;
-        if (def.suppressRect) GH_REGIONS[idx].suppressRect = true;
-        else delete GH_REGIONS[idx].suppressRect;
       }
     }
     for (const r of GH_REGIONS){
@@ -205,9 +204,9 @@
     return out;
   }
 
-  // 'vertices' | 'rect' | false. Hex-set is checked separately in the
-  // first pass of two-pass lookup so a painted hex anywhere wins over
-  // a geometry hit on an earlier-listed region.
+  // 'vertices' | false. Hex-set is checked separately in the first
+  // pass of two-pass lookup so a painted hex anywhere wins over a
+  // geometry hit on an earlier-listed region.
   function hitGeometry(col, row, idx){
     const r = GH_REGIONS[idx];
     if (r.vertices){
@@ -217,7 +216,6 @@
         if (pointInPoly(u.x, u.y, pts)) return 'vertices';
       }
     }
-    if (r.rect && !r.suppressRect && inRect(col, row, r.rect)) return 'rect';
     return false;
   }
 
@@ -305,7 +303,7 @@
       saveDefs();
       GH_REGIONS.splice(idx, 1);
     } else {
-      // BASE — strip override hexes; rect/anchors remain.
+      // BASE — strip override hexes; metadata remains.
       delete GH_REGIONS[idx].hexes;
     }
     POLY_CACHE.clear();
@@ -322,26 +320,18 @@
     return true;
   }
 
-  // Unified metadata setter for the editor: any of color/kind/
-  // suppressRect can be passed; undefined fields are left alone.
-  function setRegionMeta(name, { color, kind, suppressRect } = {}){
+  // Unified metadata setter for the editor. color/kind only;
+  // suppressRect was retired in v0.3.0 along with rectangle regions.
+  function setRegionMeta(name, { color, kind } = {}){
     const r = getByName(name);
     if (!r) return false;
     if (color !== undefined) r.color = color;
     if (kind  !== undefined) r.kind  = kind;
-    if (suppressRect !== undefined){
-      if (suppressRect) r.suppressRect = true;
-      else delete r.suppressRect;
-    }
     const cur = OVERRIDE_DEFS[name] || {};
-    const next = {
+    OVERRIDE_DEFS[name] = {
       kind:  kind  !== undefined ? kind  : (cur.kind  || r.kind || 'land'),
       color: color !== undefined ? color : (cur.color || r.color),
     };
-    if (suppressRect !== undefined ? suppressRect : cur.suppressRect){
-      next.suppressRect = true;
-    }
-    OVERRIDE_DEFS[name] = next;
     saveDefs();
     return true;
   }
@@ -499,7 +489,6 @@
         GH_REGIONS.splice(i, 1);
       } else {
         delete GH_REGIONS[i].hexes;
-        delete GH_REGIONS[i].suppressRect;
       }
     }
     OVERRIDE_DEFS = {};
@@ -518,8 +507,6 @@
       parts.push(`name:${JSON.stringify(r.name)}`);
       parts.push(`kind:${JSON.stringify(r.kind || 'land')}`);
       parts.push(`color:${JSON.stringify(r.color || defaultColor(r.name))}`);
-      if (r.rect)     parts.push(`rect:[${r.rect.join(',')}]`);
-      if (r.suppressRect) parts.push(`suppressRect:true`);
       if (r.vertices) parts.push(`vertices:${JSON.stringify(r.vertices)}`);
       if (r.hexes && r.hexes.length){
         const sorted = r.hexes.slice().sort((a,b) => {
@@ -542,7 +529,6 @@
     const idx = GH_REGIONS.findIndex(r => r.name === name);
     if (idx < 0) return false;
     GH_REGIONS[idx].vertices = vertices;
-    delete GH_REGIONS[idx].rect;
     POLY_CACHE.delete(idx);
     return true;
   }
