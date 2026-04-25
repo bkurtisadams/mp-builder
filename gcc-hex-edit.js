@@ -387,6 +387,10 @@
       { id:'barrens',      short:'Barrens'   },
       { id:'swamp',        short:'Swamp'     },
       { id:'water',        short:'Water'     },
+      { id:'coast_warm',   short:'Cst Warm'  },
+      { id:'coast_cold',   short:'Cst Cold'  },
+      { id:'sea_warm',     short:'Sea Warm'  },
+      { id:'sea_cold',     short:'Sea Cold'  },
     ];
     const swatches = types.map(({id, short}) => {
       // Swatch chip always shows full-saturation rgb so the palette stays

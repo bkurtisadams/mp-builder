@@ -14081,6 +14081,17 @@
     return null;
   }
 
+  // Forward-compat accessor for Approach B (structured terrain). Today
+  // terrain is a flat string and this is `get` by another name; when B
+  // lands and storage moves to {t:"sea",temp:"cold",...} objects, only
+  // primary() changes — consumers that read the primary type stay
+  // identical. New consumers should call primary() instead of get().
+  function primary(col, row){
+    const v = get(col, row);
+    if (v == null) return null;
+    return typeof v === 'string' ? v : v.t;
+  }
+
   function set(col, row, terrain){
     if (!terrain) return false;
     OVERRIDES[key(col, row)] = terrain;
@@ -14142,7 +14153,7 @@
   }
 
   window.GCCTerrain = {
-    get, set, clear, clearAll,
+    get, primary, set, clear, clearAll,
     count, countByTerrain,
     exportOverrides, exportMergedSource, allOverridden,
     data: BASE_TERRAIN,

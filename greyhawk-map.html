@@ -348,8 +348,8 @@
 
 <script src="gcc-regions.js?v=9"></script>
 <script src="gcc-landmarks.js?v=9"></script>
-<script src="gcc-terrain.js?v=1"></script>
-<script src="gcc-hex-edit.js?v=8"></script>
+<script src="gcc-terrain.js?v=2"></script>
+<script src="gcc-hex-edit.js?v=9"></script>
 <script src="gcc-voyage.js?v=2"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
@@ -484,6 +484,17 @@ const TERRAIN={
   barrens:      {label:'Barrens',        footDays:.67, mountDays:.5,  rgb:'175, 140, 95' },
   swamp:        {label:'Swamp/Marsh',    footDays:1.0, mountDays:1.0, rgb:'90, 100, 65'  },
   water:        {label:'Water/Sea',      footDays:null,mountDays:null,rgb:'55, 105, 155' },
+  // Water-temperature variants. Approach A: flat enumeration. Names use
+  // the same temp-suffix pattern so they migrate cleanly to a future
+  // structured form ({t:"coast",temp:"warm"}, {t:"sea",temp:"cold",
+  // depth:"deep"}, etc.) when salinity/depth/lake-vs-river axes land.
+  // gc-weather consumes coast-warm/coast-cold/sea-warm/sea-cold; the
+  // hyphen-vs-underscore translation is handled at the bridge layer,
+  // not here.
+  coast_warm:   {label:'Coast (Warm)',   footDays:null,mountDays:null,rgb:'110, 160, 185'},
+  coast_cold:   {label:'Coast (Cold)',   footDays:null,mountDays:null,rgb:'90, 130, 165' },
+  sea_warm:     {label:'Sea (Warm)',     footDays:null,mountDays:null,rgb:'60, 130, 175' },
+  sea_cold:     {label:'Sea (Cold)',     footDays:null,mountDays:null,rgb:'45, 85, 135'  },
 };
 
 // ── REGIONS ───────────────────────────────────────────────────────────────────
