@@ -382,6 +382,9 @@
 <div id="toast"></div>
 
 <script src="gcc-regions.js?v=14"></script>
+<script src="gcc-encounter-data.js?v=1"></script>
+<script src="gcc-encounters.js?v=1"></script>
+<script src="gcc-encounter-panel.js?v=1"></script>
 <script src="gcc-landmarks.js?v=9"></script>
 <script src="gcc-terrain.js?v=3"></script>
 <script src="gcc-hex-edit.js?v=15"></script>
@@ -1767,7 +1770,14 @@ function wireEvents(){
 
   // Panel stubs
   document.getElementById('p-btn-explore').addEventListener('click',()=>showToast('Sub-map — Phase 2'));
-  document.getElementById('p-btn-encounter').addEventListener('click',()=>showToast('Encounter check — Phase 2'));
+  document.getElementById('p-btn-encounter').addEventListener('click',()=>{
+    if (typeof GCCEncounters === 'undefined' || typeof GCCEncounterPanel === 'undefined'){
+      showToast('Encounter system not loaded');
+      return;
+    }
+    const r = GCCEncounters.checkParty();
+    GCCEncounterPanel.show(r);
+  });
   document.getElementById('p-btn-rest').addEventListener('click',()=>showToast('Camp — CTT Phase 3'));
   document.getElementById('p-btn-build').addEventListener('click',()=>showToast('Stronghold — Phase 4'));
 

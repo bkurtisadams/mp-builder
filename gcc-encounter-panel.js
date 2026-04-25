@@ -1,0 +1,277 @@
+// gcc-encounter-panel.js — Encounter result panel
+//
+// Renders an AD&D 1e encounter result as a draggable floating panel,
+// sibling of #landmark-info and #region-info. Adds itself to the DOM
+// at module load and exposes:
+//
+//   GCCEncounterPanel.show(result)   render an encounter result
+//   GCCEncounterPanel.close()        close the panel
+//
+// Reuses the .li-section / .li-detail-row / .li-text classes from
+// landmark-info CSS for visual consistency, with a distinct red-orange
+// accent (#c44d2a) so encounter cards read as their own thing.
+
+(function(){
+  'use strict';
+
+  function makePanel(){
+    if (document.getElementById('encounter-info')) return;
+
+    const panel = document.createElement('div');
+    panel.id = 'encounter-info';
+    panel.className = 'enc-panel';
+    panel.innerHTML = `
+      <button id="enc-close" title="Close">✕</button>
+      <div id="enc-header">
+        <h2 id="enc-name">—</h2>
+        <div id="enc-subtitle">—</div>
+      </div>
+      <div id="enc-body"></div>
+      <div id="enc-footer">
+        <button id="enc-reroll" title="Roll a new encounter for the same hex">⚄ Re-roll</button>
+        <button id="enc-force" title="Force an encounter regardless of frequency check">⚡ Force</button>
+      </div>
+    `;
+    document.body.appendChild(panel);
+
+    // CSS — appended once. Mirrors landmark-info structure with a
+    // red-orange (encounter / danger) accent so the panel reads as
+    // a different category from the green region panel and gold
+    // landmark panel.
+    const style = document.createElement('style');
+    style.textContent = `
+      #encounter-info { position:fixed; top:0; left:0; width:280px; max-height:75vh;
+        overflow:hidden; background:#150805; border:1px solid #c44d2a; border-radius:2px;
+        z-index:60; box-shadow:0 8px 32px rgba(0,0,0,.7); opacity:0; pointer-events:none;
+        transition:opacity .18s ease; display:flex; flex-direction:column; }
+      #encounter-info.open { opacity:1; pointer-events:all; }
+      #enc-header { padding:9px 30px 6px 11px; border-bottom:1px solid rgba(196,77,42,.4);
+        position:relative; cursor:grab; user-select:none; }
+      #enc-header.dragging { cursor:grabbing; }
+      #enc-header h2 { font-family:'Cinzel',serif; font-size:13px; color:#f0c8a8;
+        letter-spacing:.06em; margin-bottom:3px; }
+      #enc-subtitle { font-size:10px; color:#d8a888; font-style:italic; line-height:1.3; }
+      #enc-close { position:absolute; top:6px; right:8px; background:rgba(196,77,42,.1);
+        border:1px solid rgba(196,77,42,.4); color:#d8a888; font-size:12px; cursor:pointer;
+        padding:2px 6px; border-radius:2px; line-height:1; z-index:10; }
+      #enc-close:hover { background:rgba(196,77,42,.3); color:#fce0c8; }
+      #enc-body { overflow-y:auto; padding:9px 11px; display:flex; flex-direction:column; gap:9px; }
+      #enc-body::-webkit-scrollbar { width:4px; }
+      #enc-body::-webkit-scrollbar-thumb { background:rgba(196,77,42,.3); }
+      #enc-footer { display:flex; gap:6px; padding:8px 11px; border-top:1px solid rgba(196,77,42,.3); }
+      #enc-footer button { flex:1; background:rgba(196,77,42,.15); color:#f0c8a8;
+        border:1px solid rgba(196,77,42,.5); border-radius:2px; padding:5px;
+        font-size:11px; cursor:pointer; font-family:inherit; letter-spacing:.04em; }
+      #enc-footer button:hover { background:rgba(196,77,42,.3); color:#fce0c8; }
+      .enc-big-num { font-family:'Cinzel',serif; font-size:22px; color:#f0c8a8;
+        text-align:center; padding:4px 0; }
+      .enc-big-num .formula { font-size:11px; color:#d8a888; font-style:italic;
+        font-family:inherit; margin-left:6px; }
+      .enc-row-stack { display:flex; flex-direction:column; gap:2px; }
+      .enc-no-encounter { font-size:11px; color:#d8a888; font-style:italic;
+        text-align:center; padding:8px; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // Shared with the rest of the GCC map page if it has makeDraggable.
+  let encDrag = null;
+  function ensureDraggable(){
+    if (encDrag) return;
+    if (typeof window.makeDraggable !== 'function') return;
+    encDrag = window.makeDraggable(
+      document.getElementById('encounter-info'),
+      document.getElementById('enc-header'),
+      'gh-encounter-info-pos'
+    );
+  }
+
+  // Last-rolled context, kept so Re-roll / Force buttons know what
+  // hex to roll for. Populated by show().
+  let lastCtx = null;
+
+  function close(){
+    document.getElementById('encounter-info')?.classList.remove('open');
+  }
+
+  function show(result){
+    makePanel();
+    ensureDraggable();
+    lastCtx = result?.ctx || null;
+    const ESC = s => { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; };
+
+    if (result?.error){
+      _renderHeader('Error', '');
+      _renderBody(`<div class="enc-no-encounter">${ESC(result.error)}</div>`);
+      _open();
+      return;
+    }
+
+    if (!result.occurred){
+      _renderHeader('No Encounter', _contextLine(result.ctx));
+      const reason = result.reason || 'No encounter this check';
+      let html = `<div class="enc-no-encounter">${ESC(reason)}</div>`;
+      if (result.roll != null){
+        html += `<div class="li-section">` +
+          `<div class="li-section-title">Frequency Check</div>` +
+          `<div class="li-detail-row"><span class="label">Roll</span>` +
+          `<span class="value">${result.roll} on d${result.die}</span></div>` +
+          `<div class="li-detail-row"><span class="label">Encounter on</span>` +
+          `<span class="value">≤ ${result.successOn}</span></div>` +
+          `</div>`;
+      }
+      _renderBody(html);
+      _open();
+      return;
+    }
+
+    // Encounter occurred — render full result card.
+    const monster = result.monster || '?';
+    _renderHeader(monster, _contextLine(result.ctx));
+
+    const sections = [];
+
+    // Big number-appearing display
+    if (result.numberRolled != null){
+      sections.push(
+        `<div class="enc-big-num">×&nbsp;${result.numberRolled}` +
+          (result.numberFormula ? `<span class="formula">${ESC(result.numberFormula)}</span>` : '') +
+          `</div>`
+      );
+    } else if (result.numberFormula){
+      sections.push(
+        `<div class="enc-big-num"><span class="formula">${ESC(result.numberFormula)}</span></div>`
+      );
+    }
+
+    // Combat stats from MM lookup
+    if (result.mmStats){
+      const m = result.mmStats;
+      let h = '<div class="li-section"><div class="li-section-title">Combat</div>';
+      const row = (lab, val) => val == null ? '' :
+        `<div class="li-detail-row"><span class="label">${lab}</span><span class="value">${ESC(val)}</span></div>`;
+      h += row('AC',          m.armorClass);
+      h += row('HD',          m.hitDice);
+      h += row('Move',        m.move);
+      h += row('Attacks',     typeof m.attacks === 'number' ? `${m.attacks} (${m.damage || '—'})` : (m.attacks || ''));
+      if (typeof m.attacks !== 'number' && m.damage) h += row('Damage', m.damage);
+      if (m.specialAttacks)  h += row('SA', m.specialAttacks);
+      if (m.specialDefenses) h += row('SD', m.specialDefenses);
+      if (m.magicResistance) h += row('MR', m.magicResistance);
+      h += '</div>';
+      sections.push(h);
+
+      // Identity / extras
+      let id = '<div class="li-section"><div class="li-section-title">Notes</div>';
+      id += row('Intelligence', m.intelligence);
+      id += row('Alignment',    m.alignment);
+      id += row('Size',         m.size);
+      id += row('Treasure',     m.treasure || m['TREASURE TYPE']);
+      id += row('Lair',         m.lairProbability);
+      id += row('XP',           m.levelXP);
+      id += '</div>';
+      sections.push(id);
+    }
+
+    // Reaction / Distance / Surprise — DMG outdoor encounter triple
+    let situ = '<div class="li-section"><div class="li-section-title">Situation</div>';
+    if (result.reaction){
+      situ += `<div class="li-detail-row"><span class="label">Reaction</span>` +
+        `<span class="value">${result.reaction.label} (${result.reaction.roll})</span></div>`;
+    }
+    if (result.distance){
+      situ += `<div class="li-detail-row"><span class="label">Distance</span>` +
+        `<span class="value">${result.distance.yards} yd <span style="opacity:.6">(${ESC(result.distance.formula)})</span></span></div>`;
+    }
+    if (result.surprise){
+      situ += `<div class="li-detail-row"><span class="label">Surprise</span>` +
+        `<span class="value">${result.surprise.label}</span></div>`;
+    }
+    situ += '</div>';
+    sections.push(situ);
+
+    // Notes from the table row
+    if (result.note){
+      sections.push(
+        `<div class="li-section"><div class="li-section-title">Table Note</div>` +
+        `<div class="li-text">${ESC(result.note)}</div></div>`
+      );
+    }
+
+    // Source attribution: which table did this come from
+    let src = '<div class="li-section"><div class="li-section-title">Source</div>';
+    src += `<div class="li-detail-row"><span class="label">Table</span>` +
+      `<span class="value">${ESC(result.tableSourceUsed)}` +
+      (result.tableRoll ? ` (rolled ${result.tableRoll})` : '') +
+      `</span></div>`;
+    if (result.occurs?.forced){
+      src += `<div class="li-detail-row"><span class="label">Forced</span><span class="value">yes</span></div>`;
+    } else if (result.occurs){
+      src += `<div class="li-detail-row"><span class="label">Frequency</span>` +
+        `<span class="value">${result.occurs.roll}/d${result.occurs.die}, ≤${result.occurs.successOn}</span></div>`;
+    }
+    src += '</div>';
+    sections.push(src);
+
+    // MM description if available — render at bottom in dimmer text
+    if (result.mmStats?.description){
+      sections.push(
+        `<div class="li-section"><div class="li-section-title">Description</div>` +
+        `<div class="li-text" style="font-size:10px;color:#a8a8a8">${ESC(result.mmStats.description)}</div></div>`
+      );
+    }
+
+    _renderBody(sections.join(''));
+    _open();
+  }
+
+  function _renderHeader(name, subtitle){
+    document.getElementById('enc-name').textContent = name;
+    document.getElementById('enc-subtitle').textContent = subtitle || '—';
+  }
+  function _renderBody(html){
+    document.getElementById('enc-body').innerHTML = html;
+  }
+  function _open(){
+    const p = document.getElementById('encounter-info');
+    p.classList.add('open');
+    if (encDrag && !encDrag.restore()) encDrag.placeCenter();
+  }
+  function _contextLine(ctx){
+    if (!ctx) return '';
+    const bits = [];
+    if (ctx.gccTerrain) bits.push(ctx.gccTerrain);
+    if (ctx.regionName) bits.push(ctx.regionName);
+    if (ctx.timeOfDay)  bits.push(ctx.timeOfDay);
+    if (ctx.population && ctx.population !== 'uninhabited') bits.push(ctx.population);
+    return bits.join(' · ');
+  }
+
+  // Wire close + footer buttons after panel is in DOM. Use event
+  // delegation off the panel itself so we don't duplicate handlers
+  // when show() is called multiple times.
+  function wireOnce(){
+    if (wireOnce._done) return;
+    wireOnce._done = true;
+    document.addEventListener('click', e => {
+      const t = e.target;
+      if (t.id === 'enc-close')  close();
+      if (t.id === 'enc-reroll' && lastCtx){
+        const r = window.GCCEncounters.check(lastCtx);
+        show(r);
+      }
+      if (t.id === 'enc-force' && lastCtx){
+        const r = window.GCCEncounters.check(lastCtx, { force: true });
+        show(r);
+      }
+    });
+  }
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', wireOnce);
+  } else {
+    wireOnce();
+  }
+
+  window.GCCEncounterPanel = { show, close };
+})();
