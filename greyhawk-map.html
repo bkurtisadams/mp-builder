@@ -163,6 +163,27 @@
     letter-spacing:.03em; }
   .li-feature-chip.port { color:#e8b840; background:rgba(200,148,26,.12);
     border-color:rgba(200,148,26,.4); }
+  /* Region Info panel — sibling of #landmark-info. Reuses .li-* section
+     styles; here we just define the outer chrome and a faint hue-shift
+     border so the two panels are distinguishable when stacked. */
+  #region-info { position:fixed; top:0; left:0; width:260px; max-height:70vh; overflow:hidden;
+    background:#0d1208; border:1px solid #88a058; border-radius:2px; z-index:60;
+    box-shadow:0 8px 32px rgba(0,0,0,.7); opacity:0; pointer-events:none;
+    transition:opacity .18s ease; display:flex; flex-direction:column; }
+  #region-info.open { opacity:1; pointer-events:all; }
+  #ri-header { padding:9px 30px 6px 11px; border-bottom:1px solid rgba(136,160,88,.4);
+    position:relative; cursor:grab; user-select:none; }
+  #ri-header.dragging { cursor:grabbing; }
+  #ri-header h2 { font-family:'Cinzel',serif; font-size:12px; color:#d8e4a8;
+    letter-spacing:.08em; margin-bottom:3px; }
+  #ri-subtitle { font-size:10px; color:#a8c068; font-style:italic; line-height:1.3; }
+  #ri-close { position:absolute; top:6px; right:8px; background:rgba(136,160,88,.1);
+    border:1px solid rgba(136,160,88,.4); color:#a8c068; font-size:12px; cursor:pointer;
+    padding:2px 6px; border-radius:2px; line-height:1; z-index:10; }
+  #ri-close:hover { background:rgba(136,160,88,.3); color:#e0eebb; }
+  #ri-body { overflow-y:auto; padding:9px 11px; display:flex; flex-direction:column; gap:9px; }
+  #ri-body::-webkit-scrollbar { width:4px; }
+  #ri-body::-webkit-scrollbar-thumb { background:rgba(136,160,88,.3); }
   .li-text { font-size:11px; color:var(--parchment-light); line-height:1.4;
     white-space:pre-wrap; word-wrap:break-word; }
   .li-empty { font-size:11px; color:#6e5a40; font-style:italic; }
@@ -271,6 +292,7 @@
     <div class="panel-row"><label>Hexes Explored</label><div class="value" id="p-explored">0</div></div>
     <hr class="panel-divider">
     <button class="panel-btn" id="p-btn-landmark-info" style="display:none">ℹ Landmark Info</button>
+    <button class="panel-btn" id="p-btn-region-info" style="display:none">⚜ Region Info</button>
     <button class="panel-btn primary" id="p-btn-explore">⬡ Explore Sub-Map</button>
     <button class="panel-btn" id="p-btn-encounter">⚄ Check Encounter</button>
     <button class="panel-btn" id="p-btn-rest">⛺ Make Camp</button>
@@ -311,6 +333,19 @@
     <div id="li-subtitle">—</div>
   </div>
   <div id="li-body"></div>
+</div>
+<!-- Region Info panel — sibling of #landmark-info. Shares the .li-* CSS
+     classes for visual consistency (same chrome, same section/row styles)
+     while keeping a separate DOM node so both panels can be open
+     simultaneously for a capital city. Drag-position persists separately
+     under 'gh-region-info-pos'. -->
+<div id="region-info" class="ri-panel">
+  <button id="ri-close" title="Close">✕</button>
+  <div id="ri-header">
+    <h2 id="ri-name">—</h2>
+    <div id="ri-subtitle">—</div>
+  </div>
+  <div id="ri-body"></div>
 </div>
 <!-- Image alignment panel -->
 <div id="img-align-panel">
@@ -1129,6 +1164,20 @@ function updateSidePanel(col,row,terrain,region,dist){
       delete liBtn.dataset.landmarkId;
     }
   }
+  // Region Info button — shown when the hex resolves to a real region
+  // (not "Unknown Reaches"). Opens the #region-info panel populated from
+  // GCCRegions.getDetails(). Independent of the landmark button so a
+  // capital-city hex can show both.
+  const riBtn = document.getElementById('p-btn-region-info');
+  if (riBtn){
+    if (region && region !== 'Unknown Reaches' && typeof GCCRegions !== 'undefined'){
+      riBtn.style.display = '';
+      riBtn.dataset.regionName = region;
+    } else {
+      riBtn.style.display = 'none';
+      delete riBtn.dataset.regionName;
+    }
+  }
   const sp=document.getElementById('side-panel');
   if (!sp.classList.contains('open')) ensureSidePanelPlaced();
   sp.classList.add('open');
@@ -1268,6 +1317,101 @@ function openLandmarkInfo(id){
 }
 function closeLandmarkInfo(){
   document.getElementById('landmark-info').classList.remove('open');
+}
+
+// ── REGION INFO PANEL ────────────────────────────────────────────────────────
+// Sibling of the landmark-info panel. Reads canon metadata from
+// GCCRegions.getDetails() and displays it in a draggable floating
+// panel. Both panels can be open simultaneously; first open centers
+// in the visible map area, subsequent opens restore the last drag
+// position via riDrag (key: 'gh-region-info-pos').
+let riDrag = null;
+function openRegionInfo(name){
+  if (typeof GCCRegions === 'undefined' || !name) return;
+  const d = GCCRegions.getDetails(name);
+  if (!d) return;
+  const ESC = s => { const el=document.createElement('div'); el.textContent=s||''; return el.innerHTML; };
+
+  // Header: region name + a subtitle that summarizes category/subkind/kind
+  // ("Political · land", "Geographic · forest · land", etc.).
+  document.getElementById('ri-name').textContent = name;
+  const subBits = [];
+  if (d.category) subBits.push(d.category.charAt(0).toUpperCase() + d.category.slice(1));
+  if (d.subkind)  subBits.push(d.subkind);
+  if (d.kind)     subBits.push(d.kind);
+  document.getElementById('ri-subtitle').textContent = subBits.join(' · ') || '—';
+
+  // Body sections built conditionally — empty fields are omitted so
+  // bare regions (no ruler / no population data) just show the
+  // sections that actually have content.
+  const body = document.getElementById('ri-body');
+  body.innerHTML = '';
+
+  // Details — always present
+  const det = document.createElement('div');
+  det.className = 'li-section';
+  let dHtml = '<div class="li-section-title">Details</div>';
+  if (d.kind)     dHtml += `<div class="li-detail-row"><span class="label">Kind</span><span class="value">${ESC(d.kind)}</span></div>`;
+  if (d.category) dHtml += `<div class="li-detail-row"><span class="label">Category</span><span class="value">${ESC(d.category)}</span></div>`;
+  if (d.subkind)  dHtml += `<div class="li-detail-row"><span class="label">Subkind</span><span class="value">${ESC(d.subkind)}</span></div>`;
+  if (d.capital)  dHtml += `<div class="li-detail-row"><span class="label">Capital</span><span class="value">${ESC(d.capital)}</span></div>`;
+  det.innerHTML = dHtml;
+  body.appendChild(det);
+
+  // Government — ruler may be a long string; render on its own line below the label
+  if (d.ruler){
+    const gov = document.createElement('div');
+    gov.className = 'li-section';
+    gov.innerHTML =
+      '<div class="li-section-title">Government</div>' +
+      `<div class="li-detail-row" style="align-items:flex-start"><span class="label">Ruler</span>` +
+      `<div class="value" style="text-align:right">${ESC(d.ruler)}</div></div>`;
+    body.appendChild(gov);
+  }
+
+  // Population — capPop and humanPop are factual numbers; demihumans/humanoids
+  // are descriptive strings. All shown as separate rows for scannability.
+  if (d.capPop || d.humanPop || d.demihumans || d.humanoids){
+    const pop = document.createElement('div');
+    pop.className = 'li-section';
+    let pHtml = '<div class="li-section-title">Population</div>';
+    if (d.capPop)     pHtml += `<div class="li-detail-row"><span class="label">Capital pop.</span><span class="value">${ESC(d.capPop)}</span></div>`;
+    if (d.humanPop)   pHtml += `<div class="li-detail-row"><span class="label">Human pop.</span><span class="value">${ESC(d.humanPop)}</span></div>`;
+    if (d.demihumans) pHtml += `<div class="li-detail-row" style="align-items:flex-start"><span class="label">Demi-humans</span><span class="value" style="text-align:right">${ESC(d.demihumans)}</span></div>`;
+    if (d.humanoids)  pHtml += `<div class="li-detail-row" style="align-items:flex-start"><span class="label">Humanoids</span><span class="value" style="text-align:right">${ESC(d.humanoids)}</span></div>`;
+    pop.innerHTML = pHtml;
+    body.appendChild(pop);
+  }
+
+  // Resources — comma-separated list rendered as flowing text
+  if (d.resources){
+    const res = document.createElement('div');
+    res.className = 'li-section';
+    res.innerHTML = `<div class="li-section-title">Resources</div><div class="li-text">${ESC(d.resources)}</div>`;
+    body.appendChild(res);
+  }
+
+  // Notes — paraphrased boxed-set commentary
+  if (d.notes){
+    const n = document.createElement('div');
+    n.className = 'li-section';
+    n.innerHTML = `<div class="li-section-title">Notes</div><div class="li-text">${ESC(d.notes)}</div>`;
+    body.appendChild(n);
+  }
+
+  if (body.children.length === 1 && !d.capital){
+    const empty = document.createElement('div');
+    empty.className = 'li-empty';
+    empty.textContent = 'No metadata recorded for this region.';
+    body.appendChild(empty);
+  }
+
+  const panel = document.getElementById('region-info');
+  panel.classList.add('open');
+  if (riDrag && !riDrag.restore()) riDrag.placeCenter();
+}
+function closeRegionInfo(){
+  document.getElementById('region-info').classList.remove('open');
 }
 function confirmMove(){
   if(!state.pendingMove) return;
@@ -1635,6 +1779,14 @@ function wireEvents(){
   });
   document.getElementById('li-close').addEventListener('click', closeLandmarkInfo);
 
+  // Region info panel — opens from the side panel's ⚜ Region Info button
+  // whenever the clicked hex resolves to a known region.
+  document.getElementById('p-btn-region-info').addEventListener('click', e=>{
+    const name = e.currentTarget.dataset.regionName;
+    if (name) openRegionInfo(name);
+  });
+  document.getElementById('ri-close').addEventListener('click', closeRegionInfo);
+
   // ── TOUCH: one-finger pan, two-finger pinch-zoom, single-tap hex click ──
   // Mirrors the mouse pan/wheel-zoom logic using the same state vars (panX/panY/zoom)
   // and reuses doZoom/clampPan/applyTransform. touch-action:none on #map-wrap
@@ -1784,6 +1936,11 @@ function init(){
       document.getElementById('landmark-info'),
       document.getElementById('li-header'),
       'gh-landmark-info-pos'
+    );
+    riDrag = makeDraggable(
+      document.getElementById('region-info'),
+      document.getElementById('ri-header'),
+      'gh-region-info-pos'
     );
     const w=document.getElementById('map-wrap');
     // Start at whichever is smaller: the default 0.5, or a zoom that fits the
