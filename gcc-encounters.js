@@ -18,6 +18,35 @@
 //   GCCEncounters.lookupMonster(name) MM stats for a creature name
 //   GCCEncounters.contextFor(col,row) inspect the resolved context
 //                                     (debug; doesn't roll anything)
+//
+// ─── DATA SOURCE & DISPLAY CONVENTION ─────────────────────────────────────
+// gcc-encounter-data.js bundles the MM, DMG outdoor tables, and Greyhawk
+// regional/geographic tables verbatim from the adndEnc Foundry module.
+// Treat that file as immutable upstream data — do not edit it to "fix"
+// values. The data is shared across the engine, the panel, and any
+// future consumers; corrections at the source create maintenance debt
+// (forked data, lost upstream updates, opaque rationale for changes).
+//
+// When a value displays incorrectly, the right fix is at the consumer
+// layer:
+//
+//   Wrong creature lookup       → MM_ALIAS in this file (e.g., 'Men,
+//                                 Brigand' → 'Men, Bandit', table
+//                                 spelling vs MM canonical, etc.)
+//   Movement undersells mount   → MOVEMENT_OVERRIDES in
+//                                 gcc-encounter-panel.js (e.g., MM says
+//                                 mounted patrols all move 12", but
+//                                 knights actually ride heavy warhorses
+//                                 at 15")
+//   Display format conversion   → render-time helpers in
+//                                 gcc-encounter-panel.js (e.g.,
+//                                 movementToInches converts the MM's
+//                                 "120 ft" to canonical 1e "12\"")
+//
+// Each override is a documented one-liner with a canon citation in its
+// comment. The override map IS the documentation — if you find a wrong
+// value, add an entry here rather than editing the data file.
+// ──────────────────────────────────────────────────────────────────────────
 
 (function(){
   'use strict';
