@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>World of Greyhawk — Campaign Map</title>
+<!-- Inline-SVG favicon. Avoids the 404 the browser would log for the
+     auto-requested /favicon.ico. Theme: a gold hex on dark-parchment
+     to match the map's visual identity, low enough fidelity that it
+     reads as a tiny shape in the tab. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23120900'/%3E%3Cpolygon points='16,4 28,11 28,21 16,28 4,21 4,11' fill='none' stroke='%23c8941a' stroke-width='2.5'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="gcc-header.css">
 <link rel="stylesheet" href="gcc-auth.css">
 <style>
@@ -363,7 +368,7 @@
 </div>
 
 <div id="coords">Hover over a hex</div>
-<div id="opacity-wrap">Grid <input type="range" id="opacity-slider" min="0" max="100" value="100"></div>
+<div id="opacity-wrap">Grid <input type="range" id="opacity-slider" min="0" max="100" value="50"></div>
 <div id="overlay-bg"></div>
 <div id="move-dialog">
   <h3>Move Party</h3>
@@ -1025,17 +1030,28 @@ function savePartyPos(col, row){
   catch (e) {}
 }
 
-// Short label like "Foot · Avg" or "Mounted · Medium" for the side
-// panel display.
+// Short label for the side panel's Travel button, including the
+// burden/mount detail and a base mi/day figure (normal terrain
+// rate). Burden is shown verbatim for foot ("Avg burden") so the
+// GM doesn't have to remember which abbreviation maps to which
+// burden bracket. Mounted profiles already encode the mount type
+// in the label; mi/day comes from the Normal column of the DMG
+// table for the active mode.
 function travelProfileLabel(p){
   p = p || (state && state.travelProfile) || DEFAULT_TRAVEL_PROFILE;
+  let baseRate = null;
+  let head;
   if (p.mode === 'foot'){
-    const burdens = { light: 'Light', average: 'Avg', heavy: 'Heavy' };
-    return `Foot · ${burdens[p.burden] || p.burden}`;
+    const burdens = { light: 'Light burden', average: 'Avg burden', heavy: 'Heavy burden' };
+    head = `Foot · ${burdens[p.burden] || p.burden}`;
+    baseRate = TRAVEL_RATES.foot[p.burden]?.normal;
+  } else {
+    const mounts = { light: 'Light Mt.', medium: 'Medium Mt.', heavy: 'Heavy Mt.',
+                     draft: 'Draft', cart: 'Cart', wagon: 'Wagon' };
+    head = mounts[p.mount] || p.mount;
+    baseRate = TRAVEL_RATES.mounted[p.mount]?.normal;
   }
-  const mounts = { light: 'Light Mt.', medium: 'Medium Mt.', heavy: 'Heavy Mt.',
-                   draft: 'Draft', cart: 'Cart', wagon: 'Wagon' };
-  return `${mounts[p.mount] || p.mount}`;
+  return baseRate != null ? `${head} · ${baseRate} mi/day` : head;
 }
 
 // Screen <-> map coords
@@ -1727,7 +1743,22 @@ function confirmMove(){
   state.partyCol=col; state.partyRow=row;
   savePartyPos(col, row);
   updatePartyMarker(); closeMoveDialog();
-  showToast(`Moved to ${hexIdStr(col,row)} · ${travelTime(terrain,1)}`);
+  // Toast composition: lead with the most specific name we have for
+  // the hex — landmark > region > bare coords — then coords + travel
+  // time. "Moved to Chendl (D5-26) · ~1.2 days mounted" is friendlier
+  // than just coords.
+  let label = hexIdStr(col, row);
+  if (typeof GCCLandmarks !== 'undefined'){
+    const lm = GCCLandmarks.getByHex(col, row);
+    if (lm?.name) label = `${lm.name} (${hexIdStr(col, row)})`;
+  }
+  if (label === hexIdStr(col, row)){
+    const region = getRegion(col, row);
+    if (region && region !== 'Unknown Reaches'){
+      label = `${region} (${hexIdStr(col, row)})`;
+    }
+  }
+  showToast(`Moved to ${label} · ${travelTime(terrain,1)}`);
   updateSidePanel(col,row,terrain,getRegion(col,row),0);
 }
 
@@ -2067,6 +2098,14 @@ function wireEvents(){
     const cells=document.getElementById('hex-cells');
     if(cells) cells.style.opacity=e.target.value/100;
   });
+  // Apply the slider's initial value at load — the input event won't
+  // fire on its own, so without this the hex grid renders fully
+  // opaque on first paint regardless of where the slider sits.
+  (function(){
+    const sl = document.getElementById('opacity-slider');
+    const cells = document.getElementById('hex-cells');
+    if (sl && cells) cells.style.opacity = sl.value / 100;
+  })();
 
   // Panel stubs
   document.getElementById('p-btn-explore').addEventListener('click',()=>showToast('Sub-map — Phase 2'));
