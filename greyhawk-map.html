@@ -668,7 +668,7 @@ const state={
   zoom:.5,panX:0,panY:0,
   dragging:false,didDrag:false,dragStartX:0,dragStartY:0,panStartX:0,panStartY:0,
   moveMode:false,showLabels:false,
-  partyCol:64,partyRow:44,
+  ...(()=>{ const p = loadPartyPos(); return { partyCol: p.col, partyRow: p.row }; })(),
   selectedCol:null,selectedRow:null,
   hexData:{},pendingMove:null,
   // Persisted across reloads via gh-travel-profile localStorage key.
@@ -935,7 +935,14 @@ function travelTime(terrain, dist, profile){
   const daysPerHex = HEX_MILES / milesPerDay;
   const d = daysPerHex * dist;
   if (d < 1){
-    const hours = Math.round(d * 24);
+    // A "travel day" in DMG/PHB rules is daylight hours of marching,
+    // not a 24-hour calendar day. PHB outdoor movement explicitly
+    // ties 1" to "half a day's trekking" — i.e. the day is split
+    // morning + evening for travel purposes. So when the trip is
+    // less than one travel day, convert to hours using 12 daylight
+    // hours, not 24. Light horse on plains: 30 mi / 60 mi-per-day =
+    // 0.5 days = 6 hours of riding (correct), not 12 hours.
+    const hours = Math.round(d * 12);
     return `~${hours}h ${profile.mode === 'mounted' ? 'mounted' : 'on foot'}`;
   }
   return `~${d.toFixed(1)} day(s) ${profile.mode === 'mounted' ? 'mounted' : 'on foot'}`;
@@ -986,6 +993,29 @@ function loadTravelProfile(){
 }
 function saveTravelProfile(p){
   try { localStorage.setItem('gh-travel-profile', JSON.stringify(p)); }
+  catch (e) {}
+}
+
+// Party position persistence. Stored as "col,row" string under
+// 'gh-party-pos'. Defined as function declarations so they're hoisted
+// above the state initializer where loadPartyPos() is first called.
+const DEFAULT_PARTY_COL = 64;  // City of Greyhawk hex (Darlene D4-86)
+const DEFAULT_PARTY_ROW = 44;
+function loadPartyPos(){
+  try {
+    const raw = localStorage.getItem('gh-party-pos');
+    if (!raw) return { col: DEFAULT_PARTY_COL, row: DEFAULT_PARTY_ROW };
+    const parts = raw.split(',').map(s => parseInt(s.trim(), 10));
+    if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])){
+      return { col: DEFAULT_PARTY_COL, row: DEFAULT_PARTY_ROW };
+    }
+    return { col: parts[0], row: parts[1] };
+  } catch (e) {
+    return { col: DEFAULT_PARTY_COL, row: DEFAULT_PARTY_ROW };
+  }
+}
+function savePartyPos(col, row){
+  try { localStorage.setItem('gh-party-pos', `${col},${row}`); }
   catch (e) {}
 }
 
@@ -1689,6 +1719,7 @@ function confirmMove(){
   state.hexData[oldKey].explored=true;
   document.getElementById(`hex-${state.partyCol}-${state.partyRow}`)?.classList.add('explored');
   state.partyCol=col; state.partyRow=row;
+  savePartyPos(col, row);
   updatePartyMarker(); closeMoveDialog();
   showToast(`Moved to ${hexIdStr(col,row)} · ${travelTime(terrain,1)}`);
   updateSidePanel(col,row,terrain,getRegion(col,row),0);
