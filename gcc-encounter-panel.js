@@ -114,6 +114,25 @@
   // hex to roll for. Populated by show().
   let lastCtx = null;
 
+  // Convert MM movement strings from feet to AD&D 1e inches notation.
+  // The MM data uses "120 ft", "240 ft / 480 ft (flying)", "30 ft;
+  // 150 ft flying (AA:IV)" etc. — the 1e canonical form is inches
+  // (1" = 10 ft indoors / 10 yd outdoors). Some entries (mostly
+  // dragons) already use the inches form; those pass through.
+  // Any non-string input passes through unchanged.
+  function movementToInches(s){
+    if (typeof s !== 'string' || !s) return s;
+    // Replace every "<digits> ft" token with "<digits/10>".
+    // Trailing 'ft' word-boundary keeps 'feet'-spelled instances out;
+    // none observed in MM data but harmless to be precise.
+    return s.replace(/(\d+)\s*ft\b/gi, (_, n) => {
+      const inches = parseInt(n, 10) / 10;
+      // Use Number() to drop trailing .0 on whole numbers; keep
+      // decimals when the source isn't a multiple of 10 (rare).
+      return `${Number(inches)}"`;
+    });
+  }
+
   function close(){
     document.getElementById('encounter-info')?.classList.remove('open');
   }
@@ -225,7 +244,7 @@
         `<div class="li-detail-row"><span class="label">${lab}</span><span class="value">${ESC(val)}</span></div>`;
       h += row('AC',          m.armorClass);
       h += row('HD',          m.hitDice);
-      h += row('Move',        m.move);
+      h += row('Move',        movementToInches(m.move));
       h += row('Attacks',     typeof m.attacks === 'number' ? `${m.attacks} (${m.damage || '—'})` : (m.attacks || ''));
       if (typeof m.attacks !== 'number' && m.damage) h += row('Damage', m.damage);
       if (m.specialAttacks)  h += row('SA', m.specialAttacks);
