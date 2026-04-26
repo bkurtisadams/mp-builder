@@ -202,6 +202,19 @@
   .p-travel-btn:hover { background:rgba(200,148,26,.12); border-color:rgba(200,148,26,.5);
     color:var(--gold-light); }
 
+  /* Time-of-day dropdown — looks like the .value cells but is a real
+     <select>. Native select rendering is jarring against the dark
+     theme; appearance:none lets us style it ourselves. */
+  .p-tod-sel { background:transparent; border:1px dashed rgba(200,148,26,.25);
+    color:var(--parchment-light); font-family:inherit; font-size:11px;
+    cursor:pointer; padding:2px 6px; border-radius:2px; text-align:right;
+    appearance:none; -webkit-appearance:none; -moz-appearance:none;
+    text-align-last:right; }
+  .p-tod-sel:hover { background:rgba(200,148,26,.12);
+    border-color:rgba(200,148,26,.5); color:var(--gold-light); }
+  .p-tod-sel option { background:#120900; color:var(--parchment-light);
+    font-family:inherit; }
+
   /* Travel profile dialog — small floating panel, draggable header,
      three fieldset blocks for mode/burden/mount. Disabled fieldset
      fades out so the active one reads clearly. */
@@ -343,6 +356,16 @@
     <div class="panel-row"><label>Est. Travel Time</label><div class="value" id="p-travel">—</div></div>
     <div class="panel-row p-travel-row"><label>Travel</label>
       <button class="value p-travel-btn" id="p-travel-profile" title="Click to change travel mode / burden / mount">—</button>
+    </div>
+    <div class="panel-row p-tod-row"><label>Time</label>
+      <select class="value p-tod-sel" id="p-tod-sel" title="Time of day — drives encounter timing rule (DMG p.47)">
+        <option value="morning">Morning</option>
+        <option value="noon">Noon</option>
+        <option value="evening">Evening</option>
+        <option value="night">Night</option>
+        <option value="midnight">Midnight</option>
+        <option value="predawn">Pre-dawn</option>
+      </select>
     </div>
     <div class="panel-row"><label>Hexes Explored</label><div class="value" id="p-explored">0</div></div>
     <hr class="panel-divider">
@@ -674,6 +697,9 @@ const state={
   dragging:false,didDrag:false,dragStartX:0,dragStartY:0,panStartX:0,panStartY:0,
   moveMode:false,showLabels:false,
   ...(()=>{ const p = loadPartyPos(); return { partyCol: p.col, partyRow: p.row }; })(),
+  // Time-of-day for encounter timing rule. Persists in localStorage;
+  // changed via the side-panel dropdown.
+  timeOfDay: loadTimeOfDay(),
   selectedCol:null,selectedRow:null,
   hexData:{},pendingMove:null,
   // Persisted across reloads via gh-travel-profile localStorage key.
@@ -1028,6 +1054,42 @@ function loadPartyPos(){
 function savePartyPos(col, row){
   try { localStorage.setItem('gh-party-pos', `${col},${row}`); }
   catch (e) {}
+}
+
+// Time-of-day persistence. Drives encounter timing rule (DMG p.47) —
+// only certain terrain types check for encounters at certain time
+// slots. Defaults to 'morning' since it's the only slot that checks
+// in every terrain type (plain/scrub/forest/desert/marsh and also
+// mountains via the 'morning' slot — hills are the only outlier,
+// using noon and night). Stored under 'gh-time-of-day'.
+const TIME_SLOTS = ['morning','noon','evening','night','midnight','predawn'];
+function loadTimeOfDay(){
+  try {
+    const raw = localStorage.getItem('gh-time-of-day');
+    if (!raw) return 'morning';
+    if (TIME_SLOTS.includes(raw)) return raw;
+    return 'morning';
+  } catch (e) {
+    return 'morning';
+  }
+}
+function saveTimeOfDay(t){
+  try { localStorage.setItem('gh-time-of-day', t); }
+  catch (e) {}
+}
+// Display label for the side panel button. predawn rendered with a
+// space for readability — internal key stays one word for storage
+// and DMG_OUTDOOR_TIMING_RULES key matching.
+function timeOfDayLabel(t){
+  const labels = {
+    morning:  'Morning',
+    noon:     'Noon',
+    evening:  'Evening',
+    night:    'Night',
+    midnight: 'Midnight',
+    predawn:  'Pre-dawn',
+  };
+  return labels[t] || t;
 }
 
 // Short label for the side panel's Travel button, including the
@@ -2126,10 +2188,12 @@ function wireEvents(){
       showToast('Encounter system not loaded');
       return;
     }
-    // Pass the party position directly — `state` is closure-scoped to
-    // this script and not on window, so GCCEncounters.checkParty()
-    // can't see it. Calling check() with explicit coords avoids that.
-    const r = GCCEncounters.check({ col: state.partyCol, row: state.partyRow });
+    // Build the encounter context here so we can override timeOfDay
+    // with the GM's current side-panel selection. The engine's
+    // default is 'morning'; this passes whatever the dropdown holds.
+    const ctx = GCCEncounters.contextFor(state.partyCol, state.partyRow);
+    ctx.timeOfDay = state.timeOfDay;
+    const r = GCCEncounters.check(ctx);
     GCCEncounterPanel.show(r);
   });
   document.getElementById('p-btn-rest').addEventListener('click',()=>showToast('Camp — CTT Phase 3'));
@@ -2161,6 +2225,20 @@ function wireEvents(){
   for (const r of document.querySelectorAll('input[name="td-mode"]')){
     r.addEventListener('change', updateTravelDialogGrayState);
   }
+  // Time-of-day dropdown — initialized from state (which was loaded
+  // from localStorage at startup) and writes back on change. The
+  // engine reads ctx.timeOfDay during the encounter check; updating
+  // here changes which terrain types check encounters per DMG p.47
+  // timing rules.
+  (function(){
+    const sel = document.getElementById('p-tod-sel');
+    if (!sel) return;
+    sel.value = state.timeOfDay;
+    sel.addEventListener('change', e => {
+      state.timeOfDay = e.target.value;
+      saveTimeOfDay(state.timeOfDay);
+    });
+  })();
 
   // ── TOUCH: one-finger pan, two-finger pinch-zoom, single-tap hex click ──
   // Mirrors the mouse pan/wheel-zoom logic using the same state vars (panX/panY/zoom)
