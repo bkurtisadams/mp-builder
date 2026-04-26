@@ -341,9 +341,10 @@
     </div>
     <div class="panel-row"><label>Hexes Explored</label><div class="value" id="p-explored">0</div></div>
     <hr class="panel-divider">
+    <button class="panel-btn primary" id="p-btn-move-here" style="display:none">→ Move Here</button>
     <button class="panel-btn" id="p-btn-landmark-info" style="display:none">ℹ Landmark Info</button>
     <button class="panel-btn" id="p-btn-region-info" style="display:none">⚜ Region Info</button>
-    <button class="panel-btn primary" id="p-btn-explore">⬡ Explore Sub-Map</button>
+    <button class="panel-btn" id="p-btn-explore">⬡ Explore Sub-Map</button>
     <button class="panel-btn" id="p-btn-encounter">⚄ Check Encounter</button>
     <button class="panel-btn" id="p-btn-rest">⛺ Make Camp</button>
     <button class="panel-btn" id="p-btn-build">🏰 Build Stronghold</button>
@@ -1376,6 +1377,28 @@ function updateSidePanel(col,row,terrain,region,dist){
       delete riBtn.dataset.regionName;
     }
   }
+  // Move Here button — visible when the inspected hex differs from
+  // the party's hex. Stashes destination coords on dataset so the
+  // click handler can read them; doesn't open the move dialog itself
+  // (that's a separate user action).
+  const moveBtn = document.getElementById('p-btn-move-here');
+  if (moveBtn){
+    const isPartyHex = (col === state.partyCol && row === state.partyRow);
+    const isWater = String(terrain).startsWith('water');
+    if (!isPartyHex && !isWater){
+      moveBtn.style.display = '';
+      moveBtn.dataset.col = String(col);
+      moveBtn.dataset.row = String(row);
+      moveBtn.dataset.terrain = terrain;
+      moveBtn.dataset.dist = String(dist);
+    } else {
+      moveBtn.style.display = 'none';
+      delete moveBtn.dataset.col;
+      delete moveBtn.dataset.row;
+      delete moveBtn.dataset.terrain;
+      delete moveBtn.dataset.dist;
+    }
+  }
   const sp=document.getElementById('side-panel');
   if (!sp.classList.contains('open')) ensureSidePanelPlaced();
   sp.classList.add('open');
@@ -2010,6 +2033,18 @@ function wireEvents(){
 
   // Panel stubs
   document.getElementById('p-btn-explore').addEventListener('click',()=>showToast('Sub-map — Phase 2'));
+  // Move Here — opens the existing move-confirmation dialog with the
+  // hex currently displayed in the side panel as the destination.
+  // Same code path as Move-mode + click, just without needing the
+  // modal toggle. Visibility is managed by updateSidePanel.
+  document.getElementById('p-btn-move-here').addEventListener('click', e => {
+    const ds = e.currentTarget.dataset;
+    if (!ds.col || !ds.row) return;
+    const col = parseInt(ds.col, 10);
+    const row = parseInt(ds.row, 10);
+    const dist = parseInt(ds.dist, 10) || hexDistance(state.partyCol, state.partyRow, col, row);
+    showMoveDialog(col, row, ds.terrain || getHexTerrain(col, row), dist);
+  });
   document.getElementById('p-btn-encounter').addEventListener('click',()=>{
     if (typeof GCCEncounters === 'undefined' || typeof GCCEncounterPanel === 'undefined'){
       showToast('Encounter system not loaded');
