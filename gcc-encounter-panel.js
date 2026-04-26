@@ -107,6 +107,39 @@
       return;
     }
 
+    // Settlement hex — distinct rendering from "no encounter."
+    // Header reads as the settlement name + a city/town subtitle so
+    // the GM can see at a glance that this needs the city/town
+    // tables, not that the wilderness check returned empty.
+    if (result.settlement){
+      const s = result.settlement;
+      _renderHeader(s.name || 'Settlement', `${s.kind || ''} · ${result.ctx?.regionName || ''}`);
+      let html =
+        `<div class="enc-no-encounter">` +
+        `Wilderness encounter rules don't apply inside a ${ESC(s.kind || 'settlement')}. ` +
+        `Use the DMG city/town encounter tables (Phase 2 in this engine).` +
+        `</div>`;
+      // Useful settlement metadata if present, so the GM has
+      // something to work with even before city/town tables land.
+      const fields = [];
+      if (s.pop)        fields.push(['Population',    s.pop]);
+      if (s.popTotal)   fields.push(['Pop. (total)',  s.popTotal]);
+      if (s.size)       fields.push(['Size',          s.size]);
+      if (s.rulerName)  fields.push(['Ruler',         s.rulerName]);
+      if (s.region)     fields.push(['Region',        s.region]);
+      if (fields.length){
+        html += '<div class="li-section"><div class="li-section-title">Settlement</div>';
+        for (const [label, val] of fields){
+          html += `<div class="li-detail-row"><span class="label">${ESC(label)}</span>` +
+                  `<span class="value">${ESC(String(val))}</span></div>`;
+        }
+        html += '</div>';
+      }
+      _renderBody(html);
+      _open();
+      return;
+    }
+
     if (!result.occurred){
       _renderHeader('No Encounter', _contextLine(result.ctx));
       const reason = result.reason || 'No encounter this check';
@@ -204,6 +237,15 @@
       `<span class="value">${ESC(result.tableSourceUsed)}` +
       (result.tableRoll ? ` (rolled ${result.tableRoll})` : '') +
       `</span></div>`;
+    // popTier source — explains why this hex is dense/patrolled/uninhab.
+    // 'region' = from region's popTier (REGION_POP_TIERS or override)
+    // 'landmark:city' = hex contains a city; locally upgraded to dense
+    // 'landmark:city-adjacent' = hex within 1 of a city; tier bumped up
+    // 'default' = no region tier, no nearby city → ctx default (uninhab)
+    if (result.ctx?.popTierSource){
+      src += `<div class="li-detail-row"><span class="label">PopTier</span>` +
+        `<span class="value">${ESC(result.ctx.popTierSource)}</span></div>`;
+    }
     if (result.occurs?.forced){
       src += `<div class="li-detail-row"><span class="label">Forced</span><span class="value">yes</span></div>`;
     } else if (result.occurs){
@@ -243,7 +285,10 @@
     if (ctx.gccTerrain) bits.push(ctx.gccTerrain);
     if (ctx.regionName) bits.push(ctx.regionName);
     if (ctx.timeOfDay)  bits.push(ctx.timeOfDay);
-    if (ctx.population && ctx.population !== 'uninhabited') bits.push(ctx.population);
+    // Always show population since it controls frequency. 'dense'
+    // and 'patrolled' are noteworthy; 'uninhabited' is also worth
+    // showing because the encounter rate is highest there.
+    if (ctx.population)  bits.push(ctx.population);
     return bits.join(' · ');
   }
 

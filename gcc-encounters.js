@@ -296,18 +296,52 @@
     else              label = 'Friendly';
     return { roll: r, label };
   }
-  // DMG outdoor encounter distance: 6d4 × 10 yards (clear), modified by
-  // terrain. Simplified here — return d4 × 10 yards plus terrain multiplier.
+  // DMG p.48 outdoor encounter distance: base 6d4 inches (1" = 10 yd
+  // outdoors → 60-240 yd). Terrain modifies EACH die before summing:
+  //   Plain, desert, hills, mountains: no modification
+  //   Scrub:  −1 per die rolling 3 or 4
+  //   Forest: −1 per die on EVERY roll (00's possible — i.e. 0 dist =
+  //           immediate confrontation)
+  //   Marsh:  −1 per die rolling 2, 3, or 4
+  // Surprise can further reduce the result (handled separately by the
+  // caller, since surprise is its own roll).
   function rollDistance(dmgTerrain){
-    const baseRoll = rollDice('6d4');
-    let multiplier = 10;  // yards
-    if (dmgTerrain === 'forest' || dmgTerrain === 'marsh') multiplier = 5;
-    else if (dmgTerrain === 'mountains') multiplier = 8;
-    else if (dmgTerrain === 'desert') multiplier = 30;
+    const dieRolls = [];
+    let modifiedSum = 0;
+    for (let i = 0; i < 6; i++){
+      const raw = d(4);
+      let modified = raw;
+      switch (dmgTerrain){
+        case 'forest':
+          modified = raw - 1;  // -1 always
+          break;
+        case 'marsh':
+          if (raw >= 2 && raw <= 4) modified = raw - 1;
+          break;
+        case 'scrub':
+          if (raw === 3 || raw === 4) modified = raw - 1;
+          break;
+        // plain, desert, hills, mountains: no modification
+      }
+      // Forest can produce 0 ("00's are possible" per DMG); other
+      // terrains floor at 1 implicitly since their modifiers don't
+      // reduce 1 to 0.
+      if (modified < 0) modified = 0;
+      dieRolls.push({ raw, modified });
+      modifiedSum += modified;
+    }
+    // Convert inches to yards (outdoor scale: 1" = 10 yd).
+    const yards = modifiedSum * 10;
+    let formula = '6d4';
+    if (dmgTerrain === 'forest') formula = '6d4 (each −1, forest)';
+    else if (dmgTerrain === 'marsh') formula = '6d4 (each 2-4 −1, marsh)';
+    else if (dmgTerrain === 'scrub') formula = '6d4 (each 3-4 −1, scrub)';
+    formula += ' × 10 yd';
     return {
-      yards: baseRoll * multiplier,
-      formula: `6d4 × ${multiplier}`,
-      raw: baseRoll,
+      yards,
+      formula,
+      raw: modifiedSum,    // sum in inches
+      dieRolls,            // for debugging / display
     };
   }
   function rollSurprise(){
@@ -385,6 +419,10 @@
         ctx.regionName = m.name;
         const r = window.GCCRegions.getByName(m.name);
         ctx.regionCategory = r?.category || 'political';
+        // popTier on the region (from REGION_POP_TIERS or per-region
+        // override) drives encounter frequency. Falls through to the
+        // ctx default ('uninhabited') if the region has no tier.
+        if (r?.popTier) ctx.population = r.popTier;
         const k = REGION_TABLE_KEY[m.name];
         if (k){
           ctx.tableKey = k;
@@ -392,6 +430,70 @@
             ? 'geographic' : 'political';
         }
       }
+    }
+    // Landmark-derived popTier override. Cities aren't enumerated in
+    // REGION_POP_TIERS at the region level (a 30-mile-hex kingdom
+    // averages out to 'patrolled'), but a hex containing or adjacent
+    // Landmark-derived popTier resolution.
+    //
+    //   hex contains kind:'city' or kind:'town' landmark
+    //     → ctx.settlement = the landmark. The party is IN a settlement,
+    //       not in wilderness. Outdoor encounter rolls don't apply here
+    //       — DMG city/town tables are a separate system (Phase 2 in
+    //       this engine). check() detects ctx.settlement and short-
+    //       circuits with a "city/town tables required" result.
+    //
+    //   hex within 1 of a kind:'city' landmark hex
+    //     → upgrade popTier by one notch (uninhabited→patrolled,
+    //       patrolled→dense). The party is in genuine outdoor terrain
+    //       (the road approaches, surrounding farmland) but it's
+    //       denser than the regional average. Town adjacency does NOT
+    //       upgrade — towns at 30-mile-hex scale aren't dense enough
+    //       for their surroundings to register differently from
+    //       regional default.
+    //
+    //   otherwise
+    //     → regional popTier (or default)
+    //
+    ctx.popTierSource = ctx.population === 'uninhabited' ? 'default' : 'region';
+    ctx.settlement = null;
+    if (typeof window.GCCLandmarks !== 'undefined'){
+      const here = window.GCCLandmarks.getByHex(col, row);
+      if (here?.kind === 'city' || here?.kind === 'town'){
+        // Settlement hex — defer to city/town tables (TODO). Don't
+        // touch popTier; the check() short-circuit handles the rest.
+        ctx.settlement = here;
+      } else {
+        // Walk neighbor hexes (distance == 1) for a city. Towns
+        // intentionally don't trigger this — see comment above.
+        const hexDist = window.hexDistance;
+        if (typeof hexDist === 'function'){
+          let bumped = false;
+          for (let dc = -1; dc <= 1 && !bumped; dc++){
+            for (let dr = -1; dr <= 1 && !bumped; dr++){
+              if (dc === 0 && dr === 0) continue;
+              const nc = col + dc, nr = row + dr;
+              if (hexDist(col, row, nc, nr) !== 1) continue;
+              const lm = window.GCCLandmarks.getByHex(nc, nr);
+              if (lm?.kind === 'city'){
+                if (ctx.population === 'uninhabited'){
+                  ctx.population = 'patrolled';
+                  ctx.popTierSource = 'landmark:city-adjacent';
+                } else if (ctx.population === 'patrolled'){
+                  ctx.population = 'dense';
+                  ctx.popTierSource = 'landmark:city-adjacent';
+                }
+                bumped = true;
+              }
+            }
+          }
+        }
+      }
+    }
+    if (!ctx.tableKey && ctx.dmgTerrain){
+      // Fall back to DMG outdoor table by terrain.
+      ctx.tableKey = `__dmg__:${ctx.dmgTerrain}:${ctx.population}`;
+      ctx.tableSource = 'dmg';
     }
     if (!ctx.tableKey && ctx.dmgTerrain){
       // Fall back to DMG outdoor table by terrain.
@@ -408,7 +510,12 @@
     let tableSet;
     if (climate === 'arctic')         tableSet = D.DMG_ARCTIC_CONDITIONS;
     else if (climate === 'subarctic') tableSet = D.DMG_SUBARCTIC_CONDITIONS;
-    else if (population === 'inhabited' || population === 'patrolled')
+    // The DMG has two temperate table sets: _UNINHABITED (wandering
+    // monsters dominate) and _INHABITED (more "Men, Patrol" results,
+    // settlement-flavored). Both `dense` and `patrolled` populations
+    // use the inhabited table; only `uninhabited` uses the wilderness
+    // table.
+    else if (population === 'dense' || population === 'patrolled')
                                       tableSet = D.DMG_TEMPERATE_INHABITED;
     else                              tableSet = D.DMG_TEMPERATE_UNINHABITED;
     const table = tableSet?.[dmgTerrain];
@@ -430,6 +537,24 @@
     const ctx = (hexOrCtx && hexOrCtx.gccTerrain !== undefined)
       ? hexOrCtx
       : contextFor(hexOrCtx.col, hexOrCtx.row);
+    // Settlement hex — outdoor wilderness tables don't apply. The DMG
+    // has separate city/town encounter tables (DMG_CITYTOWN_TABLES in
+    // the data file) which aren't wired into this engine yet. Show a
+    // clear placeholder rather than producing a nonsense outdoor roll
+    // ("Bear, brown 1d4" inside Greyhawk City). Force flag does NOT
+    // bypass this — forcing should still respect the table-system
+    // boundary; a forced roll inside a city should fail loud, not
+    // silently fall through to forest tables.
+    if (ctx.settlement){
+      const s = ctx.settlement;
+      const kindLabel = s.kind === 'city' ? 'City' : 'Town';
+      return {
+        ctx,
+        occurred: false,
+        settlement: s,
+        reason: `${kindLabel} hex (${s.name || 'unnamed'}) — see DMG city/town tables (TODO)`,
+      };
+    }
     if (ctx.dmgTerrain == null){
       return {
         ctx,

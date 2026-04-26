@@ -131,6 +131,87 @@
   // time so consumers can read region.ruler / region.humanPop /
   // region.resources / region.notes etc. Honorific prefixes have
   // been stripped from ruler strings to factual name+title.
+  // Population tier per region — drives encounter check frequency.
+  // Per DMG p.47 Chance Of Encounter:
+  //   dense       1 in 20  ('relatively dense')
+  //   patrolled   1 in 12  ('moderate to sparse / patrolled')
+  //   uninhabited 1 in 10  ('uninhabited / wilderness')
+  //
+  // Important caveat: the DMG categories really apply at the area
+  // level, not the kingdom level. Most of any kingdom is farmland and
+  // light forest with occasional patrols ('patrolled'). Only the
+  // immediate vicinity of a city qualifies as 'relatively dense'.
+  // Hex-level overrides (or landmark-radius auto-derivation) are the
+  // right long-term fix; for now this map is region-default only,
+  // with the understanding that 'dense' is reserved for things that
+  // really are dense at the 30-mile-hex scale (large cities and
+  // their immediate surroundings).
+  //
+  // Override per region via setRegionMeta(name, { popTier: 'dense' }).
+  const REGION_POP_TIERS = {
+    // ── Dense (1 in 20) ─────────────────────────────────────────────────────
+    // Reserved for region entries that are themselves a city. The only
+    // current case is the single-hex Greyhawk City entry. Kingdom-wide
+    // regions cannot be 'dense' at 30-mile-hex scale — most of their
+    // territory is patrolled fields and forests.
+    "City of Greyhawk":        "dense",
+
+    // ── Patrolled (1 in 12) ─────────────────────────────────────────────────
+    // Settled or actively-administered states. The default for political
+    // regions, listed explicitly here so the classification is auditable
+    // and the override layer can flip individual entries without
+    // changing the default behavior.
+    "Kingdom of Furyondy":     "patrolled",
+    "Archclericy of Veluna":   "patrolled",
+    "Kingdom of Keoland":      "patrolled",
+    "Great Kingdom":           "patrolled",
+    "County of Urnst":         "patrolled",
+    "Duchy of Urnst":          "patrolled",
+    "Kingdom of Nyrond":       "patrolled",
+    "Domain of Greyhawk":      "patrolled",
+    "March of Bissel":         "patrolled",
+    "Gran March":              "patrolled",
+    "Sterich":                 "patrolled",
+    "Yeomanry":                "patrolled",
+    "Grand Duchy of Geoff":    "patrolled",
+    "Highfolk":                "patrolled",
+    "Valley of the Highfolk":  "patrolled",
+    "Perrenland":              "patrolled",
+    "Ket":                     "patrolled",
+    "County of Ulek":          "patrolled",
+    "Duchy of Ulek":           "patrolled",
+    "Principality of Ulek":    "patrolled",
+    "County of Idee":          "patrolled",
+    "State of Onnwal":         "patrolled",
+    "County of Sunndi":        "patrolled",
+    "Free City of Irongate":   "patrolled",
+    "Theocracy of the Pale":   "patrolled",
+    "Duchy of Tenh":           "patrolled",
+    "Archbarony of Ratik":     "patrolled",
+    "Hold of the Sea Princes": "patrolled",
+    "Shield Lands":            "patrolled",
+    "Prelacy of Almor":        "patrolled",
+    "See of Medegia":          "patrolled",
+    "North Province":          "patrolled",
+    "South Province":          "patrolled",
+    "Celene":                  "patrolled",
+    "Archbarony of Blackmoor": "patrolled",
+
+    // ── Uninhabited (1 in 10) ───────────────────────────────────────────────
+    // Lawless, contested, or hostile-controlled. All geographic regions
+    // also default to uninhabited via the category-based fallback in
+    // applyDefs; not listed here individually.
+    "Bandit Kingdoms":         "uninhabited",
+    "Empire of Iuz":           "uninhabited",
+    "Horned Society":          "uninhabited",
+    "Bone March":              "uninhabited",
+    "Pomarj":                  "uninhabited",
+    "Wild Coast":              "uninhabited",
+    "Rovers of the Barrens":   "uninhabited",
+    "Scarlet Brotherhood":     "uninhabited",
+    "Iron League":             "uninhabited",
+  };
+
   const REGION_DETAILS = {
     "Prelacy of Almor": {
       ruler: "Kevont, the Prelate of Almor",
@@ -978,9 +1059,11 @@
       } else {
         // Override augments BASE. BASE wins on category/subkind so the
         // curated geographic classification isn't overwritten by a
-        // Bootstrap entry that omits those fields.
+        // Bootstrap entry that omits those fields. popTier from the
+        // override always wins (it's a direct user choice).
         if (def.kind)  GH_REGIONS[idx].kind  = def.kind;
         if (def.color && !GH_REGIONS[idx].color) GH_REGIONS[idx].color = def.color;
+        if (def.popTier !== undefined) GH_REGIONS[idx].popTier = def.popTier;
       }
     }
     // Apply defaults: BASE political entries omit category for terseness,
@@ -1000,6 +1083,18 @@
       if (!d) continue;
       for (const f of DETAIL_FIELDS){
         if (d[f] !== undefined && r[f] === undefined) r[f] = d[f];
+      }
+    }
+    // Merge popTier from REGION_POP_TIERS, then default any region
+    // without an explicit tier by category: political → patrolled
+    // (lightly populated kingdom default), geographic → uninhabited.
+    // User overrides via setRegionMeta win over the table.
+    for (const r of GH_REGIONS){
+      if (r.popTier === undefined && REGION_POP_TIERS[r.name] !== undefined){
+        r.popTier = REGION_POP_TIERS[r.name];
+      }
+      if (r.popTier === undefined){
+        r.popTier = (r.category === 'geographic') ? 'uninhabited' : 'patrolled';
       }
     }
   }
@@ -1242,13 +1337,14 @@
   // Unified metadata setter for the editor. color/kind/category/subkind;
   // fields not passed are left alone. Pass null to a category/subkind
   // field to clear it (treats as "no change" if undefined).
-  function setRegionMeta(name, { color, kind, category, subkind } = {}){
+  function setRegionMeta(name, { color, kind, category, subkind, popTier } = {}){
     const r = getByName(name);
     if (!r) return false;
     if (color    !== undefined) r.color    = color;
     if (kind     !== undefined) r.kind     = kind;
     if (category !== undefined) r.category = category;
     if (subkind  !== undefined) r.subkind  = subkind;
+    if (popTier  !== undefined) r.popTier  = popTier;
     const cur = OVERRIDE_DEFS[name] || {};
     OVERRIDE_DEFS[name] = {
       kind:     kind     !== undefined ? kind     : (cur.kind     || r.kind || 'land'),
@@ -1257,6 +1353,9 @@
     };
     if (subkind !== undefined ? subkind : cur.subkind){
       OVERRIDE_DEFS[name].subkind = subkind !== undefined ? subkind : cur.subkind;
+    }
+    if (popTier !== undefined ? popTier : cur.popTier){
+      OVERRIDE_DEFS[name].popTier = popTier !== undefined ? popTier : cur.popTier;
     }
     saveDefs();
     return true;
@@ -1515,7 +1614,7 @@
     const out = {};
     const FIELDS = ['kind','category','subkind','capital','ruler',
                     'capPop','humanPop','demihumans','humanoids',
-                    'resources','notes','anchors'];
+                    'resources','notes','anchors','popTier'];
     for (const f of FIELDS){
       if (r[f] !== undefined) out[f] = r[f];
     }

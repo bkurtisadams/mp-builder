@@ -14215,9 +14215,13 @@ const DMG_OUTDOOR_TIMING_RULES = {
 };
 
 const DMG_ENCOUNTER_FREQUENCY = {
-  'uninhabited': { die: 10, successOn: 1 },    // 1 in 10 - wilderness
-  'patrolled': { die: 12, successOn: 1 },      // 1 in 12 - borderlands  
-  'inhabited': { die: 20, successOn: 1 }       // 1 in 20 - civilized
+  // DMG p.47 "Chance Of Encounter" labels:
+  //   relatively dense              → 1 in 20
+  //   moderate to sparse/patrolled  → 1 in 12
+  //   uninhabited/wilderness        → 1 in 10
+  'uninhabited': { die: 10, successOn: 1 },
+  'patrolled':   { die: 12, successOn: 1 },
+  'dense':       { die: 20, successOn: 1 },
 };
 
 // Complete DMG Temperate/Subtropical Tables
