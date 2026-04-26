@@ -252,7 +252,7 @@
       if (roll >= row.min && roll <= row.max){
         return {
           roll,
-          monster:    row.creature || row.encounter || row.monster || '?',
+          monster:    row.creature || row.encounter || row.monster || row.type || row.race || '?',
           number:     row.number || row.numberAppearing || null,
           subtable:   row.subtable || null,
           useStandard: !!row.useStandard,
@@ -267,11 +267,34 @@
   // ── Resolve subtable ──────────────────────────────────────────────────────
   // DMG outdoor rolls return things like { creature:'Demi-human',
   // subtable:'demi_human' }. Resolve once into a concrete monster.
-  function resolveSubtable(result){
+  // Greyhawk regional tables sometimes list "Demi-human" / "Humanoid"
+  // as the encounter without an explicit subtable field — detect
+  // those and route to the same subtables so we always end up with
+  // a concrete creature name.
+  const IMPLICIT_SUBTABLES = {
+    'demi-human': 'demi_human',
+    'demihuman':  'demi_human',
+    'humanoid':   'humanoid',
+  };
+  function resolveSubtable(result, dmgTerrain){
     const D = window.GCCEncounterData;
-    if (!result.subtable) return result;
-    const sub = D.DMG_SUBTABLES?.[result.subtable];
+    let key = result.subtable;
+    if (!key && result.monster){
+      const norm = String(result.monster).toLowerCase().trim();
+      if (IMPLICIT_SUBTABLES[norm]) key = IMPLICIT_SUBTABLES[norm];
+    }
+    if (!key) return result;
+    let sub = D.DMG_SUBTABLES?.[key];
     if (!sub) return result;
+    // Some subtables (humanoid, demi_human) are nested by terrain —
+    // { plain: [...], scrub: [...], forest: [...] }. Pick the current
+    // terrain's array; fall back to 'plain' if the terrain isn't
+    // represented (shouldn't happen for canonical DMG subtables, but
+    // belt-and-suspenders).
+    if (!Array.isArray(sub)){
+      sub = sub[dmgTerrain] || sub.plain || sub[Object.keys(sub)[0]];
+    }
+    if (!Array.isArray(sub)) return result;
     const subResult = rollOnTable(sub);
     if (!subResult) return result;
     return {
@@ -279,7 +302,7 @@
       monster: subResult.monster,
       number:  subResult.number || result.number,
       subtable: null,
-      subtableUsed: result.subtable,
+      subtableUsed: key,
       subtableRoll: subResult.roll,
       note: subResult.note || result.note,
     };
@@ -375,6 +398,43 @@
     }
     return idx;
   }
+  // Encounter-table monster names sometimes don't match MM entry
+  // names exactly — typos in source data, parenthetical qualifiers,
+  // or canon mismatches where the table has flavor variants the MM
+  // doesn't enumerate. This map lets specific lookup failures fall
+  // back to the closest canonical entry.
+  const MM_ALIAS = {
+    // Brigand isn't a canonical MM entry; treat as Bandit variant
+    // (functionally identical: armed humans operating outside law).
+    'men, brigand':           'men, bandit',
+    // Encounter table typo; MM has the corrected spelling.
+    'men, bucaneer':          'men, buccaneer',
+    // 'Men, Nomads' / 'Men, Tribesmen' plurals occasionally appear
+    // in tables but MM uses the plural form for both — 's' strip
+    // covers most of these. Listed for explicit clarity:
+    'men, nomads':            'men, tribesmen',
+    // Hobgoblin variants fall back to base Hobgoblin.
+    'hobgoblin (raiding)':    'hobgoblin',
+    'hobgoblins and norkers': 'hobgoblin',
+    'hobgoblin and norker (raiding)': 'hobgoblin',
+    // Orc variants similarly.
+    'orc (raiding)':          'orc',
+    // Comma-splat patrol forms — encounter tables sometimes use
+    // 'Men, Patrol, Heavy' while MM uses 'Men, Patrol (Heavy)'.
+    'men, patrol, heavy':     'men, patrol (heavy)',
+    'men, patrol, light':     'men, patrol (light)',
+    'men, patrol, medium':    'men, patrol (medium)',
+    'men, patrol, knight':    'men, patrol (knight)',
+    'men, patrol, levies':    'men, patrol (levies)',
+    'men, patrol, slaver':    'men, patrol (slaver)',
+    'men, patrol, warband':   'men, patrol (warband)',
+    'men, patrol, false':     'men, patrol (false)',
+    // Rhennee with parenthetical qualifier.
+    'men, rhennee (near water)': 'men, rhennee',
+    'men, tribesmen (hillmen)':  'men, tribesmen',
+    'men, pirate (near water)':  'men, buccaneer',  // pirates = chaotic evil buccaneers per MM
+    'men, pirate':               'men, buccaneer',
+  };
   function lookupMonster(name){
     if (!_mmIndex) _mmIndex = buildMMIndex();
     if (!name) return null;
@@ -382,6 +442,17 @@
     if (_mmIndex.has(k)) return _mmIndex.get(k);
     // Try without trailing 's'
     if (_mmIndex.has(k.replace(/s$/, ''))) return _mmIndex.get(k.replace(/s$/, ''));
+    // Try the alias map for known canon mismatches.
+    if (MM_ALIAS[k] && _mmIndex.has(MM_ALIAS[k])) return _mmIndex.get(MM_ALIAS[k]);
+    // Strip parenthetical qualifiers: "Hobgoblin (raiding)" →
+    // "hobgoblin". Common in regional tables that flavor a base
+    // creature with circumstance.
+    const noParens = k.replace(/\s*\([^)]*\)/g, '').trim();
+    if (noParens !== k){
+      if (_mmIndex.has(noParens)) return _mmIndex.get(noParens);
+      if (_mmIndex.has(noParens.replace(/s$/, ''))) return _mmIndex.get(noParens.replace(/s$/, ''));
+      if (MM_ALIAS[noParens] && _mmIndex.has(MM_ALIAS[noParens])) return _mmIndex.get(MM_ALIAS[noParens]);
+    }
     // Try splitting on comma ('Wolf, worg' → try 'Wolf')
     const parts = k.split(',').map(p => p.trim());
     if (parts.length > 1){
@@ -521,7 +592,7 @@
     const table = tableSet?.[dmgTerrain];
     if (!table) return null;
     const result = rollOnTable(table);
-    return result ? resolveSubtable(result) : null;
+    return result ? resolveSubtable(result, dmgTerrain) : null;
   }
 
   // ── Main entry: roll an encounter for a hex ───────────────────────────────
@@ -600,19 +671,28 @@
       return { ctx, occurred: false, reason: 'No encounter table matched', occurs };
     }
 
-    // Resolve subtable if present (DMG 'Demi-human', 'Humanoid', etc.)
-    if (result.subtable){
-      result = resolveSubtable(result);
-    }
+    // Resolve subtable. Either the row has an explicit subtable
+    // field (DMG style), or the monster name itself is a subtable
+    // placeholder ("Demi-human", "Humanoid" — Greyhawk regional
+    // table style). resolveSubtable handles both. Pass the terrain
+    // so nested subtables (humanoid by terrain) can pick the right
+    // sub-array.
+    result = resolveSubtable(result, ctx.dmgTerrain);
 
     // Look up MM stats for the rolled monster.
     const mmStats = lookupMonster(result.monster);
 
-    // Number appearing: prefer the table's number; fall back to MM data.
-    // Some MM entries (especially "Men, *") use very large numberAppearing
-    // values like '50d6' that represent settlement size, not a per-
-    // encounter count. Detect those cases and present the formula
-    // without rolling — the GM can roll if they want a specific count.
+    // Number-appearing resolution. Roll whatever the table or MM
+    // provides — both small formulas (1d4, 2d6) and large ones
+    // (50d6 for caravan totals). The panel always displays the
+    // formula alongside the rolled number, so the GM can see what
+    // the rolled number means and scale down if appropriate
+    // ("rolled 187 merchants — reads as the front of a caravan
+    // with 187 in the column behind"). Previous heuristic-based
+    // gating produced inconsistent display between similar
+    // creatures depending on whether their MM numberAppearing
+    // crossed an arbitrary cap; rolling everything is simpler
+    // and shifts the judgment call to the GM where it belongs.
     let numberAppearing = result.number;
     let numberRolled = null;
     let numberSource = null;
@@ -621,14 +701,8 @@
       numberSource = 'table';
     } else if (mmStats?.numberAppearing){
       numberAppearing = mmStats.numberAppearing;
+      numberRolled = rollDice(numberAppearing);
       numberSource = 'mm';
-      // Heuristic: only auto-roll MM numbers for non-"Men" categories.
-      // For "Men" the MM number is settlement-scale.
-      const isMen = (mmStats.category === 'Men') ||
-                    /^men[,\s]/i.test(result.monster);
-      if (!isMen){
-        numberRolled = rollDice(numberAppearing);
-      }
     }
 
     return {

@@ -80,20 +80,17 @@
         font-size:11px; cursor:pointer; font-family:inherit; letter-spacing:.04em; }
       #enc-footer button:hover { background:rgba(196,77,42,.3); color:#fce0c8; }
 
-      /* Number-appearing block. Three variants:
-         .has-rolled = "× N" with optional "(formula)" beneath
-         .formula-only = formula in parentheses, smaller, italicized
-                         (used for Men-* settlement-scale formulas)
-         omitted entirely when no count info is available */
+      /* Number-appearing block. Single variant now (engine rolls
+         everything; GM scales as needed). "× N" is the headline,
+         the formula appears beneath as a small italic line when
+         it adds info beyond the rolled count. */
       .enc-big-num { font-family:'Cinzel',serif; text-align:center; padding:4px 0; }
       .enc-big-num.has-rolled { font-size:22px; color:#f0c8a8; }
       .enc-big-num.has-rolled .formula { display:block; font-size:10px;
         color:#a88e7a; font-style:italic; font-family:inherit;
         margin-top:2px; letter-spacing:0; }
-      .enc-big-num.formula-only { font-size:13px; color:#d8a888;
-        font-style:italic; font-family:inherit; }
-      .enc-big-num.formula-only .note { display:block; font-size:10px;
-        color:#a88e7a; margin-top:3px; }
+      .enc-adjust-hint { font-size:10px; color:#7a6a58; font-style:italic;
+        text-align:center; padding:0 8px; margin-top:-4px; }
       .enc-row-stack { display:flex; flex-direction:column; gap:2px; }
       .enc-no-encounter { font-size:11px; color:#d8a888; font-style:italic;
         text-align:center; padding:8px; }
@@ -191,38 +188,32 @@
 
     const sections = [];
 
-    // Number-appearing display. Three cases handled consistently:
-    //
-    //   numberRolled is set        → ".has-rolled" variant: "× N" big,
-    //                                 with the formula on a smaller
-    //                                 line beneath when it differs
-    //                                 ("× 8 — 1d10")
-    //   numberRolled is null but
-    //   numberFormula is set       → ".formula-only" variant: formula
-    //                                 italicized in parens with a
-    //                                 hint about why we didn't roll
-    //                                 ("(50d6 — settlement scale, GM
-    //                                 rolls)")
-    //   neither set                → no section at all
-    //
-    // The settlement-scale note only attaches when numberSource ===
-    // 'mm' (engine declined to auto-roll the MM number for a "Men, *"
-    // creature). Other formula-only cases are rare but get a generic
-    // "GM rolls" hint.
+    // Number-appearing display. The engine always rolls now (no
+    // settlement-scale gating — the GM decides what the rolled count
+    // means in context). When the formula is informative beyond the
+    // rolled number, show it on a small line beneath: "× 187" big,
+    // "50d6" italicized below tells the GM "this is a caravan total,
+    // adjust if the party is meeting just the front of it."
+    // Section omitted entirely when neither number nor formula
+    // exists.
     if (result.numberRolled != null){
       let html = `<div class="enc-big-num has-rolled">×&nbsp;${result.numberRolled}`;
       if (result.numberFormula && String(result.numberFormula) !== String(result.numberRolled)){
         html += `<span class="formula">${ESC(result.numberFormula)}</span>`;
       }
       html += `</div>`;
+      // Small reminder that the rolled number is a starting point.
+      // Especially useful for large rolls where the formula hints
+      // at "this is a caravan/horde — adjust to taste."
+      html += `<div class="enc-adjust-hint">GM may adjust</div>`;
       sections.push(html);
-    } else if (result.numberFormula){
-      const note = result.numberSource === 'mm'
-        ? 'settlement scale — GM rolls'
-        : 'GM rolls';
+    } else if (result.monster && result.monster !== '?'){
+      // No MM numberAppearing data and no table-provided formula —
+      // common for "Men, Characters" (adventuring party, see DMG
+      // Character Subtable) and similar narrative entries where
+      // the GM determines composition.
       sections.push(
-        `<div class="enc-big-num formula-only">(${ESC(result.numberFormula)})` +
-        `<span class="note">${ESC(note)}</span></div>`
+        `<div class="enc-adjust-hint">No standard count — GM determines composition</div>`
       );
     }
 
