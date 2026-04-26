@@ -38,15 +38,29 @@
     // red-orange (encounter / danger) accent so the panel reads as
     // a different category from the green region panel and gold
     // landmark panel.
+    //
+    // Sizing: fixed width and height (no max-height), body scrolls.
+    // Re-rolls produce different content lengths (settlement vs
+    // monster vs no-encounter) and previously the panel was sizing
+    // to content, so the Re-roll button moved under the cursor on
+    // every click. Fixed height keeps the footer in place. The
+    // panel is `resize: both` so the user can drag the bottom-right
+    // corner to grow or shrink it; minimum dimensions guard against
+    // collapsing to nothing.
     const style = document.createElement('style');
     style.textContent = `
-      #encounter-info { position:fixed; top:0; left:0; width:280px; max-height:75vh;
-        overflow:hidden; background:#150805; border:1px solid #c44d2a; border-radius:2px;
+      #encounter-info { position:fixed; top:0; left:0;
+        width:300px; height:520px;
+        min-width:240px; min-height:300px;
+        max-height:90vh; max-width:90vw;
+        resize: both;
+        background:#150805; border:1px solid #c44d2a; border-radius:2px;
         z-index:60; box-shadow:0 8px 32px rgba(0,0,0,.7); opacity:0; pointer-events:none;
-        transition:opacity .18s ease; display:flex; flex-direction:column; }
+        transition:opacity .18s ease; display:flex; flex-direction:column;
+        overflow:hidden; }
       #encounter-info.open { opacity:1; pointer-events:all; }
       #enc-header { padding:9px 30px 6px 11px; border-bottom:1px solid rgba(196,77,42,.4);
-        position:relative; cursor:grab; user-select:none; }
+        position:relative; cursor:grab; user-select:none; flex:0 0 auto; }
       #enc-header.dragging { cursor:grabbing; }
       #enc-header h2 { font-family:'Cinzel',serif; font-size:13px; color:#f0c8a8;
         letter-spacing:.06em; margin-bottom:3px; }
@@ -55,18 +69,31 @@
         border:1px solid rgba(196,77,42,.4); color:#d8a888; font-size:12px; cursor:pointer;
         padding:2px 6px; border-radius:2px; line-height:1; z-index:10; }
       #enc-close:hover { background:rgba(196,77,42,.3); color:#fce0c8; }
-      #enc-body { overflow-y:auto; padding:9px 11px; display:flex; flex-direction:column; gap:9px; }
+      #enc-body { flex:1 1 auto; overflow-y:auto; padding:9px 11px;
+        display:flex; flex-direction:column; gap:9px; min-height:0; }
       #enc-body::-webkit-scrollbar { width:4px; }
       #enc-body::-webkit-scrollbar-thumb { background:rgba(196,77,42,.3); }
-      #enc-footer { display:flex; gap:6px; padding:8px 11px; border-top:1px solid rgba(196,77,42,.3); }
+      #enc-footer { display:flex; gap:6px; padding:8px 11px;
+        border-top:1px solid rgba(196,77,42,.3); flex:0 0 auto; }
       #enc-footer button { flex:1; background:rgba(196,77,42,.15); color:#f0c8a8;
         border:1px solid rgba(196,77,42,.5); border-radius:2px; padding:5px;
         font-size:11px; cursor:pointer; font-family:inherit; letter-spacing:.04em; }
       #enc-footer button:hover { background:rgba(196,77,42,.3); color:#fce0c8; }
-      .enc-big-num { font-family:'Cinzel',serif; font-size:22px; color:#f0c8a8;
-        text-align:center; padding:4px 0; }
-      .enc-big-num .formula { font-size:11px; color:#d8a888; font-style:italic;
-        font-family:inherit; margin-left:6px; }
+
+      /* Number-appearing block. Three variants:
+         .has-rolled = "× N" with optional "(formula)" beneath
+         .formula-only = formula in parentheses, smaller, italicized
+                         (used for Men-* settlement-scale formulas)
+         omitted entirely when no count info is available */
+      .enc-big-num { font-family:'Cinzel',serif; text-align:center; padding:4px 0; }
+      .enc-big-num.has-rolled { font-size:22px; color:#f0c8a8; }
+      .enc-big-num.has-rolled .formula { display:block; font-size:10px;
+        color:#a88e7a; font-style:italic; font-family:inherit;
+        margin-top:2px; letter-spacing:0; }
+      .enc-big-num.formula-only { font-size:13px; color:#d8a888;
+        font-style:italic; font-family:inherit; }
+      .enc-big-num.formula-only .note { display:block; font-size:10px;
+        color:#a88e7a; margin-top:3px; }
       .enc-row-stack { display:flex; flex-direction:column; gap:2px; }
       .enc-no-encounter { font-size:11px; color:#d8a888; font-style:italic;
         text-align:center; padding:8px; }
@@ -164,16 +191,38 @@
 
     const sections = [];
 
-    // Big number-appearing display
+    // Number-appearing display. Three cases handled consistently:
+    //
+    //   numberRolled is set        → ".has-rolled" variant: "× N" big,
+    //                                 with the formula on a smaller
+    //                                 line beneath when it differs
+    //                                 ("× 8 — 1d10")
+    //   numberRolled is null but
+    //   numberFormula is set       → ".formula-only" variant: formula
+    //                                 italicized in parens with a
+    //                                 hint about why we didn't roll
+    //                                 ("(50d6 — settlement scale, GM
+    //                                 rolls)")
+    //   neither set                → no section at all
+    //
+    // The settlement-scale note only attaches when numberSource ===
+    // 'mm' (engine declined to auto-roll the MM number for a "Men, *"
+    // creature). Other formula-only cases are rare but get a generic
+    // "GM rolls" hint.
     if (result.numberRolled != null){
-      sections.push(
-        `<div class="enc-big-num">×&nbsp;${result.numberRolled}` +
-          (result.numberFormula ? `<span class="formula">${ESC(result.numberFormula)}</span>` : '') +
-          `</div>`
-      );
+      let html = `<div class="enc-big-num has-rolled">×&nbsp;${result.numberRolled}`;
+      if (result.numberFormula && String(result.numberFormula) !== String(result.numberRolled)){
+        html += `<span class="formula">${ESC(result.numberFormula)}</span>`;
+      }
+      html += `</div>`;
+      sections.push(html);
     } else if (result.numberFormula){
+      const note = result.numberSource === 'mm'
+        ? 'settlement scale — GM rolls'
+        : 'GM rolls';
       sections.push(
-        `<div class="enc-big-num"><span class="formula">${ESC(result.numberFormula)}</span></div>`
+        `<div class="enc-big-num formula-only">(${ESC(result.numberFormula)})` +
+        `<span class="note">${ESC(note)}</span></div>`
       );
     }
 
