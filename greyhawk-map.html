@@ -999,19 +999,25 @@ function saveTravelProfile(p){
 // Party position persistence. Stored as "col,row" string under
 // 'gh-party-pos'. Defined as function declarations so they're hoisted
 // above the state initializer where loadPartyPos() is first called.
+// Default constants are also referenced from state init; to avoid TDZ
+// (state runs before const evaluation, even though function decls are
+// hoisted), the fallback values are inlined inside loadPartyPos.
+// DEFAULT_PARTY_COL / DEFAULT_PARTY_ROW remain available as exported
+// names for code that runs after the state init has completed.
 const DEFAULT_PARTY_COL = 64;  // City of Greyhawk hex (Darlene D4-86)
 const DEFAULT_PARTY_ROW = 44;
 function loadPartyPos(){
+  const FALLBACK = { col: 64, row: 44 };
   try {
     const raw = localStorage.getItem('gh-party-pos');
-    if (!raw) return { col: DEFAULT_PARTY_COL, row: DEFAULT_PARTY_ROW };
+    if (!raw) return { ...FALLBACK };
     const parts = raw.split(',').map(s => parseInt(s.trim(), 10));
     if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])){
-      return { col: DEFAULT_PARTY_COL, row: DEFAULT_PARTY_ROW };
+      return { ...FALLBACK };
     }
     return { col: parts[0], row: parts[1] };
   } catch (e) {
-    return { col: DEFAULT_PARTY_COL, row: DEFAULT_PARTY_ROW };
+    return { ...FALLBACK };
   }
 }
 function savePartyPos(col, row){
