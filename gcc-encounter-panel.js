@@ -122,15 +122,41 @@
   // Any non-string input passes through unchanged.
   function movementToInches(s){
     if (typeof s !== 'string' || !s) return s;
-    // Replace every "<digits> ft" token with "<digits/10>".
-    // Trailing 'ft' word-boundary keeps 'feet'-spelled instances out;
-    // none observed in MM data but harmless to be precise.
     return s.replace(/(\d+)\s*ft\b/gi, (_, n) => {
       const inches = parseInt(n, 10) / 10;
-      // Use Number() to drop trailing .0 on whole numbers; keep
-      // decimals when the source isn't a multiple of 10 (rare).
       return `${Number(inches)}"`;
     });
+  }
+
+  // Movement overrides for monster types whose MM `move` field is
+  // generic and undersells the actual mount or transport. The MM
+  // lists every mounted patrol as "120 ft (mounted)" — a generic
+  // human walking-pace converted to mounted that ignores the
+  // actual horse type. Per the MM Horse table, mount rates are:
+  //   heavy warhorse  15"   medium warhorse 18"   light warhorse 24"
+  // Per WoG patrol descriptions, knights ride heavies, heavy patrols
+  // ride heavy/medium, medium patrols ride medium/light, light
+  // patrols ride light. Other entries (Rhennee on barges, Tribesmen,
+  // Soldiery composition) are flavor-specific and left for later.
+  // Keys are lowercase MM names; lookup tries both the resolved-via-
+  // alias canonical name (e.g., 'men, brigand' resolves to 'men,
+  // bandit', so the override applies under 'men, bandit') and the
+  // original encounter-table name as a backup.
+  const MOVEMENT_OVERRIDES = {
+    'men, patrol (knight)':  '15" (heavy warhorse) / 18" (retainers, medium)',
+    'men, patrol (heavy)':   '15"–18" (heavy/medium warhorses) or 9" (afoot)',
+    'men, patrol (medium)':  '18" (medium) / 24" (light, troops)',
+    'men, patrol (light)':   '24" (light warhorses)',
+    'men, patrol (levies)':  '9" (afoot); officers on light warhorses (24")',
+    'men, patrol (slaver)':  '9" (afoot) or 24" (mounted)',
+    'men, patrol (warband)': '12"–24" (varies by origin)',
+  };
+  function resolveMovement(monsterName, mmMoveString){
+    if (monsterName){
+      const key = String(monsterName).toLowerCase().trim();
+      if (MOVEMENT_OVERRIDES[key]) return MOVEMENT_OVERRIDES[key];
+    }
+    return movementToInches(mmMoveString);
   }
 
   function close(){
@@ -244,7 +270,7 @@
         `<div class="li-detail-row"><span class="label">${lab}</span><span class="value">${ESC(val)}</span></div>`;
       h += row('AC',          m.armorClass);
       h += row('HD',          m.hitDice);
-      h += row('Move',        movementToInches(m.move));
+      h += row('Move',        resolveMovement(m.name, m.move));
       h += row('Attacks',     typeof m.attacks === 'number' ? `${m.attacks} (${m.damage || '—'})` : (m.attacks || ''));
       if (typeof m.attacks !== 'number' && m.damage) h += row('Damage', m.damage);
       if (m.specialAttacks)  h += row('SA', m.specialAttacks);
