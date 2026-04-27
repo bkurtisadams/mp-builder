@@ -580,6 +580,7 @@
       <label><input type="radio" name="td-mount" value="medium"> Medium horse</label>
       <label><input type="radio" name="td-mount" value="heavy"> Heavy horse</label>
       <label><input type="radio" name="td-mount" value="draft"> Draft animal</label>
+      <label><input type="radio" name="td-mount" value="camel"> Camel <span class="td-hint">desert</span></label>
       <label><input type="radio" name="td-mount" value="cart"> Cart <span class="td-warn">✗ very rugged</span></label>
       <label><input type="radio" name="td-mount" value="wagon"> Wagon <span class="td-warn">✗ very rugged</span></label>
     </fieldset>
@@ -885,6 +886,12 @@ const TRAVEL_RATES = {
     medium:  { normal: 40, rugged: 20, very_rugged:  5 },
     heavy:   { normal: 30, rugged: 15, very_rugged:  5 },
     draft:   { normal: 30, rugged: 15, very_rugged:  5 },
+    // Camel — WoG: 45 normal / 30 rugged / — very_rugged. WoG specifies
+    // camels excel in desert (full speed where horses penalize), but
+    // the DMG abstraction has no per-terrain mount override; camels
+    // currently run as a light-horse equivalent here. Desert bonus is
+    // a Phase 2 polish if/when per-mount terrain modifiers land.
+    camel:   { normal: 45, rugged: 25, very_rugged:  5 },
     cart:    { normal: 25, rugged: 15, very_rugged: null },
     wagon:   { normal: 25, rugged: 10, very_rugged: null },
   },
@@ -1391,7 +1398,7 @@ function loadTravelProfile(){
     return {
       mode:    ['foot','mounted','flying'].includes(parsed.mode) ? parsed.mode : 'foot',
       burden:  ['light','average','heavy'].includes(parsed.burden) ? parsed.burden : 'average',
-      mount:   ['light','medium','heavy','draft','cart','wagon'].includes(parsed.mount) ? parsed.mount : 'medium',
+      mount:   ['light','medium','heavy','draft','camel','cart','wagon'].includes(parsed.mount) ? parsed.mount : 'medium',
       vehicle: VEHICLE_IDS.includes(parsed.vehicle) ? parsed.vehicle : 'broom',
     };
   } catch (e) {
@@ -1489,7 +1496,7 @@ function travelProfileLabel(p){
     baseRate = TRAVEL_RATES.foot[p.burden]?.normal;
   } else {
     const mounts = { light: 'Light Mt.', medium: 'Medium Mt.', heavy: 'Heavy Mt.',
-                     draft: 'Draft', cart: 'Cart', wagon: 'Wagon' };
+                     draft: 'Draft', camel: 'Camel', cart: 'Cart', wagon: 'Wagon' };
     head = mounts[p.mount] || p.mount;
     baseRate = TRAVEL_RATES.mounted[p.mount]?.normal;
   }
