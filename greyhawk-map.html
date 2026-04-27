@@ -309,6 +309,66 @@
   #jd-footer .jd-primary { background:rgba(102,187,255,.18); color:#aaddff;
     border-color:#3a78a8; }
   #jd-footer .jd-primary:hover:not(:disabled) { background:rgba(102,187,255,.32); color:#dff0ff; }
+
+  /* Journey log panel — stays open during execution. Teal-cyan accent
+     keeps it visually distinct from encounter (red-orange), region
+     (green), and landmark (gold) panels. resize:both lets the GM grow
+     it for long logs. */
+  #journey-log { position:fixed; top:0; left:0;
+    width:320px; height:520px;
+    min-width:260px; min-height:300px;
+    max-height:90vh; max-width:90vw;
+    resize:both;
+    background:#0a1418; border:1px solid #5aa8c0; border-radius:2px;
+    z-index:60; box-shadow:0 8px 32px rgba(0,0,0,.7); opacity:0;
+    pointer-events:none; transition:opacity .18s ease;
+    display:flex; flex-direction:column; overflow:hidden; }
+  #journey-log.open { opacity:1; pointer-events:all; }
+  #jl-header { padding:9px 30px 6px 11px; border-bottom:1px solid rgba(90,168,192,.4);
+    position:relative; cursor:grab; user-select:none; flex:0 0 auto; }
+  #jl-header.dragging { cursor:grabbing; }
+  #jl-header h2 { font-family:'Cinzel',serif; font-size:13px; color:#bce3ee;
+    letter-spacing:.06em; margin-bottom:3px; }
+  #jl-subtitle { font-size:10px; color:#8cbac8; font-style:italic; line-height:1.3; }
+  #jl-close { position:absolute; top:6px; right:8px; background:rgba(90,168,192,.1);
+    border:1px solid rgba(90,168,192,.4); color:#8cbac8; font-size:12px;
+    cursor:pointer; padding:2px 6px; border-radius:2px; line-height:1; z-index:10; }
+  #jl-close:hover { background:rgba(90,168,192,.3); color:#dff0ff; }
+  #jl-status { padding:6px 11px; font-family:'Cinzel',serif; font-size:11px;
+    letter-spacing:.08em; border-bottom:1px solid rgba(90,168,192,.25); flex:0 0 auto; }
+  #jl-status.active   { color:#7ddca8; background:rgba(60,160,100,.08); }
+  #jl-status.paused   { color:#ffaa66; background:rgba(220,140,40,.10); }
+  #jl-status.arrived  { color:#aaddff; background:rgba(90,180,220,.10); }
+  #jl-status.aborted  { color:#dd7777; background:rgba(180,60,60,.08); }
+  #jl-body { flex:1 1 auto; overflow-y:auto; padding:8px 11px;
+    display:flex; flex-direction:column; gap:5px; min-height:0;
+    font-family:'Cinzel',serif; font-size:11px; color:#cce4ec; line-height:1.4; }
+  #jl-body::-webkit-scrollbar { width:4px; }
+  #jl-body::-webkit-scrollbar-thumb { background:rgba(90,168,192,.3); }
+  .jl-day { padding:4px 6px; border-left:2px solid rgba(90,168,192,.3);
+    background:rgba(90,168,192,.04); }
+  .jl-day-hdr { font-size:10px; color:#8cbac8; letter-spacing:.05em;
+    margin-bottom:2px; }
+  .jl-day-summary { font-size:10px; color:#a6c9d4; }
+  .jl-encounter { display:block; margin-top:3px; padding:3px 5px;
+    background:rgba(196,77,42,.12); border-left:2px solid #c44d2a;
+    color:#f0c8a8; font-size:11px; }
+  .jl-arrival { padding:6px; background:rgba(90,180,220,.10);
+    border:1px solid rgba(90,180,220,.4); color:#aaddff;
+    text-align:center; }
+  #jl-footer { display:flex; gap:6px; padding:8px 11px;
+    border-top:1px solid rgba(90,168,192,.3); flex:0 0 auto; }
+  #jl-footer button { flex:1; background:rgba(90,168,192,.15); color:#bce3ee;
+    border:1px solid rgba(90,168,192,.5); border-radius:2px; padding:5px;
+    font-size:11px; cursor:pointer; font-family:inherit; letter-spacing:.04em; }
+  #jl-footer button:hover { background:rgba(90,168,192,.32); color:#dff5ff; }
+  #jl-footer button:disabled { opacity:.35; cursor:not-allowed; }
+  #jl-footer .jl-primary { background:rgba(125,220,168,.18); color:#a8e8c2;
+    border-color:#5aa478; }
+  #jl-footer .jl-primary:hover:not(:disabled) { background:rgba(125,220,168,.32); color:#deffea; }
+  #jl-footer .jl-danger { background:rgba(220,90,90,.15); color:#f0a8a8;
+    border-color:#aa5050; }
+  #jl-footer .jl-danger:hover:not(:disabled) { background:rgba(220,90,90,.30); color:#ffd0d0; }
   #td-footer { display:flex; gap:6px; padding:8px 11px;
     border-top:1px solid var(--panel-border); }
   #td-footer button { flex:1; background:rgba(200,148,26,.12); color:#c8a96e;
@@ -587,6 +647,22 @@
   <div id="jd-footer">
     <button id="jd-cancel">Cancel</button>
     <button id="jd-begin" class="jd-primary">Begin Journey</button>
+  </div>
+</div>
+<!-- Journey log panel — stays open during execution. Auto-opens when
+     Begin Journey is clicked; auto-restored as paused on page reload
+     if a journey was active. Continue/Abort live in the footer. -->
+<div id="journey-log">
+  <button id="jl-close" title="Close">✕</button>
+  <div id="jl-header">
+    <h2 id="jl-title">🧭 Journey</h2>
+    <div id="jl-subtitle">—</div>
+  </div>
+  <div id="jl-status">—</div>
+  <div id="jl-body"></div>
+  <div id="jl-footer">
+    <button id="jl-continue" class="jl-primary">▶ Continue</button>
+    <button id="jl-abort" class="jl-danger">✕ Abort</button>
   </div>
 </div>
 <!-- Image alignment panel -->
@@ -1875,11 +1951,16 @@ function updateSidePanel(col,row,terrain,region,dist){
   // (that's a separate user action).
   const moveBtn = document.getElementById('p-btn-move-here');
   const planBtn = document.getElementById('p-btn-plan-journey');
+  // Active journey (executing or paused) blocks both Move Here and Plan
+  // Journey. Move Here would teleport the party off the route mid-trip;
+  // Plan Journey would clobber the active journey state. The journey
+  // log panel is the only legitimate way to advance/abort.
+  const jActive = state.journey && (state.journey.status === 'active' || state.journey.status === 'paused');
   if (moveBtn){
     const isPartyHex = (col === state.partyCol && row === state.partyRow);
     const isWater = String(terrain).startsWith('water');
     const flying = (state.travelProfile?.mode === 'flying');
-    if (!isPartyHex && (!isWater || flying)){
+    if (!jActive && !isPartyHex && (!isWater || flying)){
       moveBtn.style.display = '';
       moveBtn.dataset.col = String(col);
       moveBtn.dataset.row = String(row);
@@ -2286,6 +2367,377 @@ function recomputeJourneyPlan(){
     document.getElementById('jd-arrival').textContent = ghDateLabel(arrival);
     document.getElementById('jd-warn-row').style.display = 'none';
     document.getElementById('jd-begin').disabled = false;
+  }
+}
+
+// ── JOURNEY EXECUTION (Phase 2) ──────────────────────────────────────────────
+// startJourneyExecution → tickJourney loop → halt on encounter →
+// continueJourney / abortJourney → arriveJourney. Persistence via
+// localStorage 'gh-journey-active' so a refresh mid-trip restores the
+// journey in 'paused' state (never auto-resumes — would risk duplicate
+// rolls). Last completed journey archived to 'gh-journey-last'.
+const JOURNEY_TICK_MS = 30;        // wall-clock between slot ticks during execution
+let jlDrag = null;
+
+// Build a per-hex timeline with start/end day offsets. Skips the
+// origin hex (i=0) — party is already there. Returns null if any
+// hex along the route is impassable for the active profile.
+function buildJourneyTimeline(route, profile){
+  const tl = [];
+  let acc = 0;
+  for (let i = 1; i < route.length; i++){
+    const h = route[i];
+    const terrain = getHexTerrain(h.col, h.row);
+    let mpd;
+    if (profile.mode === 'flying'){
+      mpd = flightMilesPerDay(profile.vehicle);
+    } else {
+      const t = TERRAIN[terrain];
+      mpd = (t && t.difficulty != null) ? travelMilesPerDay(t.difficulty, profile) : null;
+    }
+    if (mpd == null || mpd <= 0) return null;
+    const dur = HEX_MILES / mpd;
+    tl.push({
+      hex: { col: h.col, row: h.row },
+      terrain,
+      startDay: acc,
+      endDay: acc + dur,
+      durDays: dur,
+    });
+    acc += dur;
+  }
+  return tl;
+}
+function hexAtTimelineOffset(tl, offset){
+  for (const e of tl){
+    if (offset >= e.startDay && offset < e.endDay) return e;
+  }
+  return tl[tl.length - 1] || null;
+}
+
+function saveActiveJourney(){
+  if (!state.journey || state.journey.status === 'planning') return;
+  try { localStorage.setItem('gh-journey-active', JSON.stringify(state.journey)); }
+  catch (e) {}
+}
+function loadActiveJourney(){
+  try {
+    const raw = localStorage.getItem('gh-journey-active');
+    if (!raw) return null;
+    const j = JSON.parse(raw);
+    // Coerce active → paused on reload so the loop never auto-resumes.
+    if (j.status === 'active') j.status = 'paused';
+    if (!j.pauseReason) j.pauseReason = 'reload';
+    return j;
+  } catch (e) { return null; }
+}
+function clearActiveJourney(){
+  try { localStorage.removeItem('gh-journey-active'); } catch (e) {}
+}
+function archiveJourney(j){
+  try { localStorage.setItem('gh-journey-last', JSON.stringify(j)); } catch (e) {}
+}
+
+// Move the party as part of journey execution. Same effects as
+// confirmMove — explored flag + savePartyPos + marker — minus the
+// dialog teardown.
+function movePartyDuringJourney(col, row){
+  const oldKey = `${state.partyCol}-${state.partyRow}`;
+  if (!state.hexData[oldKey]) state.hexData[oldKey] = {};
+  state.hexData[oldKey].explored = true;
+  document.getElementById(`hex-${state.partyCol}-${state.partyRow}`)?.classList.add('explored');
+  state.partyCol = col; state.partyRow = row;
+  savePartyPos(col, row);
+  updatePartyMarker();
+}
+
+function startJourneyExecution(){
+  const j = state.journey;
+  if (!j) return;
+  const tl = buildJourneyTimeline(j.route, j.profile);
+  if (!tl){ showToast('Cannot begin: route is impassable'); return; }
+  j.timeline = tl;
+  j.status = 'active';
+  j.log = [];
+  j.currentDay = 0;
+  j.currentDate = { ...j.startDate };
+  // Map start time-of-day to a slot index so the very first tick rolls
+  // for the GM's chosen starting slot rather than always 'morning'.
+  const startIdx = TIME_SLOTS.indexOf(j.startTimeOfDay || 'morning');
+  j.currentSlotIdx = startIdx >= 0 ? startIdx : 0;
+  j.currentTimeOfDay = TIME_SLOTS[j.currentSlotIdx];
+  j.pendingEncounter = null;
+  j.pauseReason = null;
+  closeJourneyPlanner();
+  // closeJourneyPlanner() set state.journey = null; restore.
+  state.journey = j;
+  refreshJourneyOverlay();
+  showJourneyLog();
+  saveActiveJourney();
+  scheduleTick();
+}
+function scheduleTick(){
+  if (!state.journey || state.journey.status !== 'active') return;
+  setTimeout(tickJourney, JOURNEY_TICK_MS);
+}
+function tickJourney(){
+  const j = state.journey;
+  if (!j || j.status !== 'active') return;
+  const tl = j.timeline;
+  const offset = j.currentDay + j.currentSlotIdx / 6;
+  // Arrived?
+  if (offset >= tl[tl.length - 1].endDay){
+    arriveJourney();
+    return;
+  }
+  const entry = hexAtTimelineOffset(tl, offset);
+  // Move the party piece if hex changed since last tick.
+  if (entry && (state.partyCol !== entry.hex.col || state.partyRow !== entry.hex.row)){
+    movePartyDuringJourney(entry.hex.col, entry.hex.row);
+  }
+  // Encounter check — flight stub returns no-encounter pending DMG
+  // aerial tables. Ground rolls go through GCCEncounters.check() so
+  // timing rules and frequency dice are respected per terrain.
+  let result;
+  const slotKey = TIME_SLOTS[j.currentSlotIdx];
+  if (j.profile.mode === 'flying'){
+    result = { occurred: false, aerial: true, reason: 'Aerial — DMG aerial tables TODO' };
+  } else if (typeof GCCEncounters === 'undefined'){
+    result = { occurred: false, reason: 'Encounter engine not loaded' };
+  } else {
+    const ctx = GCCEncounters.contextFor(entry.hex.col, entry.hex.row);
+    ctx.timeOfDay = slotKey;
+    result = GCCEncounters.check(ctx);
+  }
+  // Compact log entry (full result kept on encounters only — keeps
+  // localStorage payload reasonable for long journeys).
+  const slotLog = {
+    day: j.currentDay,
+    date: { ...j.currentDate },
+    slotIdx: j.currentSlotIdx,
+    slot: slotKey,
+    hex: entry.hex,
+    terrain: entry.terrain,
+    occurred: !!result.occurred,
+    rolled: !!(result.occurs?.occurs || result.occurred || (!result.aerial && result.ctx && result.ctx.dmgTerrain != null)),
+    reason: result.reason || null,
+    encounter: result.occurred ? result : null,
+  };
+  j.log.push(slotLog);
+  if (result.occurred){
+    j.status = 'paused';
+    j.pauseReason = 'encounter';
+    j.pendingEncounter = result;
+    saveActiveJourney();
+    renderJourneyLog();
+    if (typeof GCCEncounterPanel !== 'undefined' && typeof GCCEncounterPanel.show === 'function'){
+      GCCEncounterPanel.show(result);
+    }
+    return;
+  }
+  advanceJourneySlot();
+  saveActiveJourney();
+  // Re-render only when day boundary crossed (reduces churn on long trips).
+  if (j.currentSlotIdx === 0) renderJourneyLog();
+  scheduleTick();
+}
+// Advance currentSlotIdx (and currentDay/currentDate when the slot
+// wraps). Also the place where the weather hook fires — once per day,
+// at the dawn boundary. Stub: no-op if window.GCWeather isn't loaded.
+function advanceJourneySlot(){
+  const j = state.journey;
+  j.currentSlotIdx++;
+  if (j.currentSlotIdx >= 6){
+    j.currentSlotIdx = 0;
+    j.currentDay++;
+    j.currentDate = ghDateAdd(j.currentDate, 1);
+    j.currentTimeOfDay = TIME_SLOTS[0];
+    if (typeof window.GCWeather !== 'undefined' && typeof window.GCWeather.getForDay === 'function'){
+      try {
+        const tl = j.timeline;
+        const offset = j.currentDay;
+        const entry = hexAtTimelineOffset(tl, offset);
+        const w = window.GCWeather.getForDay({
+          date: j.currentDate,
+          col: entry?.hex.col, row: entry?.hex.row,
+          terrain: entry?.terrain,
+        });
+        if (w) j.log.push({ day: j.currentDay, type: 'weather', date: { ...j.currentDate }, weather: w });
+      } catch (e) {}
+    }
+  } else {
+    j.currentTimeOfDay = TIME_SLOTS[j.currentSlotIdx];
+  }
+}
+function continueJourney(){
+  const j = state.journey;
+  if (!j || j.status !== 'paused') return;
+  // Encounter (or reload) consumed this slot — advance past it before
+  // resuming so the same slot doesn't re-roll.
+  if (j.pauseReason === 'encounter') advanceJourneySlot();
+  j.pauseReason = null;
+  j.pendingEncounter = null;
+  j.status = 'active';
+  saveActiveJourney();
+  renderJourneyLog();
+  scheduleTick();
+}
+function abortJourney(){
+  const j = state.journey;
+  if (!j) return;
+  j.status = 'aborted';
+  j.endedAt = { date: { ...j.currentDate }, hex: { col: state.partyCol, row: state.partyRow } };
+  archiveJourney(j);
+  clearActiveJourney();
+  renderJourneyLog();
+}
+function arriveJourney(){
+  const j = state.journey;
+  if (!j) return;
+  j.status = 'arrived';
+  j.endedAt = { date: { ...j.currentDate }, hex: { col: state.partyCol, row: state.partyRow } };
+  archiveJourney(j);
+  clearActiveJourney();
+  renderJourneyLog();
+}
+
+// ── JOURNEY LOG PANEL ────────────────────────────────────────────────────────
+function showJourneyLog(){
+  const panel = document.getElementById('journey-log');
+  panel.classList.add('open');
+  if (jlDrag && !jlDrag.restore()) jlDrag.placeCenter();
+  renderJourneyLog();
+}
+function closeJourneyLog(){
+  document.getElementById('journey-log').classList.remove('open');
+  // Closing the panel while a journey is active/paused doesn't end the
+  // journey — it just hides the log. State persists; the GM can reopen
+  // by reloading or via Plan Journey on a future destination (which
+  // detects active journey and reopens the log instead).
+  // When journey is arrived/aborted, closing also clears state.journey
+  // so the route overlay disappears and Plan Journey unlocks.
+  if (state.journey && (state.journey.status === 'arrived' || state.journey.status === 'aborted')){
+    state.journey = null;
+    refreshJourneyOverlay();
+    // Refresh side panel buttons (Move Here / Plan Journey were
+    // hidden during the journey).
+    const c = state.selectedCol ?? state.partyCol;
+    const r = state.selectedRow ?? state.partyRow;
+    const dist = (c === state.partyCol && r === state.partyRow) ? 0
+               : hexDistance(state.partyCol, state.partyRow, c, r);
+    updateSidePanel(c, r, getHexTerrain(c, r), getRegion(c, r), dist);
+  }
+}
+function renderJourneyLog(){
+  const j = state.journey;
+  if (!j) return;
+  const panel = document.getElementById('journey-log');
+  if (!panel) return;
+  // Header / subtitle / status strip.
+  const orig = j.origin, dest = j.destination;
+  const origLm = (typeof GCCLandmarks !== 'undefined') ? GCCLandmarks.getById(hexIdStr(orig.col, orig.row)) : null;
+  const destLm = (typeof GCCLandmarks !== 'undefined') ? GCCLandmarks.getById(hexIdStr(dest.col, dest.row)) : null;
+  const fromLabel = origLm ? origLm.name : hexIdStr(orig.col, orig.row);
+  const toLabel = destLm ? destLm.name : hexIdStr(dest.col, dest.row);
+  document.getElementById('jl-subtitle').textContent =
+    `${fromLabel} → ${toLabel} · ${travelProfileLabel(j.profile)}`;
+  const statusEl = document.getElementById('jl-status');
+  statusEl.className = '';
+  let statusText;
+  if (j.status === 'active'){
+    statusEl.classList.add('active');
+    statusText = `◉ TRAVELING · Day ${j.currentDay + 1}/${Math.ceil(j.estDays)} · ${ghDateLabel(j.currentDate)} · ${timeOfDayLabel(j.currentTimeOfDay)}`;
+  } else if (j.status === 'paused'){
+    statusEl.classList.add('paused');
+    const why = j.pauseReason === 'encounter' ? 'Encounter' :
+                j.pauseReason === 'reload'    ? 'Reloaded'  : 'Paused';
+    statusText = `⏸ PAUSED — ${why} · ${ghDateLabel(j.currentDate)} · ${timeOfDayLabel(j.currentTimeOfDay)}`;
+  } else if (j.status === 'arrived'){
+    statusEl.classList.add('arrived');
+    statusText = `✓ ARRIVED · ${ghDateLabel(j.endedAt?.date || j.currentDate)}`;
+  } else if (j.status === 'aborted'){
+    statusEl.classList.add('aborted');
+    statusText = `✕ ABORTED · ${ghDateLabel(j.endedAt?.date || j.currentDate)}`;
+  } else {
+    statusText = j.status;
+  }
+  statusEl.textContent = statusText;
+  // Body: aggregate slot entries by day. Encounters and weather get
+  // their own rows. Slot-level no-encounter entries collapse to a
+  // per-day summary line.
+  const body = document.getElementById('jl-body');
+  body.innerHTML = '';
+  const dayBuckets = {};
+  for (const entry of j.log){
+    const k = entry.day;
+    if (!dayBuckets[k]) dayBuckets[k] = { day: k, date: entry.date, slots: [], events: [] };
+    if (entry.type === 'weather') dayBuckets[k].events.push({ kind: 'weather', data: entry.weather });
+    else dayBuckets[k].slots.push(entry);
+  }
+  const dayKeys = Object.keys(dayBuckets).map(n => parseInt(n, 10)).sort((a, b) => a - b);
+  for (const k of dayKeys){
+    const bucket = dayBuckets[k];
+    const div = document.createElement('div');
+    div.className = 'jl-day';
+    const checks = bucket.slots.filter(s => s.rolled).length;
+    const encs = bucket.slots.filter(s => s.occurred).length;
+    const terrains = [...new Set(bucket.slots.map(s => TERRAIN[s.terrain]?.label || s.terrain))];
+    const hexes = [...new Set(bucket.slots.map(s => hexIdStr(s.hex.col, s.hex.row)))];
+    const hdr = document.createElement('div');
+    hdr.className = 'jl-day-hdr';
+    hdr.textContent = `${ghDateLabel(bucket.date)} · ${hexes.join(' → ')}`;
+    div.appendChild(hdr);
+    const sum = document.createElement('div');
+    sum.className = 'jl-day-summary';
+    sum.textContent = `${terrains.join(' / ')} · ${checks} check${checks === 1 ? '' : 's'}, ${encs} encounter${encs === 1 ? '' : 's'}`;
+    div.appendChild(sum);
+    for (const slot of bucket.slots){
+      if (!slot.occurred) continue;
+      const enc = document.createElement('div');
+      enc.className = 'jl-encounter';
+      const e = slot.encounter || {};
+      const monsterText = e.monster?.name || e.label || e.summary || 'Encounter';
+      const numText = e.number ? ` ×${e.number}` : '';
+      enc.textContent = `⚠ ${timeOfDayLabel(slot.slot)} · ${monsterText}${numText}`;
+      div.appendChild(enc);
+    }
+    for (const ev of bucket.events){
+      if (ev.kind === 'weather'){
+        const w = document.createElement('div');
+        w.className = 'jl-day-summary';
+        w.style.color = '#a0c8e0';
+        w.textContent = `☁ ${ev.data?.summary || ev.data?.label || JSON.stringify(ev.data)}`;
+        div.appendChild(w);
+      }
+    }
+    body.appendChild(div);
+  }
+  if (j.status === 'arrived' || j.status === 'aborted'){
+    const summary = document.createElement('div');
+    summary.className = 'jl-arrival';
+    const totalEnc = j.log.filter(e => e.occurred).length;
+    const totalDays = (j.endedAt?.date && j.startDate)
+      ? `${ghDateLabel(j.startDate)} → ${ghDateLabel(j.endedAt.date)}`
+      : ghDateLabel(j.currentDate);
+    summary.textContent = `${j.status === 'arrived' ? 'Arrived' : 'Aborted'} · ${totalDays} · ${totalEnc} encounter${totalEnc === 1 ? '' : 's'}`;
+    body.appendChild(summary);
+  }
+  body.scrollTop = body.scrollHeight;
+  // Footer button visibility / labels.
+  const cont = document.getElementById('jl-continue');
+  const ab   = document.getElementById('jl-abort');
+  if (j.status === 'active' || j.status === 'paused'){
+    cont.style.display = '';
+    cont.disabled = (j.status === 'active');
+    cont.textContent = j.status === 'paused' ? '▶ Continue' : '◉ Traveling…';
+    ab.style.display = '';
+    ab.disabled = false;
+    ab.textContent = '✕ Abort';
+  } else {
+    cont.style.display = 'none';
+    ab.style.display = '';
+    ab.disabled = false;
+    ab.textContent = 'Close';
   }
 }
 
@@ -2746,12 +3198,31 @@ function wireEvents(){
   document.getElementById('jd-close').addEventListener('click', closeJourneyPlanner);
   document.getElementById('jd-cancel').addEventListener('click', closeJourneyPlanner);
   document.getElementById('jd-begin').addEventListener('click', () => {
-    showToast('Journey execution — Phase 2');
+    startJourneyExecution();
   });
   for (const id of ['jd-month','jd-day','jd-year','jd-tod']){
     document.getElementById(id).addEventListener('change', recomputeJourneyPlan);
     document.getElementById(id).addEventListener('input',  recomputeJourneyPlan);
   }
+
+  // Journey log panel — controls for an in-flight journey. Continue
+  // resumes from the next slot after a paused (encounter/reload) state.
+  // Abort stops the journey leaving the party at the current hex.
+  // Close hides the panel; for arrived/aborted journeys it also clears
+  // state.journey so the route overlay disappears.
+  document.getElementById('jl-continue').addEventListener('click', continueJourney);
+  document.getElementById('jl-abort').addEventListener('click', () => {
+    const j = state.journey;
+    if (!j) return;
+    if (j.status === 'arrived' || j.status === 'aborted'){
+      closeJourneyLog();
+      return;
+    }
+    if (confirm('Abort journey? The party will stay at their current hex.')){
+      abortJourney();
+    }
+  });
+  document.getElementById('jl-close').addEventListener('click', closeJourneyLog);
   // Time-of-day dropdown — initialized from state (which was loaded
   // from localStorage at startup) and writes back on change. The
   // engine reads ctx.timeOfDay during the encounter check; updating
@@ -2932,6 +3403,21 @@ function init(){
       document.getElementById('jd-header'),
       'gh-journey-dialog-pos'
     );
+    jlDrag = makeDraggable(
+      document.getElementById('journey-log'),
+      document.getElementById('jl-header'),
+      'gh-journey-log-pos'
+    );
+    // Restore an in-flight journey if the page was reloaded mid-trip.
+    // Always restored as 'paused' (loadActiveJourney coerces) so the
+    // GM has to click Continue to resume — guards against duplicate
+    // rolls on accidental reloads.
+    const restored = loadActiveJourney();
+    if (restored){
+      state.journey = restored;
+      refreshJourneyOverlay();
+      showJourneyLog();
+    }
     const w=document.getElementById('map-wrap');
     // Start at whichever is smaller: the default 0.5, or a zoom that fits the
     // full padded stage in the viewport. On smaller windows this ensures the
