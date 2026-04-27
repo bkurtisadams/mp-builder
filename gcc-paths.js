@@ -1,7 +1,10 @@
-// gcc-paths.js v0.2.1 — 2026-04-27
+// gcc-paths.js v0.3.0 — 2026-04-27
 // Edge-based path features for the Greyhawk hex map: rivers, roads,
 // bridges, fords, ferries. v0.2 adds editor-driven CRUD with
 // localStorage override layering on top of hardcoded base data.
+// v0.3.0: Phase B — crossing CRUD (saveCrossing/deleteCrossing/
+// allCrossings/crossingAt) with override storage + replay. No base
+// crossings yet; all live in the override layer until baked.
 //
 // ── Edge numbering ──────────────────────────────────────────────────────────
 // Flat-top hexes with odd-q-offset coordinates (odd cols shifted DOWN
@@ -235,11 +238,16 @@
   }
 
   // ── Persistence (localStorage overrides) ───────────────────────────────
-  const LS_RIVERS  = 'gcc-paths-rivers';
-  const LS_DELETED = 'gcc-paths-rivers-deleted';
+  const LS_RIVERS    = 'gcc-paths-rivers';
+  const LS_DELETED   = 'gcc-paths-rivers-deleted';
+  const LS_CROSSINGS = 'gcc-paths-crossings';
 
   let overrideRivers = {};
   let deletedBaseRivers = new Set();
+  // Crossings keyed by canonical edge id "ownerCol-ownerRow-edge".
+  // Each value: {kind, name}. No deleted-tombstone list because there
+  // are no base crossings yet — Phase B introduces them via the editor.
+  let overrideCrossings = {};
 
   function loadOverrides(){
     try {
@@ -247,15 +255,19 @@
       overrideRivers = r ? JSON.parse(r) : {};
       const d = localStorage.getItem(LS_DELETED);
       deletedBaseRivers = new Set(d ? JSON.parse(d) : []);
+      const c = localStorage.getItem(LS_CROSSINGS);
+      overrideCrossings = c ? JSON.parse(c) : {};
     } catch (e) {
       overrideRivers = {};
       deletedBaseRivers = new Set();
+      overrideCrossings = {};
     }
   }
   function saveOverridesLS(){
     try {
       localStorage.setItem(LS_RIVERS, JSON.stringify(overrideRivers));
       localStorage.setItem(LS_DELETED, JSON.stringify(Array.from(deletedBaseRivers)));
+      localStorage.setItem(LS_CROSSINGS, JSON.stringify(overrideCrossings));
     } catch (e) {}
   }
 
@@ -279,6 +291,7 @@
   function clearOverrides(){
     overrideRivers = {};
     deletedBaseRivers = new Set();
+    overrideCrossings = {};
     saveOverridesLS();
     rebuild();
   }
@@ -286,7 +299,75 @@
     return {
       rivers: JSON.parse(JSON.stringify(overrideRivers)),
       deletedRivers: Array.from(deletedBaseRivers),
+      crossings: JSON.parse(JSON.stringify(overrideCrossings)),
     };
+  }
+
+  // ── Crossings (bridges/fords/ferries) ──────────────────────────────────
+  // Single record per shared edge, stored under the canonical owner hex
+  // per ownerHex(). Editor-driven; no base crossings until Phase F bake.
+  function _crossingKey(colA, rowA, colB, rowB){
+    const owner = ownerHex(colA, rowA, colB, rowB);
+    const ownerIsA = (owner.col === colA && owner.row === rowA);
+    const nbCol = ownerIsA ? colB : colA;
+    const nbRow = ownerIsA ? rowB : rowA;
+    const e = edgeBetween(owner.col, owner.row, nbCol, nbRow);
+    if (e < 0) return null;
+    return `${owner.col}-${owner.row}-${e}`;
+  }
+  function _parseCrossingKey(key){
+    const parts = key.split('-');
+    if (parts.length !== 3) return null;
+    const col = +parts[0], row = +parts[1], edge = +parts[2];
+    if (!Number.isFinite(col) || !Number.isFinite(row) || !Number.isFinite(edge)) return null;
+    return { col, row, edge };
+  }
+  function saveCrossing(colA, rowA, colB, rowB, kind, name){
+    if (!CROSSING_KINDS.has(kind)) throw new Error(`bad crossing kind: ${kind}`);
+    const k = _crossingKey(colA, rowA, colB, rowB);
+    if (!k) throw new Error('hexes are not adjacent');
+    overrideCrossings[k] = { kind, name: (name || '').trim() };
+    saveOverridesLS();
+    rebuild();
+  }
+  function deleteCrossing(colA, rowA, colB, rowB){
+    const k = _crossingKey(colA, rowA, colB, rowB);
+    if (!k) return;
+    if (overrideCrossings[k]){
+      delete overrideCrossings[k];
+      saveOverridesLS();
+      rebuild();
+    }
+  }
+  function crossingAt(colA, rowA, colB, rowB){
+    return edgeFeaturesAt(colA, rowA, colB, rowB).find(f => CROSSING_KINDS.has(f.kind)) || null;
+  }
+  function allCrossings(){
+    const out = [];
+    for (const k of Object.keys(hexEdgeFeatures)){
+      const [colStr, rowStr] = k.split('-');
+      const col = +colStr, row = +rowStr;
+      const edges = hexEdgeFeatures[k];
+      for (const eStr of Object.keys(edges)){
+        const e = +eStr;
+        const nb = neighborAcross(col, row, e);
+        for (const f of edges[eStr]){
+          if (CROSSING_KINDS.has(f.kind)){
+            out.push({
+              key: `${col}-${row}-${e}`,
+              ownerCol: col, ownerRow: row, edge: e,
+              hexA: { col, row }, hexB: nb,
+              kind: f.kind, name: f.name || '',
+            });
+          }
+        }
+      }
+    }
+    return out;
+  }
+  function riverNameOnEdge(colA, rowA, colB, rowB){
+    const r = _riverOnEdge(colA, rowA, colB, rowB);
+    return r ? r.name : null;
   }
 
   // ── Base data ──────────────────────────────────────────────────────────
@@ -362,6 +443,18 @@
         console.warn('[gcc-paths] override apply failed:', name, e);
       }
     }
+    for (const [k, def] of Object.entries(overrideCrossings)){
+      if (!def || !CROSSING_KINDS.has(def.kind)) continue;
+      const parsed = _parseCrossingKey(k);
+      if (!parsed) continue;
+      try {
+        _addEdgeFeature(parsed.col, parsed.row, parsed.edge, {
+          kind: def.kind, name: def.name || '',
+        });
+      } catch (e) {
+        console.warn('[gcc-paths] crossing apply failed:', k, e);
+      }
+    }
     if (typeof window !== 'undefined' && typeof window.rebuildPathOverlay === 'function'){
       try { window.rebuildPathOverlay(); } catch (e) {}
     }
@@ -381,8 +474,10 @@
     segmentsAt, riversAt, roadsAt, edgeFeaturesAt,
     getNamedRiver, getNamedRoad, allRiverNames, allRoadNames,
     getRiverChain, getRiverInfo,
+    crossingAt, allCrossings, riverNameOnEdge,
     // CRUD (persists)
     saveRiver, deleteRiver, clearOverrides, exportOverrides,
+    saveCrossing, deleteCrossing,
     // Resolver
     edgeRiverInfo, edgeBlocks, edgeRoadBonus,
     // Utility

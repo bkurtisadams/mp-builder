@@ -1,4 +1,4 @@
-// gcc-hex-edit.js v0.7.1 — 2026-04-27
+// gcc-hex-edit.js v0.8.0 — 2026-04-27
 // Hex Editor: tab shell for Landmarks / Paint / Outline / Paths.
 // Requires globals: GCCLandmarks, GCCTerrain, GCCPaths, TERRAIN, hexIdStr,
 //   darleneToInternal, mapToHex, screenToMap, showToast,
@@ -6,6 +6,12 @@
 //   hexCenter, mapToStage,
 //   makeDraggable (from greyhawk-map.html inline script).
 //
+// v0.8.0: Paths Phase B — Crossings mode (bridges/footbridges/fords/
+//   ferries) with edge-snap click on a river edge, kind selector, name
+//   input, save. Crossing dropdown + Edit/Delete in the Crossings idle
+//   view. Edit Meta button in Rivers mode for in-place type/current/
+//   name changes without retracing. Snap preview circle follows the
+//   cursor when arming a new crossing.
 // v0.7.1: Show/hide path overlay toggle in the Paths pane (persisted
 //   via localStorage + body class so it works even when the editor
 //   isn't open). Trace preview unaffected — editing remains visible.
@@ -222,10 +228,16 @@
     rgTrace: [],             // [{col,row}] in-progress polygon vertices
     rgFormMode: null,        // null | 'new' | 'edit'
     pfSelected: null,        // currently selected river name
-    pfMode: 'river',         // 'river' (Phase A); road/bridge later
+    pfMode: 'river',         // 'river' | 'crossing' (road = Phase C)
     pfFormOpen: false,       // +New River form visible
+    pfMetaOpen: false,       // Edit Meta form visible
     pfTrace: null,           // null | { name, type, current, chain, isNew }
     pfShowOverlay: true,     // path overlay visibility (persisted)
+    pfCrossingSelected: null, // currently selected crossing key "col-row-edge"
+    pfCrossingFormOpen: false, // crossing kind/name form visible
+    pfCrossingArmed: false,    // edge-snap mode armed (waiting for click)
+    pfCrossingFormCtx: null,   // {hexA, hexB, riverName, kind, name, isEdit}
+    pfCrossingHover: null,     // {hexA, hexB} during hover preview, or null
     panelEl: null,
   };
 
@@ -381,18 +393,33 @@
     setRgMode(state.rgMode);
     updateRgStats();
 
-    // Paths tab wiring (Phase A — rivers).
+    // Paths tab wiring.
     p.querySelector('#he-pf-select').onchange  = onPfSelectChange;
     p.querySelector('#he-pf-new').onclick      = onPfNewClick;
     p.querySelector('#he-pf-edit').onclick     = onPfEditClick;
+    p.querySelector('#he-pf-meta-edit').onclick = onPfMetaEditClick;
     p.querySelector('#he-pf-delete').onclick   = onPfDeleteClick;
     p.querySelector('#he-pf-form-begin').onclick  = onPfFormBegin;
     p.querySelector('#he-pf-form-cancel').onclick = onPfFormCancel;
+    p.querySelector('#he-pf-meta-save').onclick   = onPfMetaSave;
+    p.querySelector('#he-pf-meta-cancel').onclick = onPfMetaCancel;
     p.querySelector('#he-pf-undo').onclick     = onPfUndo;
     p.querySelector('#he-pf-save').onclick     = onPfSave;
     p.querySelector('#he-pf-cancel').onclick   = onPfCancel;
     p.querySelector('#he-pf-export').onclick    = onPfExport;
     p.querySelector('#he-pf-reset').onclick     = onPfReset;
+    // Mode tab buttons (river / road-disabled / crossing).
+    p.querySelectorAll('.he-pf-mode').forEach(btn => {
+      btn.onclick = () => onPfModeClick(btn.dataset.pfmode);
+    });
+    // Crossings mode wiring.
+    p.querySelector('#he-pf-cross-select').onchange = onPfCrossSelectChange;
+    p.querySelector('#he-pf-cross-new').onclick     = onPfCrossNewClick;
+    p.querySelector('#he-pf-cross-edit').onclick    = onPfCrossEditClick;
+    p.querySelector('#he-pf-cross-delete').onclick  = onPfCrossDeleteClick;
+    p.querySelector('#he-pf-cross-arm-cancel').onclick = onPfCrossArmCancel;
+    p.querySelector('#he-pf-cross-form-save').onclick   = onPfCrossFormSave;
+    p.querySelector('#he-pf-cross-form-cancel').onclick = onPfCrossFormCancel;
     const pfShowBox = p.querySelector('#he-pf-show-overlay');
     pfShowBox.checked = state.pfShowOverlay;
     pfShowBox.onchange = onPfShowToggle;
@@ -635,17 +662,20 @@
     `;
   }
 
-  // ── Paths pane (Phase A — rivers only) ────────────────────────────────
-  // Idle UI: river selector + "+ New River" + Edit/Delete. New River
-  // form swaps in for the action row. Trace UI swaps in for everything
-  // else once tracing begins.
+  // ── Paths pane ────────────────────────────────────────────────────────
+  // Mode tabs: Rivers | Roads (Phase C) | Crossings.
+  // Rivers: selector + +New / Edit Trace / Edit Meta / Delete.
+  //   New form swaps in for the action row, as does Edit Meta. Trace UI
+  //   swaps in for everything else once tracing begins.
+  // Crossings: selector + +New / Edit / Delete. +New arms edge-snap and
+  //   the form opens once the user clicks near a river edge.
   function buildPathsPane(){
     return `
       <div class="he-pane" id="he-pane-draw">
         <div class="he-pf-modes">
           <button class="he-pf-mode active" data-pfmode="river">Rivers</button>
-          <button class="he-pf-mode" data-pfmode="road"   disabled title="Phase C">Roads</button>
-          <button class="he-pf-mode" data-pfmode="bridge" disabled title="Phase B">Crossings</button>
+          <button class="he-pf-mode" data-pfmode="road"     disabled title="Phase C">Roads</button>
+          <button class="he-pf-mode" data-pfmode="crossing">Crossings</button>
         </div>
 
         <div class="he-pf-idle" id="he-pf-idle">
@@ -654,9 +684,10 @@
             <option value="">— choose —</option>
           </select>
           <div class="he-pf-meta" id="he-pf-meta">No river selected.</div>
-          <div class="he-pf-actrow">
-            <button class="he-btn" id="he-pf-new">+ New River</button>
-            <button class="he-btn" id="he-pf-edit"   disabled>Edit Trace</button>
+          <div class="he-pf-actrow he-pf-actrow-4">
+            <button class="he-btn he-pf-act-wide" id="he-pf-new">+ New River</button>
+            <button class="he-btn" id="he-pf-edit"      disabled>Edit Trace</button>
+            <button class="he-btn" id="he-pf-meta-edit" disabled>Edit Meta</button>
             <button class="he-btn he-danger" id="he-pf-delete" disabled>Delete</button>
           </div>
         </div>
@@ -678,6 +709,23 @@
           </div>
         </div>
 
+        <div class="he-pf-form" id="he-pf-meta-form" style="display:none">
+          <label class="he-lbl">Edit River Meta</label>
+          <input class="he-input" id="he-pf-meta-name" type="text" placeholder="Name" autocomplete="off">
+          <div class="he-pf-formrow">
+            <select class="he-input" id="he-pf-meta-type">
+              <option value="stream">stream</option>
+              <option value="river">river</option>
+              <option value="great_river">great river</option>
+            </select>
+            <input class="he-input" id="he-pf-meta-current" type="number" min="1" max="5" title="Current 1–5">
+          </div>
+          <div class="he-pf-form-btns">
+            <button class="he-btn" id="he-pf-meta-save">Save</button>
+            <button class="he-btn" id="he-pf-meta-cancel">Cancel</button>
+          </div>
+        </div>
+
         <div class="he-pf-trace" id="he-pf-trace" style="display:none">
           <div class="he-pf-tracehdr" id="he-pf-tracehdr"></div>
           <div class="he-status" id="he-pf-status">Click an upstream hex to start.</div>
@@ -685,6 +733,42 @@
             <button class="he-btn" id="he-pf-undo"   disabled>Undo</button>
             <button class="he-btn" id="he-pf-save"   disabled>Save</button>
             <button class="he-btn he-danger" id="he-pf-cancel">Cancel</button>
+          </div>
+        </div>
+
+        <div class="he-pf-cross-idle" id="he-pf-cross-idle" style="display:none">
+          <label class="he-lbl">Crossing</label>
+          <select class="he-select" id="he-pf-cross-select">
+            <option value="">— choose —</option>
+          </select>
+          <div class="he-pf-meta" id="he-pf-cross-meta">No crossing selected.</div>
+          <div class="he-pf-actrow">
+            <button class="he-btn" id="he-pf-cross-new">+ New</button>
+            <button class="he-btn" id="he-pf-cross-edit"   disabled>Edit</button>
+            <button class="he-btn he-danger" id="he-pf-cross-delete" disabled>Delete</button>
+          </div>
+        </div>
+
+        <div class="he-pf-cross-arm" id="he-pf-cross-arm" style="display:none">
+          <div class="he-status armed" id="he-pf-cross-arm-status">Click a river edge to drop a crossing.</div>
+          <div class="he-pf-form-btns">
+            <button class="he-btn he-danger" id="he-pf-cross-arm-cancel">Cancel</button>
+          </div>
+        </div>
+
+        <div class="he-pf-form" id="he-pf-cross-form" style="display:none">
+          <label class="he-lbl" id="he-pf-cross-form-title">New Crossing</label>
+          <div class="he-pf-meta" id="he-pf-cross-form-loc">—</div>
+          <select class="he-input" id="he-pf-cross-form-kind">
+            <option value="bridge">bridge</option>
+            <option value="footbridge">footbridge</option>
+            <option value="ford">ford</option>
+            <option value="ferry">ferry</option>
+          </select>
+          <input class="he-input" id="he-pf-cross-form-name" type="text" placeholder="Name (optional)" autocomplete="off">
+          <div class="he-pf-form-btns">
+            <button class="he-btn" id="he-pf-cross-form-save">Save</button>
+            <button class="he-btn" id="he-pf-cross-form-cancel">Cancel</button>
           </div>
         </div>
 
@@ -945,6 +1029,10 @@
       #hex-edit-panel .he-pf-form-btns { grid-template-columns:1fr 1fr; margin-top:6px; }
       #hex-edit-panel .he-pf-actrow .he-btn,
       #hex-edit-panel .he-pf-form-btns .he-btn { font-size:10px; padding:4px 6px; }
+      /* Rivers actions: 3-col grid; +New River spans full width on top
+         row, then Edit Trace / Edit Meta / Delete share the bottom row. */
+      #hex-edit-panel .he-pf-actrow-4 { grid-template-columns:1fr 1fr 1fr; }
+      #hex-edit-panel .he-pf-act-wide { grid-column:1 / -1; }
       #hex-edit-panel .he-pf-form {
         margin:6px 0; padding:6px; background:rgba(20,14,6,.6);
         border:1px solid #5a3d0a; border-radius:2px;
@@ -995,13 +1083,14 @@
       restoreTerrainOverlay();
       clearTraceOverlay();
     }
-    // Paths tab: refresh selector on enter; cancel trace on leave.
+    // Paths tab: refresh selector on enter; cancel trace + crossing on leave.
     if (id === 'draw' && prev !== 'draw'){
       refreshPfSelect();
       refreshPfStats();
       document.body.classList.add('he-pathing');
     } else if (prev === 'draw' && id !== 'draw'){
       pfCancelTrace();
+      pfCancelCrossing();
       document.body.classList.remove('he-pathing');
     }
   }
@@ -2149,21 +2238,28 @@
   function refreshPfActions(){
     const p = pfPanel(); if (!p) return;
     const has = !!state.pfSelected;
-    p.querySelector('#he-pf-edit').disabled   = !has;
-    p.querySelector('#he-pf-delete').disabled = !has;
+    p.querySelector('#he-pf-edit').disabled      = !has;
+    p.querySelector('#he-pf-meta-edit').disabled = !has;
+    p.querySelector('#he-pf-delete').disabled    = !has;
   }
   function refreshPfStats(){
     const el = pfPanel()?.querySelector('#he-pf-stats');
     if (!el) return;
     if (typeof GCCPaths === 'undefined'){ el.textContent = 'gcc-paths.js not loaded'; return; }
     const names = GCCPaths.allRiverNames();
-    if (names.length === 0){ el.textContent = 'No rivers yet.'; return; }
+    const crossings = (typeof GCCPaths.allCrossings === 'function') ? GCCPaths.allCrossings() : [];
+    if (names.length === 0 && crossings.length === 0){ el.textContent = 'No rivers yet.'; return; }
     let totalHexes = 0, overrides = 0;
     for (const n of names){
       const info = GCCPaths.getRiverInfo(n);
       if (info){ totalHexes += info.hexCount; if (info.isOverride) overrides++; }
     }
-    el.textContent = `${names.length} river${names.length===1?'':'s'} · ${totalHexes} hex${totalHexes===1?'':'es'} · ${overrides} override${overrides===1?'':'s'}`;
+    const parts = [];
+    parts.push(`${names.length} river${names.length===1?'':'s'}`);
+    parts.push(`${totalHexes} hex${totalHexes===1?'':'es'}`);
+    parts.push(`${crossings.length} crossing${crossings.length===1?'':'s'}`);
+    parts.push(`${overrides} override${overrides===1?'':'s'}`);
+    el.textContent = parts.join(' · ');
   }
   function setPfFormVisible(open){
     const p = pfPanel(); if (!p) return;
@@ -2263,6 +2359,10 @@
 
   // ── Click handler ──────────────────────────────────────────────────────
   function onPathsClick(ev){
+    if (state.pfMode === 'crossing'){
+      onCrossingMapClick(ev);
+      return;
+    }
     if (!state.pfTrace){ return; }   // idle: clicks ignored
     if (typeof screenToMap !== 'function' || typeof mapToHex !== 'function') return;
     const m = screenToMap(ev.clientX, ev.clientY);
@@ -2301,6 +2401,91 @@
     pfRenderTracePreview();
     pfUpdateTraceButtons();
     pfSetStatus(`${chain.length} hex${chain.length===1?'':'es'}. Click adjacent hex to extend, or Save when done.`);
+  }
+
+  // ── Crossings: edge-snap on map click ──────────────────────────────────
+  // Only fires while pfMode === 'crossing' && state.pfCrossingArmed.
+  // Walks every adjacent pair in every river chain, finds the closest
+  // edge midpoint to the click, and opens the crossing form keyed to
+  // that (hexA, hexB) pair.
+  function onCrossingMapClick(ev){
+    if (!state.pfCrossingArmed) return;
+    if (typeof screenToMap !== 'function') return;
+    if (typeof GCCPaths === 'undefined') return;
+    const m = screenToMap(ev.clientX, ev.clientY);
+    if (!m) return;
+    const hit = pfFindNearestRiverEdge(m.x, m.y);
+    if (!hit){
+      pfSetCrossArmStatus('No river edge near that click — try again or Cancel.');
+      return;
+    }
+    pfClearCrossingHover();
+    state.pfCrossingArmed = false;
+    setPfCrossArmVisible(false);
+    pfOpenCrossingForm({
+      hexA: hit.hexA, hexB: hit.hexB, riverName: hit.riverName,
+      kind: 'bridge', name: '', isEdit: false,
+    });
+  }
+  // Returns {hexA, hexB, riverName, mid:{x,y}} of the closest river edge
+  // to (mx, my) in map-space, or null if nothing within snap radius.
+  function pfFindNearestRiverEdge(mx, my){
+    if (typeof hexCenter !== 'function') return null;
+    const snapR = (typeof cal !== 'undefined' && cal && cal.hexSize) ? cal.hexSize * 0.6 : 18;
+    const snapR2 = snapR * snapR;
+    let best = null, bestD2 = snapR2;
+    for (const name of GCCPaths.allRiverNames()){
+      const chain = GCCPaths.getRiverChain(name);
+      if (!chain || chain.length < 2) continue;
+      for (let i = 1; i < chain.length; i++){
+        const a = chain[i-1], b = chain[i];
+        const ca = hexCenter(a.col, a.row), cb = hexCenter(b.col, b.row);
+        const midX = (ca.x + cb.x) * 0.5, midY = (ca.y + cb.y) * 0.5;
+        const dx = midX - mx, dy = midY - my;
+        const d2 = dx*dx + dy*dy;
+        if (d2 < bestD2){
+          bestD2 = d2;
+          best = { hexA: { col:a.col, row:a.row }, hexB: { col:b.col, row:b.row }, riverName: name, mid: { x: midX, y: midY } };
+        }
+      }
+    }
+    return best;
+  }
+
+  // Snap-preview circle: tracks the mouse while crossing-arm is on.
+  function onCrossingArmedMousemove(ev){
+    if (!state.pfCrossingArmed) return;
+    if (typeof screenToMap !== 'function') return;
+    const m = screenToMap(ev.clientX, ev.clientY);
+    if (!m){ pfClearCrossingHover(); return; }
+    const hit = pfFindNearestRiverEdge(m.x, m.y);
+    if (!hit){ pfClearCrossingHover(); return; }
+    state.pfCrossingHover = { mid: hit.mid, riverName: hit.riverName };
+    pfRenderCrossingHover();
+  }
+  function pfRenderCrossingHover(){
+    pfClearCrossingHover(false);
+    const h = state.pfCrossingHover;
+    if (!h) return;
+    const svg = document.getElementById('hex-svg');
+    if (!svg || typeof mapToStage !== 'function') return;
+    const ns = 'http://www.w3.org/2000/svg';
+    const g = document.createElementNS(ns, 'g');
+    g.id = 'path-cross-hover';
+    g.style.pointerEvents = 'none';
+    const s = mapToStage(h.mid.x, h.mid.y);
+    const c = document.createElementNS(ns, 'circle');
+    c.setAttribute('cx', s.x.toFixed(1));
+    c.setAttribute('cy', s.y.toFixed(1));
+    c.setAttribute('r', 6);
+    c.setAttribute('class', 'path-cross-hover');
+    g.appendChild(c);
+    svg.appendChild(g);
+  }
+  function pfClearCrossingHover(resetState){
+    const old = document.getElementById('path-cross-hover');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    if (resetState !== false) state.pfCrossingHover = null;
   }
 
   // ── Idle-state actions ─────────────────────────────────────────────────
@@ -2375,6 +2560,231 @@
     pfCancelTrace();
   }
 
+  // ── Edit Meta (rename / retype / re-current without retracing) ─────────
+  function setPfMetaFormVisible(open){
+    const p = pfPanel(); if (!p) return;
+    state.pfMetaOpen = open;
+    p.querySelector('#he-pf-meta-form').style.display = open ? '' : 'none';
+    p.querySelector('#he-pf-idle').style.display      = open ? 'none' : '';
+    if (open){
+      const info = state.pfSelected ? GCCPaths.getRiverInfo(state.pfSelected) : null;
+      if (!info){ setPfMetaFormVisible(false); return; }
+      p.querySelector('#he-pf-meta-name').value    = state.pfSelected;
+      p.querySelector('#he-pf-meta-type').value    = info.type;
+      p.querySelector('#he-pf-meta-current').value = String(info.current);
+      setTimeout(() => p.querySelector('#he-pf-meta-name').focus(), 0);
+    }
+  }
+  function onPfMetaEditClick(){
+    if (!state.pfSelected) return;
+    setPfMetaFormVisible(true);
+  }
+  function onPfMetaCancel(){
+    setPfMetaFormVisible(false);
+  }
+  function onPfMetaSave(){
+    const p = pfPanel();
+    const oldName = state.pfSelected;
+    if (!oldName) return;
+    const newName = (p.querySelector('#he-pf-meta-name').value || '').trim();
+    const type    = p.querySelector('#he-pf-meta-type').value;
+    const current = parseInt(p.querySelector('#he-pf-meta-current').value, 10) || 2;
+    if (!newName){ showToast('Name cannot be empty'); return; }
+    if (newName !== oldName && GCCPaths.getRiverInfo(newName)){
+      if (!confirm(`A river named "${newName}" already exists. Overwrite it?`)) return;
+    }
+    const chain = GCCPaths.getRiverChain(oldName);
+    if (!chain){ showToast('Chain not found'); return; }
+    try {
+      GCCPaths.saveRiver(newName, type, current, chain);
+      if (newName !== oldName) GCCPaths.deleteRiver(oldName);
+    } catch (e){
+      showToast(`Save failed: ${e.message}`);
+      return;
+    }
+    state.pfSelected = newName;
+    setPfMetaFormVisible(false);
+    refreshPfSelect();
+    refreshPfStats();
+    showToast(`Updated ${newName}`);
+  }
+
+  // ── Mode tabs (river / road / crossing) ────────────────────────────────
+  function onPfModeClick(mode){
+    if (!mode || mode === state.pfMode) return;
+    if (mode === 'road') return;  // disabled (Phase C)
+    // Tear down whatever was active in the previous mode.
+    if (state.pfMode === 'river'){
+      pfCancelTrace();
+      setPfFormVisible(false);
+      setPfMetaFormVisible(false);
+    } else if (state.pfMode === 'crossing'){
+      pfCancelCrossing();
+    }
+    state.pfMode = mode;
+    const p = pfPanel(); if (!p) return;
+    p.querySelectorAll('.he-pf-mode').forEach(b =>
+      b.classList.toggle('active', b.dataset.pfmode === mode));
+    if (mode === 'river'){
+      p.querySelector('#he-pf-idle').style.display = '';
+      p.querySelector('#he-pf-cross-idle').style.display = 'none';
+      refreshPfSelect();
+    } else if (mode === 'crossing'){
+      p.querySelector('#he-pf-idle').style.display = 'none';
+      p.querySelector('#he-pf-cross-idle').style.display = '';
+      refreshPfCrossSelect();
+    }
+  }
+
+  // ── Crossings: idle UI ─────────────────────────────────────────────────
+  function refreshPfCrossSelect(){
+    const sel = pfPanel()?.querySelector('#he-pf-cross-select');
+    if (!sel) return;
+    const list = (typeof GCCPaths !== 'undefined' && typeof GCCPaths.allCrossings === 'function')
+      ? GCCPaths.allCrossings() : [];
+    list.sort((a, b) => crossingLabel(a).localeCompare(crossingLabel(b)));
+    const cur = state.pfCrossingSelected;
+    sel.innerHTML = '<option value="">— choose —</option>' +
+      list.map(c => `<option value="${c.key}">${crossingLabel(c)}</option>`).join('');
+    if (cur && list.some(c => c.key === cur)) sel.value = cur;
+    else state.pfCrossingSelected = null;
+    refreshPfCrossMeta();
+    refreshPfCrossActions();
+  }
+  function crossingLabel(c){
+    const kCap = c.kind.charAt(0).toUpperCase() + c.kind.slice(1);
+    const where = `${hexIdStr(c.hexA.col, c.hexA.row)}↔${hexIdStr(c.hexB.col, c.hexB.row)}`;
+    return c.name ? `${c.name} (${c.kind}) — ${where}` : `${kCap} @ ${where}`;
+  }
+  function findCrossingByKey(key){
+    if (!key || typeof GCCPaths === 'undefined' || typeof GCCPaths.allCrossings !== 'function') return null;
+    return GCCPaths.allCrossings().find(c => c.key === key) || null;
+  }
+  function refreshPfCrossMeta(){
+    const el = pfPanel()?.querySelector('#he-pf-cross-meta');
+    if (!el) return;
+    if (!state.pfCrossingSelected){ el.textContent = 'No crossing selected.'; return; }
+    const c = findCrossingByKey(state.pfCrossingSelected);
+    if (!c){ el.textContent = '—'; return; }
+    const river = GCCPaths.riverNameOnEdge(c.hexA.col, c.hexA.row, c.hexB.col, c.hexB.row);
+    const where = `${hexIdStr(c.hexA.col, c.hexA.row)}↔${hexIdStr(c.hexB.col, c.hexB.row)}`;
+    el.textContent = `${c.kind} · ${where}${river ? ` · over ${river}` : ' · (no river)'}`;
+  }
+  function refreshPfCrossActions(){
+    const p = pfPanel(); if (!p) return;
+    const has = !!state.pfCrossingSelected;
+    p.querySelector('#he-pf-cross-edit').disabled   = !has;
+    p.querySelector('#he-pf-cross-delete').disabled = !has;
+  }
+  function onPfCrossSelectChange(ev){
+    state.pfCrossingSelected = ev.target.value || null;
+    refreshPfCrossMeta();
+    refreshPfCrossActions();
+  }
+  function onPfCrossNewClick(){
+    pfArmCrossing();
+  }
+  function onPfCrossEditClick(){
+    if (!state.pfCrossingSelected) return;
+    const c = findCrossingByKey(state.pfCrossingSelected);
+    if (!c) return;
+    const river = GCCPaths.riverNameOnEdge(c.hexA.col, c.hexA.row, c.hexB.col, c.hexB.row);
+    pfOpenCrossingForm({
+      hexA: c.hexA, hexB: c.hexB, riverName: river,
+      kind: c.kind, name: c.name || '', isEdit: true,
+    });
+  }
+  function onPfCrossDeleteClick(){
+    if (!state.pfCrossingSelected) return;
+    const c = findCrossingByKey(state.pfCrossingSelected);
+    if (!c) return;
+    const lbl = crossingLabel(c);
+    if (!confirm(`Delete ${lbl}?`)) return;
+    GCCPaths.deleteCrossing(c.hexA.col, c.hexA.row, c.hexB.col, c.hexB.row);
+    state.pfCrossingSelected = null;
+    refreshPfCrossSelect();
+    refreshPfStats();
+    showToast('Crossing deleted');
+  }
+
+  // ── Crossings: arm + form lifecycle ────────────────────────────────────
+  function setPfCrossArmVisible(on){
+    const p = pfPanel(); if (!p) return;
+    p.querySelector('#he-pf-cross-arm').style.display  = on ? '' : 'none';
+    p.querySelector('#he-pf-cross-idle').style.display = on ? 'none' : '';
+  }
+  function setPfCrossFormVisible(on){
+    const p = pfPanel(); if (!p) return;
+    p.querySelector('#he-pf-cross-form').style.display = on ? '' : 'none';
+    p.querySelector('#he-pf-cross-idle').style.display = on ? 'none' : '';
+  }
+  function pfSetCrossArmStatus(msg){
+    const el = pfPanel()?.querySelector('#he-pf-cross-arm-status');
+    if (el) el.textContent = msg;
+  }
+  function pfArmCrossing(){
+    state.pfCrossingArmed = true;
+    state.pfCrossingFormCtx = null;
+    setPfCrossArmVisible(true);
+    setPfCrossFormVisible(false);
+    pfSetCrossArmStatus('Click a river edge to drop a crossing.');
+    window.addEventListener('mousemove', onCrossingArmedMousemove);
+  }
+  function pfCancelCrossing(){
+    state.pfCrossingArmed = false;
+    state.pfCrossingFormCtx = null;
+    pfClearCrossingHover();
+    window.removeEventListener('mousemove', onCrossingArmedMousemove);
+    setPfCrossArmVisible(false);
+    setPfCrossFormVisible(false);
+  }
+  function onPfCrossArmCancel(){
+    pfCancelCrossing();
+  }
+  function pfOpenCrossingForm(ctx){
+    state.pfCrossingArmed = false;
+    state.pfCrossingFormCtx = ctx;
+    pfClearCrossingHover();
+    window.removeEventListener('mousemove', onCrossingArmedMousemove);
+    setPfCrossArmVisible(false);
+    setPfCrossFormVisible(true);
+    const p = pfPanel(); if (!p) return;
+    p.querySelector('#he-pf-cross-form-title').textContent = ctx.isEdit ? 'Edit Crossing' : 'New Crossing';
+    const where = `${hexIdStr(ctx.hexA.col, ctx.hexA.row)}↔${hexIdStr(ctx.hexB.col, ctx.hexB.row)}`;
+    const river = ctx.riverName ? ` over ${ctx.riverName}` : '';
+    p.querySelector('#he-pf-cross-form-loc').textContent = `${where}${river}`;
+    p.querySelector('#he-pf-cross-form-kind').value = ctx.kind || 'bridge';
+    p.querySelector('#he-pf-cross-form-name').value = ctx.name || '';
+    setTimeout(() => p.querySelector('#he-pf-cross-form-name').focus(), 0);
+  }
+  function onPfCrossFormCancel(){
+    pfCancelCrossing();
+  }
+  function onPfCrossFormSave(){
+    const ctx = state.pfCrossingFormCtx;
+    if (!ctx){ pfCancelCrossing(); return; }
+    const p = pfPanel();
+    const kind = p.querySelector('#he-pf-cross-form-kind').value;
+    const name = (p.querySelector('#he-pf-cross-form-name').value || '').trim();
+    try {
+      GCCPaths.saveCrossing(ctx.hexA.col, ctx.hexA.row, ctx.hexB.col, ctx.hexB.row, kind, name);
+    } catch (e){
+      showToast(`Save failed: ${e.message}`);
+      return;
+    }
+    // Re-derive the canonical key under owner hex so the dropdown selects this row.
+    const owner = GCCPaths.ownerHex(ctx.hexA.col, ctx.hexA.row, ctx.hexB.col, ctx.hexB.row);
+    const ownerIsA = (owner.col === ctx.hexA.col && owner.row === ctx.hexA.row);
+    const nbCol = ownerIsA ? ctx.hexB.col : ctx.hexA.col;
+    const nbRow = ownerIsA ? ctx.hexB.row : ctx.hexA.row;
+    const e = GCCPaths.edgeBetween(owner.col, owner.row, nbCol, nbRow);
+    state.pfCrossingSelected = `${owner.col}-${owner.row}-${e}`;
+    pfCancelCrossing();
+    refreshPfCrossSelect();
+    refreshPfStats();
+    showToast(ctx.isEdit ? 'Crossing updated' : `Saved ${kind}${name ? ` "${name}"` : ''}`);
+  }
+
   // ── Bulk actions ───────────────────────────────────────────────────────
   function onPfExport(){
     if (typeof GCCPaths === 'undefined') return;
@@ -2391,14 +2801,18 @@
   function onPfReset(){
     if (typeof GCCPaths === 'undefined') return;
     const data = GCCPaths.exportOverrides();
-    const n = Object.keys(data.rivers).length + data.deletedRivers.length;
+    const crossKeys = data.crossings ? Object.keys(data.crossings) : [];
+    const n = Object.keys(data.rivers).length + data.deletedRivers.length + crossKeys.length;
     if (n === 0){ showToast('No path overrides to clear'); return; }
     if (!confirm(`Clear ${n} path override${n===1?'':'s'}? Base rivers will be restored.`)) return;
     GCCPaths.clearOverrides();
     state.pfSelected = null;
+    state.pfCrossingSelected = null;
     pfCancelTrace();
+    pfCancelCrossing();
     refreshPfSelect();
     refreshPfStats();
+    if (state.pfMode === 'crossing') refreshPfCrossSelect();
     showToast('Path overrides cleared');
   }
 
@@ -2453,6 +2867,7 @@
     }
     if (state.activeTab === 'draw'){
       pfCancelTrace();
+      pfCancelCrossing();
     }
     document.body.classList.remove('he-pathing');
     if (state.panelEl) state.panelEl.style.display = 'none';

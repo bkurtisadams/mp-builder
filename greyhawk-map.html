@@ -104,6 +104,14 @@
   .path-trace-vertex { fill:#e8d878; stroke:#5a4108; stroke-width:.8; pointer-events:none; }
   .path-trace-source { fill:#cc4422; stroke:#fff8b8; stroke-width:1.2; pointer-events:none; }
   .path-trace-end    { fill:#e8d878; stroke:#5a4108; stroke-width:1.4; pointer-events:none; }
+  /* Crossings (Phase B): bridge/footbridge/ford/ferry. Each renders
+     inside a <g> already translated + rotated to the edge midpoint, so
+     these styles only set fills/strokes. */
+  .path-cross-bridge     { fill:#3a2810; stroke:#1a0f04; stroke-width:.5; }
+  .path-cross-footbridge { fill:#5a4020; stroke:#2a1808; stroke-width:.4; }
+  .path-cross-ford       { fill:none; stroke:#9aaa5a; stroke-width:1.4; stroke-linecap:round; stroke-dasharray:1.5 1.5; }
+  .path-cross-ferry      { fill:#f0d878; stroke:#3a2810; stroke-width:.8; }
+  .path-cross-hover      { fill:rgba(255,238,187,.32); stroke:#ffeebb; stroke-width:1.4; pointer-events:none; }
   /* Path overlay visibility toggle — Hex Editor's Paths pane writes the
      body class; trace preview is unaffected so editing remains visible. */
   body.gcc-paths-hidden #path-overlay { display:none; }
@@ -1937,6 +1945,54 @@ function buildPathOverlay(){
       dot.setAttribute('r', w);
       dot.setAttribute('class', 'path-river');
       g.appendChild(dot);
+    }
+  }
+  // Crossings (Phase B). Each is rendered at the midpoint between the
+  // two hex centers it sits on, rotated so its long axis is parallel
+  // to the river flow at that edge. Local coords inside the rotated
+  // group: +x = downstream-ish, +y = perpendicular to flow.
+  if (typeof GCCPaths.allCrossings === 'function'){
+    for (const cr of GCCPaths.allCrossings()){
+      const ca = hexCenter(cr.hexA.col, cr.hexA.row);
+      const cb = hexCenter(cr.hexB.col, cr.hexB.row);
+      const mx = (ca.x + cb.x) * 0.5, my = (ca.y + cb.y) * 0.5;
+      const s = mapToStage(mx, my);
+      const dx = cb.x - ca.x, dy = cb.y - ca.y;
+      const angDeg = Math.atan2(dy, dx) * 180 / Math.PI;
+      const cg = document.createElementNS(ns, 'g');
+      cg.setAttribute('transform', `translate(${s.x.toFixed(1)},${s.y.toFixed(1)}) rotate(${angDeg.toFixed(1)})`);
+      cg.setAttribute('class', `path-cross path-cross-${cr.kind}`);
+      if (cr.name) cg.dataset.name = cr.name;
+      if (cr.kind === 'bridge'){
+        const r = document.createElementNS(ns, 'rect');
+        r.setAttribute('x', -2.4); r.setAttribute('y', -7);
+        r.setAttribute('width', 4.8); r.setAttribute('height', 14);
+        r.setAttribute('rx', 1);
+        cg.appendChild(r);
+      } else if (cr.kind === 'footbridge'){
+        const r = document.createElementNS(ns, 'rect');
+        r.setAttribute('x', -1.5); r.setAttribute('y', -6);
+        r.setAttribute('width', 3); r.setAttribute('height', 12);
+        cg.appendChild(r);
+      } else if (cr.kind === 'ford'){
+        for (const xo of [-1.6, 1.6]){
+          const ln = document.createElementNS(ns, 'line');
+          ln.setAttribute('x1', xo); ln.setAttribute('y1', -6);
+          ln.setAttribute('x2', xo); ln.setAttribute('y2',  6);
+          cg.appendChild(ln);
+        }
+      } else if (cr.kind === 'ferry'){
+        const c = document.createElementNS(ns, 'circle');
+        c.setAttribute('cx', 0); c.setAttribute('cy', 0);
+        c.setAttribute('r', 3.6);
+        cg.appendChild(c);
+        // little dash through the middle (boat-line)
+        const ln = document.createElementNS(ns, 'line');
+        ln.setAttribute('x1', 0); ln.setAttribute('y1', -2.2);
+        ln.setAttribute('x2', 0); ln.setAttribute('y2',  2.2);
+        cg.appendChild(ln);
+      }
+      g.appendChild(cg);
     }
   }
   return g;
