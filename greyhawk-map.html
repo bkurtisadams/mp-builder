@@ -2122,13 +2122,25 @@ function wireEvents(){
     document.getElementById('btn-coord-labels').classList.toggle('active', on);
   });
 
-  // Side panel
+  // Side panel. Opening via the Party button auto-populates the panel
+  // from the party's saved hex (state.partyCol/Row, persisted in
+  // localStorage 'gh-party-pos') so the user always sees current party
+  // info instead of stale data from a prior hex click. Any prior hex
+  // selection is cleared so the panel and the highlighted hex agree.
   document.getElementById('btn-panel-toggle').addEventListener('click',()=>{
     const sp=document.getElementById('side-panel');
     const willOpen=!sp.classList.contains('open');
-    if (willOpen) ensureSidePanelPlaced();
-    sp.classList.toggle('open');
-    document.getElementById('btn-panel-toggle').textContent=willOpen?'Party ◂':'Party ▸';
+    if (willOpen){
+      if (state.selectedCol!==null){
+        document.getElementById(`hex-${state.selectedCol}-${state.selectedRow}`)?.classList.remove('selected');
+        state.selectedCol=null; state.selectedRow=null;
+      }
+      const col=state.partyCol, row=state.partyRow;
+      updateSidePanel(col,row,getHexTerrain(col,row),getRegion(col,row),0);
+    } else {
+      sp.classList.remove('open');
+      document.getElementById('btn-panel-toggle').textContent='Party ▸';
+    }
   });
   document.getElementById('panel-close').addEventListener('click',()=>{
     document.getElementById('side-panel').classList.remove('open');
