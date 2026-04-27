@@ -117,8 +117,16 @@
   .path-cross-ford       { fill:none; stroke:#9aaa5a; stroke-width:1.4; stroke-linecap:round; stroke-dasharray:1.5 1.5; }
   .path-cross-ferry      { fill:#f0d878; stroke:#3a2810; stroke-width:.8; }
   .path-cross-hover      { fill:rgba(255,238,187,.32); stroke:#ffeebb; stroke-width:1.4; pointer-events:none; }
-  /* Path overlay visibility toggle — Hex Editor's Paths pane writes the
-     body class; trace preview is unaffected so editing remains visible. */
+  /* Path overlay visibility toggles — Hex Editor's Paths pane writes the
+     body classes; trace preview (path-trace*) is unaffected so editing
+     remains visible. Crossings hide with rivers since they're visually
+     meaningless without their rivers underneath. */
+  body.gcc-rivers-hidden #path-overlay .path-river,
+  body.gcc-rivers-hidden #path-overlay .path-cross { display:none; }
+  body.gcc-roads-hidden  #path-overlay .path-road,
+  body.gcc-roads-hidden  #path-overlay .path-track { display:none; }
+  /* Back-compat: old single-toggle class still hides everything if
+     anyone's localStorage migration didn't run. */
   body.gcc-paths-hidden #path-overlay { display:none; }
 
   /* SIDE PANEL — free-floating, draggable by header */
@@ -310,6 +318,25 @@
     text-transform:uppercase; color:#8b6e45; }
   .jd-row .jd-val { color:var(--gold-light); text-align:right; }
   .jd-row .jd-val.jd-warn { color:#e07555; }
+  /* Plan-mode + trace controls (manual route mode). */
+  .jd-mode-btns, .jd-trace-btns { display:flex; gap:4px; flex:1; justify-content:flex-end; }
+  .jd-mode-btn, .jd-trace-btns button {
+    background:rgba(200,148,26,.08); color:#c8a96e;
+    border:1px solid rgba(200,148,26,.35); border-radius:2px;
+    font-family:'Cinzel',serif; font-size:9.5px; letter-spacing:.05em;
+    padding:3px 7px; cursor:pointer; transition:all .12s;
+  }
+  .jd-mode-btn:hover, .jd-trace-btns button:hover:not(:disabled) {
+    background:rgba(200,148,26,.22); color:#ffeebb; border-color:#c8941a;
+  }
+  .jd-mode-btn.active {
+    background:rgba(200,148,26,.28); color:#ffeebb; border-color:#c8941a;
+  }
+  .jd-trace-btns button:disabled { opacity:.4; cursor:not-allowed; }
+  .jd-trace-hint .jd-hint-text {
+    font-size:10px; color:#8fa67a; font-style:italic; line-height:1.35;
+    flex:1; text-align:left;
+  }
   .jd-div { border:none; border-top:1px solid var(--panel-border); margin:3px 0; }
   .jd-fs { border:1px solid rgba(200,148,26,.25); border-radius:2px; padding:5px 8px; }
   .jd-fs legend { font-family:'Cinzel',serif; font-size:9px; color:#8b6e45;
@@ -640,6 +667,23 @@
   <button id="jd-close" title="Close">✕</button>
   <div id="jd-header"><h2>🧭 Plan Journey</h2></div>
   <div id="jd-body">
+    <div class="jd-row jd-mode-row">
+      <label>Plan</label>
+      <div class="jd-mode-btns">
+        <button class="jd-mode-btn active" data-pmode="straight" type="button">Straight Line</button>
+        <button class="jd-mode-btn" data-pmode="manual" type="button">Manual</button>
+      </div>
+    </div>
+    <div class="jd-row jd-trace-row" id="jd-trace-row" style="display:none">
+      <label>Trace</label>
+      <div class="jd-trace-btns">
+        <button id="jd-trace-undo" type="button" disabled>Undo</button>
+        <button id="jd-trace-reset" type="button" disabled>Reset</button>
+      </div>
+    </div>
+    <div class="jd-row jd-trace-hint" id="jd-trace-hint" style="display:none">
+      <span class="jd-hint-text">Click hexes on the map to extend your route. Click an existing chain hex to trim back.</span>
+    </div>
     <div class="jd-row"><label>From</label><span class="jd-val" id="jd-from">—</span></div>
     <div class="jd-row"><label>To</label><span class="jd-val" id="jd-to">—</span></div>
     <div class="jd-row"><label>Travel</label><span class="jd-val" id="jd-travel">—</span></div>
@@ -2061,6 +2105,14 @@ function onHexClick(col,row){
   const dist=hexDistance(state.partyCol,state.partyRow,col,row);
   updateSidePanel(col,row,terrain,region,dist);
   if(state.moveMode) showMoveDialog(col,row,terrain,dist);
+  // Journey planner overrides the click after the side panel updates.
+  // The selection + side-panel info still happens (so the GM can see
+  // what's at the clicked hex), but the click also routes through the
+  // active plan mode.
+  if (state.journey && state.journey.status === 'planning'){
+    if (state.journey.planMode === 'manual') extendJourneyTrace(col, row);
+    else                                      moveJourneyDestination(col, row);
+  }
 }
 
 // ── PANELS ────────────────────────────────────────────────────────────────────
@@ -2470,6 +2522,8 @@ function openJourneyPlanner(col, row){
   jdSuppressRecompute = false;
   // Build initial plan.
   buildJourneyPlan(col, row);
+  // Reset plan-mode UI to match the freshly-built plan (planMode='straight').
+  setJourneyPlanMode('straight');
   recomputeJourneyPlan();
   refreshJourneyOverlay();
   dlg.classList.add('open');
@@ -2492,11 +2546,101 @@ function buildJourneyPlan(destCol, destRow){
     destination: { col: destCol, row: destRow },
     route,
     profile,
+    planMode: 'straight',           // 'straight' | 'manual'
     startDate: { monthIdx: 15, day: 11, year: 569 },
     startTimeOfDay: state.timeOfDay || 'morning',
     estDays: 0, estChecks: 0,
     impassable: false, impassableReason: null,
   };
+}
+
+// ── JOURNEY PLAN MODE (straight vs manual click-trace) ───────────────────────
+// Plan-mode logic. 'straight' is the legacy behavior — clicks on the
+// map move the destination, route auto-fills via hexLine. 'manual'
+// turns the planner into a click-chain editor: each click extends
+// the route by one adjacent hex; clicking an existing chain hex
+// trims the chain back to that point. Adjacency is enforced; non-
+// adjacent clicks short-toast and leave the chain untouched. Manual
+// mode mirrors the river-trace UX in the Hex Editor's Paths pane.
+function setJourneyPlanMode(mode){
+  if (!state.journey || (mode !== 'manual' && mode !== 'straight')) return;
+  state.journey.planMode = mode;
+  // Update button "active" classes.
+  document.querySelectorAll('#journey-dialog .jd-mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.pmode === mode));
+  // Trace controls: only relevant in manual mode.
+  document.getElementById('jd-trace-row').style.display  = (mode === 'manual') ? '' : 'none';
+  document.getElementById('jd-trace-hint').style.display = (mode === 'manual') ? '' : 'none';
+  refreshJourneyTraceButtons();
+}
+function refreshJourneyTraceButtons(){
+  const j = state.journey;
+  const undoBtn  = document.getElementById('jd-trace-undo');
+  const resetBtn = document.getElementById('jd-trace-reset');
+  if (!undoBtn || !resetBtn) return;
+  const len = j ? j.route.length : 0;
+  // Undo only useful past origin; Reset only useful past origin.
+  undoBtn.disabled  = len <= 1;
+  resetBtn.disabled = len <= 1;
+}
+// Manual-mode click: extend or trim the chain. Mirrors the river-trace
+// click handler in gcc-hex-edit.js (onPathsClick) but writes to the
+// journey route + recomputes time/distance instead of saving.
+function extendJourneyTrace(col, row){
+  const j = state.journey;
+  if (!j) return;
+  const chain = j.route;
+  // Click an existing chain hex → trim chain to that index. This
+  // includes the origin (index 0) — a "reset to start" via click.
+  const idx = chain.findIndex(h => h.col === col && h.row === row);
+  if (idx >= 0){
+    if (idx === chain.length - 1) return;   // already at end; no-op
+    chain.length = idx + 1;
+  } else {
+    // Adjacency check against the last hex.
+    const last = chain[chain.length - 1];
+    if (typeof GCCPaths === 'undefined' ||
+        !GCCPaths.areAdjacent(last.col, last.row, col, row)){
+      showToast(`${hexIdStr(col, row)} is not adjacent to ${hexIdStr(last.col, last.row)}`);
+      return;
+    }
+    chain.push({ col, row });
+  }
+  // Destination always tracks the end of the chain.
+  j.destination = { col: chain[chain.length - 1].col, row: chain[chain.length - 1].row };
+  refreshJourneyTraceButtons();
+  recomputeJourneyPlan();
+  refreshJourneyOverlay();
+}
+// Straight-mode click: reposition destination, rebuild route as hexLine.
+// Identical to the legacy buildJourneyPlan path but in-place (preserves
+// profile, planMode, dates).
+function moveJourneyDestination(col, row){
+  const j = state.journey;
+  if (!j) return;
+  j.destination = { col, row };
+  j.route = hexLine(j.origin.col, j.origin.row, col, row);
+  refreshJourneyTraceButtons();
+  recomputeJourneyPlan();
+  refreshJourneyOverlay();
+}
+function undoJourneyTrace(){
+  const j = state.journey;
+  if (!j || j.route.length <= 1) return;
+  j.route.pop();
+  j.destination = { col: j.route[j.route.length - 1].col, row: j.route[j.route.length - 1].row };
+  refreshJourneyTraceButtons();
+  recomputeJourneyPlan();
+  refreshJourneyOverlay();
+}
+function resetJourneyTrace(){
+  const j = state.journey;
+  if (!j) return;
+  j.route = [{ col: j.origin.col, row: j.origin.row }];
+  j.destination = { col: j.origin.col, row: j.origin.row };
+  refreshJourneyTraceButtons();
+  recomputeJourneyPlan();
+  refreshJourneyOverlay();
 }
 function recomputeJourneyPlan(){
   if (jdSuppressRecompute || !state.journey) return;
@@ -2540,7 +2684,9 @@ function recomputeJourneyPlan(){
     const arrival = ghDateAdd(j.startDate, Math.ceil(dur.days));
     document.getElementById('jd-arrival').textContent = ghDateLabel(arrival);
     document.getElementById('jd-warn-row').style.display = 'none';
-    document.getElementById('jd-begin').disabled = false;
+    // Disable Begin if the route is empty (just the origin) — manual
+    // mode after Reset, or a degenerate same-hex destination.
+    document.getElementById('jd-begin').disabled = (j.route.length < 2);
   }
 }
 
@@ -3436,6 +3582,14 @@ function wireEvents(){
     document.getElementById(id).addEventListener('change', recomputeJourneyPlan);
     document.getElementById(id).addEventListener('input',  recomputeJourneyPlan);
   }
+  // Plan-mode buttons + manual-trace controls. Mode buttons toggle
+  // between auto-fill straight line (clicks on map move destination)
+  // and manual click-trace (clicks on map extend chain).
+  document.querySelectorAll('#journey-dialog .jd-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => setJourneyPlanMode(btn.dataset.pmode));
+  });
+  document.getElementById('jd-trace-undo').addEventListener('click', undoJourneyTrace);
+  document.getElementById('jd-trace-reset').addEventListener('click', resetJourneyTrace);
 
   // Journey log panel — controls for an in-flight journey. Continue
   // resumes from the next slot after a paused (encounter/reload) state.

@@ -238,7 +238,8 @@
     pfFormOpen: false,       // +New River form visible
     pfMetaOpen: false,       // Edit Meta form visible
     pfTrace: null,           // null | { entityKind, name, type/kind, current?, chain, isNew }
-    pfShowOverlay: true,     // path overlay visibility (persisted)
+    pfShowRivers: true,      // river overlay visibility (persisted)
+    pfShowRoads:  true,      // road overlay visibility (persisted)
     pfRoadSelected: null,    // currently selected road name
     pfRoadFormOpen: false,   // +New Road form visible
     pfRoadMetaOpen: false,   // Edit road meta form visible
@@ -439,9 +440,12 @@
     p.querySelector('#he-pf-cross-arm-cancel').onclick = onPfCrossArmCancel;
     p.querySelector('#he-pf-cross-form-save').onclick   = onPfCrossFormSave;
     p.querySelector('#he-pf-cross-form-cancel').onclick = onPfCrossFormCancel;
-    const pfShowBox = p.querySelector('#he-pf-show-overlay');
-    pfShowBox.checked = state.pfShowOverlay;
-    pfShowBox.onchange = onPfShowToggle;
+    const pfShowRiversBox = p.querySelector('#he-pf-show-rivers');
+    pfShowRiversBox.checked  = state.pfShowRivers;
+    pfShowRiversBox.onchange = onPfShowRiversToggle;
+    const pfShowRoadsBox = p.querySelector('#he-pf-show-roads');
+    pfShowRoadsBox.checked  = state.pfShowRoads;
+    pfShowRoadsBox.onchange = onPfShowRoadsToggle;
     refreshPfSelect();
     refreshPfStats();
 
@@ -838,7 +842,10 @@
         </div>
 
         <label class="he-pf-toggle">
-          <input type="checkbox" id="he-pf-show-overlay" checked> Show paths on map
+          <input type="checkbox" id="he-pf-show-rivers" checked> Show rivers
+        </label>
+        <label class="he-pf-toggle">
+          <input type="checkbox" id="he-pf-show-roads" checked> Show roads
         </label>
 
         <div class="he-paint-stats" id="he-pf-stats">No rivers yet.</div>
@@ -2251,29 +2258,50 @@
     if (el) el.textContent = msg;
   }
 
-  // Path overlay visibility — persisted across reloads. Driven from a
-  // checkbox in the Paths pane but applied via a body class so it works
-  // even when the Hex Editor isn't open.
-  const LS_PF_SHOW = 'gcc-paths-show-overlay';
-  function loadPfShowOverlay(){
-    try { return localStorage.getItem(LS_PF_SHOW) !== '0'; }
-    catch (e) { return true; }
+  // Path overlay visibility — persisted per-layer across reloads.
+  // Driven from checkboxes in the Paths pane but applied via body
+  // classes so the toggles work even when the Hex Editor isn't open.
+  // Crossings hide with rivers (they're meaningless without rivers
+  // visible underneath); the CSS rule lives in greyhawk-map.html.
+  const LS_PF_SHOW_RIVERS = 'gcc-paths-show-rivers';
+  const LS_PF_SHOW_ROADS  = 'gcc-paths-show-roads';
+  const LS_PF_SHOW_LEGACY = 'gcc-paths-show-overlay';   // pre-v0.10 single key
+  function loadPfShowLayer(key){
+    try {
+      const v = localStorage.getItem(key);
+      if (v !== null) return v !== '0';
+      // Fallback: pre-v0.10 single overlay toggle. Apply it to both
+      // layers so users who hid overlays still see them hidden after
+      // upgrade.
+      const legacy = localStorage.getItem(LS_PF_SHOW_LEGACY);
+      if (legacy !== null) return legacy !== '0';
+      return true;
+    } catch (e) { return true; }
   }
-  function savePfShowOverlay(v){
-    try { localStorage.setItem(LS_PF_SHOW, v ? '1' : '0'); }
-    catch (e) {}
+  function savePfShowLayer(key, v){
+    try { localStorage.setItem(key, v ? '1' : '0'); } catch (e) {}
   }
   function applyPfShowOverlay(){
     if (typeof document === 'undefined' || !document.body) return;
-    document.body.classList.toggle('gcc-paths-hidden', !state.pfShowOverlay);
+    document.body.classList.toggle('gcc-rivers-hidden', !state.pfShowRivers);
+    document.body.classList.toggle('gcc-roads-hidden',  !state.pfShowRoads);
+    // Wipe legacy class — body classes don't auto-clear when the user
+    // upgrades, so do it once on apply.
+    document.body.classList.remove('gcc-paths-hidden');
   }
-  function onPfShowToggle(ev){
-    state.pfShowOverlay = !!ev.target.checked;
-    savePfShowOverlay(state.pfShowOverlay);
+  function onPfShowRiversToggle(ev){
+    state.pfShowRivers = !!ev.target.checked;
+    savePfShowLayer(LS_PF_SHOW_RIVERS, state.pfShowRivers);
     applyPfShowOverlay();
   }
-  // Bootstrap: load preference + apply class as soon as <body> exists.
-  state.pfShowOverlay = loadPfShowOverlay();
+  function onPfShowRoadsToggle(ev){
+    state.pfShowRoads = !!ev.target.checked;
+    savePfShowLayer(LS_PF_SHOW_ROADS, state.pfShowRoads);
+    applyPfShowOverlay();
+  }
+  // Bootstrap: load preferences + apply classes as soon as <body> exists.
+  state.pfShowRivers = loadPfShowLayer(LS_PF_SHOW_RIVERS);
+  state.pfShowRoads  = loadPfShowLayer(LS_PF_SHOW_ROADS);
   if (typeof document !== 'undefined'){
     if (document.body) applyPfShowOverlay();
     else document.addEventListener('DOMContentLoaded', applyPfShowOverlay);
