@@ -104,6 +104,9 @@
   .path-trace-vertex { fill:#e8d878; stroke:#5a4108; stroke-width:.8; pointer-events:none; }
   .path-trace-source { fill:#cc4422; stroke:#fff8b8; stroke-width:1.2; pointer-events:none; }
   .path-trace-end    { fill:#e8d878; stroke:#5a4108; stroke-width:1.4; pointer-events:none; }
+  /* Path overlay visibility toggle — Hex Editor's Paths pane writes the
+     body class; trace preview is unaffected so editing remains visible. */
+  body.gcc-paths-hidden #path-overlay { display:none; }
 
   /* SIDE PANEL — free-floating, draggable by header */
   #side-panel { position:fixed; top:0; left:0; width:215px; background:var(--panel-bg); border:1px solid var(--panel-border); border-radius:3px; display:flex; flex-direction:column; z-index:50; opacity:0; pointer-events:none; transition:opacity .18s ease; box-shadow:0 8px 32px rgba(0,0,0,.7); }
@@ -716,7 +719,7 @@
 <script src="gcc-landmarks.js?v=9"></script>
 <script src="gcc-terrain.js?v=3"></script>
 <script src="gcc-paths.js?v=3"></script>
-<script src="gcc-hex-edit.js?v=15"></script>
+<script src="gcc-hex-edit.js?v=16"></script>
 <script src="gcc-voyage.js?v=2"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────

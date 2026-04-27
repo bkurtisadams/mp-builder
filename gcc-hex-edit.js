@@ -1,4 +1,4 @@
-// gcc-hex-edit.js v0.7.0 — 2026-04-27
+// gcc-hex-edit.js v0.7.1 — 2026-04-27
 // Hex Editor: tab shell for Landmarks / Paint / Outline / Paths.
 // Requires globals: GCCLandmarks, GCCTerrain, GCCPaths, TERRAIN, hexIdStr,
 //   darleneToInternal, mapToHex, screenToMap, showToast,
@@ -6,6 +6,9 @@
 //   hexCenter, mapToStage,
 //   makeDraggable (from greyhawk-map.html inline script).
 //
+// v0.7.1: Show/hide path overlay toggle in the Paths pane (persisted
+//   via localStorage + body class so it works even when the editor
+//   isn't open). Trace preview unaffected — editing remains visible.
 // v0.7.0: Paths tab live (Phase A — rivers). Click-chain trace UI with
 //   river selector, +New form, undo/save/cancel, type/current
 //   metadata, persistence via GCCPaths overrides. Trace preview
@@ -222,6 +225,7 @@
     pfMode: 'river',         // 'river' (Phase A); road/bridge later
     pfFormOpen: false,       // +New River form visible
     pfTrace: null,           // null | { name, type, current, chain, isNew }
+    pfShowOverlay: true,     // path overlay visibility (persisted)
     panelEl: null,
   };
 
@@ -387,8 +391,11 @@
     p.querySelector('#he-pf-undo').onclick     = onPfUndo;
     p.querySelector('#he-pf-save').onclick     = onPfSave;
     p.querySelector('#he-pf-cancel').onclick   = onPfCancel;
-    p.querySelector('#he-pf-export').onclick   = onPfExport;
-    p.querySelector('#he-pf-reset').onclick    = onPfReset;
+    p.querySelector('#he-pf-export').onclick    = onPfExport;
+    p.querySelector('#he-pf-reset').onclick     = onPfReset;
+    const pfShowBox = p.querySelector('#he-pf-show-overlay');
+    pfShowBox.checked = state.pfShowOverlay;
+    pfShowBox.onchange = onPfShowToggle;
     refreshPfSelect();
     refreshPfStats();
 
@@ -681,6 +688,10 @@
           </div>
         </div>
 
+        <label class="he-pf-toggle">
+          <input type="checkbox" id="he-pf-show-overlay" checked> Show paths on map
+        </label>
+
         <div class="he-paint-stats" id="he-pf-stats">No rivers yet.</div>
         <div class="he-btns">
           <button class="he-btn" id="he-pf-export">Export</button>
@@ -955,6 +966,12 @@
         display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-top:6px;
       }
       #hex-edit-panel .he-pf-tracebtns .he-btn { font-size:10px; padding:4px 6px; }
+      #hex-edit-panel .he-pf-toggle {
+        display:flex; align-items:center; gap:6px; margin:6px 0;
+        font-size:10px; color:#c8a96e; cursor:pointer; user-select:none;
+      }
+      #hex-edit-panel .he-pf-toggle:hover { color:#e8b840; }
+      #hex-edit-panel .he-pf-toggle input { cursor:pointer; }
       body.he-pathing #map-wrap { cursor:crosshair !important; }
       body.he-editing #map-wrap { cursor:crosshair !important; }
       body.he-painting #map-wrap { cursor:cell !important; }
@@ -2074,6 +2091,35 @@
     const el = pfPanel()?.querySelector('#he-pf-status');
     if (el) el.textContent = msg;
   }
+
+  // Path overlay visibility — persisted across reloads. Driven from a
+  // checkbox in the Paths pane but applied via a body class so it works
+  // even when the Hex Editor isn't open.
+  const LS_PF_SHOW = 'gcc-paths-show-overlay';
+  function loadPfShowOverlay(){
+    try { return localStorage.getItem(LS_PF_SHOW) !== '0'; }
+    catch (e) { return true; }
+  }
+  function savePfShowOverlay(v){
+    try { localStorage.setItem(LS_PF_SHOW, v ? '1' : '0'); }
+    catch (e) {}
+  }
+  function applyPfShowOverlay(){
+    if (typeof document === 'undefined' || !document.body) return;
+    document.body.classList.toggle('gcc-paths-hidden', !state.pfShowOverlay);
+  }
+  function onPfShowToggle(ev){
+    state.pfShowOverlay = !!ev.target.checked;
+    savePfShowOverlay(state.pfShowOverlay);
+    applyPfShowOverlay();
+  }
+  // Bootstrap: load preference + apply class as soon as <body> exists.
+  state.pfShowOverlay = loadPfShowOverlay();
+  if (typeof document !== 'undefined'){
+    if (document.body) applyPfShowOverlay();
+    else document.addEventListener('DOMContentLoaded', applyPfShowOverlay);
+  }
+
   function refreshPfSelect(){
     const sel = pfPanel()?.querySelector('#he-pf-select');
     if (!sel) return;
