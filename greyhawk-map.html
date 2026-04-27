@@ -58,11 +58,16 @@
   .hex-cell.selected { fill:var(--hex-selected)!important; stroke:var(--gold); stroke-width:1.5; }
   .hex-cell.party-hex { stroke:#cc2200; stroke-width:1.8; }
   /* Journey route overlay — dashed polyline + per-hex stroke highlight
-     along the planned path. Destination hex gets a brighter stroke. */
-  .hex-cell.journey-hex { stroke:#66bbff; stroke-width:1.4; }
-  .hex-cell.journey-end { stroke:#33ddff; stroke-width:2.2; }
-  #journey-route-line { fill:none; stroke:#66bbff; stroke-width:1.4;
-    stroke-dasharray:5 3; opacity:.85; pointer-events:none; }
+     along the planned path. Destination hex gets a brighter stroke and
+     a bullseye marker (drawn in #journey-route) so the endpoint is
+     unmistakable across any terrain. Red palette stays distinct from
+     the cyan-friendly water hexes once ship/boat travel is added. */
+  .hex-cell.journey-hex { stroke:#dd3322; stroke-width:1.4; }
+  .hex-cell.journey-end { stroke:#ff4422; stroke-width:2.4; }
+  #journey-route-line { fill:none; stroke:#dd3322; stroke-width:1.4;
+    stroke-dasharray:5 3; opacity:.9; pointer-events:none; }
+  .journey-end-ring { fill:none; stroke:#ff4422; stroke-width:2.2; opacity:.95; }
+  .journey-end-dot  { fill:#ff4422; opacity:1; }
   .hex-label { font-family:'Cinzel',serif; font-size:5px; fill:rgba(0,0,0,.45); text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
   .coord-letter, .coord-number { display:none; font-family:'Cinzel',serif; font-weight:600;
     fill:#1a0f03; stroke:none; pointer-events:none; letter-spacing:.03em; }
@@ -1544,6 +1549,22 @@ function buildJourneyOverlay(){
   line.id = 'journey-route-line';
   line.setAttribute('points', pts);
   g.appendChild(line);
+  // Destination bullseye — outer ring + inner dot at the destination
+  // hex center. Stays anchored regardless of terrain color so the
+  // endpoint reads clearly against forest, water, mountain, etc.
+  const dest = state.journey.route[state.journey.route.length - 1];
+  const { x: dmx, y: dmy } = hexCenterDisplay(dest.col, dest.row);
+  const { x: dx, y: dy } = mapToStage(dmx, dmy);
+  const ring = document.createElementNS(ns, 'circle');
+  ring.setAttribute('class', 'journey-end-ring');
+  ring.setAttribute('cx', dx.toFixed(1)); ring.setAttribute('cy', dy.toFixed(1));
+  ring.setAttribute('r', '9');
+  const dot = document.createElementNS(ns, 'circle');
+  dot.setAttribute('class', 'journey-end-dot');
+  dot.setAttribute('cx', dx.toFixed(1)); dot.setAttribute('cy', dy.toFixed(1));
+  dot.setAttribute('r', '2.5');
+  g.appendChild(ring);
+  g.appendChild(dot);
   return g;
 }
 function applyJourneyHexClasses(){
