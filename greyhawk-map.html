@@ -1286,27 +1286,45 @@ function computeJourneyDuration(route, profile){
   let impassable = false, reason = null;
   // Skip i=0 (origin — no travel cost). Each subsequent hex contributes
   // HEX_MILES / mi-per-day for its own terrain + the active profile.
+  // GCCPaths supplies the river-edge resolver and the road-bonus
+  // multiplier; sea/lake water hexes still block ground travel via the
+  // null-difficulty fallback below.
   for (let i = 1; i < route.length; i++){
     const hex = route[i];
+    const prev = route[i - 1];
     const terrain = getHexTerrain(hex.col, hex.row);
     if (profile.mode === 'flying'){
       const mpd = flightMilesPerDay(profile.vehicle);
       if (mpd == null || mpd <= 0){ impassable = true; reason = 'Invalid flight vehicle'; break; }
       totalDays += HEX_MILES / mpd;
     } else {
+      if (typeof GCCPaths !== 'undefined' &&
+          GCCPaths.edgeBlocks(prev.col, prev.row, hex.col, hex.row, profile.mode)){
+        const info = GCCPaths.edgeRiverInfo(prev.col, prev.row, hex.col, hex.row);
+        const rname = info.river?.name || 'river';
+        impassable = true;
+        reason = `${hexIdStr(hex.col, hex.row)} — no crossing over the ${rname}`;
+        break;
+      }
       const t = TERRAIN[terrain];
-      if (!t || t.difficulty == null){
+      const hasRiver = (typeof GCCPaths !== 'undefined') &&
+                       GCCPaths.riversAt(hex.col, hex.row).length > 0;
+      const difficulty = (t && t.difficulty != null) ? t.difficulty : (hasRiver ? 'normal' : null);
+      if (difficulty == null){
         impassable = true;
         reason = `${hexIdStr(hex.col, hex.row)} (${t?.label || terrain}) impassable on ${profile.mode}`;
         break;
       }
-      const mpd = travelMilesPerDay(t.difficulty, profile);
+      const mpd = travelMilesPerDay(difficulty, profile);
       if (mpd == null || mpd <= 0){
         impassable = true;
-        reason = `${hexIdStr(hex.col, hex.row)} (${t.label}) impassable for ${profile.mode === 'mounted' ? profile.mount : profile.burden}`;
+        reason = `${hexIdStr(hex.col, hex.row)} (${t?.label || terrain}) impassable for ${profile.mode === 'mounted' ? profile.mount : profile.burden}`;
         break;
       }
-      totalDays += HEX_MILES / mpd;
+      const bonus = (typeof GCCPaths !== 'undefined')
+        ? GCCPaths.edgeRoadBonus(prev.col, prev.row, hex.col, hex.row, terrain)
+        : 1.0;
+      totalDays += HEX_MILES / (mpd * bonus);
     }
   }
   return { days: totalDays, impassable, reason };
@@ -2395,16 +2413,23 @@ function buildJourneyTimeline(route, profile){
   let acc = 0;
   for (let i = 1; i < route.length; i++){
     const h = route[i];
+    const prev = route[i - 1];
     const terrain = getHexTerrain(h.col, h.row);
     let mpd;
     if (profile.mode === 'flying'){
       mpd = flightMilesPerDay(profile.vehicle);
     } else {
       const t = TERRAIN[terrain];
-      mpd = (t && t.difficulty != null) ? travelMilesPerDay(t.difficulty, profile) : null;
+      const hasRiver = (typeof GCCPaths !== 'undefined') &&
+                       GCCPaths.riversAt(h.col, h.row).length > 0;
+      const difficulty = (t && t.difficulty != null) ? t.difficulty : (hasRiver ? 'normal' : null);
+      mpd = (difficulty != null) ? travelMilesPerDay(difficulty, profile) : null;
     }
     if (mpd == null || mpd <= 0) return null;
-    const dur = HEX_MILES / mpd;
+    const bonus = (profile.mode !== 'flying' && typeof GCCPaths !== 'undefined')
+      ? GCCPaths.edgeRoadBonus(prev.col, prev.row, h.col, h.row, terrain)
+      : 1.0;
+    const dur = HEX_MILES / (mpd * bonus);
     tl.push({
       hex: { col: h.col, row: h.row },
       terrain,
@@ -2499,8 +2524,41 @@ function tickJourney(){
     return;
   }
   const entry = hexAtTimelineOffset(tl, offset);
-  // Move the party piece if hex changed since last tick.
+  // Move the party piece if hex changed since last tick. Before moving,
+  // consult the path resolver: if this leg crosses an unbridged river,
+  // pause the journey; if it crosses a bridge/ford/ferry, narrate it.
   if (entry && (state.partyCol !== entry.hex.col || state.partyRow !== entry.hex.row)){
+    if (typeof GCCPaths !== 'undefined' && j.profile.mode !== 'flying'){
+      const info = GCCPaths.edgeRiverInfo(state.partyCol, state.partyRow, entry.hex.col, entry.hex.row);
+      if (info.blocks){
+        const rname = info.river?.name || 'river';
+        j.log.push({
+          type: 'river-block',
+          day: j.currentDay,
+          date: { ...j.currentDate },
+          message: `Reached the ${rname} at ${hexIdStr(entry.hex.col, entry.hex.row)} — no crossing.`,
+        });
+        j.status = 'paused';
+        j.pauseReason = 'river-crossing';
+        saveActiveJourney();
+        renderJourneyLog();
+        return;
+      }
+      if (info.crossing){
+        const cname = info.crossing.name ||
+          (info.crossing.kind === 'ford'  ? 'a ford'
+         : info.crossing.kind === 'ferry' ? 'a ferry'
+         :                                  'a bridge');
+        const rname = info.river?.name || 'river';
+        j.log.push({
+          type: 'crossing',
+          day: j.currentDay,
+          date: { ...j.currentDate },
+          crossing: cname,
+          river: rname,
+        });
+      }
+    }
     movePartyDuringJourney(entry.hex.col, entry.hex.row);
   }
   // Encounter check — flight stub returns no-encounter pending DMG
@@ -2580,6 +2638,10 @@ function advanceJourneySlot(){
 function continueJourney(){
   const j = state.journey;
   if (!j || j.status !== 'paused') return;
+  // River-crossing pause: Continue acknowledges the block and aborts.
+  // Phase 2.5 will offer a "build floats / +0.5 day" alternative per
+  // WoG rule.
+  if (j.pauseReason === 'river-crossing'){ abortJourney(); return; }
   // Encounter (or reload) consumed this slot — advance past it before
   // resuming so the same slot doesn't re-roll.
   if (j.pauseReason === 'encounter') advanceJourneySlot();
@@ -2657,8 +2719,9 @@ function renderJourneyLog(){
     statusText = `◉ TRAVELING · Day ${j.currentDay + 1}/${Math.ceil(j.estDays)} · ${ghDateLabel(j.currentDate)} · ${timeOfDayLabel(j.currentTimeOfDay)}`;
   } else if (j.status === 'paused'){
     statusEl.classList.add('paused');
-    const why = j.pauseReason === 'encounter' ? 'Encounter' :
-                j.pauseReason === 'reload'    ? 'Reloaded'  : 'Paused';
+    const why = j.pauseReason === 'encounter'      ? 'Encounter' :
+                j.pauseReason === 'reload'         ? 'Reloaded'  :
+                j.pauseReason === 'river-crossing' ? 'River crossing' : 'Paused';
     statusText = `⏸ PAUSED — ${why} · ${ghDateLabel(j.currentDate)} · ${timeOfDayLabel(j.currentTimeOfDay)}`;
   } else if (j.status === 'arrived'){
     statusEl.classList.add('arrived');
@@ -2680,6 +2743,8 @@ function renderJourneyLog(){
     const k = entry.day;
     if (!dayBuckets[k]) dayBuckets[k] = { day: k, date: entry.date, slots: [], events: [] };
     if (entry.type === 'weather') dayBuckets[k].events.push({ kind: 'weather', data: entry.weather });
+    else if (entry.type === 'crossing')    dayBuckets[k].events.push({ kind: 'crossing',    data: entry });
+    else if (entry.type === 'river-block') dayBuckets[k].events.push({ kind: 'river-block', data: entry });
     else dayBuckets[k].slots.push(entry);
   }
   const dayKeys = Object.keys(dayBuckets).map(n => parseInt(n, 10)).sort((a, b) => a - b);
@@ -2716,6 +2781,17 @@ function renderJourneyLog(){
         w.style.color = '#a0c8e0';
         w.textContent = `☁ ${ev.data?.summary || ev.data?.label || JSON.stringify(ev.data)}`;
         div.appendChild(w);
+      } else if (ev.kind === 'crossing'){
+        const c = document.createElement('div');
+        c.className = 'jl-day-summary';
+        c.style.color = '#9fbf80';
+        c.textContent = `⌬ Crossed ${ev.data.crossing} over the ${ev.data.river}.`;
+        div.appendChild(c);
+      } else if (ev.kind === 'river-block'){
+        const b = document.createElement('div');
+        b.className = 'jl-encounter';
+        b.textContent = `⛔ ${ev.data.message}`;
+        div.appendChild(b);
       }
     }
     body.appendChild(div);
