@@ -244,6 +244,10 @@
   #td-body input[type="radio"] { accent-color:var(--gold); }
   .td-hint { color:#8b6e45; font-size:10px; font-style:italic; margin-left:auto; }
   .td-warn { color:#b04830; font-size:10px; margin-left:auto; }
+  .td-select { width:100%; background:#1a0f02; color:var(--parchment-light);
+    border:1px solid rgba(200,148,26,.4); border-radius:2px; padding:3px 4px;
+    font-family:inherit; font-size:11px; margin-top:2px; }
+  .td-select:focus { outline:none; border-color:var(--gold); }
   #td-footer { display:flex; gap:6px; padding:8px 11px;
     border-top:1px solid var(--panel-border); }
   #td-footer button { flex:1; background:rgba(200,148,26,.12); color:#c8a96e;
@@ -438,6 +442,7 @@
       <legend>Mode</legend>
       <label><input type="radio" name="td-mode" value="foot"> Foot</label>
       <label><input type="radio" name="td-mode" value="mounted"> Mounted</label>
+      <label><input type="radio" name="td-mode" value="flying"> Flying</label>
     </fieldset>
     <fieldset class="td-fs" id="td-fs-burden">
       <legend>Burden (foot only)</legend>
@@ -453,6 +458,24 @@
       <label><input type="radio" name="td-mount" value="draft"> Draft animal</label>
       <label><input type="radio" name="td-mount" value="cart"> Cart <span class="td-warn">✗ very rugged</span></label>
       <label><input type="radio" name="td-mount" value="wagon"> Wagon <span class="td-warn">✗ very rugged</span></label>
+    </fieldset>
+    <fieldset class="td-fs" id="td-fs-flight">
+      <legend>Flight (flying only)</legend>
+      <select id="td-flight-sel" class="td-select">
+        <optgroup label="Magic Items · 10 hr/day">
+          <option value="broom">Broom of Flying — 100 mi/day</option>
+          <option value="carpet_1">Carpet 3'×5' (1) — 140 mi/day</option>
+          <option value="carpet_2">Carpet 4'×6' (2) — 120 mi/day</option>
+          <option value="carpet_3">Carpet 5'×7' (3) — 100 mi/day</option>
+          <option value="carpet_4">Carpet 6'×9' (4) — 80 mi/day</option>
+          <option value="wings">Wings of Flying — 120 mi/day</option>
+        </optgroup>
+        <optgroup label="Flying Mounts · 9 hr/day (rest 1:3)">
+          <option value="pegasus">Pegasus — 144 mi/day</option>
+          <option value="griffon">Griffon — 90 mi/day</option>
+          <option value="hippogriff">Hippogriff — 108 mi/day</option>
+        </optgroup>
+      </select>
     </fieldset>
   </div>
   <div id="td-footer">
@@ -687,6 +710,27 @@ const TRAVEL_RATES = {
 
 // 30 miles per Darlene hex. Used to translate mi/day → days/hex.
 const HEX_MILES = 30;
+
+// ── DMG AERIAL TRAVEL ────────────────────────────────────────────────────────
+// Long-distance aerial travel: every 3" of base speed = 1 mph (DMG p.49).
+// Magic items fly ~10 hr/day; flying mounts must rest 1 hr per 3 hr flown
+// with a hard 9-hr daily cap (DMG p.50). Flight ignores terrain difficulty
+// and may cross water. Carpet sizes from DMG carpet of flying entry.
+const FLIGHT_VEHICLES = {
+  broom:      { label: "Broom of Flying",  speedIn: 30, hrs: 10, group: 'item',  cap: '1 person'  },
+  carpet_1:   { label: "Carpet 3'×5'",     speedIn: 42, hrs: 10, group: 'item',  cap: '1 person'  },
+  carpet_2:   { label: "Carpet 4'×6'",     speedIn: 36, hrs: 10, group: 'item',  cap: '2 persons' },
+  carpet_3:   { label: "Carpet 5'×7'",     speedIn: 30, hrs: 10, group: 'item',  cap: '3 persons' },
+  carpet_4:   { label: "Carpet 6'×9'",     speedIn: 24, hrs: 10, group: 'item',  cap: '4 persons' },
+  wings:      { label: "Wings of Flying",  speedIn: 36, hrs: 10, group: 'item',  cap: '1 person'  },
+  pegasus:    { label: "Pegasus",          speedIn: 48, hrs:  9, group: 'mount', cap: '1 rider'   },
+  griffon:    { label: "Griffon",          speedIn: 30, hrs:  9, group: 'mount', cap: '1 rider'   },
+  hippogriff: { label: "Hippogriff",       speedIn: 36, hrs:  9, group: 'mount', cap: '1 rider'   },
+};
+function flightMilesPerDay(vehicleId){
+  const v = FLIGHT_VEHICLES[vehicleId]; if (!v) return null;
+  return Math.round((v.speedIn / 3) * v.hrs);
+}
 
 // ── REGIONS ───────────────────────────────────────────────────────────────────
 // Region data lives in gcc-regions.js (loaded above). See getRegion() below.
@@ -959,8 +1003,17 @@ function getHexTerrain(col,row){
 }
 function travelTime(terrain, dist, profile){
   const t = TERRAIN[terrain];
-  if (!t || t.difficulty == null) return 'Impassable';
+  if (!t) return 'Impassable';
   profile = profile || (state && state.travelProfile) || DEFAULT_TRAVEL_PROFILE;
+  if (profile.mode === 'flying'){
+    const milesPerDay = flightMilesPerDay(profile.vehicle);
+    if (milesPerDay == null || milesPerDay <= 0) return 'Impassable';
+    const dayHrs = FLIGHT_VEHICLES[profile.vehicle]?.hrs || 10;
+    const d = (HEX_MILES / milesPerDay) * dist;
+    if (d < 1) return `~${Math.round(d * dayHrs)}h flying`;
+    return `~${d.toFixed(1)} day(s) flying`;
+  }
+  if (t.difficulty == null) return 'Impassable';
   const milesPerDay = travelMilesPerDay(t.difficulty, profile);
   if (milesPerDay == null || milesPerDay <= 0) return 'Impassable';
   const daysPerHex = HEX_MILES / milesPerDay;
@@ -998,6 +1051,7 @@ const DEFAULT_TRAVEL_PROFILE = Object.freeze({
   mode: 'foot',
   burden: 'average',
   mount: 'medium',
+  vehicle: 'broom',
 });
 
 // Persisted profile load/save. Falls back to the default if storage
@@ -1008,15 +1062,17 @@ function loadTravelProfile(){
   // Fallback default inlined so this function can run before
   // DEFAULT_TRAVEL_PROFILE's `const` is evaluated (state's initializer
   // runs before later top-level consts in source order).
-  const FALLBACK = { mode: 'foot', burden: 'average', mount: 'medium' };
+  const FALLBACK = { mode: 'foot', burden: 'average', mount: 'medium', vehicle: 'broom' };
+  const VEHICLE_IDS = ['broom','carpet_1','carpet_2','carpet_3','carpet_4','wings','pegasus','griffon','hippogriff'];
   try {
     const raw = localStorage.getItem('gh-travel-profile');
     if (!raw) return { ...FALLBACK };
     const parsed = JSON.parse(raw);
     return {
-      mode:   ['foot','mounted'].includes(parsed.mode) ? parsed.mode : 'foot',
-      burden: ['light','average','heavy'].includes(parsed.burden) ? parsed.burden : 'average',
-      mount:  ['light','medium','heavy','draft','cart','wagon'].includes(parsed.mount) ? parsed.mount : 'medium',
+      mode:    ['foot','mounted','flying'].includes(parsed.mode) ? parsed.mode : 'foot',
+      burden:  ['light','average','heavy'].includes(parsed.burden) ? parsed.burden : 'average',
+      mount:   ['light','medium','heavy','draft','cart','wagon'].includes(parsed.mount) ? parsed.mount : 'medium',
+      vehicle: VEHICLE_IDS.includes(parsed.vehicle) ? parsed.vehicle : 'broom',
     };
   } catch (e) {
     return { ...FALLBACK };
@@ -1103,7 +1159,11 @@ function travelProfileLabel(p){
   p = p || (state && state.travelProfile) || DEFAULT_TRAVEL_PROFILE;
   let baseRate = null;
   let head;
-  if (p.mode === 'foot'){
+  if (p.mode === 'flying'){
+    const v = FLIGHT_VEHICLES[p.vehicle];
+    head = v ? v.label : p.vehicle;
+    baseRate = flightMilesPerDay(p.vehicle);
+  } else if (p.mode === 'foot'){
     const burdens = { light: 'Light burden', average: 'Avg burden', heavy: 'Heavy burden' };
     head = `Foot · ${burdens[p.burden] || p.burden}`;
     baseRate = TRAVEL_RATES.foot[p.burden]?.normal;
@@ -1499,7 +1559,8 @@ function updateSidePanel(col,row,terrain,region,dist){
   if (moveBtn){
     const isPartyHex = (col === state.partyCol && row === state.partyRow);
     const isWater = String(terrain).startsWith('water');
-    if (!isPartyHex && !isWater){
+    const flying = (state.travelProfile?.mode === 'flying');
+    if (!isPartyHex && (!isWater || flying)){
       moveBtn.style.display = '';
       moveBtn.dataset.col = String(col);
       moveBtn.dataset.row = String(row);
@@ -1762,6 +1823,8 @@ function openTravelDialog(){
   for (const r of dlg.querySelectorAll('input[name="td-mode"]'))   r.checked = (r.value === p.mode);
   for (const r of dlg.querySelectorAll('input[name="td-burden"]')) r.checked = (r.value === p.burden);
   for (const r of dlg.querySelectorAll('input[name="td-mount"]'))  r.checked = (r.value === p.mount);
+  const flightSel = dlg.querySelector('#td-flight-sel');
+  if (flightSel) flightSel.value = p.vehicle || 'broom';
   updateTravelDialogGrayState();
   dlg.classList.add('open');
   if (tdDrag && !tdDrag.restore()) tdDrag.placeCenter();
@@ -1774,13 +1837,15 @@ function updateTravelDialogGrayState(){
   const mode = dlg.querySelector('input[name="td-mode"]:checked')?.value || 'foot';
   dlg.querySelector('#td-fs-burden').classList.toggle('disabled', mode !== 'foot');
   dlg.querySelector('#td-fs-mount' ).classList.toggle('disabled', mode !== 'mounted');
+  dlg.querySelector('#td-fs-flight').classList.toggle('disabled', mode !== 'flying');
 }
 function applyTravelProfile(){
   const dlg = document.getElementById('travel-dialog');
-  const mode   = dlg.querySelector('input[name="td-mode"]:checked')?.value   || 'foot';
-  const burden = dlg.querySelector('input[name="td-burden"]:checked')?.value || 'average';
-  const mount  = dlg.querySelector('input[name="td-mount"]:checked')?.value  || 'medium';
-  state.travelProfile = { mode, burden, mount };
+  const mode    = dlg.querySelector('input[name="td-mode"]:checked')?.value   || 'foot';
+  const burden  = dlg.querySelector('input[name="td-burden"]:checked')?.value || 'average';
+  const mount   = dlg.querySelector('input[name="td-mount"]:checked')?.value  || 'medium';
+  const vehicle = dlg.querySelector('#td-flight-sel')?.value                  || 'broom';
+  state.travelProfile = { mode, burden, mount, vehicle };
   saveTravelProfile(state.travelProfile);
   closeTravelDialog();
   // Refresh side panel so the new profile is reflected immediately in
@@ -1797,7 +1862,8 @@ function confirmMove(){
   if(!state.pendingMove) return;
   const {col,row}=state.pendingMove;
   const terrain=getHexTerrain(col,row);
-  if(terrain==='water'){showToast('Cannot enter water hex without a vessel.');closeMoveDialog();return;}
+  const flying=(state.travelProfile?.mode === 'flying');
+  if(!flying && terrain==='water'){showToast('Cannot enter water hex without a vessel.');closeMoveDialog();return;}
   const oldKey=`${state.partyCol}-${state.partyRow}`;
   if(!state.hexData[oldKey]) state.hexData[oldKey]={};
   state.hexData[oldKey].explored=true;
