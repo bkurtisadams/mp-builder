@@ -350,11 +350,13 @@
 <div id="side-panel">
   <button id="panel-close">✕</button>
   <div id="panel-header">
-    <h2>Party Position</h2>
+    <h2>Hex Selected</h2>
     <div id="panel-hex-id">No hex selected</div>
   </div>
   <div id="panel-body">
-    <div class="panel-row"><label>Current Hex</label><div class="value" id="p-current-hex">—</div></div>
+    <div class="panel-row"><label>Current Party Hex</label><div class="value" id="p-current-hex">—</div></div>
+    <div class="panel-row"><label>Landmark</label><div class="value" id="p-party-landmark">—</div></div>
+    <hr class="panel-divider">
     <div class="panel-row"><label>Terrain</label><div class="value" id="p-terrain">—</div></div>
     <div class="panel-row"><label>Region</label><div class="value" id="p-region">—</div></div>
     <div class="panel-row"><label>Est. Travel Time</label><div class="value" id="p-travel">—</div></div>
@@ -1517,6 +1519,12 @@ function updateSidePanel(col,row,terrain,region,dist){
   const _lm = (typeof GCCLandmarks !== 'undefined') ? GCCLandmarks.getById(_id) : null;
   document.getElementById('panel-hex-id').textContent = _lm ? `${_lm.name} (${_id})` : _id;
   document.getElementById('p-current-hex').textContent=hexIdStr(state.partyCol,state.partyRow);
+  // Landmark row reflects the *party* hex, not the selected hex — the
+  // header subtitle already names whatever landmark is at the selected
+  // hex. "—" when the party isn't standing on a known landmark.
+  const partyLm = (typeof GCCLandmarks !== 'undefined')
+    ? GCCLandmarks.getById(hexIdStr(state.partyCol, state.partyRow)) : null;
+  document.getElementById('p-party-landmark').textContent = partyLm ? partyLm.name : '—';
   document.getElementById('p-terrain').textContent=TERRAIN[terrain]?.label||terrain;
   document.getElementById('p-region').textContent=region;
   document.getElementById('p-travel').textContent=dist>0?travelTime(terrain,dist):'Current position';
