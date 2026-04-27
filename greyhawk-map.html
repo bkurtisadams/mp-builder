@@ -96,6 +96,15 @@
   .party-pulse { animation:pulse 2.2s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:.5;r:7}50%{opacity:.12;r:12} }
 
+  /* Path overlay — rivers (Phase A). Roads + crossings render here too
+     once Phase B/C ship. The trace-preview classes are driven by the
+     Hex Editor's Paths pane while a path is being drawn. */
+  .path-river { fill:#4d8ab6; stroke:#4d8ab6; stroke-linecap:round; stroke-linejoin:round; opacity:.85; pointer-events:none; }
+  .path-trace { fill:none; stroke:#e8d878; stroke-width:2.5; stroke-dasharray:6 3; stroke-linecap:round; stroke-linejoin:round; opacity:.95; pointer-events:none; }
+  .path-trace-vertex { fill:#e8d878; stroke:#5a4108; stroke-width:.8; pointer-events:none; }
+  .path-trace-source { fill:#cc4422; stroke:#fff8b8; stroke-width:1.2; pointer-events:none; }
+  .path-trace-end    { fill:#e8d878; stroke:#5a4108; stroke-width:1.4; pointer-events:none; }
+
   /* SIDE PANEL — free-floating, draggable by header */
   #side-panel { position:fixed; top:0; left:0; width:215px; background:var(--panel-bg); border:1px solid var(--panel-border); border-radius:3px; display:flex; flex-direction:column; z-index:50; opacity:0; pointer-events:none; transition:opacity .18s ease; box-shadow:0 8px 32px rgba(0,0,0,.7); }
   #side-panel.open { opacity:1; pointer-events:all; }
@@ -706,7 +715,7 @@
 <script src="gcc-encounter-panel.js?v=8"></script>
 <script src="gcc-landmarks.js?v=9"></script>
 <script src="gcc-terrain.js?v=3"></script>
-<script src="gcc-paths.js?v=1"></script>
+<script src="gcc-paths.js?v=2"></script>
 <script src="gcc-hex-edit.js?v=15"></script>
 <script src="gcc-voyage.js?v=2"></script>
 <script>
@@ -1622,7 +1631,9 @@ function buildHexGrid(){
       labelsG.appendChild(txt);
     }
   }
-  svg.appendChild(cellsG); svg.appendChild(labelsG);
+  svg.appendChild(cellsG);
+  svg.appendChild(buildPathOverlay());
+  svg.appendChild(labelsG);
   svg.appendChild(buildCoordLabels());
   svg.appendChild(buildLandmarkOverlay());
   svg.appendChild(buildJourneyOverlay());
@@ -1884,6 +1895,58 @@ function rebuildLandmarkOverlay(){
   if (old && old.parentNode) old.parentNode.replaceChild(next, old);
   else svg.appendChild(next);
 }
+// ── PATH OVERLAY ─────────────────────────────────────────────────────────────
+// Renders rivers (and roads, Phase C) as polylines through hex centers.
+// Sits between the cells layer and the labels layer so terrain paint
+// shows underneath but coord text stays readable on top. Width keys
+// off river type (great_river > river > stream).
+function buildPathOverlay(){
+  const ns = 'http://www.w3.org/2000/svg';
+  const g = document.createElementNS(ns, 'g');
+  g.id = 'path-overlay';
+  g.style.pointerEvents = 'none';
+  if (typeof GCCPaths === 'undefined') return g;
+  for (const name of GCCPaths.allRiverNames()){
+    const chain = GCCPaths.getRiverChain(name);
+    if (!chain || chain.length < 1) continue;
+    const info = GCCPaths.getRiverInfo(name);
+    const w = info.type === 'great_river' ? 3.4
+            : info.type === 'river'       ? 2.4
+            :                                1.5;
+    if (chain.length >= 2){
+      const pts = chain.map(h => {
+        const c = hexCenter(h.col, h.row);
+        const s = mapToStage(c.x, c.y);
+        return `${s.x.toFixed(1)},${s.y.toFixed(1)}`;
+      }).join(' ');
+      const poly = document.createElementNS(ns, 'polyline');
+      poly.setAttribute('points', pts);
+      poly.setAttribute('class', 'path-river');
+      poly.setAttribute('stroke-width', w);
+      poly.dataset.name = name;
+      g.appendChild(poly);
+    } else {
+      // Single-hex river — render as a small disc so it's visible.
+      const c = hexCenter(chain[0].col, chain[0].row);
+      const s = mapToStage(c.x, c.y);
+      const dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', s.x); dot.setAttribute('cy', s.y);
+      dot.setAttribute('r', w);
+      dot.setAttribute('class', 'path-river');
+      g.appendChild(dot);
+    }
+  }
+  return g;
+}
+function rebuildPathOverlay(){
+  const svg = document.getElementById('hex-svg');
+  if (!svg) return;
+  const old = document.getElementById('path-overlay');
+  const next = buildPathOverlay();
+  if (old && old.parentNode) old.parentNode.replaceChild(next, old);
+  else svg.appendChild(next);
+}
+window.rebuildPathOverlay = rebuildPathOverlay;
 function updatePartyMarker(){
   const {x:mx,y:my}=hexCenterDisplay(state.partyCol,state.partyRow);
   const {x,y}=mapToStage(mx,my);

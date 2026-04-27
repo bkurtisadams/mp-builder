@@ -1,9 +1,16 @@
-// gcc-hex-edit.js v0.6.6 — 2026-04-23
-// Hex Editor: tab shell for Landmarks / Paint / Outline / Draw.
-// Requires globals: GCCLandmarks, GCCTerrain, TERRAIN, hexIdStr,
+// gcc-hex-edit.js v0.7.0 — 2026-04-27
+// Hex Editor: tab shell for Landmarks / Paint / Outline / Paths.
+// Requires globals: GCCLandmarks, GCCTerrain, GCCPaths, TERRAIN, hexIdStr,
 //   darleneToInternal, mapToHex, screenToMap, showToast,
-//   rebuildLandmarkOverlay/rebuildGrid/buildHexGrid,
+//   rebuildLandmarkOverlay/rebuildGrid/buildHexGrid/rebuildPathOverlay,
+//   hexCenter, mapToStage,
 //   makeDraggable (from greyhawk-map.html inline script).
+//
+// v0.7.0: Paths tab live (Phase A — rivers). Click-chain trace UI with
+//   river selector, +New form, undo/save/cancel, type/current
+//   metadata, persistence via GCCPaths overrides. Trace preview
+//   renders into #path-trace-preview SVG group. Roads (Phase C),
+//   bridges (Phase B), and Firebase sync (Phase F) still pending.
 //
 // v0.6.6: Parse LGG ⚗ button — small button beside the Description
 //   label. Reads the textarea, runs parseLggHeader() to split the
@@ -163,7 +170,7 @@
     { id:'landmarks', label:'Landmarks' },
     { id:'paint',     label:'Paint' },
     { id:'outline',   label:'Outline' },
-    { id:'draw',      label:'Draw' },
+    { id:'draw',      label:'Paths' },
   ];
 
   // ── Paint overlay opacity ─────────────────────────────────────────────────
@@ -211,6 +218,10 @@
     rgLastKey: null,
     rgTrace: [],             // [{col,row}] in-progress polygon vertices
     rgFormMode: null,        // null | 'new' | 'edit'
+    pfSelected: null,        // currently selected river name
+    pfMode: 'river',         // 'river' (Phase A); road/bridge later
+    pfFormOpen: false,       // +New River form visible
+    pfTrace: null,           // null | { name, type, current, chain, isNew }
     panelEl: null,
   };
 
@@ -229,9 +240,7 @@
       ${buildLandmarksPane()}
       ${buildPaintPane()}
       ${buildOutlinePane()}
-      ${buildStubPane('draw', 'Paths',
-        'Draw roads, rivers, trails, and other linear features. Paths carry terrain-speed modifiers that feed the CTT-integrated movement system.',
-        'Phase 4')}
+      ${buildPathsPane()}
     `;
     document.body.appendChild(p);
     state.panelEl = p;
@@ -367,6 +376,21 @@
     refreshRegionSelect();
     setRgMode(state.rgMode);
     updateRgStats();
+
+    // Paths tab wiring (Phase A — rivers).
+    p.querySelector('#he-pf-select').onchange  = onPfSelectChange;
+    p.querySelector('#he-pf-new').onclick      = onPfNewClick;
+    p.querySelector('#he-pf-edit').onclick     = onPfEditClick;
+    p.querySelector('#he-pf-delete').onclick   = onPfDeleteClick;
+    p.querySelector('#he-pf-form-begin').onclick  = onPfFormBegin;
+    p.querySelector('#he-pf-form-cancel').onclick = onPfFormCancel;
+    p.querySelector('#he-pf-undo').onclick     = onPfUndo;
+    p.querySelector('#he-pf-save').onclick     = onPfSave;
+    p.querySelector('#he-pf-cancel').onclick   = onPfCancel;
+    p.querySelector('#he-pf-export').onclick   = onPfExport;
+    p.querySelector('#he-pf-reset').onclick    = onPfReset;
+    refreshPfSelect();
+    refreshPfStats();
 
     injectStyles();
     setActiveTab(state.activeTab);
@@ -604,6 +628,68 @@
     `;
   }
 
+  // ── Paths pane (Phase A — rivers only) ────────────────────────────────
+  // Idle UI: river selector + "+ New River" + Edit/Delete. New River
+  // form swaps in for the action row. Trace UI swaps in for everything
+  // else once tracing begins.
+  function buildPathsPane(){
+    return `
+      <div class="he-pane" id="he-pane-draw">
+        <div class="he-pf-modes">
+          <button class="he-pf-mode active" data-pfmode="river">Rivers</button>
+          <button class="he-pf-mode" data-pfmode="road"   disabled title="Phase C">Roads</button>
+          <button class="he-pf-mode" data-pfmode="bridge" disabled title="Phase B">Crossings</button>
+        </div>
+
+        <div class="he-pf-idle" id="he-pf-idle">
+          <label class="he-lbl">River</label>
+          <select class="he-select" id="he-pf-select">
+            <option value="">— choose —</option>
+          </select>
+          <div class="he-pf-meta" id="he-pf-meta">No river selected.</div>
+          <div class="he-pf-actrow">
+            <button class="he-btn" id="he-pf-new">+ New River</button>
+            <button class="he-btn" id="he-pf-edit"   disabled>Edit Trace</button>
+            <button class="he-btn he-danger" id="he-pf-delete" disabled>Delete</button>
+          </div>
+        </div>
+
+        <div class="he-pf-form" id="he-pf-form" style="display:none">
+          <label class="he-lbl">New River</label>
+          <input class="he-input" id="he-pf-form-name" type="text" placeholder="Name (e.g. Nesser)" autocomplete="off">
+          <div class="he-pf-formrow">
+            <select class="he-input" id="he-pf-form-type">
+              <option value="stream">stream</option>
+              <option value="river" selected>river</option>
+              <option value="great_river">great river</option>
+            </select>
+            <input class="he-input" id="he-pf-form-current" type="number" min="1" max="5" value="2" title="Current 1–5">
+          </div>
+          <div class="he-pf-form-btns">
+            <button class="he-btn" id="he-pf-form-begin">Begin Tracing</button>
+            <button class="he-btn" id="he-pf-form-cancel">Cancel</button>
+          </div>
+        </div>
+
+        <div class="he-pf-trace" id="he-pf-trace" style="display:none">
+          <div class="he-pf-tracehdr" id="he-pf-tracehdr"></div>
+          <div class="he-status" id="he-pf-status">Click an upstream hex to start.</div>
+          <div class="he-pf-tracebtns">
+            <button class="he-btn" id="he-pf-undo"   disabled>Undo</button>
+            <button class="he-btn" id="he-pf-save"   disabled>Save</button>
+            <button class="he-btn he-danger" id="he-pf-cancel">Cancel</button>
+          </div>
+        </div>
+
+        <div class="he-paint-stats" id="he-pf-stats">No rivers yet.</div>
+        <div class="he-btns">
+          <button class="he-btn" id="he-pf-export">Export</button>
+          <button class="he-btn he-danger" id="he-pf-reset">Reset All</button>
+        </div>
+      </div>
+    `;
+  }
+
   function injectStyles(){
     if (document.getElementById('he-styles')) return;
     const s = document.createElement('style');
@@ -824,6 +910,52 @@
         margin-bottom:6px;
       }
       #hex-edit-panel .he-rg-traceaux .he-btn { font-size:10px; padding:3px 4px; }
+      /* Paths tab — river/road/bridge editor */
+      #hex-edit-panel .he-pf-modes {
+        display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;
+        margin-bottom:6px;
+      }
+      #hex-edit-panel .he-pf-mode {
+        background:#1a1408; color:#c8a96e; border:1px solid #5a3d0a;
+        padding:4px 6px; font-size:10px; font-family:inherit; cursor:pointer;
+        border-radius:2px; letter-spacing:.04em;
+      }
+      #hex-edit-panel .he-pf-mode:hover:not([disabled]) { border-color:#c8941a; color:#e8b840; }
+      #hex-edit-panel .he-pf-mode.active {
+        background:rgba(200,148,26,.22); color:#ffeebb; border-color:#c8941a;
+      }
+      #hex-edit-panel .he-pf-meta {
+        margin:4px 0 6px; font-size:10px; color:#a89066; font-style:italic;
+      }
+      #hex-edit-panel .he-pf-actrow,
+      #hex-edit-panel .he-pf-form-btns {
+        display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px;
+      }
+      #hex-edit-panel .he-pf-form-btns { grid-template-columns:1fr 1fr; margin-top:6px; }
+      #hex-edit-panel .he-pf-actrow .he-btn,
+      #hex-edit-panel .he-pf-form-btns .he-btn { font-size:10px; padding:4px 6px; }
+      #hex-edit-panel .he-pf-form {
+        margin:6px 0; padding:6px; background:rgba(20,14,6,.6);
+        border:1px solid #5a3d0a; border-radius:2px;
+      }
+      #hex-edit-panel .he-pf-formrow {
+        display:grid; grid-template-columns:1fr 60px; gap:4px; margin-top:6px;
+      }
+      #hex-edit-panel .he-pf-formrow select,
+      #hex-edit-panel .he-pf-formrow input { font-size:10px; padding:2px 4px; height:24px; }
+      #hex-edit-panel .he-pf-trace {
+        margin:6px 0; padding:6px; background:rgba(20,14,6,.6);
+        border:1px solid #5a3d0a; border-radius:2px;
+      }
+      #hex-edit-panel .he-pf-tracehdr {
+        font-size:11px; color:#ffeebb; font-weight:600; letter-spacing:.04em;
+        margin-bottom:4px;
+      }
+      #hex-edit-panel .he-pf-tracebtns {
+        display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-top:6px;
+      }
+      #hex-edit-panel .he-pf-tracebtns .he-btn { font-size:10px; padding:4px 6px; }
+      body.he-pathing #map-wrap { cursor:crosshair !important; }
       body.he-editing #map-wrap { cursor:crosshair !important; }
       body.he-painting #map-wrap { cursor:cell !important; }
       #btn-hex-edit.active { background:rgba(200,148,26,.28); color:#ffeebb; border-color:#c8941a; }
@@ -845,6 +977,15 @@
     } else if (prev === 'outline' && id !== 'outline'){
       restoreTerrainOverlay();
       clearTraceOverlay();
+    }
+    // Paths tab: refresh selector on enter; cancel trace on leave.
+    if (id === 'draw' && prev !== 'draw'){
+      refreshPfSelect();
+      refreshPfStats();
+      document.body.classList.add('he-pathing');
+    } else if (prev === 'draw' && id !== 'draw'){
+      pfCancelTrace();
+      document.body.classList.remove('he-pathing');
     }
   }
 
@@ -1192,6 +1333,8 @@
       onLandmarksClick(ev);
     } else if (state.activeTab === 'outline'){
       onOutlineClick(ev);
+    } else if (state.activeTab === 'draw'){
+      onPathsClick(ev);
     }
     // Paint / Draw: no-op for click — Paint uses mousedown/move/up.
   }
@@ -1925,6 +2068,294 @@
     }
   }
 
+  // ── Paths tab handlers (Phase A — rivers) ─────────────────────────────
+  function pfPanel(){ return state.panelEl; }
+  function pfSetStatus(msg){
+    const el = pfPanel()?.querySelector('#he-pf-status');
+    if (el) el.textContent = msg;
+  }
+  function refreshPfSelect(){
+    const sel = pfPanel()?.querySelector('#he-pf-select');
+    if (!sel) return;
+    const names = (typeof GCCPaths !== 'undefined') ? GCCPaths.allRiverNames() : [];
+    const cur = state.pfSelected;
+    sel.innerHTML = '<option value="">— choose —</option>' +
+      names.map(n => {
+        const info = GCCPaths.getRiverInfo(n);
+        const tag = info?.isOverride ? ' ●' : '';
+        return `<option value="${n}">${n}${tag}</option>`;
+      }).join('');
+    if (cur && names.includes(cur)) sel.value = cur;
+    else state.pfSelected = null;
+    refreshPfMeta();
+    refreshPfActions();
+  }
+  function refreshPfMeta(){
+    const el = pfPanel()?.querySelector('#he-pf-meta');
+    if (!el) return;
+    if (!state.pfSelected){ el.textContent = 'No river selected.'; return; }
+    const info = GCCPaths.getRiverInfo(state.pfSelected);
+    if (!info){ el.textContent = '—'; return; }
+    const tag = info.isOverride ? ' (override)' : info.isBase ? ' (base)' : '';
+    const tlabel = info.type === 'great_river' ? 'great river' : info.type;
+    el.textContent = `${tlabel} · current ${info.current} · ${info.hexCount} hexes${tag}`;
+  }
+  function refreshPfActions(){
+    const p = pfPanel(); if (!p) return;
+    const has = !!state.pfSelected;
+    p.querySelector('#he-pf-edit').disabled   = !has;
+    p.querySelector('#he-pf-delete').disabled = !has;
+  }
+  function refreshPfStats(){
+    const el = pfPanel()?.querySelector('#he-pf-stats');
+    if (!el) return;
+    if (typeof GCCPaths === 'undefined'){ el.textContent = 'gcc-paths.js not loaded'; return; }
+    const names = GCCPaths.allRiverNames();
+    if (names.length === 0){ el.textContent = 'No rivers yet.'; return; }
+    let totalHexes = 0, overrides = 0;
+    for (const n of names){
+      const info = GCCPaths.getRiverInfo(n);
+      if (info){ totalHexes += info.hexCount; if (info.isOverride) overrides++; }
+    }
+    el.textContent = `${names.length} river${names.length===1?'':'s'} · ${totalHexes} hex${totalHexes===1?'':'es'} · ${overrides} override${overrides===1?'':'s'}`;
+  }
+  function setPfFormVisible(open){
+    const p = pfPanel(); if (!p) return;
+    state.pfFormOpen = open;
+    p.querySelector('#he-pf-form').style.display = open ? '' : 'none';
+    p.querySelector('#he-pf-idle').style.display = open ? 'none' : '';
+    if (open){
+      p.querySelector('#he-pf-form-name').value = '';
+      p.querySelector('#he-pf-form-type').value = 'river';
+      p.querySelector('#he-pf-form-current').value = '2';
+      setTimeout(() => p.querySelector('#he-pf-form-name').focus(), 0);
+    }
+  }
+  function setPfTraceUI(visible){
+    const p = pfPanel(); if (!p) return;
+    p.querySelector('#he-pf-trace').style.display = visible ? '' : 'none';
+    p.querySelector('#he-pf-idle').style.display  = visible ? 'none' : '';
+    if (visible){
+      const t = state.pfTrace;
+      const tlabel = t.type === 'great_river' ? 'great river' : t.type;
+      const tag = t.isNew ? ' [new]' : '';
+      p.querySelector('#he-pf-tracehdr').textContent =
+        `Tracing ${t.name}${tag} · ${tlabel} · current ${t.current}`;
+      pfUpdateTraceButtons();
+    }
+  }
+  function pfUpdateTraceButtons(){
+    const p = pfPanel(); if (!p) return;
+    const t = state.pfTrace;
+    const len = t ? t.chain.length : 0;
+    p.querySelector('#he-pf-undo').disabled = (len === 0);
+    p.querySelector('#he-pf-save').disabled = (len === 0);
+  }
+
+  // ── Trace preview SVG layer ────────────────────────────────────────────
+  // Owned by the Hex Editor; sits on top of the path overlay so the
+  // in-progress chain is visible even while overlapping committed
+  // rivers. Cleared when trace ends or panel exits.
+  function pfRenderTracePreview(){
+    const svg = document.getElementById('hex-svg');
+    if (!svg) return;
+    const old = document.getElementById('path-trace-preview');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    if (!state.pfTrace) return;
+    const ns = 'http://www.w3.org/2000/svg';
+    const g = document.createElementNS(ns, 'g');
+    g.id = 'path-trace-preview';
+    g.style.pointerEvents = 'none';
+    const chain = state.pfTrace.chain;
+    if (chain.length >= 2){
+      const pts = chain.map(h => {
+        const c = hexCenter(h.col, h.row);
+        const s = mapToStage(c.x, c.y);
+        return `${s.x.toFixed(1)},${s.y.toFixed(1)}`;
+      }).join(' ');
+      const poly = document.createElementNS(ns, 'polyline');
+      poly.setAttribute('points', pts);
+      poly.setAttribute('class', 'path-trace');
+      g.appendChild(poly);
+    }
+    for (let i = 0; i < chain.length; i++){
+      const h = chain[i];
+      const c = hexCenter(h.col, h.row);
+      const s = mapToStage(c.x, c.y);
+      const dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', s.x); dot.setAttribute('cy', s.y);
+      const isSrc = (i === 0);
+      const isEnd = (i === chain.length - 1 && chain.length > 1);
+      dot.setAttribute('r', isSrc ? 5 : isEnd ? 4 : 2.6);
+      dot.setAttribute('class', isSrc ? 'path-trace-source'
+                              : isEnd ? 'path-trace-end'
+                              :         'path-trace-vertex');
+      g.appendChild(dot);
+    }
+    svg.appendChild(g);
+  }
+  function pfClearTracePreview(){
+    const old = document.getElementById('path-trace-preview');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+  }
+
+  // ── Trace lifecycle ────────────────────────────────────────────────────
+  function pfStartTrace(name, type, current, chain, isNew){
+    state.pfTrace = { name, type, current, chain: chain.map(h => ({col:h.col, row:h.row})), isNew };
+    setPfTraceUI(true);
+    pfRenderTracePreview();
+    pfSetStatus(chain.length === 0
+      ? 'Click an upstream hex to start.'
+      : `${chain.length} hex${chain.length===1?'':'es'}. Click adjacent hex to extend.`);
+  }
+  function pfCancelTrace(){
+    state.pfTrace = null;
+    pfClearTracePreview();
+    setPfTraceUI(false);
+    setPfFormVisible(false);
+  }
+
+  // ── Click handler ──────────────────────────────────────────────────────
+  function onPathsClick(ev){
+    if (!state.pfTrace){ return; }   // idle: clicks ignored
+    if (typeof screenToMap !== 'function' || typeof mapToHex !== 'function') return;
+    const m = screenToMap(ev.clientX, ev.clientY);
+    if (!m) return;
+    const hit = mapToHex(m.x, m.y);
+    if (!hit){ pfSetStatus('Click was outside the hex grid.'); return; }
+    const chain = state.pfTrace.chain;
+    // First hex: any pick is fine.
+    if (chain.length === 0){
+      chain.push({ col: hit.col, row: hit.row });
+      pfRenderTracePreview();
+      pfUpdateTraceButtons();
+      pfSetStatus(`Source set at ${hexIdStr(hit.col, hit.row)}. Click adjacent hex to extend.`);
+      return;
+    }
+    // Click an existing chain hex → trim chain to that index.
+    const idx = chain.findIndex(h => h.col === hit.col && h.row === hit.row);
+    if (idx >= 0){
+      if (idx === chain.length - 1){
+        pfSetStatus(`Already at ${hexIdStr(hit.col, hit.row)} (end of chain). Click Undo to retract.`);
+        return;
+      }
+      chain.length = idx + 1;
+      pfRenderTracePreview();
+      pfUpdateTraceButtons();
+      pfSetStatus(`Trimmed to ${chain.length} hex${chain.length===1?'':'es'} (now ending at ${hexIdStr(hit.col, hit.row)}).`);
+      return;
+    }
+    // Adjacency check against the last hex.
+    const last = chain[chain.length - 1];
+    if (typeof GCCPaths === 'undefined' || !GCCPaths.areAdjacent(last.col, last.row, hit.col, hit.row)){
+      pfSetStatus(`${hexIdStr(hit.col, hit.row)} is not adjacent to ${hexIdStr(last.col, last.row)}.`);
+      return;
+    }
+    chain.push({ col: hit.col, row: hit.row });
+    pfRenderTracePreview();
+    pfUpdateTraceButtons();
+    pfSetStatus(`${chain.length} hex${chain.length===1?'':'es'}. Click adjacent hex to extend, or Save when done.`);
+  }
+
+  // ── Idle-state actions ─────────────────────────────────────────────────
+  function onPfSelectChange(ev){
+    state.pfSelected = ev.target.value || null;
+    refreshPfMeta();
+    refreshPfActions();
+  }
+  function onPfNewClick(){
+    setPfFormVisible(true);
+  }
+  function onPfFormBegin(){
+    const p = pfPanel();
+    const name = (p.querySelector('#he-pf-form-name').value || '').trim();
+    const type = p.querySelector('#he-pf-form-type').value;
+    const current = parseInt(p.querySelector('#he-pf-form-current').value, 10) || 2;
+    if (!name){ pfSetStatus('Enter a name first.'); return; }
+    if (typeof GCCPaths === 'undefined'){ showToast('gcc-paths.js not loaded'); return; }
+    if (GCCPaths.getRiverInfo(name)){
+      if (!confirm(`A river named "${name}" already exists. Replace it?`)) return;
+    }
+    setPfFormVisible(false);
+    pfStartTrace(name, type, current, [], true);
+  }
+  function onPfFormCancel(){
+    setPfFormVisible(false);
+  }
+  function onPfEditClick(){
+    if (!state.pfSelected) return;
+    const info = GCCPaths.getRiverInfo(state.pfSelected);
+    const chain = GCCPaths.getRiverChain(state.pfSelected) || [];
+    if (!info) return;
+    pfStartTrace(state.pfSelected, info.type, info.current, chain, false);
+  }
+  function onPfDeleteClick(){
+    if (!state.pfSelected) return;
+    const name = state.pfSelected;
+    if (!confirm(`Delete river "${name}"? Base rivers can be restored via Reset All.`)) return;
+    GCCPaths.deleteRiver(name);
+    state.pfSelected = null;
+    refreshPfSelect();
+    refreshPfStats();
+  }
+
+  // ── Trace-state actions ────────────────────────────────────────────────
+  function onPfUndo(){
+    if (!state.pfTrace) return;
+    const chain = state.pfTrace.chain;
+    if (chain.length === 0) return;
+    chain.pop();
+    pfRenderTracePreview();
+    pfUpdateTraceButtons();
+    if (chain.length === 0) pfSetStatus('Cleared. Click an upstream hex to start.');
+    else pfSetStatus(`${chain.length} hex${chain.length===1?'':'es'}. Click adjacent hex to extend.`);
+  }
+  function onPfSave(){
+    const t = state.pfTrace;
+    if (!t || t.chain.length === 0) return;
+    try {
+      GCCPaths.saveRiver(t.name, t.type, t.current, t.chain);
+    } catch (e){
+      showToast(`Save failed: ${e.message}`);
+      return;
+    }
+    state.pfSelected = t.name;
+    pfCancelTrace();
+    refreshPfSelect();
+    refreshPfStats();
+    showToast(`Saved ${t.name} (${t.chain.length} hex${t.chain.length===1?'':'es'})`);
+  }
+  function onPfCancel(){
+    pfCancelTrace();
+  }
+
+  // ── Bulk actions ───────────────────────────────────────────────────────
+  function onPfExport(){
+    if (typeof GCCPaths === 'undefined') return;
+    const data = GCCPaths.exportOverrides();
+    const blob = JSON.stringify(data, null, 2);
+    console.log('── gcc-paths.js overrides ──');
+    console.log(blob);
+    if (navigator.clipboard) navigator.clipboard.writeText(blob).then(
+      () => showToast('Path overrides copied to clipboard (also in console)'),
+      () => showToast('Path overrides printed to console')
+    );
+    else showToast('Path overrides printed to console');
+  }
+  function onPfReset(){
+    if (typeof GCCPaths === 'undefined') return;
+    const data = GCCPaths.exportOverrides();
+    const n = Object.keys(data.rivers).length + data.deletedRivers.length;
+    if (n === 0){ showToast('No path overrides to clear'); return; }
+    if (!confirm(`Clear ${n} path override${n===1?'':'s'}? Base rivers will be restored.`)) return;
+    GCCPaths.clearOverrides();
+    state.pfSelected = null;
+    pfCancelTrace();
+    refreshPfSelect();
+    refreshPfStats();
+    showToast('Path overrides cleared');
+  }
+
   // ── Enter / exit mode ────────────────────────────────────────────────────
   function enter(){
     if (state.active) return;
@@ -1974,6 +2405,10 @@
       restoreTerrainOverlay();
       clearTraceOverlay();
     }
+    if (state.activeTab === 'draw'){
+      pfCancelTrace();
+    }
+    document.body.classList.remove('he-pathing');
     if (state.panelEl) state.panelEl.style.display = 'none';
     const wrap = document.getElementById('map-wrap');
     if (wrap){

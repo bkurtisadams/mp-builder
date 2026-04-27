@@ -1,57 +1,42 @@
-// gcc-paths.js v0.1.0 — 2026-04-27
+// gcc-paths.js v0.2.0 — 2026-04-27
 // Edge-based path features for the Greyhawk hex map: rivers, roads,
-// bridges, fords, ferries. The journey planner's resolver consults this
-// module to determine whether a hex-to-hex transition is blocked by a
-// river or accelerated by a road.
+// bridges, fords, ferries. v0.2 adds editor-driven CRUD with
+// localStorage override layering on top of hardcoded base data.
 //
 // ── Edge numbering ──────────────────────────────────────────────────────────
 // Flat-top hexes with odd-q-offset coordinates (odd cols shifted DOWN
-// by half a row). Edges numbered clockwise from N:
-//   0 = N, 1 = NE, 2 = SE, 3 = S, 4 = SW, 5 = NW
-// neighborAcross(col, row, edge) returns the hex on the other side.
-// edgeBetween(colA, rowA, colB, rowB) returns 0..5 if adjacent, -1 if not.
-// Opposite edge = (e + 3) % 6.
+// by half a row). Edges numbered clockwise from N: 0=N, 1=NE, 2=SE,
+// 3=S, 4=SW, 5=NW. Opposite edge = (e + 3) % 6.
 //
 // ── Storage ─────────────────────────────────────────────────────────────────
-// Two kinds of features:
+// SEGMENTS (rivers/roads): per-hex records in hexSegments. Each segment
+// has entryEdge + exitEdge identifying its hex boundaries; first hex of
+// a chain has entry = -1 (open source), last has exit = -1 (open mouth).
 //
-// SEGMENTS (rivers, roads): a linear feature passing THROUGH a hex.
-//   Stored per-hex in hexSegments. Each segment has entryEdge + exitEdge
-//   identifying where it crosses the hex boundary. A river that flows
-//   through hexes A→B has a segment record in EACH hex (A's exitEdge
-//   matches B's entryEdge across the shared border).
+// EDGE FEATURES (bridges/fords/ferries): single record per shared edge
+// stored on the lower-coord hex per ownerHex().
 //
-// EDGE FEATURES (bridges, fords, ferries): a point-on-edge feature at
-//   the boundary between two hexes. Stored ONCE per shared edge, on
-//   the lower-coordinate hex per ownerHex(). edgeFeaturesAt() handles
-//   lookup from either side.
+// ── Override model ──────────────────────────────────────────────────────────
+// Two-layer like gcc-terrain / gcc-regions. Base data is hardcoded
+// here; override data lives in localStorage as {name → {type, current,
+// chain}} plus a deletedRivers tombstone list. rebuild() wipes and
+// replays both — base entities not in deleted set restored, override
+// entities (including ones sharing a base name) clobber the base.
 //
-// ── Resolver ────────────────────────────────────────────────────────────────
-// edgeBlocks(A, B, mode) → bool. True if ground travel from A to B
-//   crosses an unbridged river. Streams are always crossable; rivers
-//   and great rivers need a bridge/ford/ferry. Flying ignores all blocks.
-// edgeRoadBonus(A, B, terrain) → multiplier. 1.5 for true road, 1.2
-//   for track or road-through-rugged-terrain (per WoG rule that roads
-//   downgrade through hills/mountains/marsh/desert).
-// edgeRiverInfo(A, B) → { blocks, river, crossing } — the full picture
-//   for the planner to render journey-log narration ("crossed Free
-//   City Bridge over the Selintan").
-//
-// ── v0.1 scope ──────────────────────────────────────────────────────────────
-// Phase 1 of the path layer: data model + resolver + test data only.
-// No editor UI yet, no journey-planner integration yet (next session).
-// Test rivers (Selintan, Velverdyva, Sheldomar, Javan) are positionally
-// approximate — they exercise the resolver but will be replaced by
-// editor-authored data in a later phase.
+// ── v0.2 scope ─────────────────────────────────────────────────────────────
+// Phase A of the Hex Editor wiring: rivers only. Roads, edge-feature
+// CRUD, and Firebase sync remain as in v0.1 (Phase B/C/F).
 
 (function(){
   'use strict';
 
   const NEIGHBOR_OFFSETS = {
-    even: [[0,-1],[1,-1],[1,0],[0,1],[-1,0],[-1,-1]], // N, NE, SE, S, SW, NW
+    even: [[0,-1],[1,-1],[1,0],[0,1],[-1,0],[-1,-1]],
     odd:  [[0,-1],[1, 0],[1,1],[0,1],[-1,1],[-1, 0]],
   };
   const EDGE_NAMES = ['N','NE','SE','S','SW','NW'];
+  const RIVER_TYPES = ['stream','river','great_river'];
+  const ROAD_KINDS = ['road','track'];
   const CROSSING_KINDS = new Set(['bridge','footbridge','ford','ferry']);
 
   function neighborAcross(col, row, edge){
@@ -72,11 +57,15 @@
     return rowA < rowB ? { col: colA, row: rowA } : { col: colB, row: rowB };
   }
   function keyOf(col, row){ return `${col}-${row}`; }
+  function areAdjacent(colA, rowA, colB, rowB){
+    return edgeBetween(colA, rowA, colB, rowB) >= 0;
+  }
 
-  const hexSegments     = {};   // 'col-row' → [seg, ...]
+  // ── Stores ─────────────────────────────────────────────────────────────
+  const hexSegments = {};       // 'col-row' → [seg, ...]
   const hexEdgeFeatures = {};   // 'col-row' → { edgeNum: [feature, ...] }
-  const namedRivers     = {};   // 'Selintan' → [{col, row, segment}, ...]
-  const namedRoads      = {};   //  same shape
+  const namedRivers = {};       // 'Selintan' → [{col, row, segment}, ...]
+  const namedRoads = {};
 
   function _addSegment(col, row, seg){
     const k = keyOf(col, row);
@@ -91,7 +80,26 @@
     if (!hexEdgeFeatures[k]) hexEdgeFeatures[k] = {};
     (hexEdgeFeatures[k][edge] = hexEdgeFeatures[k][edge] || []).push(feature);
   }
+  function _wipeRiver(name){
+    const entries = namedRivers[name] || [];
+    for (const { col, row, segment } of entries){
+      const k = keyOf(col, row);
+      const arr = hexSegments[k];
+      if (!arr) continue;
+      const filtered = arr.filter(s => s !== segment);
+      if (filtered.length === 0) delete hexSegments[k];
+      else hexSegments[k] = filtered;
+    }
+    delete namedRivers[name];
+  }
+  function _clearAll(){
+    for (const k of Object.keys(hexSegments)) delete hexSegments[k];
+    for (const k of Object.keys(hexEdgeFeatures)) delete hexEdgeFeatures[k];
+    for (const k of Object.keys(namedRivers)) delete namedRivers[k];
+    for (const k of Object.keys(namedRoads)) delete namedRoads[k];
+  }
 
+  // ── Accessors ──────────────────────────────────────────────────────────
   function segmentsAt(col, row){ return hexSegments[keyOf(col, row)] || []; }
   function riversAt(col, row){   return segmentsAt(col, row).filter(s => s.kind === 'river'); }
   function roadsAt(col, row){    return segmentsAt(col, row).filter(s => s.kind === 'road'); }
@@ -105,9 +113,6 @@
     return hexEdgeFeatures[keyOf(owner.col, owner.row)]?.[e] || [];
   }
 
-  // Find a river segment touching the shared edge between A and B,
-  // checking both hexes' segment lists (the segment is recorded in both
-  // hexes the river passes through; this query returns the first match).
   function _riverOnEdge(colA, rowA, colB, rowB){
     const eA = edgeBetween(colA, rowA, colB, rowB);
     if (eA < 0) return null;
@@ -133,6 +138,7 @@
     return null;
   }
 
+  // ── Resolver ───────────────────────────────────────────────────────────
   function edgeRiverInfo(colA, rowA, colB, rowB){
     const river = _riverOnEdge(colA, rowA, colB, rowB);
     if (!river) return { blocks: false, river: null, crossing: null };
@@ -145,11 +151,6 @@
     if (mode === 'flying') return false;
     return edgeRiverInfo(colA, rowA, colB, rowB).blocks;
   }
-  // Road bonus multiplier on miles/day for ground travel along a road.
-  // WoG: roads through hills/mountains/marsh/desert/barrens count as
-  // tracks. terrain string is the destination hex's terrain (the leg
-  // we're entering); if its difficulty isn't 'normal', a true road
-  // downgrades to track for that leg.
   function edgeRoadBonus(colA, rowA, colB, rowB, terrain){
     const road = _roadOnEdge(colA, rowA, colB, rowB);
     if (!road) return 1.0;
@@ -164,77 +165,196 @@
   function allRiverNames(){ return Object.keys(namedRivers).sort(); }
   function allRoadNames (){ return Object.keys(namedRoads ).sort(); }
 
-  // ── TEST DATA ─────────────────────────────────────────────────────────────
-  // Hardcoded sample rivers + a couple bridges for resolver validation.
-  // Coordinates anchored near canonical landmarks (Greyhawk D4-86 = col
-  // 64 row 44, Highfolk B5-90 = col 40 row 36, etc.) but the exact paths
-  // are approximations — Phase 4 (editor) will replace this with real data.
-  function _addRiverChain(name, type, current, path){
-    for (const h of path){
-      _addSegment(h.col, h.row, {
+  // ── Chain ↔ segments ───────────────────────────────────────────────────
+  // Build per-hex segment records from a chain of adjacent hexes.
+  // chain[0] is upstream (entry = -1, open source); chain[-1] is
+  // downstream (exit = -1, open mouth). Internal hexes get entry =
+  // edge to prev, exit = edge to next.
+  function chainToSegments(chain){
+    const segs = [];
+    for (let i = 0; i < chain.length; i++){
+      const h = chain[i];
+      const prev = i > 0 ? chain[i-1] : null;
+      const next = i < chain.length-1 ? chain[i+1] : null;
+      const entry = prev ? edgeBetween(h.col, h.row, prev.col, prev.row) : -1;
+      const exit  = next ? edgeBetween(h.col, h.row, next.col, next.row) : -1;
+      segs.push({ col: h.col, row: h.row, entry, exit });
+    }
+    return segs;
+  }
+  // Returns null on success; otherwise the index of the first non-adjacent
+  // step. chain.length < 2 is treated as valid.
+  function validateChain(chain){
+    for (let i = 1; i < chain.length; i++){
+      if (!areAdjacent(chain[i-1].col, chain[i-1].row, chain[i].col, chain[i].row)) return i;
+    }
+    return null;
+  }
+
+  // ── In-memory write (used by base loader + override replay) ────────────
+  function setRiverFromChain(name, type, current, chain){
+    if (!name) throw new Error('river needs a name');
+    if (!RIVER_TYPES.includes(type)) throw new Error(`bad river type: ${type}`);
+    const broken = validateChain(chain);
+    if (broken !== null) throw new Error(`chain breaks at index ${broken}`);
+    _wipeRiver(name);
+    const segs = chainToSegments(chain);
+    for (const s of segs){
+      _addSegment(s.col, s.row, {
         kind: 'river', type, current, name,
-        entryEdge: h.entry, exitEdge: h.exit,
-        downstreamEdge: h.exit,
+        entryEdge: s.entry, exitEdge: s.exit,
+        downstreamEdge: s.exit,
       });
     }
   }
-  // Selintan: Nyr Dyv → Greyhawk → Hardby → Woolly Bay
-  _addRiverChain('Selintan', 'great_river', 2, [
-    { col: 64, row: 41, entry: 0, exit: 3 },
-    { col: 64, row: 42, entry: 0, exit: 3 },
-    { col: 64, row: 43, entry: 0, exit: 3 },
-    { col: 64, row: 44, entry: 0, exit: 2 },  // Greyhawk: enters N, exits SE
-    { col: 65, row: 44, entry: 5, exit: 3 },  // odd col: enters NW, exits S
-    { col: 65, row: 45, entry: 0, exit: 3 },
-    { col: 65, row: 46, entry: 0, exit: 3 },
-    { col: 65, row: 47, entry: 0, exit: 3 },
-    { col: 65, row: 48, entry: 0, exit: 3 },
-    { col: 65, row: 49, entry: 0, exit: 3 },  // Hardby
-  ]);
-  // Velverdyva: Yatil Mountains → Highfolk → east toward Veluna/Nyr Dyv
-  _addRiverChain('Velverdyva', 'great_river', 2, [
-    { col: 38, row: 36, entry: 4, exit: 2 },  // even: SW → SE
-    { col: 39, row: 36, entry: 5, exit: 1 },  // odd:  NW → NE
-    { col: 40, row: 36, entry: 4, exit: 2 },  // Highfolk
-    { col: 41, row: 36, entry: 5, exit: 1 },
-    { col: 42, row: 36, entry: 4, exit: 2 },
-    { col: 43, row: 36, entry: 5, exit: 1 },
-  ]);
-  // Sheldomar: simple N-S chain through approximate Keoland heartland
-  _addRiverChain('Sheldomar', 'great_river', 2, [
-    { col: 44, row: 50, entry: 0, exit: 3 },
-    { col: 44, row: 51, entry: 0, exit: 3 },
-    { col: 44, row: 52, entry: 0, exit: 3 },
-    { col: 44, row: 53, entry: 0, exit: 3 },
-    { col: 44, row: 54, entry: 0, exit: 3 },
-    { col: 44, row: 55, entry: 0, exit: 3 },
-  ]);
-  // Javan: smaller river, west of the Sheldomar through Sterich/Yeomanry
-  _addRiverChain('Javan', 'river', 2, [
-    { col: 36, row: 56, entry: 0, exit: 3 },
-    { col: 36, row: 57, entry: 0, exit: 3 },
-    { col: 36, row: 58, entry: 0, exit: 3 },
-    { col: 36, row: 59, entry: 0, exit: 3 },
-    { col: 36, row: 60, entry: 0, exit: 3 },
-    { col: 36, row: 61, entry: 0, exit: 3 },
-  ]);
-  // Test bridges on the Selintan around Greyhawk City. Storage on the
-  // lower-coord hex (per ownerHex). Edge nums are from the owner's POV.
-  //   (64,43) edge 3 (S)  → boundary between (64,43) and (64,44=Greyhawk)
-  //   (64,44) edge 2 (SE) → boundary between (64,44) and (65,44)
-  _addEdgeFeature(64, 43, 3, { kind: 'bridge', name: 'Free City Bridge' });
-  _addEdgeFeature(64, 44, 2, { kind: 'bridge', name: 'Greyhawk South Bridge' });
 
-  // ── EXPORT ────────────────────────────────────────────────────────────────
+  // namedRivers entries are in chain order (upstream → downstream) by
+  // virtue of setRiverFromChain pushing in chain order.
+  function getRiverChain(name){
+    const entries = namedRivers[name];
+    if (!entries || entries.length === 0) return null;
+    return entries.map(e => ({ col: e.col, row: e.row }));
+  }
+  function getRiverInfo(name){
+    const entries = namedRivers[name];
+    if (!entries || entries.length === 0) return null;
+    const first = entries[0].segment;
+    return {
+      name,
+      type: first.type,
+      current: first.current,
+      hexCount: entries.length,
+      isBase: baseRiverNames.includes(name),
+      isOverride: !!overrideRivers[name],
+    };
+  }
+
+  // ── Persistence (localStorage overrides) ───────────────────────────────
+  const LS_RIVERS  = 'gcc-paths-rivers';
+  const LS_DELETED = 'gcc-paths-rivers-deleted';
+
+  let overrideRivers = {};
+  let deletedBaseRivers = new Set();
+
+  function loadOverrides(){
+    try {
+      const r = localStorage.getItem(LS_RIVERS);
+      overrideRivers = r ? JSON.parse(r) : {};
+      const d = localStorage.getItem(LS_DELETED);
+      deletedBaseRivers = new Set(d ? JSON.parse(d) : []);
+    } catch (e) {
+      overrideRivers = {};
+      deletedBaseRivers = new Set();
+    }
+  }
+  function saveOverridesLS(){
+    try {
+      localStorage.setItem(LS_RIVERS, JSON.stringify(overrideRivers));
+      localStorage.setItem(LS_DELETED, JSON.stringify(Array.from(deletedBaseRivers)));
+    } catch (e) {}
+  }
+
+  // Editor-driven save: persist override + replay.
+  function saveRiver(name, type, current, chain){
+    const cleanChain = chain.map(h => ({ col: h.col|0, row: h.row|0 }));
+    const broken = validateChain(cleanChain);
+    if (broken !== null) throw new Error(`chain breaks at index ${broken}`);
+    if (!RIVER_TYPES.includes(type)) throw new Error(`bad river type: ${type}`);
+    overrideRivers[name] = { type, current: +current, chain: cleanChain };
+    deletedBaseRivers.delete(name);
+    saveOverridesLS();
+    rebuild();
+  }
+  function deleteRiver(name){
+    if (overrideRivers[name]) delete overrideRivers[name];
+    if (baseRiverNames.includes(name)) deletedBaseRivers.add(name);
+    saveOverridesLS();
+    rebuild();
+  }
+  function clearOverrides(){
+    overrideRivers = {};
+    deletedBaseRivers = new Set();
+    saveOverridesLS();
+    rebuild();
+  }
+  function exportOverrides(){
+    return {
+      rivers: JSON.parse(JSON.stringify(overrideRivers)),
+      deletedRivers: Array.from(deletedBaseRivers),
+    };
+  }
+
+  // ── Base data ──────────────────────────────────────────────────────────
+  // Hardcoded baseline. Coordinates approximate — replace via the
+  // Hex Editor.
+  const baseRiverNames = [];
+  function _baseRiver(name, type, current, chain){
+    baseRiverNames.push(name);
+    setRiverFromChain(name, type, current, chain);
+  }
+  function loadBaseData(){
+    _baseRiver('Selintan', 'great_river', 2, [
+      {col:64,row:41},{col:64,row:42},{col:64,row:43},{col:64,row:44},
+      {col:65,row:44},{col:65,row:45},{col:65,row:46},{col:65,row:47},
+      {col:65,row:48},{col:65,row:49},
+    ]);
+    _baseRiver('Velverdyva', 'great_river', 2, [
+      {col:38,row:36},{col:39,row:36},{col:40,row:36},
+      {col:41,row:36},{col:42,row:36},{col:43,row:36},
+    ]);
+    _baseRiver('Sheldomar', 'great_river', 2, [
+      {col:44,row:50},{col:44,row:51},{col:44,row:52},
+      {col:44,row:53},{col:44,row:54},{col:44,row:55},
+    ]);
+    _baseRiver('Javan', 'river', 2, [
+      {col:36,row:56},{col:36,row:57},{col:36,row:58},
+      {col:36,row:59},{col:36,row:60},{col:36,row:61},
+    ]);
+    _addEdgeFeature(64, 43, 3, { kind: 'bridge', name: 'Free City Bridge' });
+    _addEdgeFeature(64, 44, 2, { kind: 'bridge', name: 'Greyhawk South Bridge' });
+  }
+
+  function rebuild(){
+    _clearAll();
+    baseRiverNames.length = 0;
+    loadBaseData();
+    for (const name of deletedBaseRivers){
+      _wipeRiver(name);
+    }
+    for (const [name, def] of Object.entries(overrideRivers)){
+      if (!def || !def.chain) continue;
+      try {
+        setRiverFromChain(name, def.type, def.current, def.chain);
+      } catch (e) {
+        console.warn('[gcc-paths] override apply failed:', name, e);
+      }
+    }
+    if (typeof window !== 'undefined' && typeof window.rebuildPathOverlay === 'function'){
+      try { window.rebuildPathOverlay(); } catch (e) {}
+    }
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────
+  loadOverrides();
+  rebuild();
+
+  // ── Export ─────────────────────────────────────────────────────────────
   window.GCCPaths = {
     // Geometry
-    neighborAcross, edgeBetween, ownerHex,
+    neighborAcross, edgeBetween, ownerHex, areAdjacent,
     EDGE_NAMES, EDGE_N: 0, EDGE_NE: 1, EDGE_SE: 2, EDGE_S: 3, EDGE_SW: 4, EDGE_NW: 5,
+    RIVER_TYPES, ROAD_KINDS, CROSSING_KINDS,
     // Data accessors
     segmentsAt, riversAt, roadsAt, edgeFeaturesAt,
     getNamedRiver, getNamedRoad, allRiverNames, allRoadNames,
+    getRiverChain, getRiverInfo,
+    // CRUD (persists)
+    saveRiver, deleteRiver, clearOverrides, exportOverrides,
     // Resolver
     edgeRiverInfo, edgeBlocks, edgeRoadBonus,
-    CROSSING_KINDS,
+    // Utility
+    chainToSegments, validateChain,
+    // Lifecycle
+    rebuild,
   };
 })();
