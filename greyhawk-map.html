@@ -57,6 +57,12 @@
   .hex-cell.explored { fill:var(--hex-explored); }
   .hex-cell.selected { fill:var(--hex-selected)!important; stroke:var(--gold); stroke-width:1.5; }
   .hex-cell.party-hex { stroke:#cc2200; stroke-width:1.8; }
+  /* Journey route overlay — dashed polyline + per-hex stroke highlight
+     along the planned path. Destination hex gets a brighter stroke. */
+  .hex-cell.journey-hex { stroke:#66bbff; stroke-width:1.4; }
+  .hex-cell.journey-end { stroke:#33ddff; stroke-width:2.2; }
+  #journey-route-line { fill:none; stroke:#66bbff; stroke-width:1.4;
+    stroke-dasharray:5 3; opacity:.85; pointer-events:none; }
   .hex-label { font-family:'Cinzel',serif; font-size:5px; fill:rgba(0,0,0,.45); text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
   .coord-letter, .coord-number { display:none; font-family:'Cinzel',serif; font-weight:600;
     fill:#1a0f03; stroke:none; pointer-events:none; letter-spacing:.03em; }
@@ -248,6 +254,56 @@
     border:1px solid rgba(200,148,26,.4); border-radius:2px; padding:3px 4px;
     font-family:inherit; font-size:11px; margin-top:2px; }
   .td-select:focus { outline:none; border-color:var(--gold); }
+
+  /* Journey planner dialog — wider than travel-dialog because it shows
+     route preview rows. Mirrors the travel-dialog chrome: gold border,
+     parchment palette, draggable header. */
+  #journey-dialog { position:fixed; top:0; left:0; width:280px;
+    background:#120900; border:1px solid var(--gold); border-radius:2px;
+    z-index:65; box-shadow:0 8px 32px rgba(0,0,0,.7);
+    opacity:0; pointer-events:none; transition:opacity .18s ease;
+    display:flex; flex-direction:column; }
+  #journey-dialog.open { opacity:1; pointer-events:all; }
+  #jd-header { padding:9px 30px 6px 11px; border-bottom:1px solid var(--panel-border);
+    position:relative; cursor:grab; user-select:none; }
+  #jd-header.dragging { cursor:grabbing; }
+  #jd-header h2 { font-family:'Cinzel',serif; font-size:12px; color:var(--gold-light);
+    letter-spacing:.08em; }
+  #jd-close { position:absolute; top:6px; right:8px; background:rgba(200,148,26,.1);
+    border:1px solid var(--panel-border); color:#c8a96e; font-size:12px;
+    cursor:pointer; padding:2px 6px; border-radius:2px; line-height:1; }
+  #jd-close:hover { background:rgba(200,148,26,.3); color:#ffeebb; }
+  #jd-body { padding:9px 11px; display:flex; flex-direction:column; gap:5px; }
+  .jd-row { display:flex; justify-content:space-between; align-items:baseline;
+    gap:8px; font-size:11px; color:var(--parchment-light); }
+  .jd-row label { font-family:'Cinzel',serif; font-size:9px; letter-spacing:.1em;
+    text-transform:uppercase; color:#8b6e45; }
+  .jd-row .jd-val { color:var(--gold-light); text-align:right; }
+  .jd-row .jd-val.jd-warn { color:#e07555; }
+  .jd-div { border:none; border-top:1px solid var(--panel-border); margin:3px 0; }
+  .jd-fs { border:1px solid rgba(200,148,26,.25); border-radius:2px; padding:5px 8px; }
+  .jd-fs legend { font-family:'Cinzel',serif; font-size:9px; color:#8b6e45;
+    letter-spacing:.1em; text-transform:uppercase; padding:0 4px; }
+  .jd-date-row { display:flex; gap:5px; align-items:center; margin-top:3px;
+    font-size:11px; color:var(--parchment-light); }
+  .jd-date-row select, .jd-date-row input {
+    background:#1a0f02; color:var(--parchment-light);
+    border:1px solid rgba(200,148,26,.4); border-radius:2px; padding:3px 4px;
+    font-family:inherit; font-size:11px; }
+  .jd-date-row select:focus, .jd-date-row input:focus { outline:none; border-color:var(--gold); }
+  .jd-date-row input[type="number"] { width:54px; }
+  .jd-date-row select#jd-month { flex:1; min-width:0; }
+  .jd-date-row select#jd-tod { flex:1; min-width:0; }
+  #jd-footer { display:flex; gap:6px; padding:8px 11px;
+    border-top:1px solid var(--panel-border); }
+  #jd-footer button { flex:1; background:rgba(200,148,26,.12); color:#c8a96e;
+    border:1px solid var(--panel-border); border-radius:2px; padding:5px;
+    font-size:11px; cursor:pointer; font-family:inherit; letter-spacing:.04em; }
+  #jd-footer button:hover { background:rgba(200,148,26,.25); color:#ffeebb; }
+  #jd-footer button:disabled { opacity:.4; cursor:not-allowed; }
+  #jd-footer .jd-primary { background:rgba(102,187,255,.18); color:#aaddff;
+    border-color:#3a78a8; }
+  #jd-footer .jd-primary:hover:not(:disabled) { background:rgba(102,187,255,.32); color:#dff0ff; }
   #td-footer { display:flex; gap:6px; padding:8px 11px;
     border-top:1px solid var(--panel-border); }
   #td-footer button { flex:1; background:rgba(200,148,26,.12); color:#c8a96e;
@@ -376,6 +432,7 @@
     <div class="panel-row"><label>Hexes Explored</label><div class="value" id="p-explored">0</div></div>
     <hr class="panel-divider">
     <button class="panel-btn primary" id="p-btn-move-here" style="display:none">→ Move Here</button>
+    <button class="panel-btn" id="p-btn-plan-journey" style="display:none">🧭 Plan Journey</button>
     <button class="panel-btn" id="p-btn-landmark-info" style="display:none">ℹ Landmark Info</button>
     <button class="panel-btn" id="p-btn-region-info" style="display:none">⚜ Region Info</button>
     <button class="panel-btn" id="p-btn-explore">⬡ Explore Sub-Map</button>
@@ -483,6 +540,48 @@
   <div id="td-footer">
     <button id="td-cancel">Cancel</button>
     <button id="td-apply" class="td-primary">Apply</button>
+  </div>
+</div>
+<!-- Journey planner dialog. Opens via the side-panel "Plan Journey"
+     button when a non-party hex is selected. Phase 1 = preview only;
+     Begin currently emits a phase-2-pending toast. -->
+<div id="journey-dialog">
+  <button id="jd-close" title="Close">✕</button>
+  <div id="jd-header"><h2>🧭 Plan Journey</h2></div>
+  <div id="jd-body">
+    <div class="jd-row"><label>From</label><span class="jd-val" id="jd-from">—</span></div>
+    <div class="jd-row"><label>To</label><span class="jd-val" id="jd-to">—</span></div>
+    <div class="jd-row"><label>Travel</label><span class="jd-val" id="jd-travel">—</span></div>
+    <hr class="jd-div">
+    <div class="jd-row"><label>Distance</label><span class="jd-val" id="jd-dist">—</span></div>
+    <div class="jd-row"><label>Duration</label><span class="jd-val" id="jd-dur">—</span></div>
+    <div class="jd-row"><label>Encounter Checks</label><span class="jd-val" id="jd-checks">—</span></div>
+    <div class="jd-row" id="jd-warn-row" style="display:none"><label>Warning</label><span class="jd-val jd-warn" id="jd-warn">—</span></div>
+    <hr class="jd-div">
+    <fieldset class="jd-fs">
+      <legend>Start Date (campaign-local)</legend>
+      <div class="jd-date-row">
+        <select id="jd-month"></select>
+        <input type="number" id="jd-day" min="1" max="28" value="1" title="Day of month">
+        <input type="number" id="jd-year" value="569" title="Common Year">
+        <span style="font-size:9px;color:#8b6e45;">CY</span>
+      </div>
+      <div class="jd-date-row">
+        <select id="jd-tod">
+          <option value="morning">Morning</option>
+          <option value="noon">Noon</option>
+          <option value="evening">Evening</option>
+          <option value="night">Night</option>
+          <option value="midnight">Midnight</option>
+          <option value="predawn">Pre-dawn</option>
+        </select>
+      </div>
+    </fieldset>
+    <div class="jd-row"><label>Est. Arrival</label><span class="jd-val" id="jd-arrival">—</span></div>
+  </div>
+  <div id="jd-footer">
+    <button id="jd-cancel">Cancel</button>
+    <button id="jd-begin" class="jd-primary">Begin Journey</button>
   </div>
 </div>
 <!-- Image alignment panel -->
@@ -754,6 +853,10 @@ const state={
   imgAlignMode:false,
   imgDragging:false, imgDragStart:null, imgDragStartTx:0, imgDragStartTy:0,
   imgRotDragging:false, imgRotStart:0, imgRotStartAngle:0,
+  // Journey planner — null when no journey is being planned/active.
+  // See computeJourneyDuration / openJourneyPlanner. Phase 1 is planner-
+  // only; Phase 2 will add execution + persistence.
+  journey:null,
 };
 
 // ── IMAGE TRANSFORM ───────────────────────────────────────────────────────────
@@ -990,6 +1093,140 @@ function hexDistance(c1,r1,c2,r2){
   const tc=(c,r)=>{const x=c,z=r-(c-(c&1))/2;return{x,y:-x-z,z};};
   const a=tc(c1,r1),b=tc(c2,r2);
   return Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y),Math.abs(a.z-b.z));
+}
+
+// ── HEX LINE (cube-coord lerp) ───────────────────────────────────────────────
+// Straight-line interpolation through the hex grid between two offset
+// coordinates. Returns inclusive list [origin, ..., destination]. Used
+// by the Journey planner to compute the path the party travels day by
+// day. Tiny epsilon nudge breaks ties when the line passes exactly
+// through a hex edge (cubeRound would otherwise flip arbitrarily).
+function offsetToCube(col, row){
+  const x = col;
+  const z = row - (col - (col & 1)) / 2;
+  return { x, y: -x - z, z };
+}
+function cubeToOffset(c){
+  const col = c.x;
+  const row = c.z + (c.x - (c.x & 1)) / 2;
+  return { col, row };
+}
+function cubeRound(fx, fy, fz){
+  let rx = Math.round(fx), ry = Math.round(fy), rz = Math.round(fz);
+  const dx = Math.abs(rx - fx), dy = Math.abs(ry - fy), dz = Math.abs(rz - fz);
+  if (dx > dy && dx > dz)      rx = -ry - rz;
+  else if (dy > dz)             ry = -rx - rz;
+  else                          rz = -rx - ry;
+  return { x: rx, y: ry, z: rz };
+}
+function hexLine(c1, r1, c2, r2){
+  const N = hexDistance(c1, r1, c2, r2);
+  if (N === 0) return [{ col: c1, row: r1 }];
+  const a = offsetToCube(c1, r1);
+  const b = offsetToCube(c2, r2);
+  const E = 1e-6;
+  const out = [];
+  for (let i = 0; i <= N; i++){
+    const t = i / N;
+    const c = cubeRound(
+      a.x + (b.x - a.x) * t + E,
+      a.y + (b.y - a.y) * t + E,
+      a.z + (b.z - a.z) * t - 2 * E,
+    );
+    out.push(cubeToOffset(c));
+  }
+  return out;
+}
+
+// ── GREYHAWK COMMON CALENDAR ─────────────────────────────────────────────────
+// 12 28-day months + 4 7-day festivals = 364 days/year. Festival weeks
+// are treated as their own months in the index for arithmetic. Used by
+// the Journey planner only — the map is NOT a system of record for
+// campaign date/time. CTT and the eventual MMO own that. The journey
+// owns its own clock for the duration of the trip and surrenders it.
+const GH_CALENDAR = {
+  months: [
+    { name: 'Needfest',   days: 7,  festival: true  },
+    { name: 'Fireseek',   days: 28, festival: false },
+    { name: 'Readying',   days: 28, festival: false },
+    { name: 'Coldeven',   days: 28, festival: false },
+    { name: 'Growfest',   days: 7,  festival: true  },
+    { name: 'Planting',   days: 28, festival: false },
+    { name: 'Flocktime',  days: 28, festival: false },
+    { name: 'Wealsun',    days: 28, festival: false },
+    { name: 'Richfest',   days: 7,  festival: true  },
+    { name: 'Reaping',    days: 28, festival: false },
+    { name: 'Goodmonth',  days: 28, festival: false },
+    { name: 'Harvester',  days: 28, festival: false },
+    { name: 'Brewfest',   days: 7,  festival: true  },
+    { name: 'Patchwall',  days: 28, festival: false },
+    { name: "Ready'reat", days: 28, festival: false },
+    { name: 'Sunsebb',    days: 28, festival: false },
+  ],
+};
+function ghDateAdd(date, days){
+  let { monthIdx, day, year } = date;
+  day += Math.floor(days);
+  while (day > GH_CALENDAR.months[monthIdx].days){
+    day -= GH_CALENDAR.months[monthIdx].days;
+    monthIdx = (monthIdx + 1) % GH_CALENDAR.months.length;
+    if (monthIdx === 0) year++;
+  }
+  while (day < 1){
+    monthIdx = (monthIdx - 1 + GH_CALENDAR.months.length) % GH_CALENDAR.months.length;
+    if (monthIdx === GH_CALENDAR.months.length - 1) year--;
+    day += GH_CALENDAR.months[monthIdx].days;
+  }
+  return { monthIdx, day, year };
+}
+function ghDateLabel(date){
+  const m = GH_CALENDAR.months[date.monthIdx];
+  return `${m.name} ${date.day}, ${date.year} CY`;
+}
+
+// ── JOURNEY PLANNER ──────────────────────────────────────────────────────────
+// Plans a multi-day trip from the party's hex to a selected destination.
+// Phase 1: route preview only (calendar, hex line, duration estimate, projected
+// encounter checks). Execution loop with day-by-day encounter rolls is Phase 2.
+//
+// state.journey shape (planner-local, not persisted yet):
+//   { status: 'planning', origin, destination, route, profile,
+//     startDate, startTimeOfDay, estDays, estChecks, impassable, impassableReason }
+function computeJourneyDuration(route, profile){
+  let totalDays = 0;
+  let impassable = false, reason = null;
+  // Skip i=0 (origin — no travel cost). Each subsequent hex contributes
+  // HEX_MILES / mi-per-day for its own terrain + the active profile.
+  for (let i = 1; i < route.length; i++){
+    const hex = route[i];
+    const terrain = getHexTerrain(hex.col, hex.row);
+    if (profile.mode === 'flying'){
+      const mpd = flightMilesPerDay(profile.vehicle);
+      if (mpd == null || mpd <= 0){ impassable = true; reason = 'Invalid flight vehicle'; break; }
+      totalDays += HEX_MILES / mpd;
+    } else {
+      const t = TERRAIN[terrain];
+      if (!t || t.difficulty == null){
+        impassable = true;
+        reason = `${hexIdStr(hex.col, hex.row)} (${t?.label || terrain}) impassable on ${profile.mode}`;
+        break;
+      }
+      const mpd = travelMilesPerDay(t.difficulty, profile);
+      if (mpd == null || mpd <= 0){
+        impassable = true;
+        reason = `${hexIdStr(hex.col, hex.row)} (${t.label}) impassable for ${profile.mode === 'mounted' ? profile.mount : profile.burden}`;
+        break;
+      }
+      totalDays += HEX_MILES / mpd;
+    }
+  }
+  return { days: totalDays, impassable, reason };
+}
+// Rough projection: ~3 daylight time-of-day slots per hex check on
+// average (DMG p.47 timing rules range 1-4 slots/terrain). Phase 2 will
+// count exact slots from the encounter engine instead.
+function projectedEncounterChecks(estDays){
+  return Math.round(estDays * 3);
 }
 function getRegion(col,row){
   return (typeof GCCRegions !== 'undefined')
@@ -1281,8 +1518,60 @@ function buildHexGrid(){
   svg.appendChild(cellsG); svg.appendChild(labelsG);
   svg.appendChild(buildCoordLabels());
   svg.appendChild(buildLandmarkOverlay());
+  svg.appendChild(buildJourneyOverlay());
   svg.appendChild(markerG);
+  applyJourneyHexClasses();
   updatePartyMarker();
+}
+
+// ── JOURNEY ROUTE OVERLAY ────────────────────────────────────────────────────
+// Renders the planned route as a dashed polyline through hex centers
+// when state.journey is set. Per-hex stroke highlighting (.journey-hex
+// / .journey-end) is applied via applyJourneyHexClasses() since the
+// hex polygons live in the cells group above this overlay.
+function buildJourneyOverlay(){
+  const ns = 'http://www.w3.org/2000/svg';
+  const g = document.createElementNS(ns, 'g');
+  g.id = 'journey-route';
+  g.style.pointerEvents = 'none';
+  if (!state.journey || !state.journey.route || state.journey.route.length < 2) return g;
+  const pts = state.journey.route.map(h => {
+    const { x: mx, y: my } = hexCenterDisplay(h.col, h.row);
+    const { x, y } = mapToStage(mx, my);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const line = document.createElementNS(ns, 'polyline');
+  line.id = 'journey-route-line';
+  line.setAttribute('points', pts);
+  g.appendChild(line);
+  return g;
+}
+function applyJourneyHexClasses(){
+  document.querySelectorAll('.journey-hex,.journey-end').forEach(el => {
+    el.classList.remove('journey-hex','journey-end');
+  });
+  if (!state.journey || !state.journey.route) return;
+  const route = state.journey.route;
+  for (let i = 0; i < route.length; i++){
+    const h = route[i];
+    const el = document.getElementById(`hex-${h.col}-${h.row}`);
+    if (!el) continue;
+    el.classList.add(i === route.length - 1 ? 'journey-end' : 'journey-hex');
+  }
+}
+// Replace the existing route overlay without rebuilding the whole grid.
+// Cheap; called whenever the journey route changes (start/cancel/edit).
+function refreshJourneyOverlay(){
+  const svg = document.getElementById('hex-svg');
+  if (!svg) return;
+  const old = document.getElementById('journey-route');
+  if (old) old.remove();
+  const next = buildJourneyOverlay();
+  // Insert just before the party marker so the marker stays on top.
+  const marker = document.getElementById('party-marker');
+  if (marker) svg.insertBefore(next, marker);
+  else svg.appendChild(next);
+  applyJourneyHexClasses();
 }
 
 // ── DARLENE COORDINATE LABELS ─────────────────────────────────────────────────
@@ -1564,6 +1853,7 @@ function updateSidePanel(col,row,terrain,region,dist){
   // click handler can read them; doesn't open the move dialog itself
   // (that's a separate user action).
   const moveBtn = document.getElementById('p-btn-move-here');
+  const planBtn = document.getElementById('p-btn-plan-journey');
   if (moveBtn){
     const isPartyHex = (col === state.partyCol && row === state.partyRow);
     const isWater = String(terrain).startsWith('water');
@@ -1574,12 +1864,22 @@ function updateSidePanel(col,row,terrain,region,dist){
       moveBtn.dataset.row = String(row);
       moveBtn.dataset.terrain = terrain;
       moveBtn.dataset.dist = String(dist);
+      if (planBtn){
+        planBtn.style.display = '';
+        planBtn.dataset.col = String(col);
+        planBtn.dataset.row = String(row);
+      }
     } else {
       moveBtn.style.display = 'none';
       delete moveBtn.dataset.col;
       delete moveBtn.dataset.row;
       delete moveBtn.dataset.terrain;
       delete moveBtn.dataset.dist;
+      if (planBtn){
+        planBtn.style.display = 'none';
+        delete planBtn.dataset.col;
+        delete planBtn.dataset.row;
+      }
     }
   }
   const sp=document.getElementById('side-panel');
@@ -1864,6 +2164,108 @@ function applyTravelProfile(){
   const dist = (c === state.partyCol && r === state.partyRow) ? 0
              : hexDistance(state.partyCol, state.partyRow, c, r);
   updateSidePanel(c, r, getHexTerrain(c, r), getRegion(c, r), dist);
+}
+
+// ── JOURNEY PLANNER DIALOG ───────────────────────────────────────────────────
+// openJourneyPlanner(col, row) — populates form and route preview from
+// the selected destination hex + the active travel profile, then opens
+// the floating planner. recomputeJourneyPlan() runs whenever any input
+// changes (or on initial open) and updates state.journey + the SVG
+// overlay + the duration/arrival/checks rows.
+let jdDrag = null;
+let jdSuppressRecompute = false;
+function openJourneyPlanner(col, row){
+  const dlg = document.getElementById('journey-dialog');
+  // Populate month dropdown once. (Cheap to redo each open; the list
+  // never changes.)
+  const monthSel = document.getElementById('jd-month');
+  monthSel.innerHTML = GH_CALENDAR.months.map((m, i) =>
+    `<option value="${i}">${m.name}${m.festival ? ' (festival)' : ''}</option>`
+  ).join('');
+  // Default start = current side-panel time-of-day + a sensible date.
+  // Phase 1 doesn't persist last-used dates; if the user wants pre-fill
+  // we add it later. Defaults: Sunsebb 11, 569 CY (matches the campaign
+  // memory). The GM can change anything before clicking Begin.
+  jdSuppressRecompute = true;
+  monthSel.value = '15';                                 // Sunsebb
+  document.getElementById('jd-day').value = '11';
+  document.getElementById('jd-year').value = '569';
+  document.getElementById('jd-tod').value = state.timeOfDay || 'morning';
+  jdSuppressRecompute = false;
+  // Build initial plan.
+  buildJourneyPlan(col, row);
+  recomputeJourneyPlan();
+  refreshJourneyOverlay();
+  dlg.classList.add('open');
+  if (jdDrag && !jdDrag.restore()) jdDrag.placeCenter();
+}
+function closeJourneyPlanner(){
+  document.getElementById('journey-dialog').classList.remove('open');
+  state.journey = null;
+  refreshJourneyOverlay();
+}
+// Compute the route + profile snapshot. Called once on open and on
+// destination change; the day-clamp on jd-day in recomputeJourneyPlan
+// also depends on the chosen month, but that's input-driven.
+function buildJourneyPlan(destCol, destRow){
+  const profile = { ...(state.travelProfile || DEFAULT_TRAVEL_PROFILE) };
+  const route = hexLine(state.partyCol, state.partyRow, destCol, destRow);
+  state.journey = {
+    status: 'planning',
+    origin: { col: state.partyCol, row: state.partyRow },
+    destination: { col: destCol, row: destRow },
+    route,
+    profile,
+    startDate: { monthIdx: 15, day: 11, year: 569 },
+    startTimeOfDay: state.timeOfDay || 'morning',
+    estDays: 0, estChecks: 0,
+    impassable: false, impassableReason: null,
+  };
+}
+function recomputeJourneyPlan(){
+  if (jdSuppressRecompute || !state.journey) return;
+  const j = state.journey;
+  // Read date inputs and clamp day to current month's length.
+  const monthIdx = parseInt(document.getElementById('jd-month').value, 10) || 0;
+  const dayInput = document.getElementById('jd-day');
+  const maxDay = GH_CALENDAR.months[monthIdx].days;
+  dayInput.max = String(maxDay);
+  let day = parseInt(dayInput.value, 10) || 1;
+  if (day < 1) day = 1; if (day > maxDay) { day = maxDay; dayInput.value = String(day); }
+  const year = parseInt(document.getElementById('jd-year').value, 10) || 569;
+  j.startDate = { monthIdx, day, year };
+  j.startTimeOfDay = document.getElementById('jd-tod').value || 'morning';
+  // Duration + projected checks.
+  const dur = computeJourneyDuration(j.route, j.profile);
+  j.estDays = dur.days;
+  j.impassable = dur.impassable;
+  j.impassableReason = dur.reason;
+  j.estChecks = projectedEncounterChecks(dur.days);
+  // Render preview rows.
+  const orig = j.origin, dest = j.destination;
+  const origLm = (typeof GCCLandmarks !== 'undefined') ? GCCLandmarks.getById(hexIdStr(orig.col, orig.row)) : null;
+  const destLm = (typeof GCCLandmarks !== 'undefined') ? GCCLandmarks.getById(hexIdStr(dest.col, dest.row)) : null;
+  document.getElementById('jd-from').textContent = origLm ? `${origLm.name} (${hexIdStr(orig.col, orig.row)})` : hexIdStr(orig.col, orig.row);
+  document.getElementById('jd-to'  ).textContent = destLm ? `${destLm.name} (${hexIdStr(dest.col, dest.row)})` : hexIdStr(dest.col, dest.row);
+  document.getElementById('jd-travel').textContent = travelProfileLabel(j.profile);
+  const hexes = j.route.length - 1;
+  document.getElementById('jd-dist').textContent = `${hexes} hex${hexes === 1 ? '' : 'es'} / ${hexes * HEX_MILES} mi`;
+  if (dur.impassable){
+    document.getElementById('jd-dur').textContent = '—';
+    document.getElementById('jd-checks').textContent = '—';
+    document.getElementById('jd-arrival').textContent = '—';
+    document.getElementById('jd-warn-row').style.display = '';
+    document.getElementById('jd-warn').textContent = dur.reason;
+    document.getElementById('jd-begin').disabled = true;
+  } else {
+    const suffix = j.profile.mode === 'flying' ? 'flying' : (j.profile.mode === 'mounted' ? 'mounted' : 'on foot');
+    document.getElementById('jd-dur').textContent = `~${dur.days.toFixed(1)} day(s) ${suffix}`;
+    document.getElementById('jd-checks').textContent = `~${j.estChecks} (approx)`;
+    const arrival = ghDateAdd(j.startDate, Math.ceil(dur.days));
+    document.getElementById('jd-arrival').textContent = ghDateLabel(arrival);
+    document.getElementById('jd-warn-row').style.display = 'none';
+    document.getElementById('jd-begin').disabled = false;
+  }
 }
 
 function confirmMove(){
@@ -2311,6 +2713,24 @@ function wireEvents(){
   for (const r of document.querySelectorAll('input[name="td-mode"]')){
     r.addEventListener('change', updateTravelDialogGrayState);
   }
+
+  // Journey planner — Phase 1 preview only. "Plan Journey" opens a
+  // floating planner with route preview (distance / duration / projected
+  // checks / arrival date). Begin emits a phase-2-pending toast.
+  document.getElementById('p-btn-plan-journey').addEventListener('click', e => {
+    const ds = e.currentTarget.dataset;
+    if (!ds.col || !ds.row) return;
+    openJourneyPlanner(parseInt(ds.col, 10), parseInt(ds.row, 10));
+  });
+  document.getElementById('jd-close').addEventListener('click', closeJourneyPlanner);
+  document.getElementById('jd-cancel').addEventListener('click', closeJourneyPlanner);
+  document.getElementById('jd-begin').addEventListener('click', () => {
+    showToast('Journey execution — Phase 2');
+  });
+  for (const id of ['jd-month','jd-day','jd-year','jd-tod']){
+    document.getElementById(id).addEventListener('change', recomputeJourneyPlan);
+    document.getElementById(id).addEventListener('input',  recomputeJourneyPlan);
+  }
   // Time-of-day dropdown — initialized from state (which was loaded
   // from localStorage at startup) and writes back on change. The
   // engine reads ctx.timeOfDay during the encounter check; updating
@@ -2485,6 +2905,11 @@ function init(){
       document.getElementById('travel-dialog'),
       document.getElementById('td-header'),
       'gh-travel-dialog-pos'
+    );
+    jdDrag = makeDraggable(
+      document.getElementById('journey-dialog'),
+      document.getElementById('jd-header'),
+      'gh-journey-dialog-pos'
     );
     const w=document.getElementById('map-wrap');
     // Start at whichever is smaller: the default 0.5, or a zoom that fits the
