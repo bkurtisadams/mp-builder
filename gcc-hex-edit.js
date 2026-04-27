@@ -1,4 +1,4 @@
-// gcc-hex-edit.js v0.8.0 — 2026-04-27
+// gcc-hex-edit.js v0.9.0 — 2026-04-27
 // Hex Editor: tab shell for Landmarks / Paint / Outline / Paths.
 // Requires globals: GCCLandmarks, GCCTerrain, GCCPaths, TERRAIN, hexIdStr,
 //   darleneToInternal, mapToHex, screenToMap, showToast,
@@ -6,6 +6,12 @@
 //   hexCenter, mapToStage,
 //   makeDraggable (from greyhawk-map.html inline script).
 //
+// v0.9.0: Paths Phase C — Roads mode (chain-trace, identical lifecycle
+//   to rivers but with kind ∈ {road, track} instead of type/current).
+//   The trace UI is shared; pfTrace gains an entityKind discriminator
+//   so save/header/status know which entity they're editing. Road idle
+//   pane mirrors river: selector + New / Edit Trace / Edit Meta /
+//   Delete. Click handler dispatches by mode.
 // v0.8.0: Paths Phase B — Crossings mode (bridges/footbridges/fords/
 //   ferries) with edge-snap click on a river edge, kind selector, name
 //   input, save. Crossing dropdown + Edit/Delete in the Crossings idle
@@ -228,11 +234,14 @@
     rgTrace: [],             // [{col,row}] in-progress polygon vertices
     rgFormMode: null,        // null | 'new' | 'edit'
     pfSelected: null,        // currently selected river name
-    pfMode: 'river',         // 'river' | 'crossing' (road = Phase C)
+    pfMode: 'river',         // 'river' | 'road' | 'crossing'
     pfFormOpen: false,       // +New River form visible
     pfMetaOpen: false,       // Edit Meta form visible
-    pfTrace: null,           // null | { name, type, current, chain, isNew }
+    pfTrace: null,           // null | { entityKind, name, type/kind, current?, chain, isNew }
     pfShowOverlay: true,     // path overlay visibility (persisted)
+    pfRoadSelected: null,    // currently selected road name
+    pfRoadFormOpen: false,   // +New Road form visible
+    pfRoadMetaOpen: false,   // Edit road meta form visible
     pfCrossingSelected: null, // currently selected crossing key "col-row-edge"
     pfCrossingFormOpen: false, // crossing kind/name form visible
     pfCrossingArmed: false,    // edge-snap mode armed (waiting for click)
@@ -408,10 +417,20 @@
     p.querySelector('#he-pf-cancel').onclick   = onPfCancel;
     p.querySelector('#he-pf-export').onclick    = onPfExport;
     p.querySelector('#he-pf-reset').onclick     = onPfReset;
-    // Mode tab buttons (river / road-disabled / crossing).
+    // Mode tab buttons (river / road / crossing).
     p.querySelectorAll('.he-pf-mode').forEach(btn => {
       btn.onclick = () => onPfModeClick(btn.dataset.pfmode);
     });
+    // Roads mode wiring.
+    p.querySelector('#he-pf-road-select').onchange = onPfRoadSelectChange;
+    p.querySelector('#he-pf-road-new').onclick     = onPfRoadNewClick;
+    p.querySelector('#he-pf-road-edit').onclick    = onPfRoadEditClick;
+    p.querySelector('#he-pf-road-meta-edit').onclick = onPfRoadMetaEditClick;
+    p.querySelector('#he-pf-road-delete').onclick  = onPfRoadDeleteClick;
+    p.querySelector('#he-pf-road-form-begin').onclick  = onPfRoadFormBegin;
+    p.querySelector('#he-pf-road-form-cancel').onclick = onPfRoadFormCancel;
+    p.querySelector('#he-pf-road-meta-save').onclick   = onPfRoadMetaSave;
+    p.querySelector('#he-pf-road-meta-cancel').onclick = onPfRoadMetaCancel;
     // Crossings mode wiring.
     p.querySelector('#he-pf-cross-select').onchange = onPfCrossSelectChange;
     p.querySelector('#he-pf-cross-new').onclick     = onPfCrossNewClick;
@@ -663,10 +682,12 @@
   }
 
   // ── Paths pane ────────────────────────────────────────────────────────
-  // Mode tabs: Rivers | Roads (Phase C) | Crossings.
+  // Mode tabs: Rivers | Roads | Crossings.
   // Rivers: selector + +New / Edit Trace / Edit Meta / Delete.
   //   New form swaps in for the action row, as does Edit Meta. Trace UI
   //   swaps in for everything else once tracing begins.
+  // Roads: same shape as Rivers; trace UI shared (pfTrace.entityKind
+  //   discriminates).
   // Crossings: selector + +New / Edit / Delete. +New arms edge-snap and
   //   the form opens once the user clicks near a river edge.
   function buildPathsPane(){
@@ -674,7 +695,7 @@
       <div class="he-pane" id="he-pane-draw">
         <div class="he-pf-modes">
           <button class="he-pf-mode active" data-pfmode="river">Rivers</button>
-          <button class="he-pf-mode" data-pfmode="road"     disabled title="Phase C">Roads</button>
+          <button class="he-pf-mode" data-pfmode="road">Roads</button>
           <button class="he-pf-mode" data-pfmode="crossing">Crossings</button>
         </div>
 
@@ -723,6 +744,50 @@
           <div class="he-pf-form-btns">
             <button class="he-btn" id="he-pf-meta-save">Save</button>
             <button class="he-btn" id="he-pf-meta-cancel">Cancel</button>
+          </div>
+        </div>
+
+        <div class="he-pf-road-idle" id="he-pf-road-idle" style="display:none">
+          <label class="he-lbl">Road</label>
+          <select class="he-select" id="he-pf-road-select">
+            <option value="">— choose —</option>
+          </select>
+          <div class="he-pf-meta" id="he-pf-road-meta">No road selected.</div>
+          <div class="he-pf-actrow he-pf-actrow-4">
+            <button class="he-btn he-pf-act-wide" id="he-pf-road-new">+ New Road</button>
+            <button class="he-btn" id="he-pf-road-edit"      disabled>Edit Trace</button>
+            <button class="he-btn" id="he-pf-road-meta-edit" disabled>Edit Meta</button>
+            <button class="he-btn he-danger" id="he-pf-road-delete" disabled>Delete</button>
+          </div>
+        </div>
+
+        <div class="he-pf-form" id="he-pf-road-form" style="display:none">
+          <label class="he-lbl">New Road</label>
+          <input class="he-input" id="he-pf-road-form-name" type="text" placeholder="Name (e.g. Greatroad)" autocomplete="off">
+          <div class="he-pf-formrow he-pf-formrow-1">
+            <select class="he-input" id="he-pf-road-form-kind">
+              <option value="road" selected>road</option>
+              <option value="track">track</option>
+            </select>
+          </div>
+          <div class="he-pf-form-btns">
+            <button class="he-btn" id="he-pf-road-form-begin">Begin Tracing</button>
+            <button class="he-btn" id="he-pf-road-form-cancel">Cancel</button>
+          </div>
+        </div>
+
+        <div class="he-pf-form" id="he-pf-road-meta-form" style="display:none">
+          <label class="he-lbl">Edit Road Meta</label>
+          <input class="he-input" id="he-pf-road-meta-name" type="text" placeholder="Name" autocomplete="off">
+          <div class="he-pf-formrow he-pf-formrow-1">
+            <select class="he-input" id="he-pf-road-meta-kind">
+              <option value="road">road</option>
+              <option value="track">track</option>
+            </select>
+          </div>
+          <div class="he-pf-form-btns">
+            <button class="he-btn" id="he-pf-road-meta-save">Save</button>
+            <button class="he-btn" id="he-pf-road-meta-cancel">Cancel</button>
           </div>
         </div>
 
@@ -1040,6 +1105,7 @@
       #hex-edit-panel .he-pf-formrow {
         display:grid; grid-template-columns:1fr 60px; gap:4px; margin-top:6px;
       }
+      #hex-edit-panel .he-pf-formrow-1 { grid-template-columns:1fr; }
       #hex-edit-panel .he-pf-formrow select,
       #hex-edit-panel .he-pf-formrow input { font-size:10px; padding:2px 4px; height:24px; }
       #hex-edit-panel .he-pf-trace {
@@ -1091,6 +1157,10 @@
     } else if (prev === 'draw' && id !== 'draw'){
       pfCancelTrace();
       pfCancelCrossing();
+      setPfFormVisible(false);
+      setPfMetaFormVisible(false);
+      setPfRoadFormVisible(false);
+      setPfRoadMetaFormVisible(false);
       document.body.classList.remove('he-pathing');
     }
   }
@@ -2246,17 +2316,25 @@
     const el = pfPanel()?.querySelector('#he-pf-stats');
     if (!el) return;
     if (typeof GCCPaths === 'undefined'){ el.textContent = 'gcc-paths.js not loaded'; return; }
-    const names = GCCPaths.allRiverNames();
+    const rivers    = GCCPaths.allRiverNames();
+    const roads     = (typeof GCCPaths.allRoadNames === 'function') ? GCCPaths.allRoadNames() : [];
     const crossings = (typeof GCCPaths.allCrossings === 'function') ? GCCPaths.allCrossings() : [];
-    if (names.length === 0 && crossings.length === 0){ el.textContent = 'No rivers yet.'; return; }
+    if (rivers.length === 0 && roads.length === 0 && crossings.length === 0){
+      el.textContent = 'No rivers yet.'; return;
+    }
     let totalHexes = 0, overrides = 0;
-    for (const n of names){
+    for (const n of rivers){
       const info = GCCPaths.getRiverInfo(n);
       if (info){ totalHexes += info.hexCount; if (info.isOverride) overrides++; }
     }
+    let roadHexes = 0;
+    for (const n of roads){
+      const info = (typeof GCCPaths.getRoadInfo === 'function') ? GCCPaths.getRoadInfo(n) : null;
+      if (info){ roadHexes += info.hexCount; if (info.isOverride) overrides++; }
+    }
     const parts = [];
-    parts.push(`${names.length} river${names.length===1?'':'s'}`);
-    parts.push(`${totalHexes} hex${totalHexes===1?'':'es'}`);
+    parts.push(`${rivers.length} river${rivers.length===1?'':'s'} (${totalHexes} hex${totalHexes===1?'':'es'})`);
+    parts.push(`${roads.length} road${roads.length===1?'':'s'} (${roadHexes} hex${roadHexes===1?'':'es'})`);
     parts.push(`${crossings.length} crossing${crossings.length===1?'':'s'}`);
     parts.push(`${overrides} override${overrides===1?'':'s'}`);
     el.textContent = parts.join(' · ');
@@ -2265,25 +2343,47 @@
     const p = pfPanel(); if (!p) return;
     state.pfFormOpen = open;
     p.querySelector('#he-pf-form').style.display = open ? '' : 'none';
-    p.querySelector('#he-pf-idle').style.display = open ? 'none' : '';
     if (open){
+      pfHideAllIdles();
       p.querySelector('#he-pf-form-name').value = '';
       p.querySelector('#he-pf-form-type').value = 'river';
       p.querySelector('#he-pf-form-current').value = '2';
       setTimeout(() => p.querySelector('#he-pf-form-name').focus(), 0);
+    } else {
+      pfShowIdleForMode();
     }
+  }
+  // Restore whichever idle pane belongs to the active mode.
+  function pfShowIdleForMode(){
+    const p = pfPanel(); if (!p) return;
+    p.querySelector('#he-pf-idle').style.display       = (state.pfMode === 'river')    ? '' : 'none';
+    p.querySelector('#he-pf-road-idle').style.display  = (state.pfMode === 'road')     ? '' : 'none';
+    p.querySelector('#he-pf-cross-idle').style.display = (state.pfMode === 'crossing') ? '' : 'none';
+  }
+  function pfHideAllIdles(){
+    const p = pfPanel(); if (!p) return;
+    p.querySelector('#he-pf-idle').style.display       = 'none';
+    p.querySelector('#he-pf-road-idle').style.display  = 'none';
+    p.querySelector('#he-pf-cross-idle').style.display = 'none';
   }
   function setPfTraceUI(visible){
     const p = pfPanel(); if (!p) return;
     p.querySelector('#he-pf-trace').style.display = visible ? '' : 'none';
-    p.querySelector('#he-pf-idle').style.display  = visible ? 'none' : '';
     if (visible){
+      pfHideAllIdles();
       const t = state.pfTrace;
-      const tlabel = t.type === 'great_river' ? 'great river' : t.type;
       const tag = t.isNew ? ' [new]' : '';
-      p.querySelector('#he-pf-tracehdr').textContent =
-        `Tracing ${t.name}${tag} · ${tlabel} · current ${t.current}`;
+      let hdr;
+      if (t.entityKind === 'road'){
+        hdr = `Tracing ${t.name}${tag} · ${t.kind}`;
+      } else {
+        const tlabel = t.type === 'great_river' ? 'great river' : t.type;
+        hdr = `Tracing ${t.name}${tag} · ${tlabel} · current ${t.current}`;
+      }
+      p.querySelector('#he-pf-tracehdr').textContent = hdr;
       pfUpdateTraceButtons();
+    } else {
+      pfShowIdleForMode();
     }
   }
   function pfUpdateTraceButtons(){
@@ -2342,12 +2442,18 @@
   }
 
   // ── Trace lifecycle ────────────────────────────────────────────────────
-  function pfStartTrace(name, type, current, chain, isNew){
-    state.pfTrace = { name, type, current, chain: chain.map(h => ({col:h.col, row:h.row})), isNew };
+  // descriptor for rivers: { entityKind:'river', name, type, current, chain, isNew }
+  // descriptor for roads:  { entityKind:'road',  name, kind,           chain, isNew }
+  function pfStartTrace(desc){
+    const chain = (desc.chain || []).map(h => ({col:h.col, row:h.row}));
+    state.pfTrace = Object.assign({}, desc, { chain });
     setPfTraceUI(true);
     pfRenderTracePreview();
+    const startMsg = (desc.entityKind === 'road')
+      ? 'Click a hex to start the road.'
+      : 'Click an upstream hex to start.';
     pfSetStatus(chain.length === 0
-      ? 'Click an upstream hex to start.'
+      ? startMsg
       : `${chain.length} hex${chain.length===1?'':'es'}. Click adjacent hex to extend.`);
   }
   function pfCancelTrace(){
@@ -2508,7 +2614,7 @@
       if (!confirm(`A river named "${name}" already exists. Replace it?`)) return;
     }
     setPfFormVisible(false);
-    pfStartTrace(name, type, current, [], true);
+    pfStartTrace({ entityKind:'river', name, type, current, chain:[], isNew:true });
   }
   function onPfFormCancel(){
     setPfFormVisible(false);
@@ -2518,7 +2624,7 @@
     const info = GCCPaths.getRiverInfo(state.pfSelected);
     const chain = GCCPaths.getRiverChain(state.pfSelected) || [];
     if (!info) return;
-    pfStartTrace(state.pfSelected, info.type, info.current, chain, false);
+    pfStartTrace({ entityKind:'river', name:state.pfSelected, type:info.type, current:info.current, chain, isNew:false });
   }
   function onPfDeleteClick(){
     if (!state.pfSelected) return;
@@ -2545,14 +2651,17 @@
     const t = state.pfTrace;
     if (!t || t.chain.length === 0) return;
     try {
-      GCCPaths.saveRiver(t.name, t.type, t.current, t.chain);
+      if (t.entityKind === 'road') GCCPaths.saveRoad(t.name, t.kind, t.chain);
+      else                          GCCPaths.saveRiver(t.name, t.type, t.current, t.chain);
     } catch (e){
       showToast(`Save failed: ${e.message}`);
       return;
     }
-    state.pfSelected = t.name;
+    if (t.entityKind === 'road') state.pfRoadSelected = t.name;
+    else                          state.pfSelected     = t.name;
     pfCancelTrace();
-    refreshPfSelect();
+    if (t.entityKind === 'road') refreshPfRoadSelect();
+    else                          refreshPfSelect();
     refreshPfStats();
     showToast(`Saved ${t.name} (${t.chain.length} hex${t.chain.length===1?'':'es'})`);
   }
@@ -2565,14 +2674,16 @@
     const p = pfPanel(); if (!p) return;
     state.pfMetaOpen = open;
     p.querySelector('#he-pf-meta-form').style.display = open ? '' : 'none';
-    p.querySelector('#he-pf-idle').style.display      = open ? 'none' : '';
     if (open){
+      pfHideAllIdles();
       const info = state.pfSelected ? GCCPaths.getRiverInfo(state.pfSelected) : null;
       if (!info){ setPfMetaFormVisible(false); return; }
       p.querySelector('#he-pf-meta-name').value    = state.pfSelected;
       p.querySelector('#he-pf-meta-type').value    = info.type;
       p.querySelector('#he-pf-meta-current').value = String(info.current);
       setTimeout(() => p.querySelector('#he-pf-meta-name').focus(), 0);
+    } else {
+      pfShowIdleForMode();
     }
   }
   function onPfMetaEditClick(){
@@ -2609,15 +2720,151 @@
     showToast(`Updated ${newName}`);
   }
 
+  // ── Roads: idle UI ─────────────────────────────────────────────────────
+  function refreshPfRoadSelect(){
+    const sel = pfPanel()?.querySelector('#he-pf-road-select');
+    if (!sel) return;
+    const names = (typeof GCCPaths !== 'undefined') ? GCCPaths.allRoadNames() : [];
+    const cur = state.pfRoadSelected;
+    sel.innerHTML = '<option value="">— choose —</option>' +
+      names.map(n => {
+        const info = GCCPaths.getRoadInfo(n);
+        const tag = info?.isOverride ? ' ●' : '';
+        return `<option value="${n}">${n}${tag}</option>`;
+      }).join('');
+    if (cur && names.includes(cur)) sel.value = cur;
+    else state.pfRoadSelected = null;
+    refreshPfRoadMeta();
+    refreshPfRoadActions();
+  }
+  function refreshPfRoadMeta(){
+    const el = pfPanel()?.querySelector('#he-pf-road-meta');
+    if (!el) return;
+    if (!state.pfRoadSelected){ el.textContent = 'No road selected.'; return; }
+    const info = GCCPaths.getRoadInfo(state.pfRoadSelected);
+    if (!info){ el.textContent = '—'; return; }
+    const tag = info.isOverride ? ' (override)' : info.isBase ? ' (base)' : '';
+    el.textContent = `${info.kind} · ${info.hexCount} hexes${tag}`;
+  }
+  function refreshPfRoadActions(){
+    const p = pfPanel(); if (!p) return;
+    const has = !!state.pfRoadSelected;
+    p.querySelector('#he-pf-road-edit').disabled      = !has;
+    p.querySelector('#he-pf-road-meta-edit').disabled = !has;
+    p.querySelector('#he-pf-road-delete').disabled    = !has;
+  }
+  function setPfRoadFormVisible(open){
+    const p = pfPanel(); if (!p) return;
+    state.pfRoadFormOpen = open;
+    p.querySelector('#he-pf-road-form').style.display = open ? '' : 'none';
+    if (open){
+      pfHideAllIdles();
+      p.querySelector('#he-pf-road-form-name').value = '';
+      p.querySelector('#he-pf-road-form-kind').value = 'road';
+      setTimeout(() => p.querySelector('#he-pf-road-form-name').focus(), 0);
+    } else {
+      pfShowIdleForMode();
+    }
+  }
+  function setPfRoadMetaFormVisible(open){
+    const p = pfPanel(); if (!p) return;
+    state.pfRoadMetaOpen = open;
+    p.querySelector('#he-pf-road-meta-form').style.display = open ? '' : 'none';
+    if (open){
+      pfHideAllIdles();
+      const info = state.pfRoadSelected ? GCCPaths.getRoadInfo(state.pfRoadSelected) : null;
+      if (!info){ setPfRoadMetaFormVisible(false); return; }
+      p.querySelector('#he-pf-road-meta-name').value = state.pfRoadSelected;
+      p.querySelector('#he-pf-road-meta-kind').value = info.kind;
+      setTimeout(() => p.querySelector('#he-pf-road-meta-name').focus(), 0);
+    } else {
+      pfShowIdleForMode();
+    }
+  }
+  function onPfRoadSelectChange(ev){
+    state.pfRoadSelected = ev.target.value || null;
+    refreshPfRoadMeta();
+    refreshPfRoadActions();
+  }
+  function onPfRoadNewClick(){
+    setPfRoadFormVisible(true);
+  }
+  function onPfRoadFormBegin(){
+    const p = pfPanel();
+    const name = (p.querySelector('#he-pf-road-form-name').value || '').trim();
+    const kind = p.querySelector('#he-pf-road-form-kind').value;
+    if (!name){ pfSetStatus('Enter a name first.'); return; }
+    if (typeof GCCPaths === 'undefined'){ showToast('gcc-paths.js not loaded'); return; }
+    if (GCCPaths.getRoadInfo(name)){
+      if (!confirm(`A road named "${name}" already exists. Replace it?`)) return;
+    }
+    setPfRoadFormVisible(false);
+    pfStartTrace({ entityKind:'road', name, kind, chain:[], isNew:true });
+  }
+  function onPfRoadFormCancel(){
+    setPfRoadFormVisible(false);
+  }
+  function onPfRoadEditClick(){
+    if (!state.pfRoadSelected) return;
+    const info = GCCPaths.getRoadInfo(state.pfRoadSelected);
+    const chain = GCCPaths.getRoadChain(state.pfRoadSelected) || [];
+    if (!info) return;
+    pfStartTrace({ entityKind:'road', name:state.pfRoadSelected, kind:info.kind, chain, isNew:false });
+  }
+  function onPfRoadDeleteClick(){
+    if (!state.pfRoadSelected) return;
+    const name = state.pfRoadSelected;
+    if (!confirm(`Delete road "${name}"? Base roads can be restored via Reset All.`)) return;
+    GCCPaths.deleteRoad(name);
+    state.pfRoadSelected = null;
+    refreshPfRoadSelect();
+    refreshPfStats();
+  }
+  function onPfRoadMetaEditClick(){
+    if (!state.pfRoadSelected) return;
+    setPfRoadMetaFormVisible(true);
+  }
+  function onPfRoadMetaCancel(){
+    setPfRoadMetaFormVisible(false);
+  }
+  function onPfRoadMetaSave(){
+    const p = pfPanel();
+    const oldName = state.pfRoadSelected;
+    if (!oldName) return;
+    const newName = (p.querySelector('#he-pf-road-meta-name').value || '').trim();
+    const kind    = p.querySelector('#he-pf-road-meta-kind').value;
+    if (!newName){ showToast('Name cannot be empty'); return; }
+    if (newName !== oldName && GCCPaths.getRoadInfo(newName)){
+      if (!confirm(`A road named "${newName}" already exists. Overwrite it?`)) return;
+    }
+    const chain = GCCPaths.getRoadChain(oldName);
+    if (!chain){ showToast('Chain not found'); return; }
+    try {
+      GCCPaths.saveRoad(newName, kind, chain);
+      if (newName !== oldName) GCCPaths.deleteRoad(oldName);
+    } catch (e){
+      showToast(`Save failed: ${e.message}`);
+      return;
+    }
+    state.pfRoadSelected = newName;
+    setPfRoadMetaFormVisible(false);
+    refreshPfRoadSelect();
+    refreshPfStats();
+    showToast(`Updated ${newName}`);
+  }
+
   // ── Mode tabs (river / road / crossing) ────────────────────────────────
   function onPfModeClick(mode){
     if (!mode || mode === state.pfMode) return;
-    if (mode === 'road') return;  // disabled (Phase C)
     // Tear down whatever was active in the previous mode.
     if (state.pfMode === 'river'){
       pfCancelTrace();
       setPfFormVisible(false);
       setPfMetaFormVisible(false);
+    } else if (state.pfMode === 'road'){
+      pfCancelTrace();
+      setPfRoadFormVisible(false);
+      setPfRoadMetaFormVisible(false);
     } else if (state.pfMode === 'crossing'){
       pfCancelCrossing();
     }
@@ -2625,13 +2872,12 @@
     const p = pfPanel(); if (!p) return;
     p.querySelectorAll('.he-pf-mode').forEach(b =>
       b.classList.toggle('active', b.dataset.pfmode === mode));
+    pfShowIdleForMode();
     if (mode === 'river'){
-      p.querySelector('#he-pf-idle').style.display = '';
-      p.querySelector('#he-pf-cross-idle').style.display = 'none';
       refreshPfSelect();
+    } else if (mode === 'road'){
+      refreshPfRoadSelect();
     } else if (mode === 'crossing'){
-      p.querySelector('#he-pf-idle').style.display = 'none';
-      p.querySelector('#he-pf-cross-idle').style.display = '';
       refreshPfCrossSelect();
     }
   }
@@ -2802,15 +3048,20 @@
     if (typeof GCCPaths === 'undefined') return;
     const data = GCCPaths.exportOverrides();
     const crossKeys = data.crossings ? Object.keys(data.crossings) : [];
-    const n = Object.keys(data.rivers).length + data.deletedRivers.length + crossKeys.length;
+    const roadOver  = data.roads ? Object.keys(data.roads).length : 0;
+    const roadDel   = data.deletedRoads ? data.deletedRoads.length : 0;
+    const n = Object.keys(data.rivers).length + data.deletedRivers.length
+            + crossKeys.length + roadOver + roadDel;
     if (n === 0){ showToast('No path overrides to clear'); return; }
     if (!confirm(`Clear ${n} path override${n===1?'':'s'}? Base rivers will be restored.`)) return;
     GCCPaths.clearOverrides();
     state.pfSelected = null;
+    state.pfRoadSelected = null;
     state.pfCrossingSelected = null;
     pfCancelTrace();
     pfCancelCrossing();
     refreshPfSelect();
+    refreshPfRoadSelect();
     refreshPfStats();
     if (state.pfMode === 'crossing') refreshPfCrossSelect();
     showToast('Path overrides cleared');
@@ -2868,6 +3119,10 @@
     if (state.activeTab === 'draw'){
       pfCancelTrace();
       pfCancelCrossing();
+      setPfFormVisible(false);
+      setPfMetaFormVisible(false);
+      setPfRoadFormVisible(false);
+      setPfRoadMetaFormVisible(false);
     }
     document.body.classList.remove('he-pathing');
     if (state.panelEl) state.panelEl.style.display = 'none';

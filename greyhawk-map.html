@@ -100,6 +100,11 @@
      once Phase B/C ship. The trace-preview classes are driven by the
      Hex Editor's Paths pane while a path is being drawn. */
   .path-river { fill:#4d8ab6; stroke:#4d8ab6; stroke-linecap:round; stroke-linejoin:round; opacity:.85; pointer-events:none; }
+  /* Roads (Phase C): muted brown so they read clearly against terrain
+     paint without competing with the blue river overlay. Track is the
+     same hue but thinner and dashed for "minor route" semantics. */
+  .path-road  { fill:none; stroke:#8a5a2a; stroke-width:2.0; stroke-linecap:round; stroke-linejoin:round; opacity:.85; pointer-events:none; }
+  .path-track { fill:none; stroke:#6e4520; stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:4 2.5; opacity:.8; pointer-events:none; }
   .path-trace { fill:none; stroke:#e8d878; stroke-width:2.5; stroke-dasharray:6 3; stroke-linecap:round; stroke-linejoin:round; opacity:.95; pointer-events:none; }
   .path-trace-vertex { fill:#e8d878; stroke:#5a4108; stroke-width:.8; pointer-events:none; }
   .path-trace-source { fill:#cc4422; stroke:#fff8b8; stroke-width:1.2; pointer-events:none; }
@@ -1917,6 +1922,27 @@ function buildPathOverlay(){
   g.id = 'path-overlay';
   g.style.pointerEvents = 'none';
   if (typeof GCCPaths === 'undefined') return g;
+  // Roads (Phase C). Render first so rivers paint over them where they
+  // share hexes — rivers are the dominant linear feature on Greyhawk-
+  // style maps. Crossings render last (above both).
+  if (typeof GCCPaths.allRoadNames === 'function'){
+    for (const name of GCCPaths.allRoadNames()){
+      const chain = GCCPaths.getRoadChain(name);
+      if (!chain || chain.length < 2) continue;
+      const info = GCCPaths.getRoadInfo(name);
+      const cls  = info && info.kind === 'track' ? 'path-track' : 'path-road';
+      const pts = chain.map(h => {
+        const c = hexCenter(h.col, h.row);
+        const s = mapToStage(c.x, c.y);
+        return `${s.x.toFixed(1)},${s.y.toFixed(1)}`;
+      }).join(' ');
+      const poly = document.createElementNS(ns, 'polyline');
+      poly.setAttribute('points', pts);
+      poly.setAttribute('class', cls);
+      poly.dataset.name = name;
+      g.appendChild(poly);
+    }
+  }
   for (const name of GCCPaths.allRiverNames()){
     const chain = GCCPaths.getRiverChain(name);
     if (!chain || chain.length < 1) continue;

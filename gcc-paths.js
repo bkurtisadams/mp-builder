@@ -1,10 +1,14 @@
-// gcc-paths.js v0.3.0 — 2026-04-27
+// gcc-paths.js v0.4.0 — 2026-04-27
 // Edge-based path features for the Greyhawk hex map: rivers, roads,
 // bridges, fords, ferries. v0.2 adds editor-driven CRUD with
 // localStorage override layering on top of hardcoded base data.
 // v0.3.0: Phase B — crossing CRUD (saveCrossing/deleteCrossing/
 // allCrossings/crossingAt) with override storage + replay. No base
 // crossings yet; all live in the override layer until baked.
+// v0.4.0: Phase C — road CRUD (saveRoad/deleteRoad/getRoadInfo/
+// getRoadChain) parallels the river layer. Road segments carry
+// kind: 'road'|'track' directly; roadsAt filter accepts both.
+// No base roads yet.
 //
 // ── Edge numbering ──────────────────────────────────────────────────────────
 // Flat-top hexes with odd-q-offset coordinates (odd cols shifted DOWN
@@ -100,6 +104,18 @@
     }
     delete namedRivers[name];
   }
+  function _wipeRoad(name){
+    const entries = namedRoads[name] || [];
+    for (const { col, row, segment } of entries){
+      const k = keyOf(col, row);
+      const arr = hexSegments[k];
+      if (!arr) continue;
+      const filtered = arr.filter(s => s !== segment);
+      if (filtered.length === 0) delete hexSegments[k];
+      else hexSegments[k] = filtered;
+    }
+    delete namedRoads[name];
+  }
   function _clearAll(){
     for (const k of Object.keys(hexSegments)) delete hexSegments[k];
     for (const k of Object.keys(hexEdgeFeatures)) delete hexEdgeFeatures[k];
@@ -110,7 +126,7 @@
   // ── Accessors ──────────────────────────────────────────────────────────
   function segmentsAt(col, row){ return hexSegments[keyOf(col, row)] || []; }
   function riversAt(col, row){   return segmentsAt(col, row).filter(s => s.kind === 'river'); }
-  function roadsAt(col, row){    return segmentsAt(col, row).filter(s => s.kind === 'road'); }
+  function roadsAt(col, row){    return segmentsAt(col, row).filter(s => s.kind === 'road' || s.kind === 'track'); }
   function edgeFeaturesAt(colA, rowA, colB, rowB){
     const owner = ownerHex(colA, rowA, colB, rowB);
     const ownerIsA = (owner.col === colA && owner.row === rowA);
@@ -237,10 +253,48 @@
     };
   }
 
+  // ── In-memory write (roads) ────────────────────────────────────────────
+  // Roads work like rivers but with kind ∈ {'road','track'} as the
+  // primary discriminator (no current, no upstream/downstream). Chain
+  // order is just route order; either endpoint is valid as the start.
+  function setRoadFromChain(name, kind, chain){
+    if (!name) throw new Error('road needs a name');
+    if (!ROAD_KINDS.includes(kind)) throw new Error(`bad road kind: ${kind}`);
+    const broken = validateChain(chain);
+    if (broken !== null) throw new Error(`chain breaks at index ${broken}`);
+    _wipeRoad(name);
+    const segs = chainToSegments(chain);
+    for (const s of segs){
+      _addSegment(s.col, s.row, {
+        kind, name,
+        entryEdge: s.entry, exitEdge: s.exit,
+      });
+    }
+  }
+  function getRoadChain(name){
+    const entries = namedRoads[name];
+    if (!entries || entries.length === 0) return null;
+    return entries.map(e => ({ col: e.col, row: e.row }));
+  }
+  function getRoadInfo(name){
+    const entries = namedRoads[name];
+    if (!entries || entries.length === 0) return null;
+    const first = entries[0].segment;
+    return {
+      name,
+      kind: first.kind,
+      hexCount: entries.length,
+      isBase: baseRoadNames.includes(name),
+      isOverride: !!overrideRoads[name],
+    };
+  }
+
   // ── Persistence (localStorage overrides) ───────────────────────────────
-  const LS_RIVERS    = 'gcc-paths-rivers';
-  const LS_DELETED   = 'gcc-paths-rivers-deleted';
-  const LS_CROSSINGS = 'gcc-paths-crossings';
+  const LS_RIVERS         = 'gcc-paths-rivers';
+  const LS_DELETED        = 'gcc-paths-rivers-deleted';
+  const LS_CROSSINGS      = 'gcc-paths-crossings';
+  const LS_ROADS          = 'gcc-paths-roads';
+  const LS_ROADS_DELETED  = 'gcc-paths-roads-deleted';
 
   let overrideRivers = {};
   let deletedBaseRivers = new Set();
@@ -248,6 +302,9 @@
   // Each value: {kind, name}. No deleted-tombstone list because there
   // are no base crossings yet — Phase B introduces them via the editor.
   let overrideCrossings = {};
+  // Roads parallel rivers: name → {kind, chain}, plus tombstones.
+  let overrideRoads = {};
+  let deletedBaseRoads = new Set();
 
   function loadOverrides(){
     try {
@@ -257,10 +314,16 @@
       deletedBaseRivers = new Set(d ? JSON.parse(d) : []);
       const c = localStorage.getItem(LS_CROSSINGS);
       overrideCrossings = c ? JSON.parse(c) : {};
+      const ro = localStorage.getItem(LS_ROADS);
+      overrideRoads = ro ? JSON.parse(ro) : {};
+      const rd = localStorage.getItem(LS_ROADS_DELETED);
+      deletedBaseRoads = new Set(rd ? JSON.parse(rd) : []);
     } catch (e) {
       overrideRivers = {};
       deletedBaseRivers = new Set();
       overrideCrossings = {};
+      overrideRoads = {};
+      deletedBaseRoads = new Set();
     }
   }
   function saveOverridesLS(){
@@ -268,6 +331,8 @@
       localStorage.setItem(LS_RIVERS, JSON.stringify(overrideRivers));
       localStorage.setItem(LS_DELETED, JSON.stringify(Array.from(deletedBaseRivers)));
       localStorage.setItem(LS_CROSSINGS, JSON.stringify(overrideCrossings));
+      localStorage.setItem(LS_ROADS, JSON.stringify(overrideRoads));
+      localStorage.setItem(LS_ROADS_DELETED, JSON.stringify(Array.from(deletedBaseRoads)));
     } catch (e) {}
   }
 
@@ -288,10 +353,28 @@
     saveOverridesLS();
     rebuild();
   }
+  function saveRoad(name, kind, chain){
+    const cleanChain = chain.map(h => ({ col: h.col|0, row: h.row|0 }));
+    const broken = validateChain(cleanChain);
+    if (broken !== null) throw new Error(`chain breaks at index ${broken}`);
+    if (!ROAD_KINDS.includes(kind)) throw new Error(`bad road kind: ${kind}`);
+    overrideRoads[name] = { kind, chain: cleanChain };
+    deletedBaseRoads.delete(name);
+    saveOverridesLS();
+    rebuild();
+  }
+  function deleteRoad(name){
+    if (overrideRoads[name]) delete overrideRoads[name];
+    if (baseRoadNames.includes(name)) deletedBaseRoads.add(name);
+    saveOverridesLS();
+    rebuild();
+  }
   function clearOverrides(){
     overrideRivers = {};
     deletedBaseRivers = new Set();
     overrideCrossings = {};
+    overrideRoads = {};
+    deletedBaseRoads = new Set();
     saveOverridesLS();
     rebuild();
   }
@@ -300,6 +383,8 @@
       rivers: JSON.parse(JSON.stringify(overrideRivers)),
       deletedRivers: Array.from(deletedBaseRivers),
       crossings: JSON.parse(JSON.stringify(overrideCrossings)),
+      roads: JSON.parse(JSON.stringify(overrideRoads)),
+      deletedRoads: Array.from(deletedBaseRoads),
     };
   }
 
@@ -378,6 +463,11 @@
     baseRiverNames.push(name);
     setRiverFromChain(name, type, current, chain);
   }
+  const baseRoadNames = [];
+  function _baseRoad(name, kind, chain){
+    baseRoadNames.push(name);
+    setRoadFromChain(name, kind, chain);
+  }
   function loadBaseData(){
     // Greyhawk Wars campaign data — 44 named rivers from the
     // Darlene/Living Greyhawk maps, painted via the Hex Editor
@@ -431,16 +521,28 @@
   function rebuild(){
     _clearAll();
     baseRiverNames.length = 0;
+    baseRoadNames.length = 0;
     loadBaseData();
     for (const name of deletedBaseRivers){
       _wipeRiver(name);
+    }
+    for (const name of deletedBaseRoads){
+      _wipeRoad(name);
     }
     for (const [name, def] of Object.entries(overrideRivers)){
       if (!def || !def.chain) continue;
       try {
         setRiverFromChain(name, def.type, def.current, def.chain);
       } catch (e) {
-        console.warn('[gcc-paths] override apply failed:', name, e);
+        console.warn('[gcc-paths] river override apply failed:', name, e);
+      }
+    }
+    for (const [name, def] of Object.entries(overrideRoads)){
+      if (!def || !def.chain) continue;
+      try {
+        setRoadFromChain(name, def.kind, def.chain);
+      } catch (e) {
+        console.warn('[gcc-paths] road override apply failed:', name, e);
       }
     }
     for (const [k, def] of Object.entries(overrideCrossings)){
@@ -474,9 +576,11 @@
     segmentsAt, riversAt, roadsAt, edgeFeaturesAt,
     getNamedRiver, getNamedRoad, allRiverNames, allRoadNames,
     getRiverChain, getRiverInfo,
+    getRoadChain, getRoadInfo,
     crossingAt, allCrossings, riverNameOnEdge,
     // CRUD (persists)
     saveRiver, deleteRiver, clearOverrides, exportOverrides,
+    saveRoad, deleteRoad,
     saveCrossing, deleteCrossing,
     // Resolver
     edgeRiverInfo, edgeBlocks, edgeRoadBonus,
