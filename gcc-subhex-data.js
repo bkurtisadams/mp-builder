@@ -1,4 +1,4 @@
-// gcc-subhex-data.js v0.4.0 — 2026-04-28
+// gcc-subhex-data.js v0.5.0 — 2026-04-28
 // Subhex data layer: 3mi cells inscribed within 30mi parent hexes.
 //
 // ── Coords ──────────────────────────────────────────────────────────────────
@@ -17,6 +17,17 @@
 //   2. canonical features (gcc-flanaess-features.js, future)  (Phase A stub)
 //   3. procedural seed → terrain         (Phase A)
 // Procedural results never persist; only authored ones consume storage.
+//
+// ── Schema (v0.5+) ──────────────────────────────────────────────────────────
+// An override doc holds optional fields:
+//   terrain   : terrain key string ('hills', 'forest', ...) or null
+//   name      : cell name ('Bald Knob', 'Three Stones')
+//   notes     : freeform GM notes
+//   feature   : { kind, name?, libraryId? } or null/absent
+// 'feature' is one feature per cell — castle, ruin, tower, village,
+// camp, cache, shrine, lair, grave, landmark. libraryId is a free-form
+// string referencing a future library entity; v0.7 stores it raw, the
+// picker in v0.8 will resolve it to an entity name on display.
 //
 // ── Phase A scope ───────────────────────────────────────────────────────────
 // localStorage only. Firestore schema + rules are landed but client I/O
@@ -85,6 +96,13 @@
     water_deep:       { water_deep: 1 },
   };
 
+  const FEATURE_KINDS = [
+    'castle', 'ruin', 'tower', 'village',
+    'camp', 'cache', 'shrine', 'lair',
+    'grave', 'landmark',
+  ];
+  const FEATURE_KINDS_SET = new Set(FEATURE_KINDS);
+
   let OVERRIDES = {};
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -140,13 +158,14 @@
                  || proceduralTerrain(parentTerrain, parentDarleneId, q, r),
         name:    ov.name || '',
         notes:   ov.notes || '',
+        feature: ov.feature || null,
         source:  'authored',
         schemaVersion: ov.schemaVersion || SCHEMA_VERSION,
       };
     }
     const canon = canonicalSubhex(parentDarleneId, q, r);
     if (canon){
-      return { id, q, r, parentDarleneId, source: 'canonical', name: '', notes: '', ...canon };
+      return { id, q, r, parentDarleneId, source: 'canonical', name: '', notes: '', feature: null, ...canon };
     }
     return {
       id, q, r,
@@ -154,6 +173,7 @@
       terrain: proceduralTerrain(parentTerrain, parentDarleneId, q, r),
       name: '',
       notes: '',
+      feature: null,
       source: 'seed',
       schemaVersion: SCHEMA_VERSION,
     };
@@ -167,14 +187,40 @@
     if ('terrain' in fields) next.terrain = fields.terrain || null;
     if ('name'    in fields) next.name    = fields.name || '';
     if ('notes'   in fields) next.notes   = fields.notes || '';
+    if ('feature' in fields){
+      next.feature = normalizeFeature(fields.feature);
+    }
     next.schemaVersion = SCHEMA_VERSION;
     next.authoredAt = Date.now();
-    // Strip empty doc
-    const empty = !next.terrain && !next.name && !next.notes;
+    // Strip empty doc — no terrain, name, notes, OR feature.
+    const empty = !next.terrain && !next.name && !next.notes && !next.feature;
     if (empty){ delete OVERRIDES[id]; }
     else      { OVERRIDES[id] = next; }
     save();
     return true;
+  }
+
+  // Normalize a feature input. Returns a clean { kind, name, libraryId }
+  // object or null. Drops unknown kinds. Strips empty name/libraryId so
+  // we don't store empty-string noise.
+  function normalizeFeature(f){
+    if (!f) return null;
+    if (typeof f === 'string'){
+      f = { kind: f };
+    }
+    if (!f.kind || !FEATURE_KINDS_SET.has(f.kind)) return null;
+    const out = { kind: f.kind };
+    if (f.name && String(f.name).trim()) out.name = String(f.name).trim();
+    if (f.libraryId && String(f.libraryId).trim()) out.libraryId = String(f.libraryId).trim();
+    return out;
+  }
+
+  function setSubhexFeature(parentDarleneId, q, r, feature){
+    return setSubhexOverride(parentDarleneId, q, r, { feature });
+  }
+
+  function clearSubhexFeature(parentDarleneId, q, r){
+    return setSubhexOverride(parentDarleneId, q, r, { feature: null });
   }
 
   function clearSubhex(parentDarleneId, q, r){
@@ -243,9 +289,11 @@
 
   window.GCCSubhexData = {
     WORLD_SEED, SCHEMA_VERSION, SUBHEX_DIM, SUBHEX_RADIUS, SUBHEX_COUNT,
+    FEATURE_KINDS,
     dim, subhexId, parseSubhexId, inBounds, isValidCell,
     validCells: () => VALID_CELLS.slice(),
     getSubhex, setSubhexOverride, clearSubhex, clearAll,
+    setSubhexFeature, clearSubhexFeature,
     allAuthored, authoredCount,
     exportOverrides, importOverrides,
     proceduralTerrain, canonicalSubhex,

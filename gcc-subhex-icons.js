@@ -1,10 +1,16 @@
-// gcc-subhex-icons.js v0.4.0 — 2026-04-28
+// gcc-subhex-icons.js v0.7.0 — 2026-04-28
 // Terrain icon registry for the subhex window. One small SVG glyph per
 // terrain type, stamped into each cell at a deterministic-jittered
 // position so identical-terrain neighbors don't form a polka-dot grid.
 // Style mirrors the line-art Darlene/Greyhawk vibe: single-color ink
 // strokes, no fills except mountains. Cell radius ~26 viewbox units;
 // icons sized for ~14 unit footprint with the cell.
+//
+// v0.7 adds FEATURE GLYPHS — louder, filled, parchment-haloed icons
+// for castle/ruin/tower/village/camp/cache/shrine/lair/grave/landmark.
+// Inspired by the Maure Castle environs map: bold silhouettes on a
+// pale halo so they read clearly against any terrain color and against
+// the subdued terrain icons stamped beneath.
 //
 // Phase A icon set (7): hills, mountains, hardwood, forest/conifer,
 // swamp, plains, clear. Other terrains (jungle, desert, barrens,
@@ -13,9 +19,14 @@
 //
 // Public API:
 //   GCCSubhexIcons.append(parentG, terrain, cx, cy, subR, q, r)
-//     Appends icon child elements to parentG (SVG <g>) at the cell
-//     center, with deterministic jitter seeded on (q, r). No-op if
-//     terrain has no icon.
+//     Appends terrain icon child elements to parentG (SVG <g>) at the
+//     cell center, with deterministic jitter seeded on (q, r). No-op
+//     if terrain has no icon.
+//   GCCSubhexIcons.appendFeature(parentG, kind, cx, cy, subR)
+//     Appends feature glyph child elements (halo + glyph) at the
+//     cell center, no jitter. No-op if kind not recognized.
+//   GCCSubhexIcons.FEATURE_KINDS  → array of kinds for which a glyph
+//     is registered (used by view to filter the palette).
 
 (function(){
   'use strict';
@@ -144,5 +155,168 @@
     GLYPHS[kind](parentG, cx + jx, cy + jy, s);
   }
 
-  window.GCCSubhexIcons = { append, TERRAIN_TO_GLYPH };
+  // ── Feature glyphs ────────────────────────────────────────────────────
+  // Bolder than terrain icons. Each renders as a parchment-cream halo
+  // disk topped with a filled silhouette in dark ink and (optionally)
+  // a small accent. Sized to ~70% of cell radius so they read clearly
+  // even when the terrain icon is also stamped in the cell.
+
+  const FEATURE_INK   = '#1a0a00';
+  const FEATURE_ACCENT = '#a32d2d';
+  const FEATURE_HALO_FILL   = '#f4e8c4';
+  const FEATURE_HALO_STROKE = '#5a4a30';
+
+  function appendHalo(g, cx, cy, r){
+    g.appendChild(el('circle', {
+      cx, cy, r,
+      fill: FEATURE_HALO_FILL,
+      stroke: FEATURE_HALO_STROKE,
+      'stroke-width': '1.3',
+    }));
+  }
+
+  const FEATURE_GLYPHS = {
+    castle(g, cx, cy, s){
+      // Square keep with three crenellations and a tiny red flag.
+      const w = s * 1.2, h = s * 0.9;
+      const x0 = cx - w/2, y0 = cy - h*0.4;
+      g.appendChild(el('rect', {
+        x: x0, y: y0 + h*0.25, width: w, height: h*0.75, fill: FEATURE_INK,
+      }));
+      // Crenellations across the top
+      const cw = w / 5;
+      for (let i = 0; i < 3; i++){
+        g.appendChild(el('rect', {
+          x: x0 + cw + i*cw*1.2, y: y0, width: cw*0.8, height: h*0.35, fill: FEATURE_INK,
+        }));
+      }
+      // Flagpole + flag
+      g.appendChild(el('line', {
+        x1: cx + w*0.35, y1: y0 + h*0.05, x2: cx + w*0.35, y2: cy - s*0.85,
+        stroke: FEATURE_INK, 'stroke-width': '0.8',
+      }));
+      g.appendChild(el('path', {
+        d: `M ${cx + w*0.35} ${cy - s*0.85} L ${cx + w*0.65} ${cy - s*0.7} L ${cx + w*0.35} ${cy - s*0.55} Z`,
+        fill: FEATURE_ACCENT,
+      }));
+    },
+    ruin(g, cx, cy, s){
+      // Two broken column fragments, jagged tops.
+      g.appendChild(el('path', {
+        d: `M ${cx - s*0.7} ${cy + s*0.55} L ${cx - s*0.7} ${cy - s*0.1} L ${cx - s*0.55} ${cy - s*0.4} L ${cx - s*0.4} ${cy - s*0.05} L ${cx - s*0.25} ${cy + s*0.55} Z`,
+        fill: FEATURE_INK,
+      }));
+      g.appendChild(el('path', {
+        d: `M ${cx + s*0.15} ${cy + s*0.55} L ${cx + s*0.15} ${cy - s*0.2} L ${cx + s*0.35} ${cy - s*0.5} L ${cx + s*0.55} ${cy - s*0.15} L ${cx + s*0.55} ${cy + s*0.55} Z`,
+        fill: FEATURE_INK,
+      }));
+      // Rubble dot
+      g.appendChild(el('circle', { cx: cx - s*0.05, cy: cy + s*0.45, r: s*0.1, fill: FEATURE_INK }));
+    },
+    tower(g, cx, cy, s){
+      // Tall narrow tower with conical roof.
+      const w = s * 0.7;
+      g.appendChild(el('rect', {
+        x: cx - w/2, y: cy - s*0.4, width: w, height: s*1.0, fill: FEATURE_INK,
+      }));
+      g.appendChild(el('path', {
+        d: `M ${cx - w*0.7} ${cy - s*0.4} L ${cx} ${cy - s*0.95} L ${cx + w*0.7} ${cy - s*0.4} Z`,
+        fill: FEATURE_INK,
+      }));
+      // Window
+      g.appendChild(el('rect', {
+        x: cx - s*0.1, y: cy - s*0.1, width: s*0.2, height: s*0.3,
+        fill: FEATURE_HALO_FILL,
+      }));
+    },
+    village(g, cx, cy, s){
+      // Three small huts with peaked roofs.
+      const huts = [[-s*0.55, s*0.05], [s*0.0, -s*0.15], [s*0.55, s*0.05]];
+      for (const [hx, hy] of huts){
+        // Body
+        g.appendChild(el('rect', {
+          x: cx + hx - s*0.22, y: cy + hy, width: s*0.44, height: s*0.42, fill: FEATURE_INK,
+        }));
+        // Roof
+        g.appendChild(el('path', {
+          d: `M ${cx + hx - s*0.32} ${cy + hy} L ${cx + hx} ${cy + hy - s*0.32} L ${cx + hx + s*0.32} ${cy + hy} Z`,
+          fill: FEATURE_INK,
+        }));
+      }
+    },
+    camp(g, cx, cy, s){
+      // Tent + small flame.
+      g.appendChild(el('path', {
+        d: `M ${cx - s*0.7} ${cy + s*0.45} L ${cx} ${cy - s*0.55} L ${cx + s*0.7} ${cy + s*0.45} Z`,
+        fill: FEATURE_INK,
+      }));
+      g.appendChild(el('path', {
+        d: `M ${cx - s*0.18} ${cy + s*0.45} L ${cx} ${cy - s*0.05} L ${cx + s*0.18} ${cy + s*0.45} Z`,
+        fill: FEATURE_HALO_FILL,
+      }));
+      // Tiny flame accent at peak
+      g.appendChild(el('circle', { cx: cx + s*0.55, cy: cy + s*0.25, r: s*0.18, fill: FEATURE_ACCENT }));
+    },
+    cache(g, cx, cy, s){
+      // Filled disk with central X.
+      g.appendChild(el('circle', { cx, cy, r: s*0.7, fill: FEATURE_INK }));
+      g.appendChild(el('path', {
+        d: `M ${cx - s*0.32} ${cy - s*0.32} L ${cx + s*0.32} ${cy + s*0.32} M ${cx + s*0.32} ${cy - s*0.32} L ${cx - s*0.32} ${cy + s*0.32}`,
+        stroke: FEATURE_HALO_FILL, 'stroke-width': '1.6', 'stroke-linecap': 'round',
+      }));
+    },
+    shrine(g, cx, cy, s){
+      // Tall cross with stepped base.
+      g.appendChild(el('rect', { x: cx - s*0.7, y: cy + s*0.45, width: s*1.4, height: s*0.2, fill: FEATURE_INK }));
+      g.appendChild(el('rect', { x: cx - s*0.5, y: cy + s*0.25, width: s*1.0, height: s*0.2, fill: FEATURE_INK }));
+      g.appendChild(el('rect', { x: cx - s*0.13, y: cy - s*0.7, width: s*0.26, height: s*1.0, fill: FEATURE_INK }));
+      g.appendChild(el('rect', { x: cx - s*0.45, y: cy - s*0.25, width: s*0.9,  height: s*0.22, fill: FEATURE_INK }));
+    },
+    lair(g, cx, cy, s){
+      // Cave-mouth arch with a glint inside.
+      g.appendChild(el('path', {
+        d: `M ${cx - s*0.75} ${cy + s*0.55} L ${cx - s*0.75} ${cy - s*0.05} A ${s*0.75} ${s*0.6} 0 0 1 ${cx + s*0.75} ${cy - s*0.05} L ${cx + s*0.75} ${cy + s*0.55} Z`,
+        fill: FEATURE_INK,
+      }));
+      // Two yellow eye-glints
+      g.appendChild(el('circle', { cx: cx - s*0.22, cy: cy + s*0.2, r: s*0.09, fill: '#E5B53C' }));
+      g.appendChild(el('circle', { cx: cx + s*0.22, cy: cy + s*0.2, r: s*0.09, fill: '#E5B53C' }));
+    },
+    grave(g, cx, cy, s){
+      // Rounded headstone with a cross etched on top.
+      g.appendChild(el('path', {
+        d: `M ${cx - s*0.55} ${cy + s*0.55} L ${cx - s*0.55} ${cy - s*0.15} A ${s*0.55} ${s*0.55} 0 0 1 ${cx + s*0.55} ${cy - s*0.15} L ${cx + s*0.55} ${cy + s*0.55} Z`,
+        fill: FEATURE_INK,
+      }));
+      // Cross
+      g.appendChild(el('rect', { x: cx - s*0.06, y: cy - s*0.45, width: s*0.12, height: s*0.5, fill: FEATURE_HALO_FILL }));
+      g.appendChild(el('rect', { x: cx - s*0.22, y: cy - s*0.32, width: s*0.44, height: s*0.12, fill: FEATURE_HALO_FILL }));
+      // Mound below
+      g.appendChild(el('path', {
+        d: `M ${cx - s*0.85} ${cy + s*0.7} Q ${cx} ${cy + s*0.45} ${cx + s*0.85} ${cy + s*0.7} Z`,
+        fill: FEATURE_INK,
+      }));
+    },
+    landmark(g, cx, cy, s){
+      // Diamond marker — generic "noteworthy."
+      g.appendChild(el('path', {
+        d: `M ${cx} ${cy - s*0.7} L ${cx + s*0.7} ${cy} L ${cx} ${cy + s*0.7} L ${cx - s*0.7} ${cy} Z`,
+        fill: FEATURE_INK,
+      }));
+      g.appendChild(el('circle', { cx, cy, r: s*0.18, fill: FEATURE_ACCENT }));
+    },
+  };
+
+  const FEATURE_KINDS = Object.keys(FEATURE_GLYPHS);
+
+  function appendFeature(parentG, kind, cx, cy, subR){
+    if (!parentG || !kind || !FEATURE_GLYPHS[kind]) return;
+    // Halo first (back), glyph on top.
+    const haloR = subR * 0.62;
+    appendHalo(parentG, cx, cy, haloR);
+    const s = subR * 0.5;
+    FEATURE_GLYPHS[kind](parentG, cx, cy, s);
+  }
+
+  window.GCCSubhexIcons = { append, appendFeature, TERRAIN_TO_GLYPH, FEATURE_KINDS };
 })();

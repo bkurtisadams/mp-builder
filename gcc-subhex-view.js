@@ -1,7 +1,15 @@
-// gcc-subhex-view.js v0.6.0 — 2026-04-28
+// gcc-subhex-view.js v0.7.0 — 2026-04-28
 // Subhex editor window. Opens for one parent hex at a time; main map
 // stays at 30mi, untouched. Self-contained: own SVG, own paint palette,
 // own name/notes inputs.
+//
+// v0.7: feature cells. A cell can host one feature (castle, ruin,
+// tower, village, camp, cache, shrine, lair, grave, landmark) which
+// renders as a haloed glyph over the terrain icon. The detail panel
+// gains a Hosts row with kind picker, feature name, and library link.
+// The palette gains a second strip of feature glyphs that arm the
+// same paint flow as terrain swatches — click-to-place or drag to
+// brush a feature across multiple cells.
 //
 // v0.6: tightened SVG viewBox to flat-top hex proportions (610×530,
 // not 660×660), eliminating ~70 units of vertical padding around the
@@ -62,7 +70,9 @@
     parentTerrain: null,
     selectedQ: null,
     selectedR: null,
-    paintTerrain: null,   // null = select-only mode; otherwise the armed terrain key (or '__erase')
+    // armed controls what click/drag paints. null = select mode.
+    // Otherwise: { type: 'terrain'|'feature'|'erase', value?: kind }
+    armed: null,
     drag: null,
     dragOffset: { x: 0, y: 0 },
     brushing: false,
@@ -86,9 +96,20 @@
           <div class="sxw-row"><label>Terrain</label><span class="sxw-readonly" id="sxw-terrain">—</span></div>
           <div class="sxw-row"><label>Name</label><input type="text" id="sxw-name" placeholder="(unnamed)" disabled></div>
           <div class="sxw-row"><label>Notes</label><textarea id="sxw-notes" placeholder="GM notes" disabled></textarea></div>
+          <div class="sxw-row sxw-row-feature">
+            <label>Hosts</label>
+            <div class="sxw-feature-fields">
+              <select id="sxw-feature-kind" disabled>
+                <option value="">— none —</option>
+              </select>
+              <input type="text" id="sxw-feature-name" placeholder="Feature name (e.g. Maure Castle)" disabled>
+              <input type="text" id="sxw-feature-libid" placeholder="Library entity ID (optional)" disabled>
+            </div>
+          </div>
           <div class="sxw-source" id="sxw-source"></div>
         </div>
         <div class="sxw-palette" id="sxw-palette"></div>
+        <div class="sxw-feature-palette" id="sxw-feature-palette"></div>
         <div class="sxw-tools">
           <button class="sxw-tool-btn" id="sxw-clear">Clear override on selected</button>
           <span class="sxw-mode" id="sxw-mode">Mode: Select</span>
@@ -107,12 +128,17 @@
     // Detail-pane field handlers
     w.querySelector('#sxw-name').addEventListener('blur', persistFields);
     w.querySelector('#sxw-notes').addEventListener('blur', persistFields);
+    w.querySelector('#sxw-feature-kind').addEventListener('change', persistFeature);
+    w.querySelector('#sxw-feature-name').addEventListener('blur', persistFeature);
+    w.querySelector('#sxw-feature-libid').addEventListener('blur', persistFeature);
 
     // Clear-override
     w.querySelector('#sxw-clear').addEventListener('click', onClearOverride);
 
-    // Build terrain palette
+    // Build terrain + feature palettes and feature kind select
     buildPalette();
+    buildFeaturePalette();
+    buildFeatureKindSelect();
 
     // Restore last position and size
     try {
@@ -182,41 +208,102 @@
       if (!meta) continue;
       const b = document.createElement('button');
       b.className = 'sxw-swatch';
-      b.dataset.terrain = t;
+      b.dataset.armKey = `terrain:${t}`;
       b.title = meta.label || t;
       b.style.background = `rgb(${meta.rgb})`;
-      b.addEventListener('click', () => onPaletteClick(t));
+      b.addEventListener('click', () => armPalette({ type: 'terrain', value: t }));
       pal.appendChild(b);
     }
     const erase = document.createElement('button');
     erase.className = 'sxw-swatch sxw-swatch-erase';
-    erase.dataset.terrain = '__erase';
+    erase.dataset.armKey = 'erase:';
     erase.title = 'Erase override (revert to seed)';
     erase.textContent = '⌫';
-    erase.addEventListener('click', () => onPaletteClick('__erase'));
+    erase.addEventListener('click', () => armPalette({ type: 'erase' }));
     pal.appendChild(erase);
   }
 
-  function onPaletteClick(t){
-    state.paintTerrain = (state.paintTerrain === t) ? null : t;
+  function buildFeaturePalette(){
+    const pal = state.win.querySelector('#sxw-feature-palette');
+    if (!pal || !window.GCCSubhexIcons) return;
+    pal.innerHTML = '';
+    // Mini-SVG for each feature kind so the palette uses the same glyph
+    // the cell will eventually paint. Halo is left off in the palette
+    // to keep buttons compact.
+    const NS = 'http://www.w3.org/2000/svg';
+    for (const kind of window.GCCSubhexIcons.FEATURE_KINDS){
+      const b = document.createElement('button');
+      b.className = 'sxw-feature-btn';
+      b.dataset.armKey = `feature:${kind}`;
+      b.title = `Place feature: ${kind}`;
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('width', '20');
+      svg.setAttribute('height', '20');
+      // Render glyph at center 12,12 with subR 14 (so glyph s=7).
+      window.GCCSubhexIcons.appendFeature(svg, kind, 12, 12, 14);
+      b.appendChild(svg);
+      b.addEventListener('click', () => armPalette({ type: 'feature', value: kind }));
+      pal.appendChild(b);
+    }
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'sxw-feature-btn sxw-feature-btn-clear';
+    clearBtn.dataset.armKey = 'feature-erase:';
+    clearBtn.title = 'Clear feature on click';
+    clearBtn.textContent = '⌫';
+    clearBtn.addEventListener('click', () => armPalette({ type: 'feature-erase' }));
+    pal.appendChild(clearBtn);
+  }
+
+  function buildFeatureKindSelect(){
+    const sel = state.win.querySelector('#sxw-feature-kind');
+    if (!sel || !window.GCCSubhexData) return;
+    // Keep the empty "— none —" option and append all feature kinds.
+    for (const kind of window.GCCSubhexData.FEATURE_KINDS){
+      const opt = document.createElement('option');
+      opt.value = kind;
+      opt.textContent = kind.charAt(0).toUpperCase() + kind.slice(1);
+      sel.appendChild(opt);
+    }
+  }
+
+  function armKey(armed){
+    if (!armed) return null;
+    if (armed.type === 'erase') return 'erase:';
+    if (armed.type === 'feature-erase') return 'feature-erase:';
+    return `${armed.type}:${armed.value}`;
+  }
+
+  function armPalette(next){
+    const cur = armKey(state.armed);
+    const nxt = armKey(next);
+    state.armed = (cur === nxt) ? null : next;
     syncPaletteUI();
     syncModeLabel();
   }
+
   function syncPaletteUI(){
     if (!state.win) return;
-    state.win.querySelectorAll('.sxw-swatch').forEach(b => {
-      b.classList.toggle('armed', b.dataset.terrain === state.paintTerrain);
+    const cur = armKey(state.armed);
+    state.win.querySelectorAll('.sxw-swatch, .sxw-feature-btn').forEach(b => {
+      b.classList.toggle('armed', b.dataset.armKey === cur);
     });
   }
+
   function syncModeLabel(){
     const el = state.win?.querySelector('#sxw-mode');
     if (!el) return;
-    if (!state.paintTerrain){
+    const a = state.armed;
+    if (!a){
       el.textContent = 'Mode: Select';
-    } else if (state.paintTerrain === '__erase'){
+    } else if (a.type === 'erase'){
       el.textContent = 'Mode: Erase override · drag to brush';
+    } else if (a.type === 'feature-erase'){
+      el.textContent = 'Mode: Clear feature · click cells';
+    } else if (a.type === 'feature'){
+      el.textContent = `Mode: Place feature · ${a.value} · drag to brush`;
     } else {
-      const lbl = TERRAIN[state.paintTerrain]?.label || state.paintTerrain;
+      const lbl = TERRAIN[a.value]?.label || a.value;
       el.textContent = `Mode: Paint · ${lbl} · drag to brush`;
     }
   }
@@ -231,7 +318,7 @@
     state.parentTerrain = (typeof getHexTerrain === 'function') ? getHexTerrain(col, row) : null;
     state.selectedQ = null;
     state.selectedR = null;
-    state.paintTerrain = null;
+    state.armed = null;
 
     const lm = (typeof GCCLandmarks !== 'undefined') ? GCCLandmarks.getById(state.parentId) : null;
     const t = state.win.querySelector('.sxw-title');
@@ -250,7 +337,7 @@
     state.isOpen = false;
     state.parentCol = state.parentRow = null;
     state.selectedQ = state.selectedR = null;
-    state.paintTerrain = null;
+    state.armed = null;
     if (state.brushing){
       state.brushing = false;
       state.brushedThisDrag = null;
@@ -331,7 +418,17 @@
       group.appendChild(poly);
 
       if (window.GCCSubhexIcons){
-        window.GCCSubhexIcons.append(group, sub.terrain, c.x, c.y, SUB_R, q, r);
+        const terrainG = document.createElementNS(ns, 'g');
+        terrainG.setAttribute('class', 'sxw-terrain-layer');
+        window.GCCSubhexIcons.append(terrainG, sub.terrain, c.x, c.y, SUB_R, q, r);
+        group.appendChild(terrainG);
+
+        if (sub.feature && sub.feature.kind){
+          const featG = document.createElementNS(ns, 'g');
+          featG.setAttribute('class', 'sxw-feature-layer');
+          window.GCCSubhexIcons.appendFeature(featG, sub.feature.kind, c.x, c.y, SUB_R);
+          group.appendChild(featG);
+        }
       }
 
       group.addEventListener('mousedown', onCellMouseDown);
@@ -353,11 +450,21 @@
       poly.setAttribute('fill', '#d8c890');
     }
     poly.classList.toggle('authored', sub.source === 'authored');
-    // Replace icon — terrain may have changed.
-    group.querySelectorAll('.sxw-icon').forEach(n => n.remove());
+    // Replace both icon layers — terrain or feature may have changed.
+    group.querySelectorAll('.sxw-terrain-layer, .sxw-feature-layer').forEach(n => n.remove());
     if (window.GCCSubhexIcons){
+      const ns = 'http://www.w3.org/2000/svg';
       const c = subhexCenter(q, r);
-      window.GCCSubhexIcons.append(group, sub.terrain, c.x, c.y, SUB_R, q, r);
+      const terrainG = document.createElementNS(ns, 'g');
+      terrainG.setAttribute('class', 'sxw-terrain-layer');
+      window.GCCSubhexIcons.append(terrainG, sub.terrain, c.x, c.y, SUB_R, q, r);
+      group.appendChild(terrainG);
+      if (sub.feature && sub.feature.kind){
+        const featG = document.createElementNS(ns, 'g');
+        featG.setAttribute('class', 'sxw-feature-layer');
+        window.GCCSubhexIcons.appendFeature(featG, sub.feature.kind, c.x, c.y, SUB_R);
+        group.appendChild(featG);
+      }
     }
   }
 
@@ -366,7 +473,7 @@
   // Click also fires after mousedown — guard against double-fire.
   function onCellMouseDown(ev){
     if (ev.button !== undefined && ev.button !== 0) return;
-    if (!state.paintTerrain) return;       // not painting → leave to click handler for select
+    if (!state.armed) return;              // not painting → leave to click handler for select
     ev.preventDefault();
     ev.stopPropagation();
     const q = +ev.currentTarget.dataset.q;
@@ -401,15 +508,31 @@
     const key = `${q}_${r}`;
     if (state.brushedThisDrag && state.brushedThisDrag.has(key)) return;
     if (state.brushedThisDrag) state.brushedThisDrag.add(key);
-    const terrain = state.paintTerrain === '__erase' ? null : state.paintTerrain;
-    window.GCCSubhexData.setSubhexOverride(state.parentId, q, r, { terrain });
+    const a = state.armed;
+    if (!a) return;
+    if (a.type === 'erase'){
+      window.GCCSubhexData.setSubhexOverride(state.parentId, q, r, { terrain: null });
+    } else if (a.type === 'terrain'){
+      window.GCCSubhexData.setSubhexOverride(state.parentId, q, r, { terrain: a.value });
+    } else if (a.type === 'feature'){
+      // Painting a feature preserves prior name/libraryId if same kind,
+      // otherwise starts a fresh feature.
+      const existing = window.GCCSubhexData.getSubhex(state.parentId, q, r, state.parentTerrain);
+      const prior = existing && existing.feature;
+      const next = (prior && prior.kind === a.value)
+        ? prior
+        : { kind: a.value };
+      window.GCCSubhexData.setSubhexFeature(state.parentId, q, r, next);
+    } else if (a.type === 'feature-erase'){
+      window.GCCSubhexData.clearSubhexFeature(state.parentId, q, r);
+    }
     applyCellPaint(q, r);
     if (q === state.selectedQ && r === state.selectedR) syncDetailPanel();
   }
 
   function onCellClick(ev){
     ev.stopPropagation();
-    if (state.paintTerrain) return;        // paint click already handled by mousedown
+    if (state.armed) return;               // paint click already handled by mousedown
     const q = +ev.currentTarget.dataset.q;
     const r = +ev.currentTarget.dataset.r;
     selectCell(q, r);
@@ -442,6 +565,9 @@
     const terr   = w.querySelector('#sxw-terrain');
     const name   = w.querySelector('#sxw-name');
     const notes  = w.querySelector('#sxw-notes');
+    const fkind  = w.querySelector('#sxw-feature-kind');
+    const fname  = w.querySelector('#sxw-feature-name');
+    const flib   = w.querySelector('#sxw-feature-libid');
     const source = w.querySelector('#sxw-source');
     const clearB = w.querySelector('#sxw-clear');
 
@@ -450,6 +576,9 @@
       terr.textContent   = '—';
       name.value = '';   name.disabled  = true;
       notes.value = '';  notes.disabled = true;
+      fkind.value = '';  fkind.disabled = true;
+      fname.value = '';  fname.disabled = true;
+      flib.value  = '';  flib.disabled  = true;
       source.textContent = '';
       clearB.disabled    = true;
       return;
@@ -461,6 +590,14 @@
     terr.textContent  = sub.terrain ? (TERRAIN[sub.terrain]?.label || sub.terrain) : '—';
     name.value  = sub.name  || '';  name.disabled  = false;
     notes.value = sub.notes || '';  notes.disabled = false;
+    const f = sub.feature || null;
+    fkind.value = f ? (f.kind || '') : '';
+    fkind.disabled = false;
+    // Name + libraryId only enabled when a feature kind is set.
+    fname.value = f ? (f.name || '') : '';
+    fname.disabled = !f;
+    flib.value  = f ? (f.libraryId || '') : '';
+    flib.disabled = !f;
     source.textContent = sub.source === 'authored' ? 'Authored override (localStorage)'
       : sub.source === 'canonical' ? 'Canonical Greyhawk feature'
       : 'Procedural — derived from world seed';
@@ -473,6 +610,25 @@
     const name  = w.querySelector('#sxw-name').value.trim();
     const notes = w.querySelector('#sxw-notes').value;
     window.GCCSubhexData.setSubhexOverride(state.parentId, state.selectedQ, state.selectedR, { name, notes });
+    applyCellPaint(state.selectedQ, state.selectedR);
+    syncDetailPanel();
+  }
+
+  function persistFeature(){
+    if (state.selectedQ === null) return;
+    const w = state.win;
+    const kind = w.querySelector('#sxw-feature-kind').value;
+    if (!kind){
+      window.GCCSubhexData.clearSubhexFeature(state.parentId, state.selectedQ, state.selectedR);
+    } else {
+      const fname = w.querySelector('#sxw-feature-name').value.trim();
+      const flib  = w.querySelector('#sxw-feature-libid').value.trim();
+      window.GCCSubhexData.setSubhexFeature(state.parentId, state.selectedQ, state.selectedR, {
+        kind,
+        name: fname || undefined,
+        libraryId: flib || undefined,
+      });
+    }
     applyCellPaint(state.selectedQ, state.selectedR);
     syncDetailPanel();
   }
