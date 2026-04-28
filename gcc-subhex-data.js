@@ -1,10 +1,10 @@
-// gcc-subhex-data.js v0.1.0 — 2026-04-28
-// Subhex data layer: 6mi cells inscribed within 30mi parent hexes.
+// gcc-subhex-data.js v0.4.0 — 2026-04-28
+// Subhex data layer: 3mi cells inscribed within 30mi parent hexes.
 //
 // ── Coords ──────────────────────────────────────────────────────────────────
 // Parent stays offset (col, row) per greyhawk-map.html. Subhex axial
-// (q, r) ∈ [0..4] within parent — 5×5 rhombus, 25 cells, same flat-top
-// orientation. Center subhex = (2, 2).
+// (q, r) ∈ [0..10] within parent — 11×11 grid, 91 valid cells in a
+// radius-5 hex-of-hexes, same flat-top orientation. Center subhex = (5, 5).
 //
 // ── Doc id ──────────────────────────────────────────────────────────────────
 // `${parentDarleneId}__${q}_${r}`  e.g. "B4-115__2_3"
@@ -29,23 +29,26 @@
   const WORLD_SEED = 'greyhawk-flanaess-v1';
   const SCHEMA_VERSION = 1;
   const LS_KEY = 'gcc-subhex-overrides';
-  const SUBHEX_DIM = 5;            // q,r index range [0..4]
-  const SUBHEX_RADIUS = 2;         // hex-of-hexes radius from center (2,2)
-  const SUBHEX_COUNT = 19;         // 1 center + 6 ring-1 + 12 ring-2
+  const MIGRATION_FLAG_KEY = 'gcc-subhex-migrated-v4';
+  const SUBHEX_DIM = 11;           // q,r index range [0..10]
+  const SUBHEX_RADIUS = 5;         // hex-of-hexes radius from center (5,5)
+  const SUBHEX_COUNT = 91;         // 1 + 6 + 12 + 18 + 24 + 30
   const PARENT_BIAS = 0.75;        // 75% chance subhex inherits parent terrain
 
-  // v0.3: 19-cell hex-of-hexes valid set within [0..4]². Ring 0 = center
-  // (2,2), ring 1 = 6 hex neighbors, ring 2 = 12 outer cells. Replaces the
-  // v0.1/0.2 5×5 rhombus (25 cells), whose two diagonally-opposite tips
-  // and four flanking cells protruded outside the parent silhouette and
-  // gave the editor window an asymmetric tilt. The 19-cell pattern is
-  // 6-fold symmetric and the six ring-2 corner cells touch the parent
-  // boundary as a tangent inscription — clean fit, same SUB_R.
+  // v0.4: 91-cell radius-5 hex-of-hexes within [0..10]². Ring 0 = center
+  // (5,5). Six rings totalling 1+6+12+18+24+30 cells. Replaces the v0.3
+  // 19-cell radius-2 layout — same rendering math, just a wider grid that
+  // gives ~3mi resolution per cell (vs 6mi at v0.3) and enough cells to
+  // host icon-stamped terrain in the Wilderlands / Darlene published-map
+  // tradition. v0.4 migration shifts every existing override key by
+  // (+3, +3) to recenter v0.3 (2,2)-relative authored cells onto the
+  // v0.4 (5,5) center. Guarded by MIGRATION_FLAG_KEY so it only runs once.
   const VALID_CELLS = (() => {
     const out = [];
+    const c = (SUBHEX_DIM - 1) / 2;   // center index (5 for dim=11, 2 for dim=5)
     for (let q = 0; q < SUBHEX_DIM; q++){
       for (let r = 0; r < SUBHEX_DIM; r++){
-        const dq = q - 2, dr = r - 2;
+        const dq = q - c, dr = r - c;
         const dist = (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
         if (dist <= SUBHEX_RADIUS) out.push({ q, r });
       }
@@ -200,18 +203,40 @@
     return true;
   }
 
-  // One-time prune of authored cells outside the v0.3 19-cell layout.
-  // Pre-v0.3 localStorage may still hold entries for the 6 cells valid
-  // under the 25-cell rhombus but dropped now (the (0,0)/(0,1)/(1,0) and
-  // (3,4)/(4,3)/(4,4) corner clusters). Logged so the GM knows.
+  // v0.4 migration: shift every authored cell by (+3, +3) so v0.3 cells
+  // centered on (2,2) recenter onto v0.4's (5,5). Runs once, guarded by
+  // MIGRATION_FLAG_KEY. After migration we still run the prune below as
+  // a defensive sweep against any malformed keys.
   {
+    let migratedFlag = false;
+    try { migratedFlag = !!localStorage.getItem(MIGRATION_FLAG_KEY); } catch(e){}
+    if (!migratedFlag){
+      let migrated = 0;
+      const next = {};
+      for (const id of Object.keys(OVERRIDES)){
+        const p = parseSubhexId(id);
+        if (!p){ continue; }
+        const newQ = p.q + 3, newR = p.r + 3;
+        const newId = `${p.parentDarleneId}__${newQ}_${newR}`;
+        next[newId] = OVERRIDES[id];
+        migrated++;
+      }
+      OVERRIDES = next;
+      try {
+        localStorage.setItem(LS_KEY, JSON.stringify(OVERRIDES));
+        localStorage.setItem(MIGRATION_FLAG_KEY, '1');
+      } catch(e){}
+      if (migrated > 0){
+        console.log(`[GCCSubhexData] Migrated ${migrated} authored cell(s) v0.3 → v0.4 (shifted +3,+3).`);
+      }
+    }
     let pruned = 0;
     for (const id of Object.keys(OVERRIDES)){
       const p = parseSubhexId(id);
-      if (p && !isValidCell(p.q, p.r)){ delete OVERRIDES[id]; pruned++; }
+      if (!p || !isValidCell(p.q, p.r)){ delete OVERRIDES[id]; pruned++; }
     }
     if (pruned > 0){
-      console.log(`[GCCSubhexData] Pruned ${pruned} authored cell(s) outside 19-cell layout.`);
+      console.log(`[GCCSubhexData] Pruned ${pruned} authored cell(s) outside 91-cell layout.`);
       try { localStorage.setItem(LS_KEY, JSON.stringify(OVERRIDES)); } catch(e){}
     }
   }

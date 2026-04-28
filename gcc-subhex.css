@@ -1,15 +1,15 @@
-/* gcc-subhex.css v0.2.0 — 2026-04-28
-   Subhex editor window. v0.2 replaces the v0.1 whole-map rescale UI
-   (scale toggle, mini-map, parent-fade) with a single modeless draggable
-   window. Tokens match the existing #side-panel / #landmark-info chrome
-   (cream parchment, gold #c8a96e, dark #5a4a30). Light/dark mode follows
-   body.theme-* classes already set in greyhawk-map.html.
+/* gcc-subhex.css v0.4.0 — 2026-04-28
+   v0.4 widens the window from 560 → 700 to keep 91-cell radius-5 cells
+   legible (cell radius shrinks from ~46 to ~26 viewbox units). Stroke
+   weights tightened to match. Icons inside cells inherit pointer-events
+   none from their JS-set inline style; here we just style the stamped
+   strokes/fills.
 */
 
 /* ── Window shell ─────────────────────────────────────────────────────── */
 #subhex-window {
   position:fixed;
-  width:560px;
+  width:700px;
   background:#f4e8c4;
   color:#1a1a1a;
   border:2px solid #5a4a30;
@@ -85,13 +85,16 @@ body.theme-dark .sxw-parent-outline { stroke:#c8a96e; stroke-opacity:0.5; }
 
 .sxw-cell {
   stroke:#3a3a3a;
-  stroke-width:0.8;
+  stroke-width:0.5;
+  stroke-opacity:0.55;
   cursor:pointer;
   transition:stroke-width 0.08s;
 }
-.sxw-cell:hover { stroke-width:1.6; }
-.sxw-cell.authored { stroke:#8b0000; stroke-width:1.4; }
-.sxw-cell.selected { stroke:#c8a96e; stroke-width:3; }
+.sxw-cell:hover { stroke-width:1.2; stroke-opacity:0.85; }
+.sxw-cell.authored { stroke:#8b0000; stroke-width:1.0; stroke-opacity:1; }
+.sxw-cell.selected { stroke:#c8a96e; stroke-width:2.4; stroke-opacity:1; }
+.sxw-cell-group { cursor:pointer; }
+.sxw-icon { pointer-events:none; }
 .sxw-cell-label {
   font-family:'Cinzel', serif;
   font-size:13px;

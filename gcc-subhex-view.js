@@ -1,7 +1,13 @@
-// gcc-subhex-view.js v0.3.0 — 2026-04-28
+// gcc-subhex-view.js v0.4.0 — 2026-04-28
 // Subhex editor window. Opens for one parent hex at a time; main map
 // stays at 30mi, untouched. Self-contained: own SVG, own paint palette,
 // own name/notes inputs.
+//
+// v0.4: bumped to 91-cell radius-5 hex-of-hexes (~3mi cells) with
+// terrain icons stamped per cell and brush-drag painting. Window
+// width grew to 700px to keep cells legible. Selection is now a delta
+// update (toggle .selected) rather than a full SVG rebuild — at 91
+// cells the rebuild lag was visible.
 //
 // v0.3: switched 25-cell 5×5 rhombus to 19-cell hex-of-hexes (1+6+12).
 // The rhombus had visible asymmetric tilt — six cells protruded outside
@@ -10,20 +16,27 @@
 //
 // v0.2: Replaced v0.1's whole-map 6mi rescale (350K cells, SVG-killing).
 // The main map stays at 30mi; subhexes scoped to a single parent at a
-// time, ~19 SVG elements per open. Data layer (gcc-subhex-data, gcc-rng)
-// unchanged across v0.2/v0.3.
+// time, ~91 SVG groups per open. Data layer (gcc-subhex-data, gcc-rng)
+// unchanged across v0.2/v0.3/v0.4 except the SUBHEX_DIM bump in v0.4.
 //
 // Globals consumed: hexIdStr, getHexTerrain, TERRAIN, GCCSubhexData,
-//   GCCSubhexView is wired by greyhawk-map.html init via the side panel
-//   "Explore Sub-Map" button (calls GCCSubhexView.open(col, row)).
+//   GCCSubhexIcons, GCCSubhexView is wired by greyhawk-map.html init
+//   via the side panel "Explore Sub-Map" button (calls
+//   GCCSubhexView.open(col, row)).
 
 (function(){
   'use strict';
 
-  const SUB_DIM = 5;
-  const VIEWBOX = 600;             // svg viewBox dimension
-  const PARENT_R = 240;             // parent hex radius in svg coords
-  const SUB_R = 46;                 // hex-of-hexes inscribes tangent at 48; 46 leaves a small visual margin
+  const SUB_DIM = 11;
+  const SUB_CENTER = 5;             // (SUB_DIM - 1) / 2
+  const VIEWBOX = 660;              // svg viewBox dimension
+  const PARENT_R = 300;             // parent hex radius in svg coords
+  // For radius-N hex-of-hexes inscribed in a flat-top parent hex,
+  // outermost cell corner sits at SUB_R · √(3N²+3N+1) from center.
+  // For N=5 that is SUB_R · √91 ≈ 9.54·SUB_R; parent edge midpoints
+  // are at PARENT_R · √3/2 ≈ 0.866·PARENT_R. Tangent at SUB_R ≈ 27.2;
+  // 26 leaves a small visual margin without crowding cells.
+  const SUB_R = 26;
 
   const state = {
     win: null,
@@ -37,6 +50,8 @@
     paintTerrain: null,   // null = select-only mode; otherwise the armed terrain key (or '__erase')
     drag: null,
     dragOffset: { x: 0, y: 0 },
+    brushing: false,
+    brushedThisDrag: null, // Set<string> of "q_r" keys painted in current drag, or null
   };
 
   // ── Build window DOM ───────────────────────────────────────────────────
@@ -150,10 +165,10 @@
     if (!state.paintTerrain){
       el.textContent = 'Mode: Select';
     } else if (state.paintTerrain === '__erase'){
-      el.textContent = 'Mode: Erase override';
+      el.textContent = 'Mode: Erase override · drag to brush';
     } else {
       const lbl = TERRAIN[state.paintTerrain]?.label || state.paintTerrain;
-      el.textContent = `Mode: Paint · ${lbl}`;
+      el.textContent = `Mode: Paint · ${lbl} · drag to brush`;
     }
   }
 
@@ -187,6 +202,11 @@
     state.parentCol = state.parentRow = null;
     state.selectedQ = state.selectedR = null;
     state.paintTerrain = null;
+    if (state.brushing){
+      state.brushing = false;
+      state.brushedThisDrag = null;
+      window.removeEventListener('mouseup', onBrushEnd);
+    }
   }
 
   function isOpen(){ return state.isOpen; }
@@ -195,7 +215,7 @@
   function subhexCenter(q, r){
     const cx = VIEWBOX / 2;
     const cy = VIEWBOX / 2;
-    const dq = q - 2, dr = r - 2;
+    const dq = q - SUB_CENTER, dr = r - SUB_CENTER;
     return {
       x: cx + SUB_R * 1.5 * dq,
       y: cy + SUB_R * Math.sqrt(3) * (dr + dq / 2),
@@ -234,81 +254,122 @@
     pOutline.setAttribute('class', 'sxw-parent-outline');
     svg.appendChild(pOutline);
 
-    // 19 subhexes (hex-of-hexes pattern, 6-fold symmetric)
+    // 91 subhexes (radius-5 hex-of-hexes, 6-fold symmetric)
     const cells = window.GCCSubhexData.validCells();
     for (const { q, r } of cells){
       const sub = window.GCCSubhexData.getSubhex(state.parentId, q, r, state.parentTerrain);
+      const c = subhexCenter(q, r);
       const corners = subhexCorners(q, r);
       const pts = corners.map(([x,y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+
+      const group = document.createElementNS(ns, 'g');
+      group.setAttribute('class', 'sxw-cell-group');
+      group.id = `sxw-cell-${q}-${r}`;
+      group.dataset.q = q;
+      group.dataset.r = r;
+
       const poly = document.createElementNS(ns, 'polygon');
       poly.setAttribute('points', pts);
       let cls = 'sxw-cell';
       if (sub.source === 'authored') cls += ' authored';
       if (q === state.selectedQ && r === state.selectedR) cls += ' selected';
       poly.setAttribute('class', cls);
-      poly.dataset.q = q;
-      poly.dataset.r = r;
-      poly.id = `sxw-cell-${q}-${r}`;
       if (sub.terrain && TERRAIN[sub.terrain]?.rgb){
         poly.setAttribute('fill', `rgb(${TERRAIN[sub.terrain].rgb})`);
       } else {
         poly.setAttribute('fill', '#d8c890');
       }
-      poly.addEventListener('click', onCellClick);
-      svg.appendChild(poly);
+      group.appendChild(poly);
 
-      // Coord label (tiny, only on selected)
-      if (q === state.selectedQ && r === state.selectedR){
-        const c = subhexCenter(q, r);
-        const tl = document.createElementNS(ns, 'text');
-        tl.setAttribute('x', c.x);
-        tl.setAttribute('y', c.y + 4);
-        tl.setAttribute('text-anchor', 'middle');
-        tl.setAttribute('class', 'sxw-cell-label');
-        tl.textContent = `${q},${r}`;
-        svg.appendChild(tl);
+      if (window.GCCSubhexIcons){
+        window.GCCSubhexIcons.append(group, sub.terrain, c.x, c.y, SUB_R, q, r);
       }
+
+      group.addEventListener('mousedown', onCellMouseDown);
+      group.addEventListener('mouseenter', onCellMouseEnter);
+      group.addEventListener('click', onCellClick);
+      svg.appendChild(group);
     }
   }
 
   function applyCellPaint(q, r){
-    const el = document.getElementById(`sxw-cell-${q}-${r}`);
-    if (!el) return;
+    const group = document.getElementById(`sxw-cell-${q}-${r}`);
+    if (!group) return;
     const sub = window.GCCSubhexData.getSubhex(state.parentId, q, r, state.parentTerrain);
+    const poly = group.querySelector('.sxw-cell');
+    if (!poly) return;
     if (sub.terrain && TERRAIN[sub.terrain]?.rgb){
-      el.setAttribute('fill', `rgb(${TERRAIN[sub.terrain].rgb})`);
+      poly.setAttribute('fill', `rgb(${TERRAIN[sub.terrain].rgb})`);
     } else {
-      el.setAttribute('fill', '#d8c890');
+      poly.setAttribute('fill', '#d8c890');
     }
-    el.classList.toggle('authored', sub.source === 'authored');
+    poly.classList.toggle('authored', sub.source === 'authored');
+    // Replace icon — terrain may have changed.
+    group.querySelectorAll('.sxw-icon').forEach(n => n.remove());
+    if (window.GCCSubhexIcons){
+      const c = subhexCenter(q, r);
+      window.GCCSubhexIcons.append(group, sub.terrain, c.x, c.y, SUB_R, q, r);
+    }
   }
 
-  // ── Cell click ─────────────────────────────────────────────────────────
-  function onCellClick(ev){
+  // ── Cell event handlers ────────────────────────────────────────────────
+  // mousedown starts brush in paint mode; click selects in idle mode.
+  // Click also fires after mousedown — guard against double-fire.
+  function onCellMouseDown(ev){
+    if (ev.button !== undefined && ev.button !== 0) return;
+    if (!state.paintTerrain) return;       // not painting → leave to click handler for select
+    ev.preventDefault();
     ev.stopPropagation();
     const q = +ev.currentTarget.dataset.q;
     const r = +ev.currentTarget.dataset.r;
-    if (state.paintTerrain){
-      // Paint mode — write override, repaint the cell, keep selection where it was.
-      const terrain = state.paintTerrain === '__erase' ? null : state.paintTerrain;
-      window.GCCSubhexData.setSubhexOverride(state.parentId, q, r, { terrain });
-      applyCellPaint(q, r);
-      // Refresh detail pane only if the painted cell IS the selected one.
-      if (q === state.selectedQ && r === state.selectedR) syncDetailPanel();
-      return;
-    }
+    state.brushing = true;
+    state.brushedThisDrag = new Set();
+    paintCell(q, r);
+    window.addEventListener('mouseup', onBrushEnd);
+  }
+
+  function onCellMouseEnter(ev){
+    if (!state.brushing) return;
+    const q = +ev.currentTarget.dataset.q;
+    const r = +ev.currentTarget.dataset.r;
+    paintCell(q, r);
+  }
+
+  function onBrushEnd(){
+    state.brushing = false;
+    state.brushedThisDrag = null;
+    window.removeEventListener('mouseup', onBrushEnd);
+  }
+
+  function paintCell(q, r){
+    const key = `${q}_${r}`;
+    if (state.brushedThisDrag && state.brushedThisDrag.has(key)) return;
+    if (state.brushedThisDrag) state.brushedThisDrag.add(key);
+    const terrain = state.paintTerrain === '__erase' ? null : state.paintTerrain;
+    window.GCCSubhexData.setSubhexOverride(state.parentId, q, r, { terrain });
+    applyCellPaint(q, r);
+    if (q === state.selectedQ && r === state.selectedR) syncDetailPanel();
+  }
+
+  function onCellClick(ev){
+    ev.stopPropagation();
+    if (state.paintTerrain) return;        // paint click already handled by mousedown
+    const q = +ev.currentTarget.dataset.q;
+    const r = +ev.currentTarget.dataset.r;
     selectCell(q, r);
   }
 
   function selectCell(q, r){
     if (state.selectedQ !== null && state.selectedR !== null){
       const prev = document.getElementById(`sxw-cell-${state.selectedQ}-${state.selectedR}`);
-      if (prev) prev.classList.remove('selected');
+      const prevPoly = prev?.querySelector('.sxw-cell');
+      if (prevPoly) prevPoly.classList.remove('selected');
     }
     state.selectedQ = q;
     state.selectedR = r;
-    // Re-render to refresh the small coord label inside the cell.
-    rebuildSVG();
+    const group = document.getElementById(`sxw-cell-${q}-${r}`);
+    const poly  = group?.querySelector('.sxw-cell');
+    if (poly) poly.classList.add('selected');
     syncDetailPanel();
   }
 
