@@ -1110,6 +1110,8 @@ function shipMilesPerDay(vessel, waterType, propulsion){
 //     subkind=lake       → 'lake'   (region wins over terrain — it's the GM's declaration)
 //     subkind=sea        → 'sea'
 //     no/other subkind   → 'lake'   (conservative default for water-kind regions)
+//   landmark onWater     → 'port'   (sentinel; resolved to a real water type
+//                                    by the caller via prev-hex inference)
 //   terrain 'swamp'      → 'marsh'  (terrain fallback when no region match)
 //   terrain 'water'      → 'sea'    (terrain fallback for unmarked open water)
 //   anything else        → null     (party tried to sail across land)
@@ -1144,7 +1146,17 @@ function waterTypeAtHex(col, row){
       return 'lake';   // conservative default — admits more vessel types
     }
   }
-  // 3. Terrain fallback — for hexes not yet painted into a named
+  // 3. Port layer — a landmark with onWater:true (Greyhawk City,
+  // Admundfort, Dyvers, Verbobonc, etc.) is by definition a place
+  // where ships dock. The hex itself is land-terrain but the planner
+  // treats it as ship-traversable. Returns the sentinel 'port' so the
+  // caller can substitute the water type from the adjacent water hex
+  // the ship is actually sailing on (see computeJourneyDuration).
+  if (typeof GCCLandmarks !== 'undefined'){
+    const lm = GCCLandmarks.getByHex(col, row);
+    if (lm && lm.onWater) return 'port';
+  }
+  // 4. Terrain fallback — for hexes not yet painted into a named
   // water region. swamp = marsh, raw water = sea (treat unmarked
   // open water as sea so smaller craft are gated out of it).
   const terrain = getHexTerrain(col, row);
@@ -1510,6 +1522,11 @@ function _shipPathInGrid(col, row){
 function _shipPathNavigable(col, row, vessel){
   const water = waterTypeAtHex(col, row);
   if (water == null) return false;
+  // Port hexes (onWater landmarks) are always traversable by any vessel —
+  // ports are by definition somewhere ships dock. The travel-cost calc
+  // resolves the actual water type from the adjacent water on either
+  // side of the port hex.
+  if (water === 'port') return true;
   // Vessel must have a non-null rate for this water type in either
   // propulsion. shipDefaultPropulsion returns null when no rate exists.
   return shipDefaultPropulsion(vessel, water) != null;
@@ -1642,7 +1659,24 @@ function computeJourneyDuration(route, profile){
       // current modifier (river/stream only). Impassable if the hex
       // has no water type for ships (party tried to sail across land)
       // or the vessel can't navigate that water type.
-      const water = waterTypeAtHex(hex.col, hex.row);
+      let water = waterTypeAtHex(hex.col, hex.row);
+      // Port hexes (onWater landmark on a land hex) are sentinel
+      // 'port' — substitute the water type from the previous hex so
+      // the day cost is whatever the ship was already sailing on.
+      // Falls back to scanning forward in the route if the journey
+      // starts at a port (i=1 with prev=origin port). Last-ditch
+      // fallback: 'lake' (conservative — admits all vessel types).
+      if (water === 'port'){
+        let sub = waterTypeAtHex(prev.col, prev.row);
+        if (sub === 'port' || sub == null){
+          // Look ahead for a non-port water type.
+          for (let j = i + 1; j < route.length; j++){
+            const w = waterTypeAtHex(route[j].col, route[j].row);
+            if (w && w !== 'port'){ sub = w; break; }
+          }
+        }
+        water = (sub && sub !== 'port') ? sub : 'lake';
+      }
       if (water == null){
         impassable = true;
         reason = `${hexIdStr(hex.col, hex.row)} (${TERRAIN[terrain]?.label || terrain}) is not navigable`;
@@ -3059,7 +3093,17 @@ function buildJourneyTimeline(route, profile){
     if (profile.mode === 'flying'){
       mpd = flightMilesPerDay(profile.vehicle);
     } else if (profile.mode === 'ship'){
-      const water = waterTypeAtHex(h.col, h.row);
+      let water = waterTypeAtHex(h.col, h.row);
+      if (water === 'port'){
+        let sub = waterTypeAtHex(prev.col, prev.row);
+        if (sub === 'port' || sub == null){
+          for (let j = i + 1; j < route.length; j++){
+            const w = waterTypeAtHex(route[j].col, route[j].row);
+            if (w && w !== 'port'){ sub = w; break; }
+          }
+        }
+        water = (sub && sub !== 'port') ? sub : 'lake';
+      }
       mpd = water ? shipMilesPerDay(profile.vessel, water, 'auto') : null;
       if (mpd != null && (water === 'river' || water === 'stream')){
         mpd = Math.max(1, mpd + shipCurrentModifier(prev.col, prev.row, h.col, h.row));
