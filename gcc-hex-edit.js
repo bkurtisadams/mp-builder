@@ -2192,16 +2192,23 @@
     if (!state.rgTrace.length) return;
     const svg = getMapSvg();
     if (!svg) return;
-    if (typeof hexCenter !== 'function'){
-      // No hex-center helper — can't render. Trace still works; user
-      // just doesn't get a preview overlay.
+    if (typeof hexCenter !== 'function' || typeof mapToStage !== 'function'){
+      // No hex-center / stage-mapping helper — can't render. Trace
+      // still works; user just doesn't get a preview overlay.
       return;
     }
     const ns = 'http://www.w3.org/2000/svg';
     const g = document.createElementNS(ns, 'g');
     g.id = 'he-rg-trace-overlay';
     g.setAttribute('pointer-events', 'none');
-    const pts = state.rgTrace.map(v => hexCenter(v.col, v.row));
+    // The SVG viewBox is stage coords (the hex grid itself is laid out
+    // via mapToStage(hexCenter(...))), so trace vertices have to make
+    // the same map → stage conversion or the dots land 2–3 hexes off
+    // from where the user clicked.
+    const pts = state.rgTrace.map(v => {
+      const m = hexCenter(v.col, v.row);
+      return mapToStage(m.x, m.y);
+    });
     if (pts.length >= 2){
       const poly = document.createElementNS(ns, 'polyline');
       poly.setAttribute('points', pts.map(p => `${p.x},${p.y}`).join(' '));
