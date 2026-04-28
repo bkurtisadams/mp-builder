@@ -11,6 +11,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23120900'/%3E%3Cpolygon points='16,4 28,11 28,21 16,28 4,21 4,11' fill='none' stroke='%23c8941a' stroke-width='2.5'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="gcc-header.css">
 <link rel="stylesheet" href="gcc-auth.css">
+<link rel="stylesheet" href="gcc-subhex.css?v=1">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
   :root {
@@ -500,6 +501,11 @@
   <button class="tb-btn" id="btn-reset">Reset</button>
   <span id="zoom-display">50%</span>
   <div class="sep"></div>
+  <span class="scale-toggle" title="Map scale (30 mi parent or 6 mi subhex view)">
+    <button class="tb-btn scale-active" id="btn-scale-30">30 mi</button>
+    <button class="tb-btn" id="btn-scale-6">6 mi</button>
+  </span>
+  <div class="sep"></div>
   <button class="tb-btn" id="btn-move-mode">☩ Move</button>
   <button class="tb-btn" id="btn-hex-labels">IDs</button>
   <button class="tb-btn" id="btn-coord-labels" title="Show Darlene column/diagonal labels along map edges">⌨ Coords</button>
@@ -804,8 +810,11 @@
 <script src="gcc-landmarks.js?v=9"></script>
 <script src="gcc-terrain.js?v=3"></script>
 <script src="gcc-paths.js?v=3"></script>
+<script src="gcc-rng.js?v=1"></script>
+<script src="gcc-subhex-data.js?v=1"></script>
 <script src="gcc-hex-edit.js?v=16"></script>
 <script src="gcc-voyage.js?v=2"></script>
+<script src="gcc-subhex-view.js?v=1"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
 // Darlene World of Greyhawk map: 145 cols x 97 rows of flat-top hexes.
@@ -3792,6 +3801,10 @@ function wireEvents(){
   wrap.addEventListener('click',e=>{
     if(state.didDrag||state.imgAlignMode) return;
     if(document.body.classList.contains('he-editing')) return;
+    // At 6mi scale subhex layer owns clicks (capture-phase handler in
+    // gcc-subhex-view.js). Bailing here prevents onHexClick from firing
+    // a stale parent selection beneath the subhex.
+    if(window.GCCSubhexView && window.GCCSubhexView.getActiveScale() === 6) return;
     const m=screenToMap(e.clientX,e.clientY);
     const hit=mapToHex(m.x,m.y);
     if(hit) onHexClick(hit.col,hit.row);
@@ -4222,6 +4235,7 @@ function init(){
     state.panX=(w.clientWidth-stageBounds.width*state.zoom)/2;
     state.panY=(w.clientHeight-stageBounds.height*state.zoom)/2;
     clampPan(); applyTransform();
+    if (window.GCCSubhexView) window.GCCSubhexView.init();
     setTimeout(()=>centerOnHex(state.partyCol,state.partyRow),120);
     showToast('H=center party  M=move mode  L=labels');
     // Auto-open a tool panel if the URL hash asks for it
