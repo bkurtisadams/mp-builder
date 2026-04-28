@@ -1,15 +1,27 @@
-/* gcc-subhex.css v0.4.0 — 2026-04-28
-   v0.4 widens the window from 560 → 700 to keep 91-cell radius-5 cells
-   legible (cell radius shrinks from ~46 to ~26 viewbox units). Stroke
-   weights tightened to match. Icons inside cells inherit pointer-events
-   none from their JS-set inline style; here we just style the stamped
-   strokes/fills.
+/* gcc-subhex.css v0.5.0 — 2026-04-28
+   v0.5 shrinks the window default from 700 → 540 and adds a native
+   resize grip in the bottom-right. The SVG inside auto-scales via
+   aspect-ratio + viewBox, so cells (and stamped icons) scale with
+   whatever width the user resizes to. min-width/min-height keep the
+   chrome usable at smaller sizes. Position+size persist via JS to
+   localStorage on drag/resize end.
+
+   v0.4 widened the window from 560 → 700 to keep 91-cell radius-5
+   cells legible (cell radius shrank from ~46 to ~26 viewbox units).
+   Stroke weights tightened to match. Icons inside cells inherit
+   pointer-events none from their JS-set inline style; here we just
+   style the stamped strokes/fills.
 */
 
 /* ── Window shell ─────────────────────────────────────────────────────── */
 #subhex-window {
   position:fixed;
-  width:700px;
+  width:540px;
+  height:auto;
+  min-width:380px;
+  min-height:420px;
+  max-width:96vw;
+  max-height:96vh;
   background:#f4e8c4;
   color:#1a1a1a;
   border:2px solid #5a4a30;
@@ -20,6 +32,8 @@
   flex-direction:column;
   font-family:'Cinzel', serif;
   user-select:none;
+  resize:both;
+  overflow:hidden;
 }
 #subhex-window[style*="display: flex"],
 #subhex-window[style*="display:flex"] { display:flex; }
@@ -27,6 +41,38 @@ body.theme-dark #subhex-window {
   background:#2c2c2a;
   color:#e8d8b0;
   border-color:#7a6a40;
+}
+
+/* ── Resize grip ──────────────────────────────────────────────────────── */
+/* The window itself has resize:both — browsers paint a native grip in the
+   bottom-right but it's subtle. We layer a small visual indicator on top
+   so the affordance is obvious. The window's resize is what actually
+   handles the drag; this is purely decoration. */
+#subhex-window::after {
+  content:"";
+  position:absolute;
+  right:2px;
+  bottom:2px;
+  width:14px;
+  height:14px;
+  pointer-events:none;
+  background:linear-gradient(135deg,
+    transparent 0%, transparent 40%,
+    #b09060 40%, #b09060 50%,
+    transparent 50%, transparent 65%,
+    #b09060 65%, #b09060 75%,
+    transparent 75%, transparent 90%,
+    #b09060 90%, #b09060 100%);
+  opacity:0.7;
+}
+body.theme-dark #subhex-window::after {
+  background:linear-gradient(135deg,
+    transparent 0%, transparent 40%,
+    #c8a96e 40%, #c8a96e 50%,
+    transparent 50%, transparent 65%,
+    #c8a96e 65%, #c8a96e 75%,
+    transparent 75%, transparent 90%,
+    #c8a96e 90%, #c8a96e 100%);
 }
 
 .sxw-header {
@@ -61,6 +107,9 @@ body.theme-dark #subhex-window {
   display:flex;
   flex-direction:column;
   gap:10px;
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
 }
 
 /* ── SVG ──────────────────────────────────────────────────────────────── */

@@ -1,7 +1,12 @@
-// gcc-subhex-view.js v0.4.0 — 2026-04-28
+// gcc-subhex-view.js v0.5.0 — 2026-04-28
 // Subhex editor window. Opens for one parent hex at a time; main map
 // stays at 30mi, untouched. Self-contained: own SVG, own paint palette,
 // own name/notes inputs.
+//
+// v0.5: window is now resizable (CSS resize:both, native grip in
+// bottom-right). Default width dropped 700 → 540. Persist size +
+// position together via localStorage 'gcc-subhex-window-pos'. Cells
+// scale with window width because the SVG uses viewBox + aspect-ratio.
 //
 // v0.4: bumped to 91-cell radius-5 hex-of-hexes (~3mi cells) with
 // terrain icons stamped per cell and brush-drag painting. Window
@@ -99,7 +104,7 @@
     // Build terrain palette
     buildPalette();
 
-    // Restore last position
+    // Restore last position and size
     try {
       const pos = JSON.parse(localStorage.getItem('gcc-subhex-window-pos') || 'null');
       if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)){
@@ -109,11 +114,45 @@
         w.style.right = '24px';
         w.style.top   = '160px';
       }
+      if (pos && Number.isFinite(pos.w) && pos.w >= 380){ w.style.width  = pos.w + 'px'; }
+      if (pos && Number.isFinite(pos.h) && pos.h >= 420){ w.style.height = pos.h + 'px'; }
     } catch(e){
       w.style.right = '24px';
       w.style.top   = '160px';
     }
+
+    // Watch for user-driven resize via the native grip; persist when it
+    // settles. Debounce so we don't write on every pixel.
+    if (typeof ResizeObserver !== 'undefined'){
+      let t = null;
+      const ro = new ResizeObserver(() => {
+        if (t) clearTimeout(t);
+        t = setTimeout(persistWindowRect, 200);
+      });
+      ro.observe(w);
+    }
     return w;
+  }
+
+  function persistWindowRect(){
+    if (!state.win) return;
+    try {
+      const rect = state.win.getBoundingClientRect();
+      const prev = JSON.parse(localStorage.getItem('gcc-subhex-window-pos') || '{}');
+      const next = {
+        x: Number.isFinite(prev.x) ? prev.x : rect.left,
+        y: Number.isFinite(prev.y) ? prev.y : rect.top,
+        w: Math.round(rect.width),
+        h: Math.round(rect.height),
+      };
+      // Only update x/y if the window is positioned with explicit left/top
+      // (i.e. the user has dragged it at least once). Otherwise it's still
+      // pinned right:24px and we shouldn't lock in the resolved coordinates.
+      const usingLeftTop = state.win.style.left && state.win.style.top
+                           && state.win.style.right === 'auto';
+      if (usingLeftTop){ next.x = rect.left; next.y = rect.top; }
+      localStorage.setItem('gcc-subhex-window-pos', JSON.stringify(next));
+    } catch(e){}
   }
 
   function buildPalette(){
@@ -455,11 +494,7 @@
     window.removeEventListener('mouseup', onDragEnd);
     window.removeEventListener('touchmove', onDragMove);
     window.removeEventListener('touchend',  onDragEnd);
-    // Persist position
-    try {
-      const rect = state.win.getBoundingClientRect();
-      localStorage.setItem('gcc-subhex-window-pos', JSON.stringify({ x: rect.left, y: rect.top }));
-    } catch(e){}
+    persistWindowRect();
   }
 
   // ── Public API ─────────────────────────────────────────────────────────
