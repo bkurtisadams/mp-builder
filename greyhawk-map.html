@@ -1106,14 +1106,18 @@ function shipMilesPerDay(vessel, waterType, propulsion){
 // Resolve the water type at a hex for ship-mode travel:
 //   river / great_river  → 'river'  (from gcc-paths)
 //   stream               → 'stream' (from gcc-paths; ships can use rafts/small boats here)
-//   terrain 'swamp'      → 'marsh'
 //   region kind=water,
-//     subkind=lake       → 'lake'
+//     subkind=lake       → 'lake'   (region wins over terrain — it's the GM's declaration)
 //     subkind=sea        → 'sea'
-//   anything else        → null   (party tried to sail across land)
+//     no/other subkind   → 'lake'   (conservative default for water-kind regions)
+//   terrain 'swamp'      → 'marsh'  (terrain fallback when no region match)
+//   terrain 'water'      → 'sea'    (terrain fallback for unmarked open water)
+//   anything else        → null     (party tried to sail across land)
 // Multiple river types on one hex resolve to the largest (great_river > river > stream).
 function waterTypeAtHex(col, row){
-  // Path layer first — rivers override terrain/region for travel purposes.
+  // 1. Path layer first — rivers override regions/terrain for travel
+  // purposes. The Selintan flowing out of the Nyr Dyv is "river" travel
+  // even if the hex is also region-tagged Nyr Dyv.
   if (typeof GCCPaths !== 'undefined'){
     const rivers = GCCPaths.riversAt(col, row);
     if (rivers.length){
@@ -1128,18 +1132,24 @@ function waterTypeAtHex(col, row){
       if (best === 'stream') return 'stream';
     }
   }
-  // Terrain swamp = marsh.
+  // 2. Region layer — a water-kind region (Nyr Dyv painted as lake,
+  // Azure Sea painted as sea, etc.) is the GM's authoritative
+  // declaration of which water body this hex belongs to. Honor it
+  // even if the terrain layer hasn't caught up.
+  if (typeof GCCRegions !== 'undefined'){
+    const info = GCCRegions.getRegionInfo(col, row);
+    if (info && info.kind === 'water'){
+      if (info.subkind === 'lake') return 'lake';
+      if (info.subkind === 'sea')  return 'sea';
+      return 'lake';   // conservative default — admits more vessel types
+    }
+  }
+  // 3. Terrain fallback — for hexes not yet painted into a named
+  // water region. swamp = marsh, raw water = sea (treat unmarked
+  // open water as sea so smaller craft are gated out of it).
   const terrain = getHexTerrain(col, row);
   if (terrain === 'swamp') return 'marsh';
-  // Open water — distinguish lake from sea via region subkind.
-  if (terrain === 'water'){
-    if (typeof GCCRegions !== 'undefined'){
-      const info = GCCRegions.getRegionInfo(col, row);
-      if (info && info.subkind === 'lake') return 'lake';
-      if (info && info.subkind === 'sea')  return 'sea';
-    }
-    return 'sea';   // safe default for unmarked open water
-  }
+  if (terrain === 'water') return 'sea';
   return null;
 }
 // Current modifier for a river-edge crossing. Adds C×8 mi/day going
