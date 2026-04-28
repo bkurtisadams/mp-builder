@@ -1,20 +1,15 @@
-// gcc-subhex-view.js v0.9.0 — 2026-04-28
+// gcc-subhex-view.js v1.1.0 — 2026-04-28
 // Subhex editor window. Opens for one parent hex at a time; main map
 // stays at 30mi, untouched. Self-contained: own SVG, own paint palette,
 // own name/notes inputs.
 //
-// v0.9: paths. River / road / trail chains traverse cell sequences in
-// a single parent. Authoring is auto-routed click-cell mode: with a
-// path armed, each click on a neighbor of the current end-cell extends
-// the chain. Rendered as a polyline through cell centers via shared-
-// edge midpoints, styled by kind. Cells can belong to multiple paths
-// (a road and a river crossing the same cell — bridges/fords are v1.0).
+// v1.1: zoom. The SVG now lives in a scrollable wrap and can be
+// scaled independently of the dialog size via +/- buttons in the
+// SVG corner or Ctrl+wheel anchored on cursor. Detail panel,
+// palettes, and tools row stay at fixed size — only the map zooms.
+// Zoom level persists alongside window position/size.
 //
-// v0.8: named region grouping. Adjacent same-terrain cells can be
-// grouped under a region with a shared name; the name renders centered
-// on the cell-set centroid in the SVG. New "Region" tool button arms
-// region-assign mode, with a contextual region picker. The detail
-// panel gains a Region row alongside Hosts.
+// v1.0: clamp drag, compact chrome, recovery affordance.
 //
 // v0.7: feature cells. A cell can host one feature (castle, ruin,
 // tower, village, camp, cache, shrine, lair, grave, landmark) which
@@ -74,6 +69,11 @@
   // 26 leaves a small visual margin without crowding cells.
   const SUB_R = 26;
 
+  const ZOOM_MIN = 0.5;
+  const ZOOM_MAX = 4.0;
+  const ZOOM_STEP = 1.15;
+  const ZOOM_DEFAULT = 1.0;
+
   const state = {
     win: null,
     isOpen: false,
@@ -90,6 +90,7 @@
     dragOffset: { x: 0, y: 0 },
     brushing: false,
     brushedThisDrag: null, // Set<string> of "q_r" keys painted in current drag, or null
+    zoom: ZOOM_DEFAULT,
   };
 
   // ── Build window DOM ───────────────────────────────────────────────────
@@ -107,7 +108,15 @@
         </span>
       </div>
       <div class="sxw-body">
-        <svg id="sxw-svg" viewBox="0 0 ${VIEWBOX_W} ${VIEWBOX_H}" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="sxw-svg-wrap" id="sxw-svg-wrap">
+          <svg id="sxw-svg" viewBox="0 0 ${VIEWBOX_W} ${VIEWBOX_H}" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="sxw-zoom-controls">
+            <button class="sxw-zoom-btn" id="sxw-zoom-out" title="Zoom out">−</button>
+            <button class="sxw-zoom-btn" id="sxw-zoom-reset" title="Reset zoom (1:1)">⟲</button>
+            <button class="sxw-zoom-btn" id="sxw-zoom-in" title="Zoom in">+</button>
+            <span class="sxw-zoom-pct" id="sxw-zoom-pct">100%</span>
+          </div>
+        </div>
         <div class="sxw-detail">
           <div class="sxw-row sxw-row-inline">
             <label>Cell</label>
@@ -191,6 +200,12 @@
     w.querySelector('#sxw-path-tool').addEventListener('click', onPathToolClick);
     w.querySelector('#sxw-path-armed').addEventListener('change', onPathArmedChange);
 
+    // Zoom controls
+    w.querySelector('#sxw-zoom-in').addEventListener('click', () => zoomBy(ZOOM_STEP));
+    w.querySelector('#sxw-zoom-out').addEventListener('click', () => zoomBy(1 / ZOOM_STEP));
+    w.querySelector('#sxw-zoom-reset').addEventListener('click', () => setZoom(ZOOM_DEFAULT));
+    w.querySelector('#sxw-svg-wrap').addEventListener('wheel', onSvgWheel, { passive: false });
+
     // Build terrain + feature palettes and feature kind select
     buildPalette();
     buildFeaturePalette();
@@ -211,6 +226,9 @@
       }
       if (pos && Number.isFinite(pos.w) && pos.w >= 380){ w.style.width  = pos.w + 'px'; }
       if (pos && Number.isFinite(pos.h) && pos.h >= 320){ w.style.height = pos.h + 'px'; }
+      if (pos && Number.isFinite(pos.zoom)){
+        state.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, pos.zoom));
+      }
     } catch(e){
       w.style.right = '24px';
       w.style.top   = '160px';
@@ -278,6 +296,7 @@
         y: Number.isFinite(prev.y) ? prev.y : rect.top,
         w: Math.round(rect.width),
         h: Math.round(rect.height),
+        zoom: state.zoom,
       };
       // Only update x/y if the window is positioned with explicit left/top
       // (i.e. the user has dragged it at least once). Otherwise it's still
@@ -301,6 +320,68 @@
     state.win.style.height = '';
     state.win.style.right = '24px';
     state.win.style.top   = '160px';
+    state.zoom = ZOOM_DEFAULT;
+    applyZoom();
+  }
+
+  // ── Zoom ───────────────────────────────────────────────────────────────
+  // Zoom is applied by setting an explicit width on the SVG element
+  // (height follows via aspect-ratio). The wrap div has overflow:auto
+  // so the browser handles scrollbars natively when zoomed in.
+  function setZoom(newZoom, anchor){
+    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, newZoom));
+    if (z === state.zoom) return;
+    const wrap = state.win?.querySelector('#sxw-svg-wrap');
+    const svg  = state.win?.querySelector('#sxw-svg');
+    if (!wrap || !svg) return;
+
+    // If an anchor is provided (cursor coords in viewport space),
+    // adjust scroll so the anchor point stays in roughly the same
+    // place after zoom. Otherwise just apply.
+    let scrollAdjust = null;
+    if (anchor){
+      const wrapRect = wrap.getBoundingClientRect();
+      const localX = anchor.x - wrapRect.left + wrap.scrollLeft;
+      const localY = anchor.y - wrapRect.top  + wrap.scrollTop;
+      const ratio = z / state.zoom;
+      scrollAdjust = {
+        sl: localX * ratio - (anchor.x - wrapRect.left),
+        st: localY * ratio - (anchor.y - wrapRect.top),
+      };
+    }
+
+    state.zoom = z;
+    applyZoom();
+    if (scrollAdjust){
+      wrap.scrollLeft = Math.max(0, scrollAdjust.sl);
+      wrap.scrollTop  = Math.max(0, scrollAdjust.st);
+    }
+    persistWindowRect();
+  }
+
+  function zoomBy(factor){
+    setZoom(state.zoom * factor);
+  }
+
+  function applyZoom(){
+    const svg = state.win?.querySelector('#sxw-svg');
+    const pct = state.win?.querySelector('#sxw-zoom-pct');
+    if (svg){
+      svg.style.width = `${state.zoom * 100}%`;
+      svg.style.height = 'auto';
+    }
+    if (pct){
+      pct.textContent = `${Math.round(state.zoom * 100)}%`;
+    }
+  }
+
+  function onSvgWheel(ev){
+    // Only zoom when Ctrl is held — otherwise let the page handle
+    // (scroll the wrap if zoomed in, or scroll the page if not).
+    if (!ev.ctrlKey && !ev.metaKey) return;
+    ev.preventDefault();
+    const factor = ev.deltaY < 0 ? ZOOM_STEP : (1 / ZOOM_STEP);
+    setZoom(state.zoom * factor, { x: ev.clientX, y: ev.clientY });
   }
 
   function buildPalette(){
@@ -480,6 +561,7 @@
       state.win.style.right = 'auto';
     }
     rebuildSVG();
+    applyZoom();
     syncDetailPanel();
     syncPaletteUI();
     syncModeLabel();

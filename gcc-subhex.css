@@ -1,10 +1,7 @@
-/* gcc-subhex.css v1.0.0 — 2026-04-28
-   v1.0 compaction pass: detail rows go horizontal-inline (Hosts/
-   Region collapsed from stacked 3-line layout to single line),
-   coord+terrain merged into one row, Subhex coord moved into the
-   header bar. Default min-height 420 → 320. Textarea min-height
-   40 → 30. Palette + feature-palette share a single bordered strip.
-   Header now hosts a reset-position ↺ button alongside ✕.
+/* gcc-subhex.css v1.1.0 — 2026-04-28
+   v1.1 adds independent zoom on the SVG via a scrollable wrap with
+   overlay zoom controls (+/-/⟲). Detail panel, palettes, and tools
+   row stay at fixed sizes — only the map zooms.
 */
 
 /* ── Window shell ─────────────────────────────────────────────────────── */
@@ -125,15 +122,73 @@ body.theme-dark #subhex-window::after {
 }
 
 /* ── SVG ──────────────────────────────────────────────────────────────── */
-#sxw-svg {
-  width:100%;
-  aspect-ratio:610 / 530;
+/* The wrap is the scroll viewport — width fills the body, height grows
+   to fill remaining vertical space. SVG inside has explicit width
+   (in %) controlled by the zoom JS; aspect-ratio keeps height in sync.
+   Zoom 100% = SVG fills wrap horizontally (width:100%). Zoom 200% =
+   SVG is twice as wide → horizontal scrollbar appears. */
+.sxw-svg-wrap {
+  position:relative;
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
   background:#e8d8b0;
   border:1px solid #b09060;
   border-radius:4px;
-  display:block;
 }
-body.theme-dark #sxw-svg { background:#1a1a1a; border-color:#7a6a40; }
+body.theme-dark .sxw-svg-wrap { background:#1a1a1a; border-color:#7a6a40; }
+#sxw-svg {
+  display:block;
+  width:100%;
+  aspect-ratio:610 / 530;
+  height:auto;
+}
+
+/* ── Zoom controls (overlay on top-right of svg wrap) ─────────────────── */
+.sxw-zoom-controls {
+  position:absolute;
+  top:6px;
+  right:6px;
+  display:flex;
+  gap:3px;
+  align-items:center;
+  background:rgba(244,232,196,0.92);
+  border:1px solid #5a4a30;
+  border-radius:3px;
+  padding:2px 4px;
+  font-size:11px;
+  z-index:5;
+  pointer-events:auto;
+}
+body.theme-dark .sxw-zoom-controls {
+  background:rgba(28,28,26,0.92);
+  border-color:#7a6a40;
+}
+.sxw-zoom-btn {
+  width:20px;
+  height:20px;
+  background:transparent;
+  border:1px solid #b09060;
+  border-radius:2px;
+  color:#5a4a30;
+  font-family:inherit;
+  font-size:13px;
+  line-height:1;
+  cursor:pointer;
+  padding:0;
+}
+.sxw-zoom-btn:hover { background:#c8a96e; color:#1a1a1a; }
+body.theme-dark .sxw-zoom-btn { color:#c8a96e; border-color:#7a6a40; }
+body.theme-dark .sxw-zoom-btn:hover { background:#c8a96e; color:#1a1a1a; }
+.sxw-zoom-pct {
+  font-family:'Cinzel', serif;
+  font-size:10px;
+  font-weight:500;
+  color:#5a4a30;
+  min-width:32px;
+  text-align:center;
+}
+body.theme-dark .sxw-zoom-pct { color:#c8a96e; }
 
 .sxw-parent-outline {
   fill:none;
