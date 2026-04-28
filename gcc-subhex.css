@@ -1,6 +1,10 @@
-/* gcc-subhex.css v0.9.0 — 2026-04-28
-   v0.9 adds path rendering (river / road / trail), the Path… toolbar
-   tool, and the Paths read-only row in the detail panel.
+/* gcc-subhex.css v1.0.0 — 2026-04-28
+   v1.0 compaction pass: detail rows go horizontal-inline (Hosts/
+   Region collapsed from stacked 3-line layout to single line),
+   coord+terrain merged into one row, Subhex coord moved into the
+   header bar. Default min-height 420 → 320. Textarea min-height
+   40 → 30. Palette + feature-palette share a single bordered strip.
+   Header now hosts a reset-position ↺ button alongside ✕.
 */
 
 /* ── Window shell ─────────────────────────────────────────────────────── */
@@ -9,7 +13,7 @@
   width:540px;
   height:auto;
   min-width:380px;
-  min-height:420px;
+  min-height:320px;
   max-width:96vw;
   max-height:96vh;
   background:#f4e8c4;
@@ -68,19 +72,36 @@ body.theme-dark #subhex-window::after {
 .sxw-header {
   background:#5a4a30;
   color:#f4e8c4;
-  padding:6px 10px;
-  font-size:13px;
+  padding:5px 10px;
+  font-size:12px;
   letter-spacing:0.06em;
   text-transform:uppercase;
   display:flex;
   align-items:center;
-  justify-content:space-between;
+  gap:10px;
   cursor:move;
   border-radius:4px 4px 0 0;
   flex-shrink:0;
 }
-.sxw-title { font-weight:600; }
-.sxw-close {
+.sxw-title { font-weight:600; flex-shrink:0; }
+.sxw-coord-bar {
+  flex:1;
+  font-size:11px;
+  font-weight:400;
+  text-transform:none;
+  letter-spacing:0;
+  color:#c8a96e;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.sxw-header-btns {
+  display:flex;
+  gap:4px;
+  flex-shrink:0;
+}
+.sxw-close,
+.sxw-reset-pos {
   background:transparent;
   color:#f4e8c4;
   border:1px solid #c8a96e;
@@ -90,7 +111,8 @@ body.theme-dark #subhex-window::after {
   cursor:pointer;
   padding:0;
 }
-.sxw-close:hover { background:#c8a96e; color:#1a1a1a; }
+.sxw-close:hover,
+.sxw-reset-pos:hover { background:#c8a96e; color:#1a1a1a; }
 
 .sxw-body {
   padding:8px;
@@ -157,67 +179,90 @@ body.theme-dark .sxw-cell-label { fill:#f4e8c4; }
 .sxw-detail {
   display:flex;
   flex-direction:column;
-  gap:4px;
+  gap:3px;
   padding:6px 4px 0;
   border-top:1px solid #b09060;
 }
 body.theme-dark .sxw-detail { border-top-color:#7a6a40; }
-.sxw-row { display:flex; align-items:flex-start; gap:6px; }
+.sxw-row { display:flex; align-items:center; gap:6px; }
 .sxw-row label {
-  flex:0 0 56px;
+  flex:0 0 48px;
   font-size:10px;
   letter-spacing:0.08em;
   text-transform:uppercase;
   color:#5a4a30;
-  padding-top:3px;
 }
 body.theme-dark .sxw-row label { color:#c8a96e; }
 .sxw-readonly {
-  flex:1;
   font-size:13px;
-  padding:2px 0;
+  padding:0;
 }
+.sxw-sep { color:#b09060; font-size:11px; }
+body.theme-dark .sxw-sep { color:#7a6a40; }
 .sxw-row input[type=text],
-.sxw-row textarea {
+.sxw-row textarea,
+.sxw-row select {
   flex:1;
   background:#fbf2da;
   border:1px solid #b09060;
   border-radius:3px;
-  padding:3px 5px;
+  padding:2px 5px;
   font-family:inherit;
-  font-size:13px;
+  font-size:12px;
   color:#1a1a1a;
-  resize:vertical;
+  min-width:0;
 }
 body.theme-dark .sxw-row input[type=text],
-body.theme-dark .sxw-row textarea {
+body.theme-dark .sxw-row textarea,
+body.theme-dark .sxw-row select {
   background:#1a1a1a;
   color:#e8d8b0;
   border-color:#7a6a40;
 }
 .sxw-row input[type=text]:disabled,
-.sxw-row textarea:disabled { opacity:0.55; cursor:not-allowed; }
-.sxw-row textarea { min-height:40px; }
+.sxw-row textarea:disabled,
+.sxw-row select:disabled { opacity:0.55; cursor:not-allowed; }
+.sxw-row textarea { min-height:30px; resize:vertical; }
+.sxw-row-inline { align-items:center; }
+/* Hosts row: kind narrow, name wider, libid narrow */
+.sxw-row-feature select { flex:0 0 88px; }
+.sxw-row-feature input[type=text]:nth-of-type(1) { flex:1.5; }
+.sxw-row-feature input[type=text]:nth-of-type(2) { flex:1; }
+/* Region row: picker narrow, name wider */
+.sxw-row-region select { flex:0 0 110px; }
+.sxw-row-paths .sxw-readonly {
+  flex:1;
+  font-size:12px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 .sxw-source {
   font-size:10px;
   color:#7a6a40;
   font-style:italic;
-  padding:1px 4px 0 62px;
+  padding:1px 4px 0 54px;
 }
 body.theme-dark .sxw-source { color:#c8a96e; }
 
-/* ── Palette ──────────────────────────────────────────────────────────── */
+/* ── Palette strip (terrain + features) ───────────────────────────────── */
+.sxw-palette-strip {
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding-top:6px;
+  border-top:1px solid #b09060;
+}
+body.theme-dark .sxw-palette-strip { border-top-color:#7a6a40; }
+
 .sxw-palette {
   display:flex;
   flex-wrap:wrap;
   gap:3px;
-  padding-top:6px;
-  border-top:1px solid #b09060;
 }
-body.theme-dark .sxw-palette { border-top-color:#7a6a40; }
 .sxw-swatch {
-  width:20px;
-  height:20px;
+  width:18px;
+  height:18px;
   border:1.5px solid #5a4a30;
   border-radius:3px;
   cursor:pointer;
@@ -232,23 +277,19 @@ body.theme-dark .sxw-palette { border-top-color:#7a6a40; }
 .sxw-swatch-erase {
   background:#fbf2da;
   color:#5a4a30;
-  font-size:13px;
+  font-size:12px;
   line-height:1;
 }
 body.theme-dark .sxw-swatch-erase { background:#2c2c2a; color:#c8a96e; }
 
-/* ── Feature palette ──────────────────────────────────────────────────── */
 .sxw-feature-palette {
   display:flex;
   flex-wrap:wrap;
   gap:3px;
-  padding-top:6px;
-  border-top:1px solid #b09060;
 }
-body.theme-dark .sxw-feature-palette { border-top-color:#7a6a40; }
 .sxw-feature-btn {
-  width:28px;
-  height:28px;
+  width:24px;
+  height:24px;
   background:#fbf2da;
   border:1.5px solid #5a4a30;
   border-radius:3px;
@@ -266,65 +307,11 @@ body.theme-dark .sxw-feature-palette { border-top-color:#7a6a40; }
 }
 body.theme-dark .sxw-feature-btn { background:#2c2c2a; }
 .sxw-feature-btn-clear {
-  font-size:14px;
+  font-size:12px;
   color:#5a4a30;
   line-height:1;
 }
 body.theme-dark .sxw-feature-btn-clear { color:#c8a96e; }
-
-/* ── Hosts row (feature picker in detail panel) ───────────────────────── */
-.sxw-row-feature .sxw-feature-fields {
-  flex:1;
-  display:flex;
-  flex-direction:column;
-  gap:3px;
-}
-.sxw-row-feature select,
-.sxw-row-feature input[type=text] {
-  flex:1;
-  background:#fbf2da;
-  border:1px solid #b09060;
-  border-radius:3px;
-  padding:3px 5px;
-  font-family:inherit;
-  font-size:13px;
-  color:#1a1a1a;
-}
-body.theme-dark .sxw-row-feature select,
-body.theme-dark .sxw-row-feature input[type=text] {
-  background:#1a1a1a;
-  color:#e8d8b0;
-  border-color:#7a6a40;
-}
-.sxw-row-feature select:disabled,
-.sxw-row-feature input[type=text]:disabled { opacity:0.55; cursor:not-allowed; }
-
-/* ── Region row (detail panel) ────────────────────────────────────────── */
-.sxw-row-region .sxw-region-fields {
-  flex:1;
-  display:flex;
-  flex-direction:column;
-  gap:3px;
-}
-.sxw-row-region select,
-.sxw-row-region input[type=text] {
-  flex:1;
-  background:#fbf2da;
-  border:1px solid #b09060;
-  border-radius:3px;
-  padding:3px 5px;
-  font-family:inherit;
-  font-size:13px;
-  color:#1a1a1a;
-}
-body.theme-dark .sxw-row-region select,
-body.theme-dark .sxw-row-region input[type=text] {
-  background:#1a1a1a;
-  color:#e8d8b0;
-  border-color:#7a6a40;
-}
-.sxw-row-region select:disabled,
-.sxw-row-region input[type=text]:disabled { opacity:0.55; cursor:not-allowed; }
 
 /* ── Region armed-picker (tools row) ──────────────────────────────────── */
 .sxw-region-armed {
@@ -398,8 +385,6 @@ body.theme-dark .sxw-path-road   { stroke:#a08050; }
 body.theme-dark .sxw-path-trail  { stroke:#b09060; }
 
 /* ── Paths row (detail panel, read-only) ──────────────────────────────── */
-.sxw-row-paths .sxw-readonly { font-size:12px; }
-
 /* ── Path armed picker (tools row) ────────────────────────────────────── */
 .sxw-path-armed {
   background:#fbf2da;
@@ -421,17 +406,20 @@ body.theme-dark .sxw-path-armed {
 .sxw-tools {
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  gap:8px;
-  font-size:11px;
-  padding-top:4px;
+  flex-wrap:wrap;
+  gap:5px;
+  font-size:10px;
+  padding-top:5px;
+  border-top:1px solid #b09060;
+  margin-top:4px;
 }
+body.theme-dark .sxw-tools { border-top-color:#7a6a40; }
 .sxw-tool-btn {
   background:transparent;
   color:#5a4a30;
   border:1px solid #b09060;
   border-radius:3px;
-  padding:3px 7px;
+  padding:2px 6px;
   font-family:inherit;
   font-size:11px;
   cursor:pointer;
@@ -443,5 +431,7 @@ body.theme-dark .sxw-tool-btn:hover { background:#c8a96e; color:#1a1a1a; }
 .sxw-mode {
   color:#5a4a30;
   font-style:italic;
+  margin-left:auto;
+  font-size:10px;
 }
 body.theme-dark .sxw-mode { color:#c8a96e; }

@@ -100,42 +100,54 @@
     w.innerHTML = `
       <div class="sxw-header">
         <span class="sxw-title">Subhexes</span>
-        <button class="sxw-close" title="Close">✕</button>
+        <span class="sxw-coord-bar" id="sxw-coord-bar"></span>
+        <span class="sxw-header-btns">
+          <button class="sxw-reset-pos" title="Reset window position and size">↺</button>
+          <button class="sxw-close" title="Close">✕</button>
+        </span>
       </div>
       <div class="sxw-body">
         <svg id="sxw-svg" viewBox="0 0 ${VIEWBOX_W} ${VIEWBOX_H}" preserveAspectRatio="xMidYMid meet"></svg>
         <div class="sxw-detail">
-          <div class="sxw-row"><label>Subhex</label><span class="sxw-readonly" id="sxw-coord">— select a cell</span></div>
-          <div class="sxw-row"><label>Terrain</label><span class="sxw-readonly" id="sxw-terrain">—</span></div>
-          <div class="sxw-row"><label>Name</label><input type="text" id="sxw-name" placeholder="(unnamed)" disabled></div>
-          <div class="sxw-row"><label>Notes</label><textarea id="sxw-notes" placeholder="GM notes" disabled></textarea></div>
-          <div class="sxw-row sxw-row-feature">
+          <div class="sxw-row sxw-row-inline">
+            <label>Cell</label>
+            <span class="sxw-readonly" id="sxw-coord">— select a cell</span>
+            <span class="sxw-sep">·</span>
+            <span class="sxw-readonly" id="sxw-terrain">—</span>
+          </div>
+          <div class="sxw-row sxw-row-inline">
+            <label>Name</label>
+            <input type="text" id="sxw-name" placeholder="(unnamed)" disabled>
+          </div>
+          <div class="sxw-row sxw-row-inline">
+            <label>Notes</label>
+            <textarea id="sxw-notes" placeholder="GM notes" disabled></textarea>
+          </div>
+          <div class="sxw-row sxw-row-inline sxw-row-feature">
             <label>Hosts</label>
-            <div class="sxw-feature-fields">
-              <select id="sxw-feature-kind" disabled>
-                <option value="">— none —</option>
-              </select>
-              <input type="text" id="sxw-feature-name" placeholder="Feature name (e.g. Maure Castle)" disabled>
-              <input type="text" id="sxw-feature-libid" placeholder="Library entity ID (optional)" disabled>
-            </div>
+            <select id="sxw-feature-kind" disabled>
+              <option value="">— none —</option>
+            </select>
+            <input type="text" id="sxw-feature-name" placeholder="Feature name" disabled>
+            <input type="text" id="sxw-feature-libid" placeholder="Library ID" disabled>
           </div>
-          <div class="sxw-row sxw-row-region">
+          <div class="sxw-row sxw-row-inline sxw-row-region">
             <label>Region</label>
-            <div class="sxw-region-fields">
-              <select id="sxw-region-pick" disabled>
-                <option value="">— none —</option>
-              </select>
-              <input type="text" id="sxw-region-name" placeholder="Region name (rename when picked)" disabled>
-            </div>
+            <select id="sxw-region-pick" disabled>
+              <option value="">— none —</option>
+            </select>
+            <input type="text" id="sxw-region-name" placeholder="Region name" disabled>
           </div>
-          <div class="sxw-row sxw-row-paths">
+          <div class="sxw-row sxw-row-inline sxw-row-paths">
             <label>Paths</label>
             <span class="sxw-readonly" id="sxw-paths-list">—</span>
           </div>
           <div class="sxw-source" id="sxw-source"></div>
         </div>
-        <div class="sxw-palette" id="sxw-palette"></div>
-        <div class="sxw-feature-palette" id="sxw-feature-palette"></div>
+        <div class="sxw-palette-strip">
+          <div class="sxw-palette" id="sxw-palette"></div>
+          <div class="sxw-feature-palette" id="sxw-feature-palette"></div>
+        </div>
         <div class="sxw-tools">
           <button class="sxw-tool-btn" id="sxw-region-tool">Region…</button>
           <select class="sxw-region-armed" id="sxw-region-armed" style="display:none;">
@@ -144,7 +156,7 @@
           </select>
           <button class="sxw-tool-btn" id="sxw-path-tool">Path…</button>
           <select class="sxw-path-armed" id="sxw-path-armed" style="display:none;"></select>
-          <button class="sxw-tool-btn" id="sxw-clear">Clear override on selected</button>
+          <button class="sxw-tool-btn" id="sxw-clear">Clear override</button>
           <span class="sxw-mode" id="sxw-mode">Mode: Select</span>
         </div>
       </div>
@@ -157,6 +169,7 @@
     head.addEventListener('mousedown', onDragStart);
     head.addEventListener('touchstart', onDragStart, { passive: false });
     w.querySelector('.sxw-close').addEventListener('click', close);
+    w.querySelector('.sxw-reset-pos').addEventListener('click', resetWindowPos);
 
     // Detail-pane field handlers
     w.querySelector('#sxw-name').addEventListener('blur', persistFields);
@@ -210,6 +223,26 @@
       });
       ro.observe(w);
     }
+
+    // If the browser viewport shrinks while the window is open, the
+    // window can end up off-screen. Re-clamp on viewport resize.
+    let viewportT = null;
+    window.addEventListener('resize', () => {
+      if (!state.isOpen) return;
+      if (viewportT) clearTimeout(viewportT);
+      viewportT = setTimeout(() => {
+        if (!state.win || !state.win.style.left || !state.win.style.top) return;
+        const cur = state.win.getBoundingClientRect();
+        const { x, y } = clampWindowPos(cur.left, cur.top);
+        if (x !== cur.left || y !== cur.top){
+          state.win.style.left = x + 'px';
+          state.win.style.top  = y + 'px';
+          state.win.style.right = 'auto';
+          persistWindowRect();
+        }
+      }, 150);
+    });
+
     return w;
   }
 
@@ -232,6 +265,20 @@
       if (usingLeftTop){ next.x = rect.left; next.y = rect.top; }
       localStorage.setItem('gcc-subhex-window-pos', JSON.stringify(next));
     } catch(e){}
+  }
+
+  // Hard reset window position + size. Useful if the window is stuck
+  // off-screen from a stale localStorage entry, or if the user just
+  // wants to start fresh.
+  function resetWindowPos(){
+    if (!state.win) return;
+    try { localStorage.removeItem('gcc-subhex-window-pos'); } catch(e){}
+    state.win.style.left = '';
+    state.win.style.top  = '';
+    state.win.style.width  = '';
+    state.win.style.height = '';
+    state.win.style.right = '24px';
+    state.win.style.top   = '160px';
   }
 
   function buildPalette(){
@@ -394,9 +441,22 @@
 
     const lm = (typeof GCCLandmarks !== 'undefined') ? GCCLandmarks.getById(state.parentId) : null;
     const t = state.win.querySelector('.sxw-title');
-    t.textContent = lm ? `${lm.name} · ${state.parentId}` : `Parent ${state.parentId}`;
+    t.textContent = lm ? lm.name : 'Subhexes';
+    const cb = state.win.querySelector('#sxw-coord-bar');
+    if (cb) cb.textContent = state.parentId;
 
     state.win.style.display = 'flex';
+    // Clamp position against the current viewport — stored coords may
+    // be off-screen if the user resized their browser smaller since.
+    const cur = state.win.getBoundingClientRect();
+    if (state.win.style.left && state.win.style.top){
+      const { x, y } = clampWindowPos(cur.left, cur.top);
+      if (x !== cur.left || y !== cur.top){
+        state.win.style.left = x + 'px';
+        state.win.style.top  = y + 'px';
+        state.win.style.right = 'auto';
+      }
+    }
     rebuildSVG();
     syncDetailPanel();
     syncPaletteUI();
@@ -795,7 +855,7 @@
     const sub = window.GCCSubhexData.getSubhex(
       state.parentId, state.selectedQ, state.selectedR, state.parentTerrain
     );
-    coord.textContent = `${state.parentId} · q${state.selectedQ}, r${state.selectedR}`;
+    coord.textContent = `q${state.selectedQ}, r${state.selectedR}`;
     terr.textContent  = sub.terrain ? (TERRAIN[sub.terrain]?.label || sub.terrain) : '—';
     name.value  = sub.name  || '';  name.disabled  = false;
     notes.value = sub.notes || '';  notes.disabled = false;
@@ -1174,6 +1234,7 @@
   // ── Drag handling (header only) ────────────────────────────────────────
   function onDragStart(ev){
     if (ev.target.closest('.sxw-close')) return;
+    if (ev.target.closest('.sxw-reset-pos')) return;
     ev.preventDefault();
     const evt = (ev.touches && ev.touches[0]) ? ev.touches[0] : ev;
     const rect = state.win.getBoundingClientRect();
@@ -1187,14 +1248,42 @@
     window.addEventListener('touchmove', onDragMove, { passive: false });
     window.addEventListener('touchend',  onDragEnd);
   }
+  // Clamp window position so at least KEEPVIS pixels of the header
+  // remain reachable. Apply to (x, y) candidates before assigning.
+  function clampWindowPos(x, y){
+    if (!state.win) return { x, y };
+    const KEEPVIS = 60;
+    const rect = state.win.getBoundingClientRect();
+    const w = rect.width || 540;
+    const h = rect.height || 320;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    // Left bound: don't push past left edge (so drag handle stays on
+    // screen). Right bound: keep at least KEEPVIS px of the window
+    // visible from the left of the window — i.e. window's left can
+    // be at most vw - KEEPVIS.
+    if (x > vw - KEEPVIS) x = vw - KEEPVIS;
+    if (x < KEEPVIS - w)  x = KEEPVIS - w;   // window's right edge ≥ KEEPVIS
+    // Top bound: keep header visible (don't allow above viewport).
+    // Bottom bound: header must remain on screen — header sits at top
+    // of window, so y itself must be < vh - KEEPVIS.
+    if (y < 0) y = 0;
+    if (y > vh - KEEPVIS) y = vh - KEEPVIS;
+    return { x, y };
+  }
+
   function onDragMove(ev){
     if (!state.drag) return;
     if (ev.preventDefault) ev.preventDefault();
     const evt = (ev.touches && ev.touches[0]) ? ev.touches[0] : ev;
-    const x = evt.clientX - state.dragOffset.x;
-    const y = evt.clientY - state.dragOffset.y;
+    const raw = {
+      x: evt.clientX - state.dragOffset.x,
+      y: evt.clientY - state.dragOffset.y,
+    };
+    const { x, y } = clampWindowPos(raw.x, raw.y);
     state.win.style.left = x + 'px';
     state.win.style.top  = y + 'px';
+    state.win.style.right = 'auto';
   }
   function onDragEnd(){
     if (!state.drag) return;
