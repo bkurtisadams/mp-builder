@@ -3217,8 +3217,13 @@ function tickJourney(){
   // Move the party piece if hex changed since last tick. Before moving,
   // consult the path resolver: if this leg crosses an unbridged river,
   // pause the journey; if it crosses a bridge/ford/ferry, narrate it.
+  // Flying and ship modes skip both checks — flying ignores rivers
+  // entirely, and ships are *on* the water rather than crossing it,
+  // so neither bridges nor crossings apply.
   if (entry && (state.partyCol !== entry.hex.col || state.partyRow !== entry.hex.row)){
-    if (typeof GCCPaths !== 'undefined' && j.profile.mode !== 'flying'){
+    const m = j.profile.mode;
+    const groundMode = (m !== 'flying' && m !== 'ship');
+    if (typeof GCCPaths !== 'undefined' && groundMode){
       const info = GCCPaths.edgeRiverInfo(state.partyCol, state.partyRow, entry.hex.col, entry.hex.row);
       if (info.blocks){
         const rname = info.river?.name || 'river';

@@ -1,4 +1,4 @@
-// gcc-paths.js v0.4.0 — 2026-04-27
+// gcc-paths.js v0.4.1 — 2026-04-28
 // Edge-based path features for the Greyhawk hex map: rivers, roads,
 // bridges, fords, ferries. v0.2 adds editor-driven CRUD with
 // localStorage override layering on top of hardcoded base data.
@@ -172,7 +172,10 @@
     return { blocks: !crossing, river, crossing: crossing || null };
   }
   function edgeBlocks(colA, rowA, colB, rowB, mode){
-    if (mode === 'flying') return false;
+    // Flying ignores rivers entirely. Ship is on the water — bridges
+    // and crossings don't apply because the ship isn't crossing the
+    // river, it's traveling along/across the water itself.
+    if (mode === 'flying' || mode === 'ship') return false;
     return edgeRiverInfo(colA, rowA, colB, rowB).blocks;
   }
   function edgeRoadBonus(colA, rowA, colB, rowB, terrain){
