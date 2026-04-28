@@ -1,4 +1,4 @@
-// gcc-subhex-data.js v0.5.0 — 2026-04-28
+// gcc-subhex-data.js v0.6.0 — 2026-04-28
 // Subhex data layer: 3mi cells inscribed within 30mi parent hexes.
 //
 // ── Coords ──────────────────────────────────────────────────────────────────
@@ -24,10 +24,19 @@
 //   name      : cell name ('Bald Knob', 'Three Stones')
 //   notes     : freeform GM notes
 //   feature   : { kind, name?, libraryId? } or null/absent
-// 'feature' is one feature per cell — castle, ruin, tower, village,
-// camp, cache, shrine, lair, grave, landmark. libraryId is a free-form
-// string referencing a future library entity; v0.7 stores it raw, the
-// picker in v0.8 will resolve it to an entity name on display.
+//   regionId  : string referencing a region doc, or null/absent  (v0.6+)
+//
+// ── Regions (v0.6+) ─────────────────────────────────────────────────────────
+// A region is a named area of common terrain that groups cells in the
+// same parent hex. The land is durable (kingdoms/factions are not),
+// so region.terrain is locked to the cells' terrain at creation. If a
+// cell is repainted to a different terrain, it implicitly leaves its
+// region. Regions whose member count drops to zero are auto-deleted.
+//
+// Region docs live in localStorage key 'gcc-subhex-regions' as
+//   { [`${parentDarleneId}__${regionId}`]: { id, parentId, name, terrain, ... } }
+// Membership is computed by scanning cell overrides for matching
+// regionId — no parallel member list to keep in sync.
 //
 // ── Phase A scope ───────────────────────────────────────────────────────────
 // localStorage only. Firestore schema + rules are landed but client I/O
@@ -109,9 +118,34 @@
     if (raw) OVERRIDES = JSON.parse(raw) || {};
   } catch(e){ OVERRIDES = {}; }
 
+  // Regions live in their own LS key. Doc id is `${parentId}__${regionLocalId}`
+  // — e.g. "F4-95__southern-cairn-hills". Member cells reference regionLocalId
+  // (without the parent prefix) via cell.regionId.
+  const LS_REGIONS_KEY = 'gcc-subhex-regions';
+  let REGIONS = {};
+  try {
+    const raw = localStorage.getItem(LS_REGIONS_KEY);
+    if (raw) REGIONS = JSON.parse(raw) || {};
+  } catch(e){ REGIONS = {}; }
+
   function save(){
     try { localStorage.setItem(LS_KEY, JSON.stringify(OVERRIDES)); } catch(e){}
     try { window.dispatchEvent(new CustomEvent('gcc-subhex-changed')); } catch(e){}
+  }
+  function saveRegions(){
+    try { localStorage.setItem(LS_REGIONS_KEY, JSON.stringify(REGIONS)); } catch(e){}
+    try { window.dispatchEvent(new CustomEvent('gcc-subhex-changed')); } catch(e){}
+  }
+  function regionDocId(parentId, regionLocalId){ return `${parentId}__${regionLocalId}`; }
+  function slugifyRegionName(name){
+    return String(name || '').trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'region';
+  }
+  function genRegionLocalId(parentId, name){
+    const base = slugifyRegionName(name);
+    let id = base, n = 2;
+    while (REGIONS[regionDocId(parentId, id)]) id = `${base}-${n++}`;
+    return id;
   }
 
   function dim(){ return SUBHEX_DIM; }
@@ -156,16 +190,17 @@
         parentDarleneId,
         terrain: ov.terrain || canonicalSubhex(parentDarleneId, q, r)?.terrain
                  || proceduralTerrain(parentTerrain, parentDarleneId, q, r),
-        name:    ov.name || '',
-        notes:   ov.notes || '',
-        feature: ov.feature || null,
-        source:  'authored',
+        name:     ov.name || '',
+        notes:    ov.notes || '',
+        feature:  ov.feature || null,
+        regionId: ov.regionId || null,
+        source:   'authored',
         schemaVersion: ov.schemaVersion || SCHEMA_VERSION,
       };
     }
     const canon = canonicalSubhex(parentDarleneId, q, r);
     if (canon){
-      return { id, q, r, parentDarleneId, source: 'canonical', name: '', notes: '', feature: null, ...canon };
+      return { id, q, r, parentDarleneId, source: 'canonical', name: '', notes: '', feature: null, regionId: null, ...canon };
     }
     return {
       id, q, r,
@@ -174,6 +209,7 @@
       name: '',
       notes: '',
       feature: null,
+      regionId: null,
       source: 'seed',
       schemaVersion: SCHEMA_VERSION,
     };
@@ -184,20 +220,62 @@
     const id = subhexId(parentDarleneId, q, r);
     const cur = OVERRIDES[id] || {};
     const next = { ...cur };
-    if ('terrain' in fields) next.terrain = fields.terrain || null;
+    let terrainChanged = false;
+    let prevTerrain = cur.terrain || null;
+    if ('terrain' in fields){
+      const newT = fields.terrain || null;
+      if (newT !== prevTerrain) terrainChanged = true;
+      next.terrain = newT;
+    }
     if ('name'    in fields) next.name    = fields.name || '';
     if ('notes'   in fields) next.notes   = fields.notes || '';
     if ('feature' in fields){
       next.feature = normalizeFeature(fields.feature);
     }
+    if ('regionId' in fields){
+      next.regionId = fields.regionId || null;
+    }
+    // Implicit removal: if the cell's terrain changed and it was in a
+    // region whose terrain it no longer matches, drop the regionId.
+    // The cell's effective terrain is the override's terrain (or
+    // procedural baseline if cleared). Resolve via getSubhex when
+    // possible — but here we just compare against the region's locked
+    // terrain.
+    const prevRegionId = cur.regionId || null;
+    if (terrainChanged && next.regionId){
+      const docId = regionDocId(parentDarleneId, next.regionId);
+      const region = REGIONS[docId];
+      // Effective terrain = explicit override OR fallback.
+      const effective = next.terrain || canonicalSubhex(parentDarleneId, q, r)?.terrain
+                      || (window.__gccSubhexParentTerrainHint || null);
+      if (region && effective && region.terrain !== effective){
+        next.regionId = null;
+      }
+    }
     next.schemaVersion = SCHEMA_VERSION;
     next.authoredAt = Date.now();
-    // Strip empty doc — no terrain, name, notes, OR feature.
-    const empty = !next.terrain && !next.name && !next.notes && !next.feature;
+    // Strip empty doc — no terrain, name, notes, feature, OR regionId.
+    const empty = !next.terrain && !next.name && !next.notes && !next.feature && !next.regionId;
     if (empty){ delete OVERRIDES[id]; }
     else      { OVERRIDES[id] = next; }
     save();
+    // Garbage-collect only the specific region the cell may have just
+    // left. Don't sweep all regions — newly-created regions legitimately
+    // have zero members until the GM assigns cells.
+    const newRegionId = next.regionId || null;
+    if (prevRegionId && prevRegionId !== newRegionId){
+      gcRegionIfEmpty(parentDarleneId, prevRegionId);
+    }
     return true;
+  }
+
+  function gcRegionIfEmpty(parentDarleneId, regionLocalId){
+    if (!regionLocalId) return;
+    const docId = regionDocId(parentDarleneId, regionLocalId);
+    if (!REGIONS[docId]) return;
+    if (regionMembers(parentDarleneId, regionLocalId).length > 0) return;
+    delete REGIONS[docId];
+    saveRegions();
   }
 
   // Normalize a feature input. Returns a clean { kind, name, libraryId }
@@ -221,6 +299,124 @@
 
   function clearSubhexFeature(parentDarleneId, q, r){
     return setSubhexOverride(parentDarleneId, q, r, { feature: null });
+  }
+
+  // ── Regions ──────────────────────────────────────────────────────────────
+  // A region is a per-parent named area of common terrain. Cells join via
+  // cell.regionId. Region's terrain is locked at creation — you can't
+  // mix-and-match terrains within a region.
+
+  // List regions in a parent. Returns array of region docs sorted by name.
+  function listRegions(parentDarleneId){
+    const out = [];
+    const prefix = `${parentDarleneId}__`;
+    for (const docId of Object.keys(REGIONS)){
+      if (docId.startsWith(prefix)) out.push(REGIONS[docId]);
+    }
+    out.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    return out;
+  }
+
+  function getRegion(parentDarleneId, regionLocalId){
+    if (!regionLocalId) return null;
+    return REGIONS[regionDocId(parentDarleneId, regionLocalId)] || null;
+  }
+
+  // Create a region. Locks terrain at creation. Returns the region doc
+  // (which includes the assigned local id).
+  function createRegion(parentDarleneId, name, terrain){
+    if (!parentDarleneId || !name || !terrain) return null;
+    const localId = genRegionLocalId(parentDarleneId, name);
+    const region = {
+      id: localId,
+      parentId: parentDarleneId,
+      name: String(name).trim(),
+      terrain: terrain,
+      schemaVersion: SCHEMA_VERSION,
+      authoredAt: Date.now(),
+    };
+    REGIONS[regionDocId(parentDarleneId, localId)] = region;
+    saveRegions();
+    return region;
+  }
+
+  function renameRegion(parentDarleneId, regionLocalId, newName){
+    const region = getRegion(parentDarleneId, regionLocalId);
+    if (!region || !newName) return false;
+    region.name = String(newName).trim() || region.name;
+    region.authoredAt = Date.now();
+    saveRegions();
+    return true;
+  }
+
+  function deleteRegion(parentDarleneId, regionLocalId){
+    const docId = regionDocId(parentDarleneId, regionLocalId);
+    if (!REGIONS[docId]) return false;
+    delete REGIONS[docId];
+    saveRegions();
+    // Also clear regionId on every member cell.
+    let dirty = false;
+    for (const cellId of Object.keys(OVERRIDES)){
+      const ov = OVERRIDES[cellId];
+      const p = parseSubhexId(cellId);
+      if (!p || p.parentDarleneId !== parentDarleneId) continue;
+      if (ov.regionId === regionLocalId){
+        delete ov.regionId;
+        // Strip if this leaves an empty doc.
+        if (!ov.terrain && !ov.name && !ov.notes && !ov.feature){
+          delete OVERRIDES[cellId];
+        }
+        dirty = true;
+      }
+    }
+    if (dirty) save();
+    return true;
+  }
+
+  // Assign a cell to a region. Validates terrain match — the cell's
+  // effective terrain must equal region.terrain or the assignment is
+  // refused. Pass a parentTerrain hint so we can resolve procedural-only
+  // cells correctly.
+  function assignCellToRegion(parentDarleneId, q, r, regionLocalId, parentTerrain){
+    if (!inBounds(q, r)) return false;
+    const region = getRegion(parentDarleneId, regionLocalId);
+    if (!region) return false;
+    const sub = getSubhex(parentDarleneId, q, r, parentTerrain);
+    if (!sub) return false;
+    if (sub.terrain !== region.terrain) return false;
+    return setSubhexOverride(parentDarleneId, q, r, { regionId: regionLocalId });
+  }
+
+  function unassignCellFromRegion(parentDarleneId, q, r){
+    if (!inBounds(q, r)) return false;
+    return setSubhexOverride(parentDarleneId, q, r, { regionId: null });
+  }
+
+  // Compute member cells of a region by scanning OVERRIDES.
+  function regionMembers(parentDarleneId, regionLocalId){
+    const out = [];
+    const prefix = `${parentDarleneId}__`;
+    for (const cellId of Object.keys(OVERRIDES)){
+      if (!cellId.startsWith(prefix)) continue;
+      const ov = OVERRIDES[cellId];
+      if (ov.regionId !== regionLocalId) continue;
+      const p = parseSubhexId(cellId);
+      if (p) out.push({ q: p.q, r: p.r });
+    }
+    return out;
+  }
+
+  // Drop any region in this parent whose member count is zero.
+  function gcEmptyRegions(parentDarleneId){
+    const regions = listRegions(parentDarleneId);
+    let dirty = false;
+    for (const r of regions){
+      if (regionMembers(parentDarleneId, r.id).length === 0){
+        delete REGIONS[regionDocId(parentDarleneId, r.id)];
+        dirty = true;
+      }
+    }
+    if (dirty) saveRegions();
   }
 
   function clearSubhex(parentDarleneId, q, r){
@@ -294,6 +490,8 @@
     validCells: () => VALID_CELLS.slice(),
     getSubhex, setSubhexOverride, clearSubhex, clearAll,
     setSubhexFeature, clearSubhexFeature,
+    listRegions, getRegion, createRegion, renameRegion, deleteRegion,
+    assignCellToRegion, unassignCellFromRegion, regionMembers, gcEmptyRegions,
     allAuthored, authoredCount,
     exportOverrides, importOverrides,
     proceduralTerrain, canonicalSubhex,

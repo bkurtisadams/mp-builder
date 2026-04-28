@@ -1,7 +1,20 @@
-// gcc-subhex-view.js v0.7.0 — 2026-04-28
+// gcc-subhex-view.js v0.9.0 — 2026-04-28
 // Subhex editor window. Opens for one parent hex at a time; main map
 // stays at 30mi, untouched. Self-contained: own SVG, own paint palette,
 // own name/notes inputs.
+//
+// v0.9: paths. River / road / trail chains traverse cell sequences in
+// a single parent. Authoring is auto-routed click-cell mode: with a
+// path armed, each click on a neighbor of the current end-cell extends
+// the chain. Rendered as a polyline through cell centers via shared-
+// edge midpoints, styled by kind. Cells can belong to multiple paths
+// (a road and a river crossing the same cell — bridges/fords are v1.0).
+//
+// v0.8: named region grouping. Adjacent same-terrain cells can be
+// grouped under a region with a shared name; the name renders centered
+// on the cell-set centroid in the SVG. New "Region" tool button arms
+// region-assign mode, with a contextual region picker. The detail
+// panel gains a Region row alongside Hosts.
 //
 // v0.7: feature cells. A cell can host one feature (castle, ruin,
 // tower, village, camp, cache, shrine, lair, grave, landmark) which
@@ -106,11 +119,31 @@
               <input type="text" id="sxw-feature-libid" placeholder="Library entity ID (optional)" disabled>
             </div>
           </div>
+          <div class="sxw-row sxw-row-region">
+            <label>Region</label>
+            <div class="sxw-region-fields">
+              <select id="sxw-region-pick" disabled>
+                <option value="">— none —</option>
+              </select>
+              <input type="text" id="sxw-region-name" placeholder="Region name (rename when picked)" disabled>
+            </div>
+          </div>
+          <div class="sxw-row sxw-row-paths">
+            <label>Paths</label>
+            <span class="sxw-readonly" id="sxw-paths-list">—</span>
+          </div>
           <div class="sxw-source" id="sxw-source"></div>
         </div>
         <div class="sxw-palette" id="sxw-palette"></div>
         <div class="sxw-feature-palette" id="sxw-feature-palette"></div>
         <div class="sxw-tools">
+          <button class="sxw-tool-btn" id="sxw-region-tool">Region…</button>
+          <select class="sxw-region-armed" id="sxw-region-armed" style="display:none;">
+            <option value="">— pick a region to assign —</option>
+            <option value="__new__">+ New region from selected cell's terrain…</option>
+          </select>
+          <button class="sxw-tool-btn" id="sxw-path-tool">Path…</button>
+          <select class="sxw-path-armed" id="sxw-path-armed" style="display:none;"></select>
           <button class="sxw-tool-btn" id="sxw-clear">Clear override on selected</button>
           <span class="sxw-mode" id="sxw-mode">Mode: Select</span>
         </div>
@@ -131,9 +164,19 @@
     w.querySelector('#sxw-feature-kind').addEventListener('change', persistFeature);
     w.querySelector('#sxw-feature-name').addEventListener('blur', persistFeature);
     w.querySelector('#sxw-feature-libid').addEventListener('blur', persistFeature);
+    w.querySelector('#sxw-region-pick').addEventListener('change', onRegionPickChange);
+    w.querySelector('#sxw-region-name').addEventListener('blur', onRegionRename);
 
     // Clear-override
     w.querySelector('#sxw-clear').addEventListener('click', onClearOverride);
+
+    // Region tool
+    w.querySelector('#sxw-region-tool').addEventListener('click', onRegionToolClick);
+    w.querySelector('#sxw-region-armed').addEventListener('change', onRegionArmedChange);
+
+    // Path tool
+    w.querySelector('#sxw-path-tool').addEventListener('click', onPathToolClick);
+    w.querySelector('#sxw-path-armed').addEventListener('change', onPathArmedChange);
 
     // Build terrain + feature palettes and feature kind select
     buildPalette();
@@ -278,6 +321,14 @@
     const cur = armKey(state.armed);
     const nxt = armKey(next);
     state.armed = (cur === nxt) ? null : next;
+    // Arming a terrain or feature paint tool dismisses any active
+    // region-tool dropdown.
+    if (state.armed){
+      const sel = state.win?.querySelector('#sxw-region-armed');
+      if (sel){ sel.style.display = 'none'; }
+      const psel = state.win?.querySelector('#sxw-path-armed');
+      if (psel){ psel.style.display = 'none'; }
+    }
     syncPaletteUI();
     syncModeLabel();
   }
@@ -288,6 +339,16 @@
     state.win.querySelectorAll('.sxw-swatch, .sxw-feature-btn').forEach(b => {
       b.classList.toggle('armed', b.dataset.armKey === cur);
     });
+    const regionTool = state.win.querySelector('#sxw-region-tool');
+    if (regionTool){
+      const isRegion = state.armed && (state.armed.type === 'region' || state.armed.type === 'region-erase');
+      regionTool.classList.toggle('armed', !!isRegion);
+    }
+    const pathTool = state.win.querySelector('#sxw-path-tool');
+    if (pathTool){
+      const isPath = state.armed && state.armed.type === 'path';
+      pathTool.classList.toggle('armed', !!isPath);
+    }
   }
 
   function syncModeLabel(){
@@ -302,6 +363,17 @@
       el.textContent = 'Mode: Clear feature · click cells';
     } else if (a.type === 'feature'){
       el.textContent = `Mode: Place feature · ${a.value} · drag to brush`;
+    } else if (a.type === 'region'){
+      const region = window.GCCSubhexData.getRegion(state.parentId, a.value);
+      const rname = region ? region.name : '(unknown)';
+      el.textContent = `Mode: Assign to region · ${rname} · drag to brush`;
+    } else if (a.type === 'region-erase'){
+      el.textContent = 'Mode: Remove from region · click cells';
+    } else if (a.type === 'path'){
+      const path = window.GCCSubhexPaths?.getPath(state.parentId, a.value);
+      const pname = path ? path.name : '(unknown)';
+      const len = path ? path.cells.length : 0;
+      el.textContent = `Mode: Extend path · ${pname} · ${len} cell${len===1?'':'s'} · click neighbor to extend`;
     } else {
       const lbl = TERRAIN[a.value]?.label || a.value;
       el.textContent = `Mode: Paint · ${lbl} · drag to brush`;
@@ -343,6 +415,12 @@
       state.brushedThisDrag = null;
       window.removeEventListener('mouseup', onBrushEnd);
     }
+    // Hide the region-armed picker so it isn't lingering when reopened
+    // for a different parent.
+    const sel = state.win.querySelector('#sxw-region-armed');
+    if (sel){ sel.style.display = 'none'; sel.value = ''; }
+    const psel = state.win.querySelector('#sxw-path-armed');
+    if (psel){ psel.style.display = 'none'; psel.value = ''; }
   }
 
   function isOpen(){ return state.isOpen; }
@@ -436,6 +514,112 @@
       group.addEventListener('click', onCellClick);
       svg.appendChild(group);
     }
+
+    renderPaths(svg);
+    renderRegionLabels(svg);
+  }
+
+  // Render every path in this parent as a polyline through cell
+  // centers via shared-edge midpoints. For adjacent hexes the midpoint
+  // of (centerA, centerB) is exactly the midpoint of their shared edge,
+  // so the polyline naturally hugs cell boundaries. Paths render under
+  // region labels but over cell fills + terrain icons.
+  function renderPaths(svg){
+    if (!window.GCCSubhexPaths) return;
+    svg.querySelectorAll('.sxw-paths-layer').forEach(n => n.remove());
+    const paths = window.GCCSubhexPaths.listPaths(state.parentId);
+    if (!paths.length) return;
+    const ns = 'http://www.w3.org/2000/svg';
+    const layer = document.createElementNS(ns, 'g');
+    layer.setAttribute('class', 'sxw-paths-layer');
+    for (const p of paths){
+      if (!p.cells || p.cells.length < 1) continue;
+      const pts = pathPolylinePoints(p.cells);
+      if (pts.length < 2){
+        // Length-1 path: render a small dot at the cell center to show
+        // the start has been placed. Author can still extend it.
+        const c = subhexCenter(p.cells[0].q, p.cells[0].r);
+        const dot = document.createElementNS(ns, 'circle');
+        dot.setAttribute('cx', c.x);
+        dot.setAttribute('cy', c.y);
+        dot.setAttribute('r', 3);
+        dot.setAttribute('class', `sxw-path-dot sxw-path-${p.kind}`);
+        dot.dataset.pathId = p.id;
+        layer.appendChild(dot);
+        continue;
+      }
+      const poly = document.createElementNS(ns, 'polyline');
+      poly.setAttribute('points', pts.map(([x,y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' '));
+      poly.setAttribute('class', `sxw-path sxw-path-${p.kind}`);
+      poly.setAttribute('fill', 'none');
+      poly.dataset.pathId = p.id;
+      // Highlight the armed path so the GM sees what they're extending.
+      if (state.armed && state.armed.type === 'path' && state.armed.value === p.id){
+        poly.classList.add('armed');
+      }
+      layer.appendChild(poly);
+    }
+    svg.appendChild(layer);
+  }
+
+  // Convert a cell sequence to polyline waypoints. For length 1, returns
+  // [center] (caller renders a dot instead). For length 2+: [center_first,
+  // sharedMid_0to1, sharedMid_1to2, ..., center_last].
+  function pathPolylinePoints(cells){
+    if (!cells || !cells.length) return [];
+    if (cells.length === 1){
+      const c = subhexCenter(cells[0].q, cells[0].r);
+      return [[c.x, c.y]];
+    }
+    const pts = [];
+    const first = subhexCenter(cells[0].q, cells[0].r);
+    pts.push([first.x, first.y]);
+    for (let i = 0; i < cells.length - 1; i++){
+      const a = subhexCenter(cells[i].q, cells[i].r);
+      const b = subhexCenter(cells[i+1].q, cells[i+1].r);
+      pts.push([(a.x + b.x) / 2, (a.y + b.y) / 2]);
+    }
+    const last = subhexCenter(cells[cells.length-1].q, cells[cells.length-1].r);
+    pts.push([last.x, last.y]);
+    return pts;
+  }
+
+  // Drop a centered text label on each region with ≥3 members. Centroid
+  // is the average of member subhex centers. Labels render after cells
+  // (so they paint on top of fills + terrain icons) but before features
+  // (handled separately — region label and feature glyph in the same
+  // cell would collide visually, but in practice features are rare per
+  // cell and the label sits at the centroid which is usually empty).
+  function renderRegionLabels(svg){
+    if (!window.GCCSubhexData) return;
+    // Remove any pre-existing region labels (in case rebuildSVG is
+    // called as part of a refresh rather than a fresh open).
+    svg.querySelectorAll('.sxw-region-label-layer').forEach(n => n.remove());
+    const regions = window.GCCSubhexData.listRegions(state.parentId);
+    if (!regions.length) return;
+    const ns = 'http://www.w3.org/2000/svg';
+    const layer = document.createElementNS(ns, 'g');
+    layer.setAttribute('class', 'sxw-region-label-layer');
+    for (const region of regions){
+      const members = window.GCCSubhexData.regionMembers(state.parentId, region.id);
+      if (members.length < 3) continue;
+      let sx = 0, sy = 0;
+      for (const { q, r } of members){
+        const c = subhexCenter(q, r);
+        sx += c.x; sy += c.y;
+      }
+      const cx = sx / members.length;
+      const cy = sy / members.length;
+      const text = document.createElementNS(ns, 'text');
+      text.setAttribute('x', cx);
+      text.setAttribute('y', cy);
+      text.setAttribute('class', 'sxw-region-label');
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('dominant-baseline', 'central');
+      text.textContent = region.name;
+      layer.appendChild(text);
+    }
+    svg.appendChild(layer);
   }
 
   function applyCellPaint(q, r){
@@ -478,10 +662,13 @@
     ev.stopPropagation();
     const q = +ev.currentTarget.dataset.q;
     const r = +ev.currentTarget.dataset.r;
-    state.brushing = true;
-    state.brushedThisDrag = new Set();
+    // Path mode is click-only — no brush. Other modes brush on drag.
+    if (state.armed.type !== 'path'){
+      state.brushing = true;
+      state.brushedThisDrag = new Set();
+    }
     paintCell(q, r);
-    window.addEventListener('mouseup', onBrushEnd);
+    if (state.brushing) window.addEventListener('mouseup', onBrushEnd);
   }
 
   function onCellMouseEnter(ev){
@@ -515,8 +702,6 @@
     } else if (a.type === 'terrain'){
       window.GCCSubhexData.setSubhexOverride(state.parentId, q, r, { terrain: a.value });
     } else if (a.type === 'feature'){
-      // Painting a feature preserves prior name/libraryId if same kind,
-      // otherwise starts a fresh feature.
       const existing = window.GCCSubhexData.getSubhex(state.parentId, q, r, state.parentTerrain);
       const prior = existing && existing.feature;
       const next = (prior && prior.kind === a.value)
@@ -525,6 +710,23 @@
       window.GCCSubhexData.setSubhexFeature(state.parentId, q, r, next);
     } else if (a.type === 'feature-erase'){
       window.GCCSubhexData.clearSubhexFeature(state.parentId, q, r);
+    } else if (a.type === 'region'){
+      window.GCCSubhexData.assignCellToRegion(state.parentId, q, r, a.value, state.parentTerrain);
+      const svg = state.win?.querySelector('#sxw-svg');
+      if (svg) renderRegionLabels(svg);
+    } else if (a.type === 'region-erase'){
+      window.GCCSubhexData.unassignCellFromRegion(state.parentId, q, r);
+      const svg = state.win?.querySelector('#sxw-svg');
+      if (svg) renderRegionLabels(svg);
+    } else if (a.type === 'path'){
+      // Click-only — never brushed (skip if this came from a drag).
+      if (state.brushing) return;
+      const ok = window.GCCSubhexPaths.appendCell(state.parentId, a.value, q, r);
+      if (ok){
+        const svg = state.win?.querySelector('#sxw-svg');
+        if (svg) renderPaths(svg);
+        syncModeLabel();
+      }
     }
     applyCellPaint(q, r);
     if (q === state.selectedQ && r === state.selectedR) syncDetailPanel();
@@ -568,6 +770,9 @@
     const fkind  = w.querySelector('#sxw-feature-kind');
     const fname  = w.querySelector('#sxw-feature-name');
     const flib   = w.querySelector('#sxw-feature-libid');
+    const rpick  = w.querySelector('#sxw-region-pick');
+    const rname  = w.querySelector('#sxw-region-name');
+    const plist  = w.querySelector('#sxw-paths-list');
     const source = w.querySelector('#sxw-source');
     const clearB = w.querySelector('#sxw-clear');
 
@@ -579,6 +784,10 @@
       fkind.value = '';  fkind.disabled = true;
       fname.value = '';  fname.disabled = true;
       flib.value  = '';  flib.disabled  = true;
+      rebuildRegionPickOptions(rpick, '', null, null);
+      rpick.disabled = true;
+      rname.value = '';  rname.disabled = true;
+      if (plist) plist.textContent = '—';
       source.textContent = '';
       clearB.disabled    = true;
       return;
@@ -598,10 +807,332 @@
     fname.disabled = !f;
     flib.value  = f ? (f.libraryId || '') : '';
     flib.disabled = !f;
+    // Region picker — list only regions whose locked terrain matches
+    // the cell's effective terrain (joining a mismatch is silently
+    // refused by the data layer; surfacing only valid options is more
+    // honest).
+    rebuildRegionPickOptions(rpick, sub.terrain, sub.regionId, state.parentId);
+    rpick.disabled = false;
+    const region = sub.regionId ? window.GCCSubhexData.getRegion(state.parentId, sub.regionId) : null;
+    rname.value = region ? region.name : '';
+    rname.disabled = !region;
+    // Paths row — read-only summary of paths through this cell.
+    if (plist){
+      const cellPaths = window.GCCSubhexPaths
+        ? window.GCCSubhexPaths.pathsAtCell(state.parentId, state.selectedQ, state.selectedR)
+        : [];
+      plist.textContent = cellPaths.length
+        ? cellPaths.map(p => `${p.name} (${p.kind})`).join(', ')
+        : '—';
+    }
     source.textContent = sub.source === 'authored' ? 'Authored override (localStorage)'
       : sub.source === 'canonical' ? 'Canonical Greyhawk feature'
       : 'Procedural — derived from world seed';
     clearB.disabled = (sub.source !== 'authored');
+  }
+
+  // Build the region <select> options for the detail panel. terrain =
+  // the cell's effective terrain (used to filter eligible regions).
+  // selectedRegionId = the cell's current regionId. parentId = parent
+  // hex id (or null in the empty-selection state).
+  function rebuildRegionPickOptions(sel, terrain, selectedRegionId, parentId){
+    if (!sel) return;
+    sel.innerHTML = '';
+    const noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = '— none —';
+    sel.appendChild(noneOpt);
+    if (parentId && terrain){
+      const regions = window.GCCSubhexData.listRegions(parentId)
+        .filter(r => r.terrain === terrain);
+      for (const r of regions){
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = r.name;
+        sel.appendChild(opt);
+      }
+    }
+    if (parentId && terrain){
+      const newOpt = document.createElement('option');
+      newOpt.value = '__new__';
+      newOpt.textContent = `+ New ${terrain} region…`;
+      sel.appendChild(newOpt);
+    }
+    sel.value = selectedRegionId || '';
+  }
+
+  function onRegionPickChange(ev){
+    if (state.selectedQ === null) return;
+    const val = ev.target.value;
+    if (val === '__new__'){
+      const sub = window.GCCSubhexData.getSubhex(
+        state.parentId, state.selectedQ, state.selectedR, state.parentTerrain
+      );
+      if (!sub || !sub.terrain){
+        ev.target.value = sub?.regionId || '';
+        return;
+      }
+      const name = (typeof prompt === 'function') ? prompt('New region name:') : null;
+      if (!name){
+        ev.target.value = sub.regionId || '';
+        return;
+      }
+      const region = window.GCCSubhexData.createRegion(state.parentId, name, sub.terrain);
+      if (region){
+        window.GCCSubhexData.assignCellToRegion(
+          state.parentId, state.selectedQ, state.selectedR, region.id, state.parentTerrain
+        );
+        // Auto-arm region mode for the new region so the GM can keep
+        // adding cells to it.
+        state.armed = { type: 'region', value: region.id };
+        showRegionArmedPicker(true, region.id);
+        syncPaletteUI();
+        syncModeLabel();
+      }
+    } else if (val === ''){
+      window.GCCSubhexData.unassignCellFromRegion(state.parentId, state.selectedQ, state.selectedR);
+    } else {
+      window.GCCSubhexData.assignCellToRegion(
+        state.parentId, state.selectedQ, state.selectedR, val, state.parentTerrain
+      );
+    }
+    applyCellPaint(state.selectedQ, state.selectedR);
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg) renderRegionLabels(svg);
+    syncDetailPanel();
+  }
+
+  function onRegionRename(ev){
+    if (state.selectedQ === null) return;
+    const sub = window.GCCSubhexData.getSubhex(
+      state.parentId, state.selectedQ, state.selectedR, state.parentTerrain
+    );
+    if (!sub || !sub.regionId) return;
+    const newName = ev.target.value.trim();
+    if (!newName) return;
+    window.GCCSubhexData.renameRegion(state.parentId, sub.regionId, newName);
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg) renderRegionLabels(svg);
+    // Refresh the picker dropdowns since names changed.
+    syncDetailPanel();
+    rebuildRegionArmedPicker();
+  }
+
+  // ── Region tool (toolbar) ──────────────────────────────────────────────
+  function onRegionToolClick(){
+    // If region mode is already active, toggle it off.
+    if (state.armed && (state.armed.type === 'region' || state.armed.type === 'region-erase')){
+      state.armed = null;
+      showRegionArmedPicker(false);
+      syncPaletteUI();
+      syncModeLabel();
+      return;
+    }
+    // Dismiss path picker if it was open.
+    const psel = state.win?.querySelector('#sxw-path-armed');
+    if (psel) psel.style.display = 'none';
+    // Otherwise, open the contextual armed-region picker.
+    rebuildRegionArmedPicker();
+    showRegionArmedPicker(true);
+  }
+
+  function showRegionArmedPicker(visible, presetValue){
+    const sel = state.win?.querySelector('#sxw-region-armed');
+    if (!sel) return;
+    sel.style.display = visible ? '' : 'none';
+    if (visible && presetValue !== undefined){
+      sel.value = presetValue;
+    } else if (visible && !sel.value){
+      // Default to the first existing region if any, else leave blank.
+      const regions = window.GCCSubhexData.listRegions(state.parentId);
+      if (regions.length){ sel.value = regions[0].id; }
+    }
+  }
+
+  function rebuildRegionArmedPicker(){
+    const sel = state.win?.querySelector('#sxw-region-armed');
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '';
+    const noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = '— pick a region to assign —';
+    sel.appendChild(noneOpt);
+    const regions = window.GCCSubhexData.listRegions(state.parentId);
+    for (const r of regions){
+      const opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = `${r.name} (${r.terrain})`;
+      sel.appendChild(opt);
+    }
+    const eraseOpt = document.createElement('option');
+    eraseOpt.value = '__erase__';
+    eraseOpt.textContent = '⌫ Remove from region (click cells)';
+    sel.appendChild(eraseOpt);
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New region from selected cell\'s terrain…';
+    sel.appendChild(newOpt);
+    if (prev) sel.value = prev;
+  }
+
+  function onRegionArmedChange(ev){
+    const val = ev.target.value;
+    if (val === '__erase__'){
+      state.armed = { type: 'region-erase' };
+    } else if (val === '__new__'){
+      // Need a selected cell with a terrain to create a region from.
+      if (state.selectedQ === null){
+        if (typeof alert === 'function') alert('Select a cell first to use its terrain for the new region.');
+        ev.target.value = '';
+        return;
+      }
+      const sub = window.GCCSubhexData.getSubhex(
+        state.parentId, state.selectedQ, state.selectedR, state.parentTerrain
+      );
+      if (!sub || !sub.terrain){
+        ev.target.value = '';
+        return;
+      }
+      const name = (typeof prompt === 'function') ? prompt('New region name:') : null;
+      if (!name){ ev.target.value = ''; return; }
+      const region = window.GCCSubhexData.createRegion(state.parentId, name, sub.terrain);
+      if (region){
+        window.GCCSubhexData.assignCellToRegion(
+          state.parentId, state.selectedQ, state.selectedR, region.id, state.parentTerrain
+        );
+        applyCellPaint(state.selectedQ, state.selectedR);
+        rebuildRegionArmedPicker();
+        ev.target.value = region.id;
+        state.armed = { type: 'region', value: region.id };
+      } else {
+        ev.target.value = '';
+        return;
+      }
+    } else if (val){
+      state.armed = { type: 'region', value: val };
+    } else {
+      state.armed = null;
+    }
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg) renderRegionLabels(svg);
+    syncDetailPanel();
+    syncPaletteUI();
+    syncModeLabel();
+  }
+
+  // ── Path tool (toolbar) ────────────────────────────────────────────────
+  function onPathToolClick(){
+    if (state.armed && state.armed.type === 'path'){
+      state.armed = null;
+      showPathArmedPicker(false);
+      const svg = state.win?.querySelector('#sxw-svg');
+      if (svg) renderPaths(svg);
+      syncPaletteUI();
+      syncModeLabel();
+      return;
+    }
+    // Dismiss region picker if it was open.
+    const rsel = state.win?.querySelector('#sxw-region-armed');
+    if (rsel) rsel.style.display = 'none';
+    rebuildPathArmedPicker();
+    showPathArmedPicker(true);
+  }
+
+  function showPathArmedPicker(visible, presetValue){
+    const sel = state.win?.querySelector('#sxw-path-armed');
+    if (!sel) return;
+    sel.style.display = visible ? '' : 'none';
+    if (visible && presetValue !== undefined){
+      sel.value = presetValue;
+    }
+  }
+
+  function rebuildPathArmedPicker(){
+    const sel = state.win?.querySelector('#sxw-path-armed');
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '';
+    const noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = '— pick a path to extend —';
+    sel.appendChild(noneOpt);
+    const paths = window.GCCSubhexPaths.listPaths(state.parentId);
+    for (const p of paths){
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = `${p.name} (${p.kind} · ${p.cells.length} cells)`;
+      sel.appendChild(opt);
+    }
+    for (const kind of window.GCCSubhexPaths.PATH_KINDS){
+      const opt = document.createElement('option');
+      opt.value = `__new__:${kind}`;
+      opt.textContent = `+ New ${kind}…`;
+      sel.appendChild(opt);
+    }
+    const undoOpt = document.createElement('option');
+    undoOpt.value = '__pop__';
+    undoOpt.textContent = '↶ Undo last cell on armed path';
+    sel.appendChild(undoOpt);
+    const delOpt = document.createElement('option');
+    delOpt.value = '__delete__';
+    delOpt.textContent = '⌫ Delete a path…';
+    sel.appendChild(delOpt);
+    if (prev) sel.value = prev;
+  }
+
+  function onPathArmedChange(ev){
+    const val = ev.target.value;
+    if (val.startsWith('__new__:')){
+      const kind = val.slice('__new__:'.length);
+      const name = (typeof prompt === 'function') ? prompt(`New ${kind} name:`) : null;
+      if (!name){ ev.target.value = ''; return; }
+      const path = window.GCCSubhexPaths.createPath(state.parentId, kind, name);
+      if (!path){ ev.target.value = ''; return; }
+      rebuildPathArmedPicker();
+      ev.target.value = path.id;
+      state.armed = { type: 'path', value: path.id };
+    } else if (val === '__pop__'){
+      if (state.armed && state.armed.type === 'path'){
+        window.GCCSubhexPaths.popCell(state.parentId, state.armed.value);
+        rebuildPathArmedPicker();
+        ev.target.value = state.armed.value;
+        const svg = state.win?.querySelector('#sxw-svg');
+        if (svg) renderPaths(svg);
+      } else {
+        ev.target.value = '';
+      }
+    } else if (val === '__delete__'){
+      const paths = window.GCCSubhexPaths.listPaths(state.parentId);
+      if (!paths.length){ ev.target.value = ''; return; }
+      const names = paths.map((p, i) => `${i+1}. ${p.name} (${p.kind})`).join('\n');
+      const choice = (typeof prompt === 'function')
+        ? prompt(`Delete which path? Enter number 1–${paths.length}:\n\n${names}`)
+        : null;
+      const n = parseInt(choice, 10);
+      if (Number.isFinite(n) && n >= 1 && n <= paths.length){
+        const target = paths[n - 1];
+        window.GCCSubhexPaths.deletePath(state.parentId, target.id);
+        if (state.armed && state.armed.type === 'path' && state.armed.value === target.id){
+          state.armed = null;
+        }
+        rebuildPathArmedPicker();
+        ev.target.value = (state.armed && state.armed.type === 'path') ? state.armed.value : '';
+        const svg = state.win?.querySelector('#sxw-svg');
+        if (svg) renderPaths(svg);
+      } else {
+        ev.target.value = (state.armed && state.armed.type === 'path') ? state.armed.value : '';
+      }
+    } else if (val){
+      state.armed = { type: 'path', value: val };
+    } else {
+      state.armed = null;
+    }
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg) renderPaths(svg);
+    syncDetailPanel();
+    syncPaletteUI();
+    syncModeLabel();
   }
 
   function persistFields(){
