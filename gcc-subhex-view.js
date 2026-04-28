@@ -1,7 +1,12 @@
-// gcc-subhex-view.js v0.5.0 — 2026-04-28
+// gcc-subhex-view.js v0.6.0 — 2026-04-28
 // Subhex editor window. Opens for one parent hex at a time; main map
 // stays at 30mi, untouched. Self-contained: own SVG, own paint palette,
 // own name/notes inputs.
+//
+// v0.6: tightened SVG viewBox to flat-top hex proportions (610×530,
+// not 660×660), eliminating ~70 units of vertical padding around the
+// parent hex. Compacted the chrome below the SVG. Hover and selected
+// strokes thickened so they read clearly at the smaller cell scale.
 //
 // v0.5: window is now resizable (CSS resize:both, native grip in
 // bottom-right). Default width dropped 700 → 540. Persist size +
@@ -34,8 +39,13 @@
 
   const SUB_DIM = 11;
   const SUB_CENTER = 5;             // (SUB_DIM - 1) / 2
-  const VIEWBOX = 660;              // svg viewBox dimension
+  // Flat-top parent hex: corners at ±PARENT_R horizontally, edges at
+  // ±PARENT_R · √3/2 vertically (≈ ±260 for R=300). VIEWBOX is sized
+  // tightly around this with ~5 unit margin on each side; non-square
+  // because flat-top hexes are wider than tall.
   const PARENT_R = 300;             // parent hex radius in svg coords
+  const VIEWBOX_W = 610;
+  const VIEWBOX_H = 530;
   // For radius-N hex-of-hexes inscribed in a flat-top parent hex,
   // outermost cell corner sits at SUB_R · √(3N²+3N+1) from center.
   // For N=5 that is SUB_R · √91 ≈ 9.54·SUB_R; parent edge midpoints
@@ -70,7 +80,7 @@
         <button class="sxw-close" title="Close">✕</button>
       </div>
       <div class="sxw-body">
-        <svg id="sxw-svg" viewBox="0 0 ${VIEWBOX} ${VIEWBOX}" preserveAspectRatio="xMidYMid meet"></svg>
+        <svg id="sxw-svg" viewBox="0 0 ${VIEWBOX_W} ${VIEWBOX_H}" preserveAspectRatio="xMidYMid meet"></svg>
         <div class="sxw-detail">
           <div class="sxw-row"><label>Subhex</label><span class="sxw-readonly" id="sxw-coord">— select a cell</span></div>
           <div class="sxw-row"><label>Terrain</label><span class="sxw-readonly" id="sxw-terrain">—</span></div>
@@ -252,8 +262,8 @@
 
   // ── SVG render ─────────────────────────────────────────────────────────
   function subhexCenter(q, r){
-    const cx = VIEWBOX / 2;
-    const cy = VIEWBOX / 2;
+    const cx = VIEWBOX_W / 2;
+    const cy = VIEWBOX_H / 2;
     const dq = q - SUB_CENTER, dr = r - SUB_CENTER;
     return {
       x: cx + SUB_R * 1.5 * dq,
@@ -270,7 +280,7 @@
     return out;
   }
   function parentCorners(){
-    const cx = VIEWBOX / 2, cy = VIEWBOX / 2;
+    const cx = VIEWBOX_W / 2, cy = VIEWBOX_H / 2;
     const out = new Array(6);
     for (let i = 0; i < 6; i++){
       const a = (Math.PI / 180) * (60 * i);
@@ -368,9 +378,16 @@
   }
 
   function onCellMouseEnter(ev){
+    // Move the hovered cell's group to the end of its parent so its
+    // stroke paints on top of all neighbors at shared edges. The
+    // previously-hovered cell stays where it was — its stroke reverts
+    // to default and the slight reordering is invisible to the user.
+    const g = ev.currentTarget;
+    const parent = g.parentNode;
+    if (parent && parent.lastChild !== g) parent.appendChild(g);
     if (!state.brushing) return;
-    const q = +ev.currentTarget.dataset.q;
-    const r = +ev.currentTarget.dataset.r;
+    const q = +g.dataset.q;
+    const r = +g.dataset.r;
     paintCell(q, r);
   }
 
@@ -409,6 +426,11 @@
     const group = document.getElementById(`sxw-cell-${q}-${r}`);
     const poly  = group?.querySelector('.sxw-cell');
     if (poly) poly.classList.add('selected');
+    // Bring the selected cell to the front so its thick stroke and
+    // drop-shadow glow paint over neighbors at shared edges.
+    if (group && group.parentNode && group.parentNode.lastChild !== group){
+      group.parentNode.appendChild(group);
+    }
     syncDetailPanel();
   }
 

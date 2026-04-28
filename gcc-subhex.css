@@ -1,16 +1,13 @@
-/* gcc-subhex.css v0.5.0 — 2026-04-28
-   v0.5 shrinks the window default from 700 → 540 and adds a native
-   resize grip in the bottom-right. The SVG inside auto-scales via
-   aspect-ratio + viewBox, so cells (and stamped icons) scale with
-   whatever width the user resizes to. min-width/min-height keep the
-   chrome usable at smaller sizes. Position+size persist via JS to
-   localStorage on drag/resize end.
+/* gcc-subhex.css v0.6.0 — 2026-04-28
+   v0.6 tightens chrome density: shrunk vertical padding, smaller
+   palette swatches, smaller textarea min-height, compacted detail
+   rows. SVG aspect-ratio matches the new rectangular viewBox so
+   the hex fills more of the SVG area. Hover and selected cell
+   strokes thickened with contrast bumps so they read at the
+   smaller scale.
 
-   v0.4 widened the window from 560 → 700 to keep 91-cell radius-5
-   cells legible (cell radius shrank from ~46 to ~26 viewbox units).
-   Stroke weights tightened to match. Icons inside cells inherit
-   pointer-events none from their JS-set inline style; here we just
-   style the stamped strokes/fills.
+   v0.5 shrunk the window default from 700 → 540 and added a native
+   resize grip in the bottom-right.
 */
 
 /* ── Window shell ─────────────────────────────────────────────────────── */
@@ -78,7 +75,7 @@ body.theme-dark #subhex-window::after {
 .sxw-header {
   background:#5a4a30;
   color:#f4e8c4;
-  padding:7px 12px;
+  padding:6px 10px;
   font-size:13px;
   letter-spacing:0.06em;
   text-transform:uppercase;
@@ -103,10 +100,10 @@ body.theme-dark #subhex-window::after {
 .sxw-close:hover { background:#c8a96e; color:#1a1a1a; }
 
 .sxw-body {
-  padding:12px;
+  padding:8px;
   display:flex;
   flex-direction:column;
-  gap:10px;
+  gap:6px;
   flex:1 1 auto;
   min-height:0;
   overflow-y:auto;
@@ -115,7 +112,7 @@ body.theme-dark #subhex-window::after {
 /* ── SVG ──────────────────────────────────────────────────────────────── */
 #sxw-svg {
   width:100%;
-  aspect-ratio:1 / 1;
+  aspect-ratio:610 / 530;
   background:#e8d8b0;
   border:1px solid #b09060;
   border-radius:4px;
@@ -137,11 +134,21 @@ body.theme-dark .sxw-parent-outline { stroke:#c8a96e; stroke-opacity:0.5; }
   stroke-width:0.5;
   stroke-opacity:0.55;
   cursor:pointer;
-  transition:stroke-width 0.08s;
+  transition:stroke-width 0.08s, stroke-opacity 0.08s;
 }
-.sxw-cell:hover { stroke-width:1.2; stroke-opacity:0.85; }
+.sxw-cell:hover {
+  stroke:#1a1a1a;
+  stroke-width:2.5;
+  stroke-opacity:1;
+}
 .sxw-cell.authored { stroke:#8b0000; stroke-width:1.0; stroke-opacity:1; }
-.sxw-cell.selected { stroke:#c8a96e; stroke-width:2.4; stroke-opacity:1; }
+.sxw-cell.selected {
+  stroke:#c8a96e;
+  stroke-width:4;
+  stroke-opacity:1;
+  filter:drop-shadow(0 0 3px #c8a96e);
+}
+body.theme-dark .sxw-cell:hover { stroke:#f4e8c4; }
 .sxw-cell-group { cursor:pointer; }
 .sxw-icon { pointer-events:none; }
 .sxw-cell-label {
@@ -157,25 +164,25 @@ body.theme-dark .sxw-cell-label { fill:#f4e8c4; }
 .sxw-detail {
   display:flex;
   flex-direction:column;
-  gap:6px;
-  padding:8px 4px 0;
+  gap:4px;
+  padding:6px 4px 0;
   border-top:1px solid #b09060;
 }
 body.theme-dark .sxw-detail { border-top-color:#7a6a40; }
-.sxw-row { display:flex; align-items:flex-start; gap:8px; }
+.sxw-row { display:flex; align-items:flex-start; gap:6px; }
 .sxw-row label {
-  flex:0 0 64px;
+  flex:0 0 56px;
   font-size:10px;
   letter-spacing:0.08em;
   text-transform:uppercase;
   color:#5a4a30;
-  padding-top:4px;
+  padding-top:3px;
 }
 body.theme-dark .sxw-row label { color:#c8a96e; }
 .sxw-readonly {
   flex:1;
   font-size:13px;
-  padding:3px 0;
+  padding:2px 0;
 }
 .sxw-row input[type=text],
 .sxw-row textarea {
@@ -183,7 +190,7 @@ body.theme-dark .sxw-row label { color:#c8a96e; }
   background:#fbf2da;
   border:1px solid #b09060;
   border-radius:3px;
-  padding:4px 6px;
+  padding:3px 5px;
   font-family:inherit;
   font-size:13px;
   color:#1a1a1a;
@@ -197,12 +204,12 @@ body.theme-dark .sxw-row textarea {
 }
 .sxw-row input[type=text]:disabled,
 .sxw-row textarea:disabled { opacity:0.55; cursor:not-allowed; }
-.sxw-row textarea { min-height:60px; }
+.sxw-row textarea { min-height:40px; }
 .sxw-source {
   font-size:10px;
   color:#7a6a40;
   font-style:italic;
-  padding:2px 4px 0 76px;
+  padding:1px 4px 0 62px;
 }
 body.theme-dark .sxw-source { color:#c8a96e; }
 
@@ -210,14 +217,14 @@ body.theme-dark .sxw-source { color:#c8a96e; }
 .sxw-palette {
   display:flex;
   flex-wrap:wrap;
-  gap:4px;
-  padding-top:8px;
+  gap:3px;
+  padding-top:6px;
   border-top:1px solid #b09060;
 }
 body.theme-dark .sxw-palette { border-top-color:#7a6a40; }
 .sxw-swatch {
-  width:24px;
-  height:24px;
+  width:20px;
+  height:20px;
   border:1.5px solid #5a4a30;
   border-radius:3px;
   cursor:pointer;
@@ -232,7 +239,7 @@ body.theme-dark .sxw-palette { border-top-color:#7a6a40; }
 .sxw-swatch-erase {
   background:#fbf2da;
   color:#5a4a30;
-  font-size:14px;
+  font-size:13px;
   line-height:1;
 }
 body.theme-dark .sxw-swatch-erase { background:#2c2c2a; color:#c8a96e; }
@@ -243,16 +250,17 @@ body.theme-dark .sxw-swatch-erase { background:#2c2c2a; color:#c8a96e; }
   align-items:center;
   justify-content:space-between;
   gap:8px;
-  font-size:12px;
+  font-size:11px;
+  padding-top:4px;
 }
 .sxw-tool-btn {
   background:transparent;
   color:#5a4a30;
   border:1px solid #b09060;
   border-radius:3px;
-  padding:4px 8px;
+  padding:3px 7px;
   font-family:inherit;
-  font-size:12px;
+  font-size:11px;
   cursor:pointer;
 }
 .sxw-tool-btn:hover { background:#c8a96e; color:#1a1a1a; }
