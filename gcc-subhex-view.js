@@ -197,20 +197,42 @@
     buildFeatureKindSelect();
 
     // Restore last position and size
+    let restoredFromStorage = false;
     try {
       const pos = JSON.parse(localStorage.getItem('gcc-subhex-window-pos') || 'null');
       if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)){
         w.style.left = pos.x + 'px';
         w.style.top  = pos.y + 'px';
+        w.style.right = 'auto';
+        restoredFromStorage = true;
       } else {
         w.style.right = '24px';
         w.style.top   = '160px';
       }
       if (pos && Number.isFinite(pos.w) && pos.w >= 380){ w.style.width  = pos.w + 'px'; }
-      if (pos && Number.isFinite(pos.h) && pos.h >= 420){ w.style.height = pos.h + 'px'; }
+      if (pos && Number.isFinite(pos.h) && pos.h >= 320){ w.style.height = pos.h + 'px'; }
     } catch(e){
       w.style.right = '24px';
       w.style.top   = '160px';
+    }
+    // If we restored from storage, sanity-check the position is on
+    // screen. We need a synchronous getBoundingClientRect, which means
+    // the element must be in the DOM and rendered. To avoid flashing,
+    // briefly render with visibility:hidden, measure, clamp, then
+    // remove the visibility override.
+    if (restoredFromStorage){
+      const prevDisplay = w.style.display;
+      const prevVis = w.style.visibility;
+      w.style.visibility = 'hidden';
+      w.style.display = 'flex';
+      const rect = w.getBoundingClientRect();
+      const { x, y } = clampWindowPos(rect.left, rect.top);
+      if (x !== rect.left || y !== rect.top){
+        w.style.left = x + 'px';
+        w.style.top  = y + 'px';
+      }
+      w.style.display = prevDisplay;
+      w.style.visibility = prevVis;
     }
 
     // Watch for user-driven resize via the native grip; persist when it
@@ -446,16 +468,16 @@
     if (cb) cb.textContent = state.parentId;
 
     state.win.style.display = 'flex';
-    // Clamp position against the current viewport — stored coords may
-    // be off-screen if the user resized their browser smaller since.
+    // Always clamp position against the current viewport. Stored
+    // coords may be off-screen if the user resized their browser
+    // smaller, and the right:24px default with a wide stored width
+    // can also push the left edge off the visible area.
     const cur = state.win.getBoundingClientRect();
-    if (state.win.style.left && state.win.style.top){
-      const { x, y } = clampWindowPos(cur.left, cur.top);
-      if (x !== cur.left || y !== cur.top){
-        state.win.style.left = x + 'px';
-        state.win.style.top  = y + 'px';
-        state.win.style.right = 'auto';
-      }
+    const { x, y } = clampWindowPos(cur.left, cur.top);
+    if (x !== cur.left || y !== cur.top){
+      state.win.style.left = x + 'px';
+      state.win.style.top  = y + 'px';
+      state.win.style.right = 'auto';
     }
     rebuildSVG();
     syncDetailPanel();
@@ -1248,27 +1270,31 @@
     window.addEventListener('touchmove', onDragMove, { passive: false });
     window.addEventListener('touchend',  onDragEnd);
   }
-  // Clamp window position so at least KEEPVIS pixels of the header
-  // remain reachable. Apply to (x, y) candidates before assigning.
+  // Clamp window position so the entire header bar is always inside
+  // the viewport (top-edge ≥ 0) and at least a useful slice of the
+  // window remains horizontally on-screen. Apply to (x, y) candidates
+  // before assigning to style.left/top.
   function clampWindowPos(x, y){
     if (!state.win) return { x, y };
-    const KEEPVIS = 60;
+    const KEEPVIS_X = 80;          // horizontal: how much of the window must stay on screen
+    const HEADER_PAD = 4;          // small top inset so the header isn't flush against the very edge
     const rect = state.win.getBoundingClientRect();
     const w = rect.width || 540;
     const h = rect.height || 320;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    // Left bound: don't push past left edge (so drag handle stays on
-    // screen). Right bound: keep at least KEEPVIS px of the window
-    // visible from the left of the window — i.e. window's left can
-    // be at most vw - KEEPVIS.
-    if (x > vw - KEEPVIS) x = vw - KEEPVIS;
-    if (x < KEEPVIS - w)  x = KEEPVIS - w;   // window's right edge ≥ KEEPVIS
-    // Top bound: keep header visible (don't allow above viewport).
-    // Bottom bound: header must remain on screen — header sits at top
-    // of window, so y itself must be < vh - KEEPVIS.
-    if (y < 0) y = 0;
-    if (y > vh - KEEPVIS) y = vh - KEEPVIS;
+    // Horizontal: the window's left can be at most vw - KEEPVIS_X (so
+    // the leftmost KEEPVIS_X is still visible from the right side) and
+    // at least KEEPVIS_X - w (so the rightmost KEEPVIS_X is visible
+    // from the left side).
+    if (x > vw - KEEPVIS_X) x = vw - KEEPVIS_X;
+    if (x < KEEPVIS_X - w)  x = KEEPVIS_X - w;
+    // Vertical: header must be fully on-screen. Top must be ≥ 0 (with
+    // a small pad). Bottom of header must be < vh — we approximate
+    // header height as 32px (matches CSS).
+    const HEADER_H = 32;
+    if (y < HEADER_PAD) y = HEADER_PAD;
+    if (y > vh - HEADER_H) y = vh - HEADER_H;
     return { x, y };
   }
 
