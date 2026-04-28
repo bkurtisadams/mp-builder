@@ -1,23 +1,29 @@
-// gcc-subhex-view.js v0.2.0 — 2026-04-28
+// gcc-subhex-view.js v0.3.0 — 2026-04-28
 // Subhex editor window. Opens for one parent hex at a time; main map
 // stays at 30mi, untouched. Self-contained: own SVG, own paint palette,
-// own name/notes inputs. ~25 cells per open — bounded, fast.
+// own name/notes inputs.
 //
-// Replaces v0.1.0's whole-map 6mi rescale (350K cells, SVG-killing). The
-// scale toggle, viewport culling, mini-map, and applyTransform shim are
-// all gone. Data layer (gcc-subhex-data, gcc-rng) is unchanged.
+// v0.3: switched 25-cell 5×5 rhombus to 19-cell hex-of-hexes (1+6+12).
+// The rhombus had visible asymmetric tilt — six cells protruded outside
+// the parent silhouette. Hex-of-hexes is 6-fold symmetric and the six
+// ring-2 corner cells touch parent boundary tangent. Same SUB_R.
+//
+// v0.2: Replaced v0.1's whole-map 6mi rescale (350K cells, SVG-killing).
+// The main map stays at 30mi; subhexes scoped to a single parent at a
+// time, ~19 SVG elements per open. Data layer (gcc-subhex-data, gcc-rng)
+// unchanged across v0.2/v0.3.
 //
 // Globals consumed: hexIdStr, getHexTerrain, TERRAIN, GCCSubhexData,
 //   GCCSubhexView is wired by greyhawk-map.html init via the side panel
-//   "Explore Subhexes" button (calls GCCSubhexView.open(col, row)).
+//   "Explore Sub-Map" button (calls GCCSubhexView.open(col, row)).
 
 (function(){
   'use strict';
 
   const SUB_DIM = 5;
   const VIEWBOX = 600;             // svg viewBox dimension
-  const PARENT_R = 220;             // parent hex radius in svg coords
-  const SUB_R = PARENT_R / SUB_DIM; // 44
+  const PARENT_R = 240;             // parent hex radius in svg coords
+  const SUB_R = 46;                 // hex-of-hexes inscribes tangent at 48; 46 leaves a small visual margin
 
   const state = {
     win: null,
@@ -228,40 +234,39 @@
     pOutline.setAttribute('class', 'sxw-parent-outline');
     svg.appendChild(pOutline);
 
-    // 25 subhexes
-    for (let q = 0; q < SUB_DIM; q++){
-      for (let r = 0; r < SUB_DIM; r++){
-        const sub = window.GCCSubhexData.getSubhex(state.parentId, q, r, state.parentTerrain);
-        const corners = subhexCorners(q, r);
-        const pts = corners.map(([x,y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-        const poly = document.createElementNS(ns, 'polygon');
-        poly.setAttribute('points', pts);
-        let cls = 'sxw-cell';
-        if (sub.source === 'authored') cls += ' authored';
-        if (q === state.selectedQ && r === state.selectedR) cls += ' selected';
-        poly.setAttribute('class', cls);
-        poly.dataset.q = q;
-        poly.dataset.r = r;
-        poly.id = `sxw-cell-${q}-${r}`;
-        if (sub.terrain && TERRAIN[sub.terrain]?.rgb){
-          poly.setAttribute('fill', `rgb(${TERRAIN[sub.terrain].rgb})`);
-        } else {
-          poly.setAttribute('fill', '#d8c890');
-        }
-        poly.addEventListener('click', onCellClick);
-        svg.appendChild(poly);
+    // 19 subhexes (hex-of-hexes pattern, 6-fold symmetric)
+    const cells = window.GCCSubhexData.validCells();
+    for (const { q, r } of cells){
+      const sub = window.GCCSubhexData.getSubhex(state.parentId, q, r, state.parentTerrain);
+      const corners = subhexCorners(q, r);
+      const pts = corners.map(([x,y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+      const poly = document.createElementNS(ns, 'polygon');
+      poly.setAttribute('points', pts);
+      let cls = 'sxw-cell';
+      if (sub.source === 'authored') cls += ' authored';
+      if (q === state.selectedQ && r === state.selectedR) cls += ' selected';
+      poly.setAttribute('class', cls);
+      poly.dataset.q = q;
+      poly.dataset.r = r;
+      poly.id = `sxw-cell-${q}-${r}`;
+      if (sub.terrain && TERRAIN[sub.terrain]?.rgb){
+        poly.setAttribute('fill', `rgb(${TERRAIN[sub.terrain].rgb})`);
+      } else {
+        poly.setAttribute('fill', '#d8c890');
+      }
+      poly.addEventListener('click', onCellClick);
+      svg.appendChild(poly);
 
-        // Coord label (tiny, only on selected)
-        if (q === state.selectedQ && r === state.selectedR){
-          const c = subhexCenter(q, r);
-          const tl = document.createElementNS(ns, 'text');
-          tl.setAttribute('x', c.x);
-          tl.setAttribute('y', c.y + 4);
-          tl.setAttribute('text-anchor', 'middle');
-          tl.setAttribute('class', 'sxw-cell-label');
-          tl.textContent = `${q},${r}`;
-          svg.appendChild(tl);
-        }
+      // Coord label (tiny, only on selected)
+      if (q === state.selectedQ && r === state.selectedR){
+        const c = subhexCenter(q, r);
+        const tl = document.createElementNS(ns, 'text');
+        tl.setAttribute('x', c.x);
+        tl.setAttribute('y', c.y + 4);
+        tl.setAttribute('text-anchor', 'middle');
+        tl.setAttribute('class', 'sxw-cell-label');
+        tl.textContent = `${q},${r}`;
+        svg.appendChild(tl);
       }
     }
   }

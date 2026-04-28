@@ -29,8 +29,31 @@
   const WORLD_SEED = 'greyhawk-flanaess-v1';
   const SCHEMA_VERSION = 1;
   const LS_KEY = 'gcc-subhex-overrides';
-  const SUBHEX_DIM = 5;            // 5×5 = 25 per parent
+  const SUBHEX_DIM = 5;            // q,r index range [0..4]
+  const SUBHEX_RADIUS = 2;         // hex-of-hexes radius from center (2,2)
+  const SUBHEX_COUNT = 19;         // 1 center + 6 ring-1 + 12 ring-2
   const PARENT_BIAS = 0.75;        // 75% chance subhex inherits parent terrain
+
+  // v0.3: 19-cell hex-of-hexes valid set within [0..4]². Ring 0 = center
+  // (2,2), ring 1 = 6 hex neighbors, ring 2 = 12 outer cells. Replaces the
+  // v0.1/0.2 5×5 rhombus (25 cells), whose two diagonally-opposite tips
+  // and four flanking cells protruded outside the parent silhouette and
+  // gave the editor window an asymmetric tilt. The 19-cell pattern is
+  // 6-fold symmetric and the six ring-2 corner cells touch the parent
+  // boundary as a tangent inscription — clean fit, same SUB_R.
+  const VALID_CELLS = (() => {
+    const out = [];
+    for (let q = 0; q < SUBHEX_DIM; q++){
+      for (let r = 0; r < SUBHEX_DIM; r++){
+        const dq = q - 2, dr = r - 2;
+        const dist = (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
+        if (dist <= SUBHEX_RADIUS) out.push({ q, r });
+      }
+    }
+    return out;
+  })();
+  const VALID_KEYS = new Set(VALID_CELLS.map(c => `${c.q}_${c.r}`));
+  function isValidCell(q, r){ return VALID_KEYS.has(`${q}_${r}`); }
 
   // Per-parent-terrain variation tables. Each entry is a weighted dict of
   // alternative terrains for the 25% non-inherited rolls. Stub-quality —
@@ -83,7 +106,8 @@
   }
 
   function inBounds(q, r){
-    return q >= 0 && q < SUBHEX_DIM && r >= 0 && r < SUBHEX_DIM;
+    if (q < 0 || q >= SUBHEX_DIM || r < 0 || r >= SUBHEX_DIM) return false;
+    return isValidCell(q, r);
   }
 
   function proceduralTerrain(parentTerrain, parentDarleneId, q, r){
@@ -176,9 +200,26 @@
     return true;
   }
 
+  // One-time prune of authored cells outside the v0.3 19-cell layout.
+  // Pre-v0.3 localStorage may still hold entries for the 6 cells valid
+  // under the 25-cell rhombus but dropped now (the (0,0)/(0,1)/(1,0) and
+  // (3,4)/(4,3)/(4,4) corner clusters). Logged so the GM knows.
+  {
+    let pruned = 0;
+    for (const id of Object.keys(OVERRIDES)){
+      const p = parseSubhexId(id);
+      if (p && !isValidCell(p.q, p.r)){ delete OVERRIDES[id]; pruned++; }
+    }
+    if (pruned > 0){
+      console.log(`[GCCSubhexData] Pruned ${pruned} authored cell(s) outside 19-cell layout.`);
+      try { localStorage.setItem(LS_KEY, JSON.stringify(OVERRIDES)); } catch(e){}
+    }
+  }
+
   window.GCCSubhexData = {
-    WORLD_SEED, SCHEMA_VERSION, SUBHEX_DIM,
-    dim, subhexId, parseSubhexId, inBounds,
+    WORLD_SEED, SCHEMA_VERSION, SUBHEX_DIM, SUBHEX_RADIUS, SUBHEX_COUNT,
+    dim, subhexId, parseSubhexId, inBounds, isValidCell,
+    validCells: () => VALID_CELLS.slice(),
     getSubhex, setSubhexOverride, clearSubhex, clearAll,
     allAuthored, authoredCount,
     exportOverrides, importOverrides,
