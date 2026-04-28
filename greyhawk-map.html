@@ -619,6 +619,7 @@
       <label><input type="radio" name="td-mode" value="foot"> Foot</label>
       <label><input type="radio" name="td-mode" value="mounted"> Mounted</label>
       <label><input type="radio" name="td-mode" value="flying"> Flying</label>
+      <label><input type="radio" name="td-mode" value="ship"> Ship</label>
     </fieldset>
     <fieldset class="td-fs" id="td-fs-burden">
       <legend>Burden (foot only)</legend>
@@ -653,6 +654,33 @@
           <option value="hippogriff">Hippogriff — 108 mi/day</option>
         </optgroup>
       </select>
+    </fieldset>
+    <fieldset class="td-fs" id="td-fs-ship">
+      <legend>Vessel (ship only)</legend>
+      <select id="td-ship-sel" class="td-select">
+        <optgroup label="Small Craft">
+          <option value="raft">Raft</option>
+          <option value="small_boat">Small Boat / Rowboat</option>
+        </optgroup>
+        <optgroup label="Barges">
+          <option value="barge_small">Barge, small</option>
+          <option value="barge_large">Barge, large</option>
+        </optgroup>
+        <optgroup label="Galleys">
+          <option value="galley_small">Galley, small</option>
+          <option value="galley_large">Galley, large</option>
+        </optgroup>
+        <optgroup label="Merchants">
+          <option value="merchant_small">Merchant, small</option>
+          <option value="merchant_large">Merchant, large</option>
+        </optgroup>
+        <optgroup label="Warships">
+          <option value="warship">Warship</option>
+        </optgroup>
+      </select>
+      <div class="td-hint" style="margin-top:4px; font-size:9px;">
+        Sailed where supported, oared elsewhere. Currents add/subtract C×8 mi/day on rivers.
+      </div>
     </fieldset>
   </div>
   <div id="td-footer">
@@ -991,6 +1019,159 @@ function flightMilesPerDay(vehicleId){
   return Math.round((v.speedIn / 3) * v.hrs);
 }
 
+// ── DMG WATER TRAVEL ─────────────────────────────────────────────────────────
+// DMG 1e (p.55) MOVEMENT AFLOAT tables, miles/day. Two propulsions per
+// vessel × five water types. `null` means the vessel cannot use that
+// water type (DMG "—"). Where DMG gave a range (e.g. small galley sail
+// lake = 70-80) we use the midpoint; the per-day table already factors
+// in typical sailing windows. The DMG 5–20% storm/wind reduction
+// rule is GM-applied flavor for now (Phase 2 polish).
+//
+// Vessel naming: per-day "boat, small" = per-hour "Rowboat" → small_boat.
+// Per-day "barge" was a single entry; per-hour split into small/large.
+// We carry both barges as distinct vessels; the per-day rate matches.
+const SHIP_VESSELS = {
+  raft:           { label: 'Raft' },
+  small_boat:     { label: 'Small Boat / Rowboat' },
+  barge_small:    { label: 'Barge, small' },
+  barge_large:    { label: 'Barge, large' },
+  galley_small:   { label: 'Galley, small' },
+  galley_large:   { label: 'Galley, large' },
+  merchant_small: { label: 'Merchant, small' },
+  merchant_large: { label: 'Merchant, large' },
+  warship:        { label: 'Warship' },
+};
+// Per-day mi/day. Rows: vessel. Columns: water type. Values for each
+// propulsion. null = "—" (unable). Order: lake, marsh, river, sea, stream.
+const SHIP_RATES = {
+  oared: {
+    raft:           { lake: 15, marsh:  5, river: 15, sea: null, stream: 10 },
+    small_boat:     { lake: 30, marsh: 15, river: 35, sea: null, stream: 25 },
+    barge_small:    { lake: 20, marsh:  5, river: 20, sea: null, stream: null },
+    barge_large:    { lake: 20, marsh:  5, river: 20, sea: null, stream: null },
+    galley_small:   { lake: 40, marsh:  5, river: 40, sea:   30, stream: null },
+    galley_large:   { lake: 30, marsh: null, river: 30, sea: 30, stream: null },
+    merchant_small: { lake: 10, marsh: null, river: 15, sea: 20, stream: null },
+    merchant_large: { lake: 10, marsh: null, river: 10, sea: 15, stream: null },
+    warship:        { lake: 10, marsh: null, river: 10, sea: 20, stream: null },
+  },
+  sailed: {
+    raft:           { lake: 30, marsh: 10, river: 30, sea: null, stream: 15 },
+    small_boat:     { lake: 80, marsh: 20, river: 60, sea: null, stream: 40 },
+    barge_small:    { lake: 50, marsh: 10, river: 40, sea: null, stream: null },
+    barge_large:    { lake: 50, marsh: 10, river: 40, sea: null, stream: null },
+    galley_small:   { lake: 75, marsh: null, river: 60, sea: 50, stream: null }, // 70–80 mid
+    galley_large:   { lake: 55, marsh: null, river: 50, sea: 50, stream: null }, // 50–60 mid
+    merchant_small: { lake: 55, marsh: null, river: 50, sea: 50, stream: null }, // 50–60 mid
+    merchant_large: { lake: 30, marsh: null, river: 35, sea: 35, stream: null }, // 25–35 mid
+    warship:        { lake: 45, marsh: null, river: 40, sea: 50, stream: null }, // 40–50 mid
+  },
+};
+// Per-hour speeds (mph) for tactical / voyage-sim use. Not consulted by
+// the journey planner v1 — baked here so the data is together. Per the
+// DMG: max-sail assumes Strong Breeze; max-oar is short-burst (10–20 min).
+// Raft has no per-hour DMG entry; voyage sim falls back to the per-day
+// rate / 12 if it ever needs hourly raft speeds.
+const SHIP_HOURLY_MPH = {
+  small_boat:     { sailNorm: 2,   sailMax: 3, oarNorm: 1,    oarMax: 2 },
+  barge_small:    { sailNorm: 2,   sailMax: 3, oarNorm: 1,    oarMax: 1 },
+  barge_large:    { sailNorm: 1,   sailMax: 2, oarNorm: 0.5,  oarMax: 1 },
+  galley_small:   { sailNorm: 6,   sailMax: 9, oarNorm: 5,    oarMax: 8 },
+  galley_large:   { sailNorm: 4,   sailMax: 7, oarNorm: 4,    oarMax: 8 },
+  merchant_small: { sailNorm: 5,   sailMax: 7, oarNorm: 0.5,  oarMax: 1 },
+  merchant_large: { sailNorm: 3,   sailMax: 5, oarNorm: 0.25, oarMax: 0.5 },
+  warship:        { sailNorm: 4,   sailMax: 6, oarNorm: 0.5,  oarMax: 1 },
+};
+// Default propulsion: prefer sailed where the vessel supports it on
+// that water type, fall back to oared if no sailed rate exists. Returns
+// either 'sailed' or 'oared', or null if neither propulsion works.
+function shipDefaultPropulsion(vessel, waterType){
+  if (!vessel || !waterType) return null;
+  if (SHIP_RATES.sailed[vessel]?.[waterType] != null) return 'sailed';
+  if (SHIP_RATES.oared [vessel]?.[waterType] != null) return 'oared';
+  return null;
+}
+// mi/day for vessel × water type × propulsion. Pass propulsion='auto'
+// (default) to apply the sailed-first/oared-fallback rule. Returns null
+// if the vessel cannot use that water type with that propulsion.
+function shipMilesPerDay(vessel, waterType, propulsion){
+  if (!vessel || !waterType) return null;
+  const prop = (propulsion === 'auto' || !propulsion)
+    ? shipDefaultPropulsion(vessel, waterType)
+    : propulsion;
+  if (!prop) return null;
+  const v = SHIP_RATES[prop]?.[vessel]?.[waterType];
+  return (v == null) ? null : v;
+}
+// Resolve the water type at a hex for ship-mode travel:
+//   river / great_river  → 'river'  (from gcc-paths)
+//   stream               → 'stream' (from gcc-paths; ships can use rafts/small boats here)
+//   terrain 'swamp'      → 'marsh'
+//   region kind=water,
+//     subkind=lake       → 'lake'
+//     subkind=sea        → 'sea'
+//   anything else        → null   (party tried to sail across land)
+// Multiple river types on one hex resolve to the largest (great_river > river > stream).
+function waterTypeAtHex(col, row){
+  // Path layer first — rivers override terrain/region for travel purposes.
+  if (typeof GCCPaths !== 'undefined'){
+    const rivers = GCCPaths.riversAt(col, row);
+    if (rivers.length){
+      let best = null;
+      for (const seg of rivers){
+        const t = seg.type || 'river';
+        if (t === 'great_river') return 'river';        // large rivers route as 'river'
+        if (t === 'river' && best !== 'river') best = 'river';
+        if (t === 'stream' && !best) best = 'stream';
+      }
+      if (best === 'river') return 'river';
+      if (best === 'stream') return 'stream';
+    }
+  }
+  // Terrain swamp = marsh.
+  const terrain = getHexTerrain(col, row);
+  if (terrain === 'swamp') return 'marsh';
+  // Open water — distinguish lake from sea via region subkind.
+  if (terrain === 'water'){
+    if (typeof GCCRegions !== 'undefined'){
+      const info = GCCRegions.getRegionInfo(col, row);
+      if (info && info.subkind === 'lake') return 'lake';
+      if (info && info.subkind === 'sea')  return 'sea';
+    }
+    return 'sea';   // safe default for unmarked open water
+  }
+  return null;
+}
+// Current modifier for a river-edge crossing. Adds C×8 mi/day going
+// downstream, subtracts C×8 going upstream. Streams use the same rule
+// per DMG. Returns 0 if there's no river on the edge or the river has
+// no current/downstream marker.
+function shipCurrentModifier(prevCol, prevRow, hexCol, hexRow){
+  if (typeof GCCPaths === 'undefined') return 0;
+  const info = GCCPaths.edgeRiverInfo(prevCol, prevRow, hexCol, hexRow);
+  if (!info || !info.river) return 0;
+  const c = info.river.current;
+  if (!c || c <= 0) return 0;
+  // Each hex in a river chain owns its own segment with an entryEdge,
+  // exitEdge, and downstreamEdge. To decide direction of travel:
+  //   prev's segment.downstreamEdge points at hex  →  going downstream
+  //   hex's  segment.downstreamEdge points at prev →  going upstream
+  // (Both should be consistent; we check prev first.)
+  const ePrevToHex = GCCPaths.edgeBetween(prevCol, prevRow, hexCol, hexRow);
+  if (ePrevToHex >= 0){
+    for (const seg of GCCPaths.riversAt(prevCol, prevRow)){
+      if (seg.downstreamEdge === ePrevToHex) return c * 8;
+    }
+  }
+  const eHexToPrev = GCCPaths.edgeBetween(hexCol, hexRow, prevCol, prevRow);
+  if (eHexToPrev >= 0){
+    for (const seg of GCCPaths.riversAt(hexCol, hexRow)){
+      if (seg.downstreamEdge === eHexToPrev) return -(c * 8);
+    }
+  }
+  return 0;
+}
+
 // ── REGIONS ───────────────────────────────────────────────────────────────────
 // Region data lives in gcc-regions.js (loaded above). See getRegion() below.
 
@@ -1296,6 +1477,86 @@ function hexLine(c1, r1, c2, r2){
   return out;
 }
 
+// ── SHIP-MODE WATER PATHFINDER ───────────────────────────────────────────────
+// A* over water-only neighbors for journey-planner ship mode. The
+// "navigable" predicate is richer than the voyage simulator's
+// isWaterHex: it accepts open water (lake/sea), navigable rivers
+// (river/great_river — streams allowed for vessels with stream rates),
+// and marsh (swamp terrain) for vessels that can navigate marsh.
+// Land allowed only at start/goal so a port on a land hex can launch.
+// Same flat-top odd-q neighbor convention as the voyage simulator
+// (gcc-voyage.js HEX_NB_EVEN/HEX_NB_ODD).
+const SHIP_PATH_NB_EVEN = [[-1,-1],[0,-1],[1,-1],[1,0],[0,1],[-1,0]];
+const SHIP_PATH_NB_ODD  = [[-1, 0],[0,-1],[1, 0],[1,1],[0,1],[-1,1]];
+function _shipPathNeighbors(col, row){
+  const d = (col & 1) ? SHIP_PATH_NB_ODD : SHIP_PATH_NB_EVEN;
+  return d.map(([dc, dr]) => ({ col: col + dc, row: row + dr }));
+}
+function _shipPathInGrid(col, row){
+  const gc = (typeof GRID_COLS !== 'undefined') ? GRID_COLS : 146;
+  const gr = (typeof GRID_ROWS !== 'undefined') ? GRID_ROWS : 97;
+  return col >= 0 && row >= 0 && col < gc && row < gr;
+}
+function _shipPathNavigable(col, row, vessel){
+  const water = waterTypeAtHex(col, row);
+  if (water == null) return false;
+  // Vessel must have a non-null rate for this water type in either
+  // propulsion. shipDefaultPropulsion returns null when no rate exists.
+  return shipDefaultPropulsion(vessel, water) != null;
+}
+// Returns array of {col,row} from start to goal inclusive, or null if
+// no path exists. Endpoints are allowed to be non-navigable so a party
+// at a land-side port can embark; intermediates must be navigable.
+function findShipPath(start, goal, vessel, opts){
+  opts = opts || {};
+  const maxIter = opts.maxIter || 10000;
+  if (!start || !goal || !vessel) return null;
+  const startKey = `${start.col}-${start.row}`;
+  const goalKey  = `${goal.col}-${goal.row}`;
+  if (startKey === goalKey) return [{ col: start.col, row: start.row }];
+  const open = new Map();
+  const closed = new Set();
+  const came = new Map();
+  const gScore = new Map();
+  const h = (a, b) => hexDistance(a.col, a.row, b.col, b.row);
+  open.set(startKey, { col: start.col, row: start.row, f: h(start, goal) });
+  gScore.set(startKey, 0);
+  let iter = 0;
+  while (open.size && iter++ < maxIter){
+    let bestKey = null, bestNode = null, bestF = Infinity;
+    for (const [k, v] of open){
+      if (v.f < bestF){ bestF = v.f; bestKey = k; bestNode = v; }
+    }
+    if (bestKey === goalKey){
+      const path = [];
+      let k = bestKey;
+      while (k){
+        const [c, r] = k.split('-').map(Number);
+        path.unshift({ col: c, row: r });
+        k = came.get(k);
+      }
+      return path;
+    }
+    open.delete(bestKey);
+    closed.add(bestKey);
+    for (const nb of _shipPathNeighbors(bestNode.col, bestNode.row)){
+      if (!_shipPathInGrid(nb.col, nb.row)) continue;
+      const nbKey = `${nb.col}-${nb.row}`;
+      if (closed.has(nbKey)) continue;
+      const atEndpoint = (nbKey === startKey || nbKey === goalKey);
+      if (!atEndpoint && !_shipPathNavigable(nb.col, nb.row, vessel)) continue;
+      const tentativeG = (gScore.get(bestKey) || 0) + 1;
+      if (tentativeG < (gScore.get(nbKey) ?? Infinity)){
+        came.set(nbKey, bestKey);
+        gScore.set(nbKey, tentativeG);
+        const f = tentativeG + h(nb, goal);
+        open.set(nbKey, { col: nb.col, row: nb.row, f });
+      }
+    }
+  }
+  return null;
+}
+
 // ── GREYHAWK COMMON CALENDAR ─────────────────────────────────────────────────
 // 12 28-day months + 4 7-day festivals = 364 days/year. Festival weeks
 // are treated as their own months in the index for arithmetic. Used by
@@ -1366,6 +1627,31 @@ function computeJourneyDuration(route, profile){
       const mpd = flightMilesPerDay(profile.vehicle);
       if (mpd == null || mpd <= 0){ impassable = true; reason = 'Invalid flight vehicle'; break; }
       totalDays += HEX_MILES / mpd;
+    } else if (profile.mode === 'ship'){
+      // Ship travel: per-hex water-type lookup → DMG mi/day table →
+      // current modifier (river/stream only). Impassable if the hex
+      // has no water type for ships (party tried to sail across land)
+      // or the vessel can't navigate that water type.
+      const water = waterTypeAtHex(hex.col, hex.row);
+      if (water == null){
+        impassable = true;
+        reason = `${hexIdStr(hex.col, hex.row)} (${TERRAIN[terrain]?.label || terrain}) is not navigable`;
+        break;
+      }
+      let mpd = shipMilesPerDay(profile.vessel, water, 'auto');
+      if (mpd == null || mpd <= 0){
+        const vlabel = SHIP_VESSELS[profile.vessel]?.label || profile.vessel;
+        impassable = true;
+        reason = `${hexIdStr(hex.col, hex.row)} (${water}) — ${vlabel} cannot navigate ${water}`;
+        break;
+      }
+      // Current modifier on rivers/streams. Capped at zero so a strong
+      // upstream current can't make the day count negative; a vessel
+      // unable to make headway against current is a stall (Phase 2 polish).
+      if (water === 'river' || water === 'stream'){
+        mpd = Math.max(1, mpd + shipCurrentModifier(prev.col, prev.row, hex.col, hex.row));
+      }
+      totalDays += HEX_MILES / mpd;
     } else {
       if (typeof GCCPaths !== 'undefined' &&
           GCCPaths.edgeBlocks(prev.col, prev.row, hex.col, hex.row, profile.mode)){
@@ -1428,6 +1714,18 @@ function travelTime(terrain, dist, profile){
     if (d < 1) return `~${Math.round(d * dayHrs)}h flying`;
     return `~${d.toFixed(1)} day(s) flying`;
   }
+  if (profile.mode === 'ship'){
+    // Use a representative rate — river-sailed > sea-sailed > lake-sailed
+    // > the first available. Per-hex rates differ; the journey planner
+    // applies them precisely. This is a side-panel preview only.
+    let mpd = shipMilesPerDay(profile.vessel, 'river', 'auto');
+    if (mpd == null) mpd = shipMilesPerDay(profile.vessel, 'sea', 'auto');
+    if (mpd == null) mpd = shipMilesPerDay(profile.vessel, 'lake', 'auto');
+    if (mpd == null || mpd <= 0) return 'Impassable';
+    const d = (HEX_MILES / mpd) * dist;
+    if (d < 1) return `~${Math.round(d * 12)}h by ship`;
+    return `~${d.toFixed(1)} day(s) by ship`;
+  }
   if (t.difficulty == null) return 'Impassable';
   const milesPerDay = travelMilesPerDay(t.difficulty, profile);
   if (milesPerDay == null || milesPerDay <= 0) return 'Impassable';
@@ -1467,6 +1765,7 @@ const DEFAULT_TRAVEL_PROFILE = Object.freeze({
   burden: 'average',
   mount: 'medium',
   vehicle: 'broom',
+  vessel: 'small_boat',
 });
 
 // Persisted profile load/save. Falls back to the default if storage
@@ -1477,17 +1776,19 @@ function loadTravelProfile(){
   // Fallback default inlined so this function can run before
   // DEFAULT_TRAVEL_PROFILE's `const` is evaluated (state's initializer
   // runs before later top-level consts in source order).
-  const FALLBACK = { mode: 'foot', burden: 'average', mount: 'medium', vehicle: 'broom' };
+  const FALLBACK = { mode: 'foot', burden: 'average', mount: 'medium', vehicle: 'broom', vessel: 'small_boat' };
   const VEHICLE_IDS = ['broom','carpet_1','carpet_2','carpet_3','carpet_4','wings','pegasus','griffon','hippogriff'];
+  const VESSEL_IDS  = ['raft','small_boat','barge_small','barge_large','galley_small','galley_large','merchant_small','merchant_large','warship'];
   try {
     const raw = localStorage.getItem('gh-travel-profile');
     if (!raw) return { ...FALLBACK };
     const parsed = JSON.parse(raw);
     return {
-      mode:    ['foot','mounted','flying'].includes(parsed.mode) ? parsed.mode : 'foot',
+      mode:    ['foot','mounted','flying','ship'].includes(parsed.mode) ? parsed.mode : 'foot',
       burden:  ['light','average','heavy'].includes(parsed.burden) ? parsed.burden : 'average',
       mount:   ['light','medium','heavy','draft','camel','cart','wagon'].includes(parsed.mount) ? parsed.mount : 'medium',
       vehicle: VEHICLE_IDS.includes(parsed.vehicle) ? parsed.vehicle : 'broom',
+      vessel:  VESSEL_IDS.includes(parsed.vessel)   ? parsed.vessel  : 'small_boat',
     };
   } catch (e) {
     return { ...FALLBACK };
@@ -1578,6 +1879,14 @@ function travelProfileLabel(p){
     const v = FLIGHT_VEHICLES[p.vehicle];
     head = v ? v.label : p.vehicle;
     baseRate = flightMilesPerDay(p.vehicle);
+  } else if (p.mode === 'ship'){
+    // No single base rate — depends on water type. Show vessel name +
+    // a representative river-sailed rate so the label has a number.
+    const v = SHIP_VESSELS[p.vessel];
+    head = `Ship · ${v ? v.label : p.vessel}`;
+    baseRate = shipMilesPerDay(p.vessel, 'river', 'auto');
+    if (baseRate == null) baseRate = shipMilesPerDay(p.vessel, 'sea', 'auto');
+    if (baseRate == null) baseRate = shipMilesPerDay(p.vessel, 'lake', 'auto');
   } else if (p.mode === 'foot'){
     const burdens = { light: 'Light burden', average: 'Avg burden', heavy: 'Heavy burden' };
     head = `Foot · ${burdens[p.burden] || p.burden}`;
@@ -2185,8 +2494,9 @@ function updateSidePanel(col,row,terrain,region,dist){
   if (moveBtn){
     const isPartyHex = (col === state.partyCol && row === state.partyRow);
     const isWater = String(terrain).startsWith('water');
-    const flying = (state.travelProfile?.mode === 'flying');
-    if (!jActive && !isPartyHex && (!isWater || flying)){
+    const mode = state.travelProfile?.mode;
+    const canEnterWater = (mode === 'flying' || mode === 'ship');
+    if (!jActive && !isPartyHex && (!isWater || canEnterWater)){
       moveBtn.style.display = '';
       moveBtn.dataset.col = String(col);
       moveBtn.dataset.row = String(row);
@@ -2461,6 +2771,8 @@ function openTravelDialog(){
   for (const r of dlg.querySelectorAll('input[name="td-mount"]'))  r.checked = (r.value === p.mount);
   const flightSel = dlg.querySelector('#td-flight-sel');
   if (flightSel) flightSel.value = p.vehicle || 'broom';
+  const shipSel = dlg.querySelector('#td-ship-sel');
+  if (shipSel) shipSel.value = p.vessel || 'small_boat';
   updateTravelDialogGrayState();
   dlg.classList.add('open');
   if (tdDrag && !tdDrag.restore()) tdDrag.placeCenter();
@@ -2474,6 +2786,7 @@ function updateTravelDialogGrayState(){
   dlg.querySelector('#td-fs-burden').classList.toggle('disabled', mode !== 'foot');
   dlg.querySelector('#td-fs-mount' ).classList.toggle('disabled', mode !== 'mounted');
   dlg.querySelector('#td-fs-flight').classList.toggle('disabled', mode !== 'flying');
+  dlg.querySelector('#td-fs-ship'  ).classList.toggle('disabled', mode !== 'ship');
 }
 function applyTravelProfile(){
   const dlg = document.getElementById('travel-dialog');
@@ -2481,7 +2794,8 @@ function applyTravelProfile(){
   const burden  = dlg.querySelector('input[name="td-burden"]:checked')?.value || 'average';
   const mount   = dlg.querySelector('input[name="td-mount"]:checked')?.value  || 'medium';
   const vehicle = dlg.querySelector('#td-flight-sel')?.value                  || 'broom';
-  state.travelProfile = { mode, burden, mount, vehicle };
+  const vessel  = dlg.querySelector('#td-ship-sel'  )?.value                  || 'small_boat';
+  state.travelProfile = { mode, burden, mount, vehicle, vessel };
   saveTravelProfile(state.travelProfile);
   closeTravelDialog();
   // Refresh side panel so the new profile is reflected immediately in
@@ -2539,7 +2853,20 @@ function closeJourneyPlanner(){
 // also depends on the chosen month, but that's input-driven.
 function buildJourneyPlan(destCol, destRow){
   const profile = { ...(state.travelProfile || DEFAULT_TRAVEL_PROFILE) };
-  const route = hexLine(state.partyCol, state.partyRow, destCol, destRow);
+  // Ship mode auto-fill: use water-A* so the route follows water
+  // instead of cutting across land. Falls back to hexLine if no water
+  // path exists (the planner will then show "impassable" for the dry
+  // hexes — same user-visible feedback as land mode hitting a river
+  // without a crossing).
+  let route;
+  if (profile.mode === 'ship'){
+    const start = { col: state.partyCol, row: state.partyRow };
+    const goal  = { col: destCol, row: destRow };
+    route = findShipPath(start, goal, profile.vessel) ||
+            hexLine(state.partyCol, state.partyRow, destCol, destRow);
+  } else {
+    route = hexLine(state.partyCol, state.partyRow, destCol, destRow);
+  }
   state.journey = {
     status: 'planning',
     origin: { col: state.partyCol, row: state.partyRow },
@@ -2612,14 +2939,19 @@ function extendJourneyTrace(col, row){
   recomputeJourneyPlan();
   refreshJourneyOverlay();
 }
-// Straight-mode click: reposition destination, rebuild route as hexLine.
-// Identical to the legacy buildJourneyPlan path but in-place (preserves
-// profile, planMode, dates).
+// Straight-mode click: reposition destination, rebuild route as hexLine
+// for land/flying or water-A* for ship. Preserves profile, planMode, dates.
 function moveJourneyDestination(col, row){
   const j = state.journey;
   if (!j) return;
   j.destination = { col, row };
-  j.route = hexLine(j.origin.col, j.origin.row, col, row);
+  if (j.profile.mode === 'ship'){
+    const start = { col: j.origin.col, row: j.origin.row };
+    j.route = findShipPath(start, { col, row }, j.profile.vessel) ||
+              hexLine(j.origin.col, j.origin.row, col, row);
+  } else {
+    j.route = hexLine(j.origin.col, j.origin.row, col, row);
+  }
   refreshJourneyTraceButtons();
   recomputeJourneyPlan();
   refreshJourneyOverlay();
@@ -2678,7 +3010,10 @@ function recomputeJourneyPlan(){
     document.getElementById('jd-warn').textContent = dur.reason;
     document.getElementById('jd-begin').disabled = true;
   } else {
-    const suffix = j.profile.mode === 'flying' ? 'flying' : (j.profile.mode === 'mounted' ? 'mounted' : 'on foot');
+    const m = j.profile.mode;
+    const suffix = m === 'flying' ? 'flying'
+                 : m === 'ship'   ? 'by ship'
+                 : m === 'mounted' ? 'mounted' : 'on foot';
     document.getElementById('jd-dur').textContent = `~${dur.days.toFixed(1)} day(s) ${suffix}`;
     document.getElementById('jd-checks').textContent = `~${j.estChecks} (approx)`;
     const arrival = ghDateAdd(j.startDate, Math.ceil(dur.days));
@@ -2710,19 +3045,26 @@ function buildJourneyTimeline(route, profile){
     const prev = route[i - 1];
     const terrain = getHexTerrain(h.col, h.row);
     let mpd;
+    let bonus = 1.0;
     if (profile.mode === 'flying'){
       mpd = flightMilesPerDay(profile.vehicle);
+    } else if (profile.mode === 'ship'){
+      const water = waterTypeAtHex(h.col, h.row);
+      mpd = water ? shipMilesPerDay(profile.vessel, water, 'auto') : null;
+      if (mpd != null && (water === 'river' || water === 'stream')){
+        mpd = Math.max(1, mpd + shipCurrentModifier(prev.col, prev.row, h.col, h.row));
+      }
     } else {
       const t = TERRAIN[terrain];
       const hasRiver = (typeof GCCPaths !== 'undefined') &&
                        GCCPaths.riversAt(h.col, h.row).length > 0;
       const difficulty = (t && t.difficulty != null) ? t.difficulty : (hasRiver ? 'normal' : null);
       mpd = (difficulty != null) ? travelMilesPerDay(difficulty, profile) : null;
+      bonus = (typeof GCCPaths !== 'undefined')
+        ? GCCPaths.edgeRoadBonus(prev.col, prev.row, h.col, h.row, terrain)
+        : 1.0;
     }
     if (mpd == null || mpd <= 0) return null;
-    const bonus = (profile.mode !== 'flying' && typeof GCCPaths !== 'undefined')
-      ? GCCPaths.edgeRoadBonus(prev.col, prev.row, h.col, h.row, terrain)
-      : 1.0;
     const dur = HEX_MILES / (mpd * bonus);
     tl.push({
       hex: { col: h.col, row: h.row },
@@ -2855,13 +3197,16 @@ function tickJourney(){
     }
     movePartyDuringJourney(entry.hex.col, entry.hex.row);
   }
-  // Encounter check — flight stub returns no-encounter pending DMG
-  // aerial tables. Ground rolls go through GCCEncounters.check() so
-  // timing rules and frequency dice are respected per terrain.
+  // Encounter check — flight + ship stubs return no-encounter pending
+  // DMG aerial / Seafarer's Guide tables. Ground rolls go through
+  // GCCEncounters.check() so timing rules and frequency dice are
+  // respected per terrain.
   let result;
   const slotKey = TIME_SLOTS[j.currentSlotIdx];
   if (j.profile.mode === 'flying'){
     result = { occurred: false, aerial: true, reason: 'Aerial — DMG aerial tables TODO' };
+  } else if (j.profile.mode === 'ship'){
+    result = { occurred: false, naval: true, reason: 'Naval — DMG/Seafarer encounter tables TODO' };
   } else if (typeof GCCEncounters === 'undefined'){
     result = { occurred: false, reason: 'Encounter engine not loaded' };
   } else {
@@ -3123,8 +3468,9 @@ function confirmMove(){
   if(!state.pendingMove) return;
   const {col,row}=state.pendingMove;
   const terrain=getHexTerrain(col,row);
-  const flying=(state.travelProfile?.mode === 'flying');
-  if(!flying && terrain==='water'){showToast('Cannot enter water hex without a vessel.');closeMoveDialog();return;}
+  const mode=state.travelProfile?.mode;
+  const canEnterWater = (mode === 'flying' || mode === 'ship');
+  if(!canEnterWater && terrain==='water'){showToast('Cannot enter water hex without a vessel.');closeMoveDialog();return;}
   const oldKey=`${state.partyCol}-${state.partyRow}`;
   if(!state.hexData[oldKey]) state.hexData[oldKey]={};
   state.hexData[oldKey].explored=true;

@@ -1246,15 +1246,15 @@
     const tagged = findHexTag(col, row);
     if (tagged >= 0){
       const r = GH_REGIONS[tagged];
-      return { name: r.name, kind: r.kind || 'land' };
+      return { name: r.name, kind: r.kind || 'land', subkind: r.subkind || null };
     }
     for (let i = 0; i < GH_REGIONS.length; i++){
       if (hitGeometry(col, row, i)){
         const r = GH_REGIONS[i];
-        return { name: r.name, kind: r.kind || 'land' };
+        return { name: r.name, kind: r.kind || 'land', subkind: r.subkind || null };
       }
     }
-    return { name: 'Unknown Reaches', kind: 'land' };
+    return { name: 'Unknown Reaches', kind: 'land', subkind: null };
   }
 
   function getMembership(col, row){
