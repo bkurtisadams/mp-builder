@@ -1666,22 +1666,6 @@
     if (typeof screenToMap !== 'function' || typeof mapToHex !== 'function') return;
     const m = screenToMap(ev.clientX, ev.clientY);
     if (!m) return;
-    // At 6mi scale, paint targets subhex coords instead of parent. The
-    // subhex view module owns geometry resolution + the live polygon
-    // CSS-var update; the data layer owns the override write-through.
-    if (window.GCCSubhexView && window.GCCSubhexView.getActiveScale() === 6){
-      if (!window.GCCSubhexData || !window.GCCSubhexView.mapToSubhex) return;
-      const hit = window.GCCSubhexView.mapToSubhex(m.x, m.y);
-      if (!hit) return;
-      const subKey = `sub:${hit.col}-${hit.row}-${hit.q}-${hit.r}`;
-      if (subKey === state.lastPaintKey) return;
-      state.lastPaintKey = subKey;
-      const parentId = hexIdStr(hit.col, hit.row);
-      const terrain = state.paintTerrain === '__erase' ? null : state.paintTerrain;
-      window.GCCSubhexData.setSubhexOverride(parentId, hit.q, hit.r, { terrain });
-      window.GCCSubhexView.applyPaintToSubCell(hit.col, hit.row, hit.q, hit.r);
-      return;
-    }
     const hit = mapToHex(m.x, m.y);
     if (!hit) return;
     const key = `${hit.col}-${hit.row}`;
