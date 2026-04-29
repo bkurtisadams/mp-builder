@@ -3209,7 +3209,17 @@ function buildJourneyTimeline(route, profile){
         : 1.0;
     }
     if (mpd == null || mpd <= 0) return null;
-    const dur = HEX_MILES / (mpd * bonus);
+    let dur = HEX_MILES / (mpd * bonus);
+    // Greyhawk raft rule: an unbridged river crossing adds time
+    // (encumbered party builds floats). Fold that delay into this
+    // hex's duration so the execution loop ticks through the extra
+    // slots and encounter rolls happen during the raft-building
+    // period. Skipped for flying/ship modes (edgeRiverCost returns
+    // 0 for those).
+    if (typeof GCCPaths !== 'undefined' && typeof GCCPaths.edgeRiverCost === 'function'){
+      const riverCost = GCCPaths.edgeRiverCost(prev.col, prev.row, h.col, h.row, profile.mode, profile.burden);
+      if (riverCost > 0) dur += riverCost;
+    }
     tl.push({
       hex: { col: h.col, row: h.row },
       terrain,
@@ -3315,19 +3325,23 @@ function tickJourney(){
     const groundMode = (m !== 'flying' && m !== 'ship');
     if (typeof GCCPaths !== 'undefined' && groundMode){
       const info = GCCPaths.edgeRiverInfo(state.partyCol, state.partyRow, entry.hex.col, entry.hex.row);
-      if (info.blocks){
-        const rname = info.river?.name || 'river';
+      // Greyhawk raft rule: rivers don't pause the journey. If
+      // there's no crossing and the party is encumbered, log a raft
+      // delay event so the GM sees where the time went; the cost was
+      // already baked into the planned duration via edgeRiverCost.
+      const cost = (typeof GCCPaths.edgeRiverCost === 'function')
+        ? GCCPaths.edgeRiverCost(state.partyCol, state.partyRow, entry.hex.col, entry.hex.row, j.profile.mode, j.profile.burden)
+        : 0;
+      if (cost > 0 && info.river && !info.crossing){
+        const rname = info.river.name || 'river';
         j.log.push({
           type: 'river-block',
           day: j.currentDay,
           date: { ...j.currentDate },
-          message: `Reached the ${rname} at ${hexIdStr(entry.hex.col, entry.hex.row)} — no crossing.`,
+          river: rname,
+          days: cost,
+          message: `Built rafts to cross the ${rname} at ${hexIdStr(entry.hex.col, entry.hex.row)} (+${cost} day${cost === 1 ? '' : 's'}).`,
         });
-        j.status = 'paused';
-        j.pauseReason = 'river-crossing';
-        saveActiveJourney();
-        renderJourneyLog();
-        return;
       }
       if (info.crossing){
         const cname = info.crossing.name ||
