@@ -761,6 +761,7 @@
   <div id="jl-status">—</div>
   <div id="jl-body"></div>
   <div id="jl-footer">
+    <button id="jl-copy" title="Copy journey summary to clipboard">Copy</button>
     <button id="jl-continue" class="jl-primary">▶ Continue</button>
     <button id="jl-abort" class="jl-danger">✕ Abort</button>
   </div>
@@ -1635,6 +1636,20 @@ function ghDateAdd(date, days){
 function ghDateLabel(date){
   const m = GH_CALENDAR.months[date.monthIdx];
   return `${m.name} ${date.day}, ${date.year} CY`;
+}
+// Days elapsed from one GH calendar date to another. Returns a
+// non-negative integer if `to` is on/after `from`. Used to compute
+// total journey duration on arrival.
+function ghDateDiff(from, to){
+  const yearDays = GH_CALENDAR.months.reduce((s, m) => s + m.days, 0); // 364
+  function dayOfYear(d){
+    let n = d.day;
+    for (let i = 0; i < d.monthIdx; i++) n += GH_CALENDAR.months[i].days;
+    return n;
+  }
+  const a = (from.year * yearDays) + dayOfYear(from);
+  const b = (to.year   * yearDays) + dayOfYear(to);
+  return b - a;
 }
 
 // ── JOURNEY PLANNER ──────────────────────────────────────────────────────────
@@ -3494,10 +3509,14 @@ function renderJourneyLog(){
     statusText = `⏸ PAUSED — ${why} · ${ghDateLabel(j.currentDate)} · ${timeOfDayLabel(j.currentTimeOfDay)}`;
   } else if (j.status === 'arrived'){
     statusEl.classList.add('arrived');
-    statusText = `✓ ARRIVED · ${ghDateLabel(j.endedAt?.date || j.currentDate)}`;
+    const endDate = j.endedAt?.date || j.currentDate;
+    const totalDays = ghDateDiff(j.startDate, endDate);
+    statusText = `✓ ARRIVED · ${ghDateLabel(endDate)} · took ${totalDays} day${totalDays === 1 ? '' : 's'}`;
   } else if (j.status === 'aborted'){
     statusEl.classList.add('aborted');
-    statusText = `✕ ABORTED · ${ghDateLabel(j.endedAt?.date || j.currentDate)}`;
+    const endDate = j.endedAt?.date || j.currentDate;
+    const totalDays = ghDateDiff(j.startDate, endDate);
+    statusText = `✕ ABORTED · ${ghDateLabel(endDate)} · ${totalDays} day${totalDays === 1 ? '' : 's'} into journey`;
   } else {
     statusText = j.status;
   }
@@ -4151,6 +4170,84 @@ function wireEvents(){
     }
   });
   document.getElementById('jl-close').addEventListener('click', closeJourneyLog);
+  // Copy: assembles a plain-text journey summary covering origin,
+  // destination, profile, dates, total days, encounter count, day-by-
+  // day events. Mirrors the planner-dialog Copy pattern but for a
+  // completed/in-progress journey rather than a prospective plan.
+  document.getElementById('jl-copy').addEventListener('click', () => {
+    const j = state.journey;
+    if (!j) return;
+    const lines = [];
+    const orig = j.origin, dest = j.destination;
+    const origLm = (typeof GCCLandmarks !== 'undefined') ? GCCLandmarks.getById(hexIdStr(orig.col, orig.row)) : null;
+    const destLm = (typeof GCCLandmarks !== 'undefined') ? GCCLandmarks.getById(hexIdStr(dest.col, dest.row)) : null;
+    const fromLabel = origLm ? `${origLm.name} (${hexIdStr(orig.col, orig.row)})` : hexIdStr(orig.col, orig.row);
+    const toLabel = destLm ? `${destLm.name} (${hexIdStr(dest.col, dest.row)})` : hexIdStr(dest.col, dest.row);
+    lines.push(`Journey: ${fromLabel} → ${toLabel}`);
+    lines.push(`Travel: ${travelProfileLabel(j.profile)}`);
+    lines.push(`Status: ${j.status}`);
+    lines.push(`Departed: ${ghDateLabel(j.startDate)} (${timeOfDayLabel(j.startTimeOfDay)})`);
+    if (j.endedAt?.date){
+      const totalDays = ghDateDiff(j.startDate, j.endedAt.date);
+      lines.push(`${j.status === 'arrived' ? 'Arrived' : 'Ended'}: ${ghDateLabel(j.endedAt.date)} — ${totalDays} day${totalDays === 1 ? '' : 's'}`);
+    } else if (j.currentDate){
+      const elapsed = ghDateDiff(j.startDate, j.currentDate);
+      lines.push(`Current: ${ghDateLabel(j.currentDate)} (${timeOfDayLabel(j.currentTimeOfDay)}) — day ${elapsed + 1}`);
+    }
+    // Encounter count from the slot log.
+    if (j.log && j.log.length){
+      const encs = j.log.filter(e => e.occurred).length;
+      lines.push(`Encounters: ${encs}`);
+    }
+    // Per-day summary.
+    if (j.log && j.log.length){
+      lines.push('');
+      lines.push('Day-by-day:');
+      const buckets = {};
+      for (const entry of j.log){
+        const k = entry.day;
+        if (!buckets[k]) buckets[k] = { day: k, date: entry.date, slots: [], events: [] };
+        if (entry.type === 'weather' || entry.type === 'crossing' || entry.type === 'river-block'){
+          buckets[k].events.push(entry);
+        } else {
+          buckets[k].slots.push(entry);
+        }
+      }
+      const dayKeys = Object.keys(buckets).map(n => parseInt(n, 10)).sort((a, b) => a - b);
+      for (const k of dayKeys){
+        const b = buckets[k];
+        const hexes = [...new Set(b.slots.map(s => hexIdStr(s.hex.col, s.hex.row)))];
+        const encs = b.slots.filter(s => s.occurred).length;
+        let line = `  ${ghDateLabel(b.date)} · ${hexes.join(' → ')}`;
+        if (encs > 0) line += ` · ${encs} encounter${encs === 1 ? '' : 's'}`;
+        lines.push(line);
+        // Notable events.
+        for (const e of b.events){
+          if (e.type === 'crossing'){
+            line = `    crossing: ${e.river || ''}${e.kind ? ' (' + e.kind + ')' : ''}`;
+          } else if (e.type === 'river-block'){
+            line = `    river crossing delay: ${e.river || ''} (+${e.days || 0.5} day${e.days === 1 ? '' : 's'})`;
+          } else if (e.type === 'weather'){
+            line = `    weather: ${e.weather?.summary || JSON.stringify(e.weather || {})}`;
+          }
+          lines.push(line);
+        }
+      }
+    }
+    const text = lines.join('\n');
+    const done = () => {
+      const btn = document.getElementById('jl-copy');
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+    } else {
+      fallbackCopy(text, done);
+    }
+  });
   // Time-of-day dropdown — initialized from state (which was loaded
   // from localStorage at startup) and writes back on change. The
   // engine reads ctx.timeOfDay during the encounter check; updating
