@@ -1,4 +1,12 @@
-// gcc-subhex-view.js v2.4.4 — 2026-04-29
+// gcc-subhex-view.js v2.4.5 — 2026-04-29
+// v2.4.5: bug fix for the path picker not appearing when the GM
+// clicks the Path tool. The path section was being shown correctly
+// (display:flex), but the picker dropdown inside the section had a
+// stale inline display:none left over from close() / earlier code
+// paths that managed the picker individually before v2.4.3 moved it
+// into a section. showPathArmedPicker now explicitly sets the
+// picker's inline display alongside the section's, so the picker
+// becomes visible regardless of any leftover state.
 // v2.4.4: path-append rejection no longer fails silently. When a
 // click on a cell while a path is armed couldn't extend the path
 // (the cell isn't axially adjacent to the path's last cell), the
@@ -2046,8 +2054,14 @@
   function showPathArmedPicker(visible, presetValue){
     showPathSection(visible);
     const sel = findEl('sxw-path-armed');
-    if (sel && visible && presetValue !== undefined){
-      sel.value = presetValue;
+    if (sel){
+      // Clear any stale inline display:none left from a previous
+      // session (close() and old toolbar-era code paths set it). We
+      // want the picker to inherit visibility from its section now.
+      sel.style.display = visible ? '' : 'none';
+      if (visible && presetValue !== undefined){
+        sel.value = presetValue;
+      }
     }
     syncPathActionButtons();
   }
