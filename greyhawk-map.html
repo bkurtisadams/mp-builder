@@ -1648,6 +1648,12 @@ function ghDateLabel(date){
 function computeJourneyDuration(route, profile){
   let totalDays = 0;
   let impassable = false, reason = null;
+  // River-delay accounting (Greyhawk raft rule). Half a day per
+  // unbridged river crossing for non-light-burden parties. Tracked
+  // separately so the dialog can surface "+N days at unbridged
+  // rivers" alongside the base travel time.
+  let riverDelayDays = 0;
+  const riverDelayNotes = [];
   // Skip i=0 (origin — no travel cost). Each subsequent hex contributes
   // HEX_MILES / mi-per-day for its own terrain + the active profile.
   // GCCPaths supplies the river-edge resolver and the road-bonus
@@ -1704,13 +1710,25 @@ function computeJourneyDuration(route, profile){
       }
       totalDays += HEX_MILES / mpd;
     } else {
-      if (typeof GCCPaths !== 'undefined' &&
-          GCCPaths.edgeBlocks(prev.col, prev.row, hex.col, hex.row, profile.mode)){
+      // Greyhawk raft rule (1980 box): rivers don't fully block —
+      // light parties swim across, encumbered parties build floats
+      // (~half day). edgeRiverCost returns the extra days for this
+      // edge given the party's burden. A bridge/ford/ferry (parent
+      // or subhex) reduces the cost to zero. Subhex roads on the
+      // boundary cell do the same. Track the cumulative river cost
+      // separately so the journey plan can surface "+1 day at
+      // unbridged rivers" to the GM.
+      const riverCost = (typeof GCCPaths !== 'undefined' && GCCPaths.edgeRiverCost)
+        ? GCCPaths.edgeRiverCost(prev.col, prev.row, hex.col, hex.row, profile.mode, profile.burden)
+        : 0;
+      if (riverCost > 0){
+        riverDelayDays += riverCost;
         const info = GCCPaths.edgeRiverInfo(prev.col, prev.row, hex.col, hex.row);
-        const rname = info.river?.name || 'river';
-        impassable = true;
-        reason = `${hexIdStr(hex.col, hex.row)} — no crossing over the ${rname}`;
-        break;
+        riverDelayNotes.push({
+          edgeId: `${hexIdStr(prev.col, prev.row)}→${hexIdStr(hex.col, hex.row)}`,
+          river: info.river?.name || 'river',
+          days: riverCost,
+        });
       }
       const t = TERRAIN[terrain];
       const hasRiver = (typeof GCCPaths !== 'undefined') &&
@@ -1733,7 +1751,8 @@ function computeJourneyDuration(route, profile){
       totalDays += HEX_MILES / (mpd * bonus);
     }
   }
-  return { days: totalDays, impassable, reason };
+  totalDays += riverDelayDays;
+  return { days: totalDays, impassable, reason, riverDelayDays, riverDelayNotes };
 }
 // Rough projection: ~3 daylight time-of-day slots per hex check on
 // average (DMG p.47 timing rules range 1-4 slots/terrain). Phase 2 will
@@ -3105,7 +3124,12 @@ function recomputeJourneyPlan(){
     const suffix = m === 'flying' ? 'flying'
                  : m === 'ship'   ? 'by ship'
                  : m === 'mounted' ? 'mounted' : 'on foot';
-    document.getElementById('jd-dur').textContent = `~${dur.days.toFixed(1)} day(s) ${suffix}`;
+    let durText = `~${dur.days.toFixed(1)} day(s) ${suffix}`;
+    if (dur.riverDelayDays > 0){
+      const n = dur.riverDelayNotes.length;
+      durText += ` (incl. ${dur.riverDelayDays.toFixed(1)} day${dur.riverDelayDays === 1 ? '' : 's'} at ${n} unbridged river${n === 1 ? '' : 's'})`;
+    }
+    document.getElementById('jd-dur').textContent = durText;
     document.getElementById('jd-checks').textContent = `~${j.estChecks} (approx)`;
     const arrival = ghDateAdd(j.startDate, Math.ceil(dur.days));
     document.getElementById('jd-arrival').textContent = ghDateLabel(arrival);

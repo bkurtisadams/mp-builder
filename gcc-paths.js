@@ -1,4 +1,14 @@
-// gcc-paths.js v0.5.0 — 2026-04-29
+// gcc-paths.js v0.6.0 — 2026-04-29
+// v0.6.0: Greyhawk raft rule. Rivers no longer fully block movement.
+// Per the 1980 Greyhawk box: light parties swim across (no cost),
+// encumbered parties build floats (~half day). Bridges, fords, and
+// ferries reduce the cost to zero. Subhex roads on the boundary cell
+// also reduce the cost to zero (Rule 1 still applies). New
+// edgeRiverCost(colA, rowA, colB, rowB, mode, burden) returns extra
+// days for the edge given party burden. edgeBlocks now always
+// returns false for land travel (legacy compat) — the cost-aware
+// planner uses edgeRiverCost. edgeRiverInfo's `blocks` flag is now
+// informational only. Streams remain free as before.
 // v0.5.0: edgeBlocks and edgeRoadBonus now consult the subhex layer
 // first via window.GCCSubhexPaths.subhexBoundaryInfo. Per Rule 1
 // (Kurt 2026-04-29): if the GM has authored a subhex road on the
@@ -173,13 +183,45 @@
   }
 
   // ── Resolver ───────────────────────────────────────────────────────────
+  // The Greyhawk box (1980) lets parties cross rivers without a
+  // bridge or ford by swimming if light, or by building floats if
+  // encumbered (~half day delay). So rivers don't "block" — they
+  // add a time cost when no crossing is present and the party can't
+  // just swim. edgeRiverInfo still returns the blocks flag for
+  // legacy callers that expect a binary, but the cost-aware planner
+  // path now uses edgeRiverCost.
   function edgeRiverInfo(colA, rowA, colB, rowB){
     const river = _riverOnEdge(colA, rowA, colB, rowB);
     if (!river) return { blocks: false, river: null, crossing: null };
     const crossing = edgeFeaturesAt(colA, rowA, colB, rowB)
       .find(f => CROSSING_KINDS.has(f.kind));
     if (river.type === 'stream') return { blocks: false, river, crossing: crossing || null };
+    // Legacy `blocks` is now informational only — the cost-aware
+    // planner doesn't use it. Kept true-when-no-crossing for any
+    // legacy caller still expecting the old semantics.
     return { blocks: !crossing, river, crossing: crossing || null };
+  }
+
+  // Extra days added by crossing this edge, given the river state
+  // and party's burden. Greyhawk rule: zero if there's a crossing
+  // (bridge/ford/ferry) or the river is a stream, zero if the party
+  // is light enough to swim, otherwise half a day to build floats.
+  // Subhex authority overrides parent crossing data — if a subhex
+  // road, or a subhex crossing feature on the boundary cell, is
+  // present, the cost is zero regardless of parent layer.
+  function edgeRiverCost(colA, rowA, colB, rowB, mode, burden){
+    if (mode === 'flying' || mode === 'ship') return 0;
+    // Subhex layer — road on the boundary cell means free passage.
+    const verdict = _subhexEdgeVerdict(colA, rowA, colB, rowB);
+    if (!verdict.defer && verdict.blocks === false) return 0;
+    // Parent layer.
+    const info = edgeRiverInfo(colA, rowA, colB, rowB);
+    if (!info.river) return 0;
+    if (info.river.type === 'stream') return 0;
+    if (info.crossing) return 0;
+    // Unbridged river. Light-burden parties swim across with no cost.
+    if (burden === 'light') return 0;
+    return 0.5;
   }
 
   // Consult the subhex layer for an authoritative answer about this
@@ -203,14 +245,20 @@
     return { defer: true };
   }
 
+  // Legacy: returns true only for genuinely impassable cases. With
+  // the raft rule, river edges no longer block — they just add cost.
+  // edgeBlocks is preserved for legacy callers (it always returns
+  // false now in normal play); the cost-aware planner uses
+  // edgeRiverCost instead. Flying and ship modes still cross any
+  // river edge for free as before.
   function edgeBlocks(colA, rowA, colB, rowB, mode){
-    // Flying ignores rivers entirely. Ship is on the water — bridges
-    // and crossings don't apply because the ship isn't crossing the
-    // river, it's traveling along/across the water itself.
     if (mode === 'flying' || mode === 'ship') return false;
-    const verdict = _subhexEdgeVerdict(colA, rowA, colB, rowB);
-    if (!verdict.defer) return verdict.blocks;
-    return edgeRiverInfo(colA, rowA, colB, rowB).blocks;
+    // Per the raft rule, no river edge is fully impassable for land
+    // travel — the worst case is a half-day delay. So edgeBlocks
+    // returns false in all river situations now. Preserved as a
+    // function so legacy callers that didn't migrate to the cost
+    // model don't crash.
+    return false;
   }
   function edgeRoadBonus(colA, rowA, colB, rowB, terrain){
     // Subhex layer wins: if the GM has authored a road on the boundary
@@ -635,7 +683,7 @@
     saveRoad, deleteRoad,
     saveCrossing, deleteCrossing,
     // Resolver
-    edgeRiverInfo, edgeBlocks, edgeRoadBonus,
+    edgeRiverInfo, edgeBlocks, edgeRiverCost, edgeRoadBonus,
     // Utility
     chainToSegments, validateChain,
     // Lifecycle
