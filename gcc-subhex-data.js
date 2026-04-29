@@ -1,4 +1,7 @@
-// gcc-subhex-data.js v2.0.1 — 2026-04-28
+// gcc-subhex-data.js v2.1.0 — 2026-04-28
+// v2.1.0: add bridge / ford / crossroads / ferry to FEATURE_KINDS
+// for path-crossing features. No schema change; existing
+// authored features remain valid.
 // v2.0.1: fragmentsForParent now uses SAT polygon-overlap instead of
 // a circular reach test. The circle-of-radius-22 test included ~50
 // cells per parent; only ~33 actually overlap the parent's hex
@@ -104,6 +107,7 @@
     'castle', 'ruin', 'tower', 'village',
     'camp', 'cache', 'shrine', 'lair',
     'grave', 'landmark',
+    'bridge', 'ford', 'crossroads', 'ferry',
   ];
   const FEATURE_KINDS_SET = new Set(FEATURE_KINDS);
 

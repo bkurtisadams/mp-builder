@@ -1,4 +1,16 @@
-// gcc-subhex-view.js v2.3.0 — 2026-04-28
+// gcc-subhex-view.js v2.4.0 — 2026-04-28
+// v2.4.0: auto-detected path crossings. Any owned subhex that sits
+// on 2+ subhex paths gets a small "×" badge in its upper-right
+// corner. Clicking the badge pops a kind picker — Bridge / Ford /
+// Ferry for road-on-river crossings, Crossroads for road-on-road,
+// Landmark (named "Confluence of …") for river-on-river, plus a
+// Dismiss option to suppress the badge for that exact path-pair.
+// Picking a kind writes the feature (with auto-generated name like
+// "Bridge over Selintan") and the badge clears. Persistence: the
+// dismiss set lives in localStorage 'gcc-subhex-crossings-dismissed'.
+// Detection runs at render time, so the badges always reflect
+// current state — adding/removing a path or feature updates the
+// badge layer immediately.
 // v2.3.0: parent-path markers are now click-to-author. Clicking a
 // marker creates (or arms) a subhex path of matching kind, pre-fills
 // the parent path's name, anchors the first cell at the boundary
@@ -885,6 +897,7 @@
     renderPaths(svg);
     renderRegionLabels(svg);
     renderParentPathMarkers(svg);
+    renderCrossings(svg);
   }
 
   // Render small colored dots on boundary subhexes where a 30-mile
@@ -1070,10 +1083,286 @@
     if (svg){
       renderPaths(svg);
       renderParentPathMarkers(svg);
+      renderCrossings(svg);
     }
     syncDetailPanel();
     syncPaletteUI();
     syncModeLabel();
+  }
+
+  // ── Crossings ──────────────────────────────────────────────────────────
+  // A crossing is a subhex cell that sits on 2+ paths. The view scans
+  // owned cells against all paths in the parent and renders a small
+  // "×" badge in the cell's upper-right corner. Clicking the badge
+  // pops a kind picker (Bridge / Ford / Ferry / Crossroads / Dismiss),
+  // which writes the chosen feature to the cell. Dismiss adds the
+  // cell to a per-parent suppression set so the badge doesn't return
+  // for the same path-pair. If the cell already has a feature, no
+  // badge renders. If the path mix changes, the suppression for that
+  // pair stops applying (we key suppression on the sorted path-id
+  // pair).
+
+  const CROSSING_DISMISS_KEY = 'gcc-subhex-crossings-dismissed';
+
+  function loadDismissedCrossings(){
+    try {
+      return JSON.parse(localStorage.getItem(CROSSING_DISMISS_KEY) || '{}');
+    } catch(e){ return {}; }
+  }
+  function saveDismissedCrossings(map){
+    try { localStorage.setItem(CROSSING_DISMISS_KEY, JSON.stringify(map)); } catch(e){}
+  }
+  function dismissKey(Q, R, pathIds){
+    const sorted = [...pathIds].sort();
+    return `${Q}_${R}|${sorted.join('|')}`;
+  }
+
+  // Build a list of crossing records for the active parent. Each:
+  //   { Q, R, paths: [{id, kind, name}, ...] }
+  // Only owned cells are considered. Cells already authored with a
+  // feature, or dismissed for this exact path-set, are excluded.
+  function detectCrossings(){
+    if (!window.GCCSubhexPaths) return [];
+    const paths = window.GCCSubhexPaths.pathsInParent(state.parentCol, state.parentRow);
+    if (paths.length < 2) return [];
+    // Bucket: cell key -> list of paths touching it
+    const byCell = new Map();
+    for (const p of paths){
+      if (!p.cells) continue;
+      const seen = new Set();
+      for (const c of p.cells){
+        const k = `${c.Q}_${c.R}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        if (!byCell.has(k)) byCell.set(k, []);
+        byCell.get(k).push(p);
+      }
+    }
+    const owned = window.GCCSubhexData.ownedByParent(state.parentCol, state.parentRow);
+    const ownedSet = new Set(owned.map(c => `${c.Q}_${c.R}`));
+    const dismissed = loadDismissedCrossings();
+    const out = [];
+    for (const [key, plist] of byCell){
+      if (plist.length < 2) continue;
+      if (!ownedSet.has(key)) continue;
+      const [Q, R] = key.split('_').map(Number);
+      const sub = window.GCCSubhexData.getSubhex(Q, R, state.parentTerrain);
+      if (sub && sub.feature && sub.feature.kind) continue;
+      const dKey = dismissKey(Q, R, plist.map(p => p.id));
+      if (dismissed[dKey]) continue;
+      out.push({ Q, R, paths: plist });
+    }
+    return out;
+  }
+
+  function renderCrossings(svg){
+    svg.querySelectorAll('.sxw-crossings-layer').forEach(n => n.remove());
+    const crossings = detectCrossings();
+    if (!crossings.length) return;
+    const ns = 'http://www.w3.org/2000/svg';
+    const layer = document.createElementNS(ns, 'g');
+    layer.setAttribute('class', 'sxw-crossings-layer');
+    for (const x of crossings){
+      const c = cellViewport(x.Q, x.R);
+      const bx = c.x + SUB_R * 0.55;
+      const by = c.y - SUB_R * 0.55;
+      const g = document.createElementNS(ns, 'g');
+      g.setAttribute('class', 'sxw-crossing-badge');
+      g.dataset.q = x.Q;
+      g.dataset.r = x.R;
+      g.dataset.pathIds = x.paths.map(p => p.id).join(',');
+      g.dataset.pathKinds = x.paths.map(p => p.kind).join(',');
+      g.dataset.pathNames = x.paths.map(p => p.name || '').join('||');
+      const bg = document.createElementNS(ns, 'circle');
+      bg.setAttribute('cx', bx.toFixed(1));
+      bg.setAttribute('cy', by.toFixed(1));
+      bg.setAttribute('r', '5.5');
+      bg.setAttribute('class', 'sxw-crossing-badge-bg');
+      g.appendChild(bg);
+      const x1 = document.createElementNS(ns, 'line');
+      x1.setAttribute('x1', (bx - 3).toFixed(1));
+      x1.setAttribute('y1', (by - 3).toFixed(1));
+      x1.setAttribute('x2', (bx + 3).toFixed(1));
+      x1.setAttribute('y2', (by + 3).toFixed(1));
+      x1.setAttribute('class', 'sxw-crossing-badge-x');
+      g.appendChild(x1);
+      const x2 = document.createElementNS(ns, 'line');
+      x2.setAttribute('x1', (bx - 3).toFixed(1));
+      x2.setAttribute('y1', (by + 3).toFixed(1));
+      x2.setAttribute('x2', (bx + 3).toFixed(1));
+      x2.setAttribute('y2', (by - 3).toFixed(1));
+      x2.setAttribute('class', 'sxw-crossing-badge-x');
+      g.appendChild(x2);
+      const tip = document.createElementNS(ns, 'title');
+      const names = x.paths.map(p => p.name || `(${p.kind})`).join(' × ');
+      tip.textContent = `Crossing: ${names} — click to add feature`;
+      g.appendChild(tip);
+      g.addEventListener('click', onCrossingBadgeClick);
+      layer.appendChild(g);
+    }
+    svg.appendChild(layer);
+  }
+
+  // Decide which feature kinds make sense for this crossing's path
+  // mix. Returns an array of kinds in display order. The picker also
+  // always offers "Dismiss" (handled separately in the menu render).
+  function suggestedCrossingKinds(pathKinds){
+    const kinds = new Set(pathKinds);
+    const hasRiver = kinds.has('river');
+    const hasRoad  = kinds.has('road');
+    const hasTrack = kinds.has('track');
+    if (hasRiver && (hasRoad || hasTrack)){
+      return ['bridge', 'ford', 'ferry'];
+    }
+    if (hasRoad && hasTrack){
+      return ['crossroads'];
+    }
+    if (hasRoad && kinds.size === 1 && pathKinds.length >= 2){
+      // Two roads meeting
+      return ['crossroads'];
+    }
+    if (hasTrack && kinds.size === 1 && pathKinds.length >= 2){
+      return ['crossroads'];
+    }
+    if (hasRiver && kinds.size === 1 && pathKinds.length >= 2){
+      // Two rivers meeting — a confluence. We don't have a confluence
+      // glyph (and rolled it into "landmark"), so offer landmark.
+      return ['landmark'];
+    }
+    return ['landmark'];
+  }
+
+  function onCrossingBadgeClick(ev){
+    ev.stopPropagation();
+    const g = ev.currentTarget;
+    const Q = +g.dataset.q;
+    const R = +g.dataset.r;
+    const pathIds   = g.dataset.pathIds.split(',');
+    const pathKinds = g.dataset.pathKinds.split(',');
+    const pathNames = g.dataset.pathNames.split('||');
+    const kinds = suggestedCrossingKinds(pathKinds);
+    showCrossingMenu(g, Q, R, pathIds, pathKinds, pathNames, kinds);
+  }
+
+  // Pop a small overlay menu next to the badge offering kind chips
+  // + Dismiss. The menu is an HTML <div> overlaid on the SVG via the
+  // controls window's container — but since the SVG lives in a
+  // separate window from the controls, simplest is to render the
+  // menu as a foreignObject inside the SVG itself, anchored at the
+  // badge position. Picking a kind writes the feature; Dismiss
+  // records the suppression.
+  function showCrossingMenu(badge, Q, R, pathIds, pathKinds, pathNames, kinds){
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (!svg) return;
+    svg.querySelectorAll('.sxw-crossing-menu').forEach(n => n.remove());
+    const ns = 'http://www.w3.org/2000/svg';
+    const c = cellViewport(Q, R);
+    const mx = c.x + SUB_R * 0.55;
+    const my = c.y - SUB_R * 0.55;
+    const fo = document.createElementNS(ns, 'foreignObject');
+    fo.setAttribute('class', 'sxw-crossing-menu');
+    const W = 160, H = 30 + 28 * (kinds.length + 1);
+    // Try to place to the right of the badge; flip left if close to viewBox edge.
+    const place = (mx + 8 + W < VIEWBOX_W) ? mx + 8 : mx - W - 8;
+    const placeY = (my + H < VIEWBOX_H) ? my : Math.max(8, VIEWBOX_H - H - 8);
+    fo.setAttribute('x', place.toFixed(1));
+    fo.setAttribute('y', placeY.toFixed(1));
+    fo.setAttribute('width', W);
+    fo.setAttribute('height', H);
+    const html = document.createElement('div');
+    html.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    html.className = 'sxw-crossing-menu-body';
+    const hint = document.createElement('div');
+    hint.className = 'sxw-crossing-menu-hint';
+    hint.textContent = pathNames.filter(n => n).join(' × ') || 'Crossing';
+    html.appendChild(hint);
+    for (const kind of kinds){
+      const btn = document.createElement('button');
+      btn.className = 'sxw-crossing-menu-btn';
+      btn.textContent = kind.charAt(0).toUpperCase() + kind.slice(1);
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        applyCrossingFeature(Q, R, kind, pathKinds, pathNames);
+        closeCrossingMenu();
+      });
+      html.appendChild(btn);
+    }
+    const dismiss = document.createElement('button');
+    dismiss.className = 'sxw-crossing-menu-btn sxw-crossing-menu-btn-dismiss';
+    dismiss.textContent = 'Dismiss';
+    dismiss.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const dismissed = loadDismissedCrossings();
+      dismissed[dismissKey(Q, R, pathIds)] = 1;
+      saveDismissedCrossings(dismissed);
+      closeCrossingMenu();
+      const svgInner = state.win?.querySelector('#sxw-svg');
+      if (svgInner) renderCrossings(svgInner);
+    });
+    html.appendChild(dismiss);
+    fo.appendChild(html);
+    svg.appendChild(fo);
+    // Close on outside click — register a one-shot global listener.
+    setTimeout(() => {
+      const off = (e) => {
+        if (!fo.contains || (e.target && !fo.contains(e.target))){
+          closeCrossingMenu();
+          window.removeEventListener('mousedown', off, true);
+        }
+      };
+      window.addEventListener('mousedown', off, true);
+    }, 0);
+  }
+
+  function closeCrossingMenu(){
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (!svg) return;
+    svg.querySelectorAll('.sxw-crossing-menu').forEach(n => n.remove());
+  }
+
+  // Compose a default name for the crossing feature based on the
+  // paths it bridges. Returns e.g. "Bridge over Selintan",
+  // "Ford on the Old Coast Road", "Crossroads of X and Y".
+  function crossingName(kind, pathKinds, pathNames){
+    const named = [];
+    for (let i = 0; i < pathKinds.length; i++){
+      if (pathNames[i]) named.push({ kind: pathKinds[i], name: pathNames[i] });
+    }
+    if (kind === 'bridge'){
+      const river = named.find(p => p.kind === 'river');
+      if (river) return `Bridge over ${river.name}`;
+      return 'Bridge';
+    }
+    if (kind === 'ford'){
+      const river = named.find(p => p.kind === 'river');
+      if (river) return `Ford on ${river.name}`;
+      return 'Ford';
+    }
+    if (kind === 'ferry'){
+      const river = named.find(p => p.kind === 'river');
+      if (river) return `Ferry across ${river.name}`;
+      return 'Ferry';
+    }
+    if (kind === 'crossroads'){
+      if (named.length >= 2){
+        return `Crossroads of ${named[0].name} and ${named[1].name}`;
+      }
+      return 'Crossroads';
+    }
+    if (kind === 'landmark' && named.length >= 2){
+      const allRivers = named.every(p => p.kind === 'river');
+      if (allRivers) return `Confluence of ${named[0].name} and ${named[1].name}`;
+    }
+    return kind.charAt(0).toUpperCase() + kind.slice(1);
+  }
+
+  function applyCrossingFeature(Q, R, kind, pathKinds, pathNames){
+    const name = crossingName(kind, pathKinds, pathNames);
+    window.GCCSubhexData.setSubhexFeature(Q, R, { kind, name });
+    applyCellPaint(Q, R);
+    if (Q === state.selectedQ && R === state.selectedR) syncDetailPanel();
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg) renderCrossings(svg);
   }
 
   // Render every path that touches this parent as a polyline through
@@ -1300,7 +1589,7 @@
             }
           }
         }
-        if (svg){ renderPaths(svg); renderParentPathMarkers(svg); }
+        if (svg){ renderPaths(svg); renderParentPathMarkers(svg); renderCrossings(svg); }
         syncModeLabel();
       }
     }
@@ -1615,7 +1904,7 @@
       state.markerHighlight = null;
       showPathArmedPicker(false);
       const svg = state.win?.querySelector('#sxw-svg');
-      if (svg){ renderPaths(svg); renderParentPathMarkers(svg); }
+      if (svg){ renderPaths(svg); renderParentPathMarkers(svg); renderCrossings(svg); }
       syncPaletteUI();
       syncModeLabel();
       return;
@@ -1686,7 +1975,7 @@
         rebuildPathArmedPicker();
         ev.target.value = state.armed.value;
         const svg = state.win?.querySelector('#sxw-svg');
-        if (svg) renderPaths(svg);
+        if (svg){ renderPaths(svg); renderCrossings(svg); }
       } else {
         ev.target.value = '';
       }
@@ -1708,7 +1997,7 @@
         rebuildPathArmedPicker();
         ev.target.value = (state.armed && state.armed.type === 'path') ? state.armed.value : '';
         const svg = state.win?.querySelector('#sxw-svg');
-        if (svg) renderPaths(svg);
+        if (svg){ renderPaths(svg); renderCrossings(svg); }
       } else {
         ev.target.value = (state.armed && state.armed.type === 'path') ? state.armed.value : '';
       }
@@ -1729,7 +2018,7 @@
       state.markerHighlight = null;
     }
     const svg = state.win?.querySelector('#sxw-svg');
-    if (svg){ renderPaths(svg); renderParentPathMarkers(svg); }
+    if (svg){ renderPaths(svg); renderParentPathMarkers(svg); renderCrossings(svg); }
     syncDetailPanel();
     syncPaletteUI();
     syncModeLabel();
@@ -1767,6 +2056,8 @@
     }
     applyCellPaint(state.selectedQ, state.selectedR);
     syncDetailPanel();
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg) renderCrossings(svg);
   }
 
   function onClearOverride(){
@@ -1774,6 +2065,8 @@
     window.GCCSubhexData.clearSubhex(state.selectedQ, state.selectedR);
     applyCellPaint(state.selectedQ, state.selectedR);
     syncDetailPanel();
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg) renderCrossings(svg);
   }
 
   // ── Drag handling (header only) ────────────────────────────────────────

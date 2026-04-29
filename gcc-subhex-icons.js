@@ -1,10 +1,17 @@
-// gcc-subhex-icons.js v0.7.0 — 2026-04-28
+// gcc-subhex-icons.js v0.8.0 — 2026-04-28
 // Terrain icon registry for the subhex window. One small SVG glyph per
 // terrain type, stamped into each cell at a deterministic-jittered
 // position so identical-terrain neighbors don't form a polka-dot grid.
 // Style mirrors the line-art Darlene/Greyhawk vibe: single-color ink
 // strokes, no fills except mountains. Cell radius ~26 viewbox units;
 // icons sized for ~14 unit footprint with the cell.
+//
+// v0.8 adds CROSSING GLYPHS — bridge / ford / crossroads / ferry —
+// for the auto-detected path-crossing features. Bridge: three-arch
+// stone bridge over water. Ford: two parallel dashed lines (the road)
+// with a wavy line between (shallow water). Crossroads: bold X with
+// a red dot at the intersection. Ferry: hulled boat with a triangular
+// sail on a water line.
 //
 // v0.7 adds FEATURE GLYPHS — louder, filled, parchment-haloed icons
 // for castle/ruin/tower/village/camp/cache/shrine/lair/grave/landmark.
@@ -304,6 +311,79 @@
         fill: FEATURE_INK,
       }));
       g.appendChild(el('circle', { cx, cy, r: s*0.18, fill: FEATURE_ACCENT }));
+    },
+    bridge(g, cx, cy, s){
+      // Three-arch stone bridge over a horizontal water line.
+      // Water line below.
+      g.appendChild(el('line', {
+        x1: cx - s*0.85, y1: cy + s*0.55, x2: cx + s*0.85, y2: cy + s*0.55,
+        stroke: FEATURE_INK, 'stroke-width': '0.6',
+      }));
+      // Deck
+      g.appendChild(el('rect', {
+        x: cx - s*0.85, y: cy - s*0.45, width: s*1.7, height: s*0.18, fill: FEATURE_INK,
+      }));
+      // Three arches
+      const archY = cy - s*0.27;
+      const archW = s*0.4, archH = s*0.45;
+      for (let i = 0; i < 3; i++){
+        const ax = cx - s*0.65 + i * s*0.65;
+        g.appendChild(el('path', {
+          d: `M ${ax - archW/2} ${archY + archH} A ${archW/2} ${archH} 0 0 1 ${ax + archW/2} ${archY + archH}`,
+          fill: 'none', stroke: FEATURE_INK, 'stroke-width': '0.7',
+        }));
+      }
+    },
+    ford(g, cx, cy, s){
+      // Two parallel dashed lines indicating a shallow stream
+      // crossing — like a road dashed across a river.
+      g.appendChild(el('line', {
+        x1: cx - s*0.85, y1: cy - s*0.2, x2: cx + s*0.85, y2: cy - s*0.2,
+        stroke: FEATURE_INK, 'stroke-width': '0.9', 'stroke-dasharray': '2 1.5',
+      }));
+      g.appendChild(el('line', {
+        x1: cx - s*0.85, y1: cy + s*0.2, x2: cx + s*0.85, y2: cy + s*0.2,
+        stroke: FEATURE_INK, 'stroke-width': '0.9', 'stroke-dasharray': '2 1.5',
+      }));
+      // Wavy water through the middle.
+      g.appendChild(el('path', {
+        d: `M ${cx - s*0.7} ${cy} Q ${cx - s*0.45} ${cy - s*0.12} ${cx - s*0.2} ${cy} T ${cx + s*0.3} ${cy} T ${cx + s*0.7} ${cy}`,
+        fill: 'none', stroke: FEATURE_ACCENT, 'stroke-width': '0.7',
+      }));
+    },
+    crossroads(g, cx, cy, s){
+      // Bold X with a small circle at the intersection.
+      g.appendChild(el('line', {
+        x1: cx - s*0.7, y1: cy - s*0.7, x2: cx + s*0.7, y2: cy + s*0.7,
+        stroke: FEATURE_INK, 'stroke-width': '1.6', 'stroke-linecap': 'round',
+      }));
+      g.appendChild(el('line', {
+        x1: cx - s*0.7, y1: cy + s*0.7, x2: cx + s*0.7, y2: cy - s*0.7,
+        stroke: FEATURE_INK, 'stroke-width': '1.6', 'stroke-linecap': 'round',
+      }));
+      g.appendChild(el('circle', { cx, cy, r: s*0.18, fill: FEATURE_ACCENT }));
+    },
+    ferry(g, cx, cy, s){
+      // Simple boat hull on a wavy water line, with a small mast.
+      g.appendChild(el('path', {
+        d: `M ${cx - s*0.85} ${cy + s*0.4} Q ${cx - s*0.45} ${cy + s*0.5} ${cx - s*0.2} ${cy + s*0.4} T ${cx + s*0.45} ${cy + s*0.4} T ${cx + s*0.85} ${cy + s*0.4}`,
+        fill: 'none', stroke: FEATURE_ACCENT, 'stroke-width': '0.8',
+      }));
+      // Hull (curved trapezoid).
+      g.appendChild(el('path', {
+        d: `M ${cx - s*0.7} ${cy + s*0.05} L ${cx + s*0.7} ${cy + s*0.05} L ${cx + s*0.5} ${cy + s*0.3} Q ${cx} ${cy + s*0.45} ${cx - s*0.5} ${cy + s*0.3} Z`,
+        fill: FEATURE_INK,
+      }));
+      // Mast
+      g.appendChild(el('line', {
+        x1: cx, y1: cy + s*0.05, x2: cx, y2: cy - s*0.55,
+        stroke: FEATURE_INK, 'stroke-width': '0.9',
+      }));
+      // Triangular sail
+      g.appendChild(el('path', {
+        d: `M ${cx} ${cy - s*0.55} L ${cx + s*0.45} ${cy + s*0.0} L ${cx} ${cy + s*0.0} Z`,
+        fill: FEATURE_HALO_FILL, stroke: FEATURE_INK, 'stroke-width': '0.6',
+      }));
     },
   };
 

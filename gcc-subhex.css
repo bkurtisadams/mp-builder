@@ -1,4 +1,8 @@
-/* gcc-subhex.css v1.5.0 — 2026-04-28
+/* gcc-subhex.css v1.6.0 — 2026-04-28
+   v1.6 adds crossing badge + popup menu. Owned subhexes on 2+ paths
+   get a small × badge in their upper-right corner; clicking pops a
+   kind picker (Bridge / Ford / Ferry / Crossroads / Dismiss) styled
+   to match the parchment palette.
    v1.5 adds .authored and .destination styles on parent-path markers.
    Authored markers render as hollow circles with kind-colored borders
    (river=blue ring, road=brown ring, track=tan ring). The destination
@@ -611,6 +615,101 @@ body.theme-dark .sxw-parent-path-marker circle {
   stroke:#1a1a1a;
   filter:drop-shadow(0 0 1.5px rgba(255,255,255,0.25));
 }
+
+/* ── Crossings (auto-detected path intersections) ────────────────────── */
+/* Owned subhexes on 2+ paths get a small × badge in the upper-right.
+   Clicking pops a kind picker (rendered inside the SVG via
+   foreignObject so it tracks the cell at any zoom). The badge has
+   pointer-events but doesn't intercept cell painting elsewhere. */
+.sxw-crossings-layer { pointer-events:none; }
+.sxw-crossing-badge {
+  pointer-events:auto;
+  cursor:pointer;
+}
+.sxw-crossing-badge-bg {
+  fill:#fbf2da;
+  stroke:#8b0000;
+  stroke-width:1.0;
+  filter:drop-shadow(0 0 1.5px rgba(0,0,0,0.4));
+}
+.sxw-crossing-badge-x {
+  stroke:#8b0000;
+  stroke-width:1.4;
+  stroke-linecap:round;
+}
+.sxw-crossing-badge:hover .sxw-crossing-badge-bg {
+  fill:#f4d8a0;
+  stroke-width:1.5;
+}
+body.theme-dark .sxw-crossing-badge-bg {
+  fill:#2c2c2a;
+  stroke:#e07070;
+}
+body.theme-dark .sxw-crossing-badge-x { stroke:#e07070; }
+
+/* Crossing popup menu — anchored to the SVG via foreignObject. */
+.sxw-crossing-menu { overflow:visible; pointer-events:auto; }
+.sxw-crossing-menu-body {
+  background:#fbf2da;
+  border:1.5px solid #8b0000;
+  border-radius:4px;
+  box-shadow:0 4px 14px rgba(0,0,0,0.35);
+  padding:6px 5px 5px;
+  font-family:'Cinzel', serif;
+  font-size:11px;
+  color:#1a1a1a;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.sxw-crossing-menu-hint {
+  font-size:9px;
+  font-weight:500;
+  color:#5a4a30;
+  padding:0 4px 3px;
+  border-bottom:1px dashed #c8a96e;
+  margin-bottom:2px;
+  text-align:center;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.sxw-crossing-menu-btn {
+  background:transparent;
+  border:1px solid #b09060;
+  border-radius:3px;
+  color:#1a1a1a;
+  font-family:inherit;
+  font-size:11px;
+  padding:4px 6px;
+  cursor:pointer;
+  text-align:left;
+}
+.sxw-crossing-menu-btn:hover {
+  background:#c8a96e;
+  border-color:#5a4a30;
+}
+.sxw-crossing-menu-btn-dismiss {
+  margin-top:4px;
+  border-top:1px solid #c8a96e;
+  border-radius:0 0 3px 3px;
+  font-size:10px;
+  color:#5a4a30;
+}
+.sxw-crossing-menu-btn-dismiss:hover {
+  background:#e8d8b0;
+  color:#1a1a1a;
+}
+body.theme-dark .sxw-crossing-menu-body {
+  background:#2c2c2a;
+  border-color:#e07070;
+  color:#e8d8b0;
+}
+body.theme-dark .sxw-crossing-menu-hint { color:#c8a96e; border-color:#7a6a40; }
+body.theme-dark .sxw-crossing-menu-btn { color:#e8d8b0; border-color:#7a6a40; }
+body.theme-dark .sxw-crossing-menu-btn:hover { background:#7a6a40; color:#1a1a1a; }
+body.theme-dark .sxw-crossing-menu-btn-dismiss { color:#a89880; border-top-color:#7a6a40; }
+body.theme-dark .sxw-crossing-menu-btn-dismiss:hover { background:#3a3a38; color:#e8d8b0; }
 
 /* ── Paths row (detail panel, read-only) ──────────────────────────────── */
 /* ── Path armed picker (tools row) ────────────────────────────────────── */
