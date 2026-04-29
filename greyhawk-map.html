@@ -2959,6 +2959,7 @@ function buildJourneyPlan(destCol, destRow){
 // mode mirrors the river-trace UX in the Hex Editor's Paths pane.
 function setJourneyPlanMode(mode){
   if (!state.journey || (mode !== 'manual' && mode !== 'straight')) return;
+  const prevMode = state.journey.planMode;
   state.journey.planMode = mode;
   // Update button "active" classes.
   document.querySelectorAll('#journey-dialog .jd-mode-btn').forEach(b =>
@@ -2966,6 +2967,18 @@ function setJourneyPlanMode(mode){
   // Trace controls: only relevant in manual mode.
   document.getElementById('jd-trace-row').style.display  = (mode === 'manual') ? '' : 'none';
   document.getElementById('jd-trace-hint').style.display = (mode === 'manual') ? '' : 'none';
+  // When switching INTO manual mode, reset the route to just the origin
+  // so the GM starts with a clean slate to click out the path. Without
+  // this the previous straight-mode route is kept and any block in it
+  // immediately surfaces as a warning even before the GM has clicked
+  // anything in manual mode.
+  if (mode === 'manual' && prevMode !== 'manual' && state.journey.route && state.journey.route.length > 1){
+    const origin = state.journey.route[0];
+    state.journey.route = [origin];
+    state.journey.destination = { col: origin.col, row: origin.row };
+    recomputeJourneyPlan();
+    refreshJourneyOverlay();
+  }
   refreshJourneyTraceButtons();
 }
 function refreshJourneyTraceButtons(){
