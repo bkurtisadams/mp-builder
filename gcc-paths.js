@@ -1,4 +1,14 @@
-// gcc-paths.js v0.4.1 — 2026-04-28
+// gcc-paths.js v0.5.0 — 2026-04-29
+// v0.5.0: edgeBlocks and edgeRoadBonus now consult the subhex layer
+// first via window.GCCSubhexPaths.subhexBoundaryInfo. Per Rule 1
+// (Kurt 2026-04-29): if the GM has authored a subhex road on the
+// boundary cell between two parents, that edge is traversable
+// regardless of any parent-level river. If no subhex road is present,
+// behavior falls back to the existing 30mi parent-layer logic. The
+// subhex layer thus becomes authoritative for any region the GM has
+// detailed; unauthored regions still work via the original parent
+// data.
+// v0.4.1 — 2026-04-28
 // Edge-based path features for the Greyhawk hex map: rivers, roads,
 // bridges, fords, ferries. v0.2 adds editor-driven CRUD with
 // localStorage override layering on top of hardcoded base data.
@@ -171,14 +181,53 @@
     if (river.type === 'stream') return { blocks: false, river, crossing: crossing || null };
     return { blocks: !crossing, river, crossing: crossing || null };
   }
+
+  // Consult the subhex layer for an authoritative answer about this
+  // parent boundary, when the GM has authored detail there. Returns
+  // either { defer: true } meaning "use parent data" or
+  // { defer: false, blocks: bool } with the subhex verdict.
+  // Rule 1 (per Kurt's design call 2026-04-29): a road on the boundary
+  // cell makes the edge traversable, regardless of any river. A river
+  // alone — no road — falls through to the parent layer's crossing
+  // logic, since rivers without a road still need an authored bridge
+  // / ford / ferry on the parent edge.
+  function _subhexEdgeVerdict(colA, rowA, colB, rowB){
+    if (typeof window === 'undefined' || !window.GCCSubhexPaths) return { defer: true };
+    if (typeof window.GCCSubhexPaths.subhexBoundaryInfo !== 'function') return { defer: true };
+    const info = window.GCCSubhexPaths.subhexBoundaryInfo(colA, rowA, colB, rowB);
+    if (!info || !info.hasData) return { defer: true };
+    if (info.hasRoad) return { defer: false, blocks: false };
+    // No road on the boundary cell. Subhex authoring exists in this
+    // parent — but specifically not for this edge. Fall back to parent
+    // data for river-block decisions.
+    return { defer: true };
+  }
+
   function edgeBlocks(colA, rowA, colB, rowB, mode){
     // Flying ignores rivers entirely. Ship is on the water — bridges
     // and crossings don't apply because the ship isn't crossing the
     // river, it's traveling along/across the water itself.
     if (mode === 'flying' || mode === 'ship') return false;
+    const verdict = _subhexEdgeVerdict(colA, rowA, colB, rowB);
+    if (!verdict.defer) return verdict.blocks;
     return edgeRiverInfo(colA, rowA, colB, rowB).blocks;
   }
   function edgeRoadBonus(colA, rowA, colB, rowB, terrain){
+    // Subhex layer wins: if the GM has authored a road on the boundary
+    // cell at 3mi resolution, use that for the bonus regardless of
+    // whether parent-level roads exist.
+    if (typeof window !== 'undefined' && window.GCCSubhexPaths
+        && typeof window.GCCSubhexPaths.subhexBoundaryInfo === 'function'){
+      const info = window.GCCSubhexPaths.subhexBoundaryInfo(colA, rowA, colB, rowB);
+      if (info && info.hasData && info.hasRoad){
+        const t = (typeof window !== 'undefined' && window.TERRAIN) ? window.TERRAIN[terrain] : null;
+        const isHard = t && t.difficulty && t.difficulty !== 'normal';
+        // The subhex layer doesn't currently distinguish road vs track
+        // at this query point — pick the conservative "road" bonus on
+        // easy terrain and "track" bonus on hard.
+        return isHard ? 1.2 : 1.5;
+      }
+    }
     const road = _roadOnEdge(colA, rowA, colB, rowB);
     if (!road) return 1.0;
     const t = (typeof window !== 'undefined' && window.TERRAIN) ? window.TERRAIN[terrain] : null;

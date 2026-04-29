@@ -1,4 +1,13 @@
-// gcc-subhex-paths.js v1.1.0 — 2026-04-28
+// gcc-subhex-paths.js v1.2.0 — 2026-04-29
+// v1.2.0: subhex layer is now consulted by the parent-layer movement
+// planner. Add subhexBoundaryInfo(parentColA, rowA, parentColB, rowB)
+// — returns { hasData, boundaryCell, hasRoad, hasRiver } describing
+// what subhex paths exist on the cell between two parents. When
+// hasData is true, the planner uses subhex truth (Rule 1: a road on
+// the boundary cell makes the edge traversable). When hasData is
+// false, the planner falls back to the 30mi parent-layer data.
+// Helpers: parentHasSubhexPaths(col, row),
+// boundaryCellBetweenParents(colA, rowA, colB, rowB).
 // v1.1.0: add truncateBefore(localId, Q, R) — keep cells up to but
 // not including the matched cell, drop the rest. Used by the view's
 // per-cell remove flow: clicking an armed path's cell during Path
@@ -194,6 +203,95 @@
     return out;
   }
 
+  // ── Boundary queries (for the parent-layer planner) ───────────────────
+  // The parent-layer movement planner uses these to ask: "if I cross
+  // from parent A to parent B, what does the subhex authoring say?"
+  // The subhex layer is canonical when present — if the GM has
+  // authored even one path in either parent, the planner trusts the
+  // subhex picture entirely for that parent boundary.
+
+  // Quick check: does this parent have ANY subhex paths whose cells
+  // are owned by it? Used by the planner to decide whether to consult
+  // subhex data or fall back to the 30mi-resolution parent layer.
+  function parentHasSubhexPaths(col, row){
+    if (!window.GCCSubhexData) return false;
+    for (const p of listPaths()){
+      for (const c of p.cells || []){
+        const o = window.GCCSubhexData.ownerOf(c.Q, c.R);
+        if (o && o.col === col && o.row === row) return true;
+      }
+    }
+    return false;
+  }
+
+  // Inspect the boundary between two parents and report what subhex
+  // authoring says about it. Returns:
+  //   { hasData: bool      — at least one of the two parents has any
+  //                          subhex paths (so we should trust subhex),
+  //     boundaryCell: {Q,R} — the boundary cell (subhex closest to the
+  //                          shared parent edge midpoint),
+  //     hasRoad: bool      — a road or track passes through that cell,
+  //     hasRiver: bool     — a river or stream passes through that cell }
+  // If hasData is false, the planner should fall back to parent data.
+  // Per Rule 1: a road on the boundary cell makes the edge traversable.
+  // A river without a road would normally block, but at this layer we
+  // just report what's there — the caller decides.
+  function subhexBoundaryInfo(parentColA, parentRowA, parentColB, parentRowB){
+    if (!window.GCCSubhexData){
+      return { hasData: false, boundaryCell: null, hasRoad: false, hasRiver: false };
+    }
+    const aHas = parentHasSubhexPaths(parentColA, parentRowA);
+    const bHas = parentHasSubhexPaths(parentColB, parentRowB);
+    if (!aHas && !bHas){
+      return { hasData: false, boundaryCell: null, hasRoad: false, hasRiver: false };
+    }
+    const cell = boundaryCellBetweenParents(parentColA, parentRowA, parentColB, parentRowB);
+    if (!cell){
+      return { hasData: true, boundaryCell: null, hasRoad: false, hasRiver: false };
+    }
+    let hasRoad = false, hasRiver = false;
+    const at = pathsAtCell(cell.Q, cell.R);
+    for (const p of at){
+      if (p.kind === 'road' || p.kind === 'track') hasRoad = true;
+      else if (p.kind === 'river' || p.kind === 'stream') hasRiver = true;
+    }
+    return { hasData: true, boundaryCell: cell, hasRoad, hasRiver };
+  }
+
+  // Pick the subhex cell on parent A whose center is geometrically
+  // closest to the midpoint of the shared parent edge. Mirrors the
+  // marker-anchoring logic in gcc-subhex-view.js. The parent edge
+  // direction is implied by the (A, B) pair — we don't need to know
+  // the edge index up front; we just find the boundary cell of A
+  // closest to B's center.
+  function boundaryCellBetweenParents(colA, rowA, colB, rowB){
+    if (!window.GCCSubhexData) return null;
+    const aCenter = window.GCCSubhexData.parentCenterAxial(colA, rowA);
+    const bCenter = window.GCCSubhexData.parentCenterAxial(colB, rowB);
+    // Direction from A to B in axial space.
+    const dQ = bCenter.Q - aCenter.Q;
+    const dR = bCenter.R - aCenter.R;
+    // The boundary cell of A is roughly half a parent away in that
+    // direction. Parents are 10 subhex units apart center-to-center,
+    // so the boundary midpoint is +5 in (dQ, dR) direction.
+    const len = Math.sqrt(dQ * dQ + dR * dR + dQ * dR);
+    if (len === 0) return null;
+    const targetQ = aCenter.Q + 5 * dQ / len;
+    const targetR = aCenter.R + 5 * dR / len;
+    // Find the owned cell of parent A closest to that target.
+    const owned = window.GCCSubhexData.ownedByParent(colA, rowA);
+    if (!owned.length) return null;
+    let best = null, bestD = Infinity;
+    for (const c of owned){
+      const dq = c.Q - targetQ, dr = c.R - targetR;
+      // Hex distance via cube coords: max(|q|,|r|,|s|).
+      const s = -dq - dr;
+      const d = Math.max(Math.abs(dq), Math.abs(dr), Math.abs(s));
+      if (d < bestD){ bestD = d; best = c; }
+    }
+    return best;
+  }
+
   function exportPaths(){ return JSON.parse(JSON.stringify(PATHS)); }
   function importPaths(obj){
     if (!obj || typeof obj !== 'object') return false;
@@ -258,6 +356,7 @@
     PATH_KINDS, SCHEMA_VERSION,
     listPaths, pathsInParent, getPath, createPath, renamePath, deletePath,
     appendCell, popCell, truncateBefore, pathsAtCell, isNeighbor,
+    parentHasSubhexPaths, subhexBoundaryInfo, boundaryCellBetweenParents,
     exportPaths, importPaths,
   };
 })();
