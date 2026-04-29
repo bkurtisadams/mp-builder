@@ -1,4 +1,7 @@
-/* gcc-subhex.css v1.3.0 — 2026-04-28
+/* gcc-subhex.css v1.4.0 — 2026-04-28
+   v1.4 splits into two windows. The original #subhex-window keeps the
+   map + zoom; #subhex-controls-window holds the detail panel, palette
+   strip, and tools row. Each is independently draggable and resizable.
    v1.3 adds .sxw-parent-path-marker — small colored dots on boundary
    subhexes for 30-mile parent paths (river=blue, road=brown, track=tan).
    Dots offset toward the parent edge they cross; hover for path name.
@@ -41,6 +44,69 @@ body.theme-dark #subhex-window {
   color:#e8d8b0;
   border-color:#7a6a40;
 }
+
+/* ── Controls window (separate, draggable, resizable) ─────────────────── */
+/* Detail panel + palettes + tools live here. Auto-opens beside the map
+   window when the map opens, auto-closes when the map closes. Persists
+   its own position/size in localStorage 'gcc-subhex-controls-pos'. */
+#subhex-controls-window {
+  position:fixed;
+  width:420px;
+  height:auto;
+  min-width:340px;
+  min-height:280px;
+  max-width:96vw;
+  max-height:96vh;
+  background:#f4e8c4;
+  color:#1a1a1a;
+  border:2px solid #5a4a30;
+  border-radius:6px;
+  box-shadow:0 8px 28px rgba(0,0,0,0.45);
+  z-index:221;
+  display:none;
+  flex-direction:column;
+  font-family:'Cinzel', serif;
+  user-select:none;
+  resize:both;
+  overflow:hidden;
+}
+#subhex-controls-window[style*="display: flex"],
+#subhex-controls-window[style*="display:flex"] { display:flex; }
+body.theme-dark #subhex-controls-window {
+  background:#2c2c2a;
+  color:#e8d8b0;
+  border-color:#7a6a40;
+}
+#subhex-controls-window::after {
+  content:"";
+  position:absolute;
+  right:2px;
+  bottom:2px;
+  width:14px;
+  height:14px;
+  pointer-events:none;
+  background:linear-gradient(135deg,
+    transparent 0%, transparent 40%,
+    #b09060 40%, #b09060 50%,
+    transparent 50%, transparent 65%,
+    #b09060 65%, #b09060 75%,
+    transparent 75%, transparent 90%,
+    #b09060 90%, #b09060 100%);
+  opacity:0.7;
+}
+#subhex-controls-window .sxw-ctrl-body {
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  overflow:auto;
+  min-height:0;
+}
+/* The detail panel was originally sized assuming the map's body width
+   (~540px). In the standalone controls window it has its own width and
+   should grow naturally — drop any width caps. */
+#subhex-controls-window .sxw-detail { flex:0 0 auto; }
+#subhex-controls-window .sxw-palette-strip { flex:0 0 auto; }
+#subhex-controls-window .sxw-tools { flex:0 0 auto; }
 
 /* ── Resize grip ──────────────────────────────────────────────────────── */
 /* The window itself has resize:both — browsers paint a native grip in the

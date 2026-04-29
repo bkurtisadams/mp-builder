@@ -1,4 +1,15 @@
-// gcc-subhex-view.js v2.1.0 — 2026-04-28
+// gcc-subhex-view.js v2.2.0 — 2026-04-28
+// v2.2.0: split into two independent windows. Map window holds the
+// SVG + zoom controls; controls window holds the detail panel,
+// palette strip, and tools row. Both are draggable and resizable
+// independently. Controls window auto-opens beside the map and
+// auto-closes with it. Position/size for both persist separately
+// in localStorage ('gcc-subhex-window-pos' for map, '-controls-pos'
+// for controls). Reset (↺) on either window clears that window's
+// persisted state. Sharing field IDs between windows is impossible,
+// so the controls window keeps the original IDs (sxw-name, sxw-notes,
+// etc.) and the map window has only its own (sxw-svg, sxw-coord-bar).
+// A new findEl(id) helper looks up fields in either window.
 // v2.1.0: parent-level paths (rivers, roads, tracks from gcc-paths.js)
 // surface as colored dots on boundary subhexes — blue for rivers,
 // brown for roads, tan for tracks. Each dot offsets ~50% toward the
@@ -65,6 +76,7 @@
 
   const state = {
     win: null,
+    ctrl: null,
     isOpen: false,
     parentCol: null,
     parentRow: null,
@@ -78,6 +90,8 @@
     armed: null,
     drag: null,
     dragOffset: { x: 0, y: 0 },
+    ctrlDrag: null,
+    ctrlDragOffset: { x: 0, y: 0 },
     brushing: false,
     brushedThisDrag: null,     // Set<string> of "Q_R" keys painted in current drag
     zoom: ZOOM_DEFAULT,
@@ -107,59 +121,6 @@
             <span class="sxw-zoom-pct" id="sxw-zoom-pct">100%</span>
           </div>
         </div>
-        <div class="sxw-detail">
-          <div class="sxw-row sxw-row-inline">
-            <label>Cell</label>
-            <span class="sxw-readonly" id="sxw-coord">— select a cell</span>
-            <span class="sxw-sep">·</span>
-            <span class="sxw-readonly" id="sxw-terrain">—</span>
-            <span class="sxw-sep" id="sxw-owner-sep" style="display:none;">·</span>
-            <span class="sxw-readonly sxw-owner-hint" id="sxw-owner" style="display:none;"></span>
-          </div>
-          <div class="sxw-row sxw-row-inline">
-            <label>Name</label>
-            <input type="text" id="sxw-name" placeholder="(unnamed)" disabled>
-          </div>
-          <div class="sxw-row sxw-row-inline">
-            <label>Notes</label>
-            <textarea id="sxw-notes" placeholder="GM notes" disabled></textarea>
-          </div>
-          <div class="sxw-row sxw-row-inline sxw-row-feature">
-            <label>Hosts</label>
-            <select id="sxw-feature-kind" disabled>
-              <option value="">— none —</option>
-            </select>
-            <input type="text" id="sxw-feature-name" placeholder="Feature name" disabled>
-            <input type="text" id="sxw-feature-libid" placeholder="Library ID" disabled>
-          </div>
-          <div class="sxw-row sxw-row-inline sxw-row-region">
-            <label>Region</label>
-            <select id="sxw-region-pick" disabled>
-              <option value="">— none —</option>
-            </select>
-            <input type="text" id="sxw-region-name" placeholder="Region name" disabled>
-          </div>
-          <div class="sxw-row sxw-row-inline sxw-row-paths">
-            <label>Paths</label>
-            <span class="sxw-readonly" id="sxw-paths-list">—</span>
-          </div>
-          <div class="sxw-source" id="sxw-source"></div>
-        </div>
-        <div class="sxw-palette-strip">
-          <div class="sxw-palette" id="sxw-palette"></div>
-          <div class="sxw-feature-palette" id="sxw-feature-palette"></div>
-        </div>
-        <div class="sxw-tools">
-          <button class="sxw-tool-btn" id="sxw-region-tool">Region…</button>
-          <select class="sxw-region-armed" id="sxw-region-armed" style="display:none;">
-            <option value="">— pick a region to assign —</option>
-            <option value="__new__">+ New region from selected cell's terrain…</option>
-          </select>
-          <button class="sxw-tool-btn" id="sxw-path-tool">Path…</button>
-          <select class="sxw-path-armed" id="sxw-path-armed" style="display:none;"></select>
-          <button class="sxw-tool-btn" id="sxw-clear">Clear override</button>
-          <span class="sxw-mode" id="sxw-mode">Mode: Select</span>
-        </div>
       </div>
     `;
     document.body.appendChild(w);
@@ -171,27 +132,12 @@
     w.querySelector('.sxw-close').addEventListener('click', close);
     w.querySelector('.sxw-reset-pos').addEventListener('click', resetWindowPos);
 
-    w.querySelector('#sxw-name').addEventListener('blur', persistFields);
-    w.querySelector('#sxw-notes').addEventListener('blur', persistFields);
-    w.querySelector('#sxw-feature-kind').addEventListener('change', persistFeature);
-    w.querySelector('#sxw-feature-name').addEventListener('blur', persistFeature);
-    w.querySelector('#sxw-feature-libid').addEventListener('blur', persistFeature);
-    w.querySelector('#sxw-region-pick').addEventListener('change', onRegionPickChange);
-    w.querySelector('#sxw-region-name').addEventListener('blur', onRegionRename);
-
-    w.querySelector('#sxw-clear').addEventListener('click', onClearOverride);
-
-    w.querySelector('#sxw-region-tool').addEventListener('click', onRegionToolClick);
-    w.querySelector('#sxw-region-armed').addEventListener('change', onRegionArmedChange);
-
-    w.querySelector('#sxw-path-tool').addEventListener('click', onPathToolClick);
-    w.querySelector('#sxw-path-armed').addEventListener('change', onPathArmedChange);
-
     w.querySelector('#sxw-zoom-in').addEventListener('click', () => zoomBy(ZOOM_STEP));
     w.querySelector('#sxw-zoom-out').addEventListener('click', () => zoomBy(1 / ZOOM_STEP));
     w.querySelector('#sxw-zoom-reset').addEventListener('click', () => setZoom(ZOOM_DEFAULT));
     w.querySelector('#sxw-svg-wrap').addEventListener('wheel', onSvgWheel, { passive: false });
 
+    ensureControlsWindow();
     buildPalette();
     buildFeaturePalette();
     buildFeatureKindSelect();
@@ -291,6 +237,244 @@
     state.win.style.top   = '160px';
     state.zoom = ZOOM_DEFAULT;
     applyZoom();
+    if (state.ctrl){
+      try { localStorage.removeItem('gcc-subhex-controls-pos'); } catch(e){}
+      state.ctrl.style.left = '';
+      state.ctrl.style.top  = '';
+      state.ctrl.style.width  = '';
+      state.ctrl.style.height = '';
+      positionControlsBesideMap();
+    }
+  }
+
+  // ── Controls window ─────────────────────────────────────────────────────
+  // Detail panel + palettes + tools live here. Independent dragging /
+  // resizing / position persistence. Auto-opened when the map opens
+  // and auto-closed when the map closes.
+  function ensureControlsWindow(){
+    if (state.ctrl) return state.ctrl;
+    const c = document.createElement('div');
+    c.id = 'subhex-controls-window';
+    c.innerHTML = `
+      <div class="sxw-header sxw-ctrl-header">
+        <span class="sxw-title">Controls</span>
+        <span class="sxw-coord-bar" id="sxw-ctrl-coord-bar"></span>
+        <span class="sxw-header-btns">
+          <button class="sxw-reset-pos" title="Reset controls window position">↺</button>
+        </span>
+      </div>
+      <div class="sxw-body sxw-ctrl-body">
+        <div class="sxw-detail">
+          <div class="sxw-row sxw-row-inline">
+            <label>Cell</label>
+            <span class="sxw-readonly" id="sxw-coord">— select a cell</span>
+            <span class="sxw-sep">·</span>
+            <span class="sxw-readonly" id="sxw-terrain">—</span>
+            <span class="sxw-sep" id="sxw-owner-sep" style="display:none;">·</span>
+            <span class="sxw-readonly sxw-owner-hint" id="sxw-owner" style="display:none;"></span>
+          </div>
+          <div class="sxw-row sxw-row-inline">
+            <label>Name</label>
+            <input type="text" id="sxw-name" placeholder="(unnamed)" disabled>
+          </div>
+          <div class="sxw-row sxw-row-inline">
+            <label>Notes</label>
+            <textarea id="sxw-notes" placeholder="GM notes" disabled></textarea>
+          </div>
+          <div class="sxw-row sxw-row-inline sxw-row-feature">
+            <label>Hosts</label>
+            <select id="sxw-feature-kind" disabled>
+              <option value="">— none —</option>
+            </select>
+            <input type="text" id="sxw-feature-name" placeholder="Feature name" disabled>
+            <input type="text" id="sxw-feature-libid" placeholder="Library ID" disabled>
+          </div>
+          <div class="sxw-row sxw-row-inline sxw-row-region">
+            <label>Region</label>
+            <select id="sxw-region-pick" disabled>
+              <option value="">— none —</option>
+            </select>
+            <input type="text" id="sxw-region-name" placeholder="Region name" disabled>
+          </div>
+          <div class="sxw-row sxw-row-inline sxw-row-paths">
+            <label>Paths</label>
+            <span class="sxw-readonly" id="sxw-paths-list">—</span>
+          </div>
+          <div class="sxw-source" id="sxw-source"></div>
+        </div>
+        <div class="sxw-palette-strip">
+          <div class="sxw-palette" id="sxw-palette"></div>
+          <div class="sxw-feature-palette" id="sxw-feature-palette"></div>
+        </div>
+        <div class="sxw-tools">
+          <button class="sxw-tool-btn" id="sxw-region-tool">Region…</button>
+          <select class="sxw-region-armed" id="sxw-region-armed" style="display:none;">
+            <option value="">— pick a region to assign —</option>
+            <option value="__new__">+ New region from selected cell's terrain…</option>
+          </select>
+          <button class="sxw-tool-btn" id="sxw-path-tool">Path…</button>
+          <select class="sxw-path-armed" id="sxw-path-armed" style="display:none;"></select>
+          <button class="sxw-tool-btn" id="sxw-clear">Clear override</button>
+          <span class="sxw-mode" id="sxw-mode">Mode: Select</span>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(c);
+    state.ctrl = c;
+
+    const head = c.querySelector('.sxw-ctrl-header');
+    head.addEventListener('mousedown', onCtrlDragStart);
+    head.addEventListener('touchstart', onCtrlDragStart, { passive: false });
+    c.querySelector('.sxw-reset-pos').addEventListener('click', resetCtrlPos);
+
+    c.querySelector('#sxw-name').addEventListener('blur', persistFields);
+    c.querySelector('#sxw-notes').addEventListener('blur', persistFields);
+    c.querySelector('#sxw-feature-kind').addEventListener('change', persistFeature);
+    c.querySelector('#sxw-feature-name').addEventListener('blur', persistFeature);
+    c.querySelector('#sxw-feature-libid').addEventListener('blur', persistFeature);
+    c.querySelector('#sxw-region-pick').addEventListener('change', onRegionPickChange);
+    c.querySelector('#sxw-region-name').addEventListener('blur', onRegionRename);
+    c.querySelector('#sxw-clear').addEventListener('click', onClearOverride);
+    c.querySelector('#sxw-region-tool').addEventListener('click', onRegionToolClick);
+    c.querySelector('#sxw-region-armed').addEventListener('change', onRegionArmedChange);
+    c.querySelector('#sxw-path-tool').addEventListener('click', onPathToolClick);
+    c.querySelector('#sxw-path-armed').addEventListener('change', onPathArmedChange);
+
+    try {
+      const pos = JSON.parse(localStorage.getItem('gcc-subhex-controls-pos') || 'null');
+      if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)){
+        c.style.left = pos.x + 'px';
+        c.style.top  = pos.y + 'px';
+      }
+      if (pos && Number.isFinite(pos.w) && pos.w >= 320){ c.style.width  = pos.w + 'px'; }
+      if (pos && Number.isFinite(pos.h) && pos.h >= 280){ c.style.height = pos.h + 'px'; }
+    } catch(e){}
+
+    if (typeof ResizeObserver !== 'undefined'){
+      let t = null;
+      const ro = new ResizeObserver(() => {
+        if (t) clearTimeout(t);
+        t = setTimeout(persistCtrlRect, 200);
+      });
+      ro.observe(c);
+    }
+
+    return c;
+  }
+
+  function persistCtrlRect(){
+    if (!state.ctrl) return;
+    try {
+      const rect = state.ctrl.getBoundingClientRect();
+      const next = {
+        x: rect.left, y: rect.top,
+        w: Math.round(rect.width), h: Math.round(rect.height),
+      };
+      localStorage.setItem('gcc-subhex-controls-pos', JSON.stringify(next));
+    } catch(e){}
+  }
+
+  function resetCtrlPos(){
+    if (!state.ctrl) return;
+    try { localStorage.removeItem('gcc-subhex-controls-pos'); } catch(e){}
+    state.ctrl.style.left = '';
+    state.ctrl.style.top  = '';
+    state.ctrl.style.width  = '';
+    state.ctrl.style.height = '';
+    positionControlsBesideMap();
+  }
+
+  // Auto-position the controls window beside the map. Prefer the right
+  // side; if there's not enough room, flip left; if neither fits, stack
+  // below. Only used when the user has no persisted position yet.
+  function positionControlsBesideMap(){
+    if (!state.win || !state.ctrl) return;
+    const hasPersisted = !!localStorage.getItem('gcc-subhex-controls-pos');
+    if (hasPersisted) return;
+    const map = state.win.getBoundingClientRect();
+    // Force the controls to be measurable.
+    const wasHidden = state.ctrl.style.display === 'none';
+    if (wasHidden) state.ctrl.style.display = 'flex';
+    const ctrl = state.ctrl.getBoundingClientRect();
+    const cw = ctrl.width || 420;
+    const ch = ctrl.height || 480;
+    const gap = 12;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let x = map.right + gap;
+    let y = map.top;
+    if (x + cw > vw - 10){
+      x = map.left - cw - gap;
+      if (x < 10){
+        // Stack below the map
+        x = map.left;
+        y = map.bottom + gap;
+        if (y + ch > vh - 10) y = Math.max(10, vh - ch - 10);
+      }
+    }
+    if (y + ch > vh - 10) y = Math.max(10, vh - ch - 10);
+    if (y < 10) y = 10;
+    state.ctrl.style.left = x + 'px';
+    state.ctrl.style.top  = y + 'px';
+    state.ctrl.style.right = 'auto';
+    if (wasHidden) state.ctrl.style.display = 'none';
+  }
+
+  function onCtrlDragStart(ev){
+    if (ev.target.closest('.sxw-reset-pos')) return;
+    ev.preventDefault();
+    const evt = (ev.touches && ev.touches[0]) ? ev.touches[0] : ev;
+    const rect = state.ctrl.getBoundingClientRect();
+    state.ctrlDrag = { startX: evt.clientX, startY: evt.clientY };
+    state.ctrlDragOffset = { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+    state.ctrl.style.right = 'auto';
+    state.ctrl.style.bottom = 'auto';
+    window.addEventListener('mousemove', onCtrlDragMove);
+    window.addEventListener('mouseup', onCtrlDragEnd);
+    window.addEventListener('touchmove', onCtrlDragMove, { passive: false });
+    window.addEventListener('touchend',  onCtrlDragEnd);
+  }
+  function onCtrlDragMove(ev){
+    if (!state.ctrlDrag) return;
+    if (ev.preventDefault) ev.preventDefault();
+    const evt = (ev.touches && ev.touches[0]) ? ev.touches[0] : ev;
+    const raw = {
+      x: evt.clientX - state.ctrlDragOffset.x,
+      y: evt.clientY - state.ctrlDragOffset.y,
+    };
+    const { x, y } = clampCtrlPos(raw.x, raw.y);
+    state.ctrl.style.left = x + 'px';
+    state.ctrl.style.top  = y + 'px';
+    state.ctrl.style.right = 'auto';
+  }
+  function onCtrlDragEnd(){
+    if (!state.ctrlDrag) return;
+    state.ctrlDrag = null;
+    window.removeEventListener('mousemove', onCtrlDragMove);
+    window.removeEventListener('mouseup', onCtrlDragEnd);
+    window.removeEventListener('touchmove', onCtrlDragMove);
+    window.removeEventListener('touchend',  onCtrlDragEnd);
+    persistCtrlRect();
+  }
+  function clampCtrlPos(x, y){
+    if (!state.ctrl) return { x, y };
+    const KEEPVIS_X = 80;
+    const HEADER_PAD = 4;
+    const rect = state.ctrl.getBoundingClientRect();
+    const w = rect.width || 420, h = rect.height || 480;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    if (x > vw - KEEPVIS_X) x = vw - KEEPVIS_X;
+    if (x < KEEPVIS_X - w)  x = KEEPVIS_X - w;
+    const HEADER_H = 32;
+    if (y < HEADER_PAD) y = HEADER_PAD;
+    if (y > vh - HEADER_H) y = vh - HEADER_H;
+    return { x, y };
+  }
+
+  // Find an element by id, looking in both windows. Most field IDs now
+  // live in the controls window; map-owned IDs (#sxw-svg, #sxw-svg-wrap,
+  // #sxw-zoom-pct, #sxw-coord-bar) still live in the map window.
+  function findEl(id){
+    return state.win?.querySelector('#' + id) || state.ctrl?.querySelector('#' + id) || null;
   }
 
   // ── Zoom ───────────────────────────────────────────────────────────────
@@ -346,7 +530,7 @@
   }
 
   function buildPalette(){
-    const pal = state.win.querySelector('#sxw-palette');
+    const pal = findEl('sxw-palette');
     if (!pal || typeof TERRAIN === 'undefined') return;
     pal.innerHTML = '';
     const order = [
@@ -375,7 +559,7 @@
   }
 
   function buildFeaturePalette(){
-    const pal = state.win.querySelector('#sxw-feature-palette');
+    const pal = findEl('sxw-feature-palette');
     if (!pal || !window.GCCSubhexIcons) return;
     pal.innerHTML = '';
     const NS = 'http://www.w3.org/2000/svg';
@@ -403,7 +587,7 @@
   }
 
   function buildFeatureKindSelect(){
-    const sel = state.win.querySelector('#sxw-feature-kind');
+    const sel = findEl('sxw-feature-kind');
     if (!sel || !window.GCCSubhexData) return;
     for (const kind of window.GCCSubhexData.FEATURE_KINDS){
       const opt = document.createElement('option');
@@ -425,9 +609,9 @@
     const nxt = armKey(next);
     state.armed = (cur === nxt) ? null : next;
     if (state.armed){
-      const sel = state.win?.querySelector('#sxw-region-armed');
+      const sel = findEl('sxw-region-armed');
       if (sel){ sel.style.display = 'none'; }
-      const psel = state.win?.querySelector('#sxw-path-armed');
+      const psel = findEl('sxw-path-armed');
       if (psel){ psel.style.display = 'none'; }
     }
     syncPaletteUI();
@@ -437,15 +621,15 @@
   function syncPaletteUI(){
     if (!state.win) return;
     const cur = armKey(state.armed);
-    state.win.querySelectorAll('.sxw-swatch, .sxw-feature-btn').forEach(b => {
+    state.ctrl.querySelectorAll('.sxw-swatch, .sxw-feature-btn').forEach(b => {
       b.classList.toggle('armed', b.dataset.armKey === cur);
     });
-    const regionTool = state.win.querySelector('#sxw-region-tool');
+    const regionTool = findEl('sxw-region-tool');
     if (regionTool){
       const isRegion = state.armed && (state.armed.type === 'region' || state.armed.type === 'region-erase');
       regionTool.classList.toggle('armed', !!isRegion);
     }
-    const pathTool = state.win.querySelector('#sxw-path-tool');
+    const pathTool = findEl('sxw-path-tool');
     if (pathTool){
       const isPath = state.armed && state.armed.type === 'path';
       pathTool.classList.toggle('armed', !!isPath);
@@ -453,7 +637,7 @@
   }
 
   function syncModeLabel(){
-    const el = state.win?.querySelector('#sxw-mode');
+    const el = findEl('sxw-mode');
     if (!el) return;
     const a = state.armed;
     if (!a){
@@ -501,6 +685,10 @@
     t.textContent = lm ? lm.name : 'Subhexes';
     const cb = state.win.querySelector('#sxw-coord-bar');
     if (cb) cb.textContent = state.parentId;
+    const ctrlTitle = state.ctrl?.querySelector('.sxw-title');
+    if (ctrlTitle) ctrlTitle.textContent = lm ? lm.name : 'Controls';
+    const ctrlCb = state.ctrl?.querySelector('#sxw-ctrl-coord-bar');
+    if (ctrlCb) ctrlCb.textContent = state.parentId;
 
     state.win.style.display = 'flex';
     const cur = state.win.getBoundingClientRect();
@@ -509,6 +697,17 @@
       state.win.style.left = x + 'px';
       state.win.style.top  = y + 'px';
       state.win.style.right = 'auto';
+    }
+    if (state.ctrl){
+      state.ctrl.style.display = 'flex';
+      positionControlsBesideMap();
+      const ctrlCur = state.ctrl.getBoundingClientRect();
+      const cClamp = clampCtrlPos(ctrlCur.left, ctrlCur.top);
+      if (cClamp.x !== ctrlCur.left || cClamp.y !== ctrlCur.top){
+        state.ctrl.style.left = cClamp.x + 'px';
+        state.ctrl.style.top  = cClamp.y + 'px';
+        state.ctrl.style.right = 'auto';
+      }
     }
     rebuildSVG();
     applyZoom();
@@ -520,6 +719,7 @@
   function close(){
     if (!state.win) return;
     state.win.style.display = 'none';
+    if (state.ctrl) state.ctrl.style.display = 'none';
     state.isOpen = false;
     state.parentCol = state.parentRow = null;
     state.parentQ = state.parentR = null;
@@ -530,9 +730,9 @@
       state.brushedThisDrag = null;
       window.removeEventListener('mouseup', onBrushEnd);
     }
-    const sel = state.win.querySelector('#sxw-region-armed');
+    const sel = findEl('sxw-region-armed');
     if (sel){ sel.style.display = 'none'; sel.value = ''; }
-    const psel = state.win.querySelector('#sxw-path-armed');
+    const psel = findEl('sxw-path-armed');
     if (psel){ psel.style.display = 'none'; psel.value = ''; }
   }
 
@@ -1024,22 +1224,23 @@
   }
 
   function syncDetailPanel(){
-    const w = state.win;
-    if (!w) return;
-    const coord  = w.querySelector('#sxw-coord');
-    const terr   = w.querySelector('#sxw-terrain');
-    const ownerSep = w.querySelector('#sxw-owner-sep');
-    const ownerEl  = w.querySelector('#sxw-owner');
-    const name   = w.querySelector('#sxw-name');
-    const notes  = w.querySelector('#sxw-notes');
-    const fkind  = w.querySelector('#sxw-feature-kind');
-    const fname  = w.querySelector('#sxw-feature-name');
-    const flib   = w.querySelector('#sxw-feature-libid');
-    const rpick  = w.querySelector('#sxw-region-pick');
-    const rname  = w.querySelector('#sxw-region-name');
-    const plist  = w.querySelector('#sxw-paths-list');
-    const source = w.querySelector('#sxw-source');
-    const clearB = w.querySelector('#sxw-clear');
+    if (!state.win && !state.ctrl) return;
+    const coord  = findEl('sxw-coord');
+    const terr   = findEl('sxw-terrain');
+    const ownerSep = findEl('sxw-owner-sep');
+    const ownerEl  = findEl('sxw-owner');
+    const name   = findEl('sxw-name');
+    const notes  = findEl('sxw-notes');
+    const fkind  = findEl('sxw-feature-kind');
+    const fname  = findEl('sxw-feature-name');
+    const flib   = findEl('sxw-feature-libid');
+    const rpick  = findEl('sxw-region-pick');
+    const rname  = findEl('sxw-region-name');
+    const plist  = findEl('sxw-paths-list');
+    const source = findEl('sxw-source');
+    const clearB = findEl('sxw-clear');
+    if (!coord || !terr || !name || !notes || !fkind || !fname || !flib
+        || !rpick || !rname || !source || !clearB) return;
 
     if (state.selectedQ === null){
       coord.textContent  = '— select a cell';
@@ -1189,14 +1390,14 @@
       syncModeLabel();
       return;
     }
-    const psel = state.win?.querySelector('#sxw-path-armed');
+    const psel = findEl('sxw-path-armed');
     if (psel) psel.style.display = 'none';
     rebuildRegionArmedPicker();
     showRegionArmedPicker(true);
   }
 
   function showRegionArmedPicker(visible, presetValue){
-    const sel = state.win?.querySelector('#sxw-region-armed');
+    const sel = findEl('sxw-region-armed');
     if (!sel) return;
     sel.style.display = visible ? '' : 'none';
     if (visible && presetValue !== undefined){
@@ -1208,7 +1409,7 @@
   }
 
   function rebuildRegionArmedPicker(){
-    const sel = state.win?.querySelector('#sxw-region-armed');
+    const sel = findEl('sxw-region-armed');
     if (!sel) return;
     const prev = sel.value;
     sel.innerHTML = '';
@@ -1286,14 +1487,14 @@
       syncModeLabel();
       return;
     }
-    const rsel = state.win?.querySelector('#sxw-region-armed');
+    const rsel = findEl('sxw-region-armed');
     if (rsel) rsel.style.display = 'none';
     rebuildPathArmedPicker();
     showPathArmedPicker(true);
   }
 
   function showPathArmedPicker(visible, presetValue){
-    const sel = state.win?.querySelector('#sxw-path-armed');
+    const sel = findEl('sxw-path-armed');
     if (!sel) return;
     sel.style.display = visible ? '' : 'none';
     if (visible && presetValue !== undefined){
@@ -1302,7 +1503,7 @@
   }
 
   function rebuildPathArmedPicker(){
-    const sel = state.win?.querySelector('#sxw-path-armed');
+    const sel = findEl('sxw-path-armed');
     if (!sel) return;
     const prev = sel.value;
     sel.innerHTML = '';
@@ -1390,9 +1591,11 @@
 
   function persistFields(){
     if (state.selectedQ === null) return;
-    const w = state.win;
-    const name  = w.querySelector('#sxw-name').value.trim();
-    const notes = w.querySelector('#sxw-notes').value;
+    const nameEl  = findEl('sxw-name');
+    const notesEl = findEl('sxw-notes');
+    if (!nameEl || !notesEl) return;
+    const name  = nameEl.value.trim();
+    const notes = notesEl.value;
     window.GCCSubhexData.setSubhexOverride(state.selectedQ, state.selectedR, { name, notes });
     applyCellPaint(state.selectedQ, state.selectedR);
     syncDetailPanel();
@@ -1400,13 +1603,16 @@
 
   function persistFeature(){
     if (state.selectedQ === null) return;
-    const w = state.win;
-    const kind = w.querySelector('#sxw-feature-kind').value;
+    const kindEl = findEl('sxw-feature-kind');
+    if (!kindEl) return;
+    const kind = kindEl.value;
     if (!kind){
       window.GCCSubhexData.clearSubhexFeature(state.selectedQ, state.selectedR);
     } else {
-      const fname = w.querySelector('#sxw-feature-name').value.trim();
-      const flib  = w.querySelector('#sxw-feature-libid').value.trim();
+      const fnameEl = findEl('sxw-feature-name');
+      const flibEl  = findEl('sxw-feature-libid');
+      const fname = fnameEl ? fnameEl.value.trim() : '';
+      const flib  = flibEl  ? flibEl.value.trim()  : '';
       window.GCCSubhexData.setSubhexFeature(state.selectedQ, state.selectedR, {
         kind,
         name: fname || undefined,
