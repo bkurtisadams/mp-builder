@@ -1,4 +1,12 @@
-/* gcc-subhex.css v1.6.1 — 2026-04-28
+/* gcc-subhex.css v1.7.0 — 2026-04-28
+   v1.7: contrast bump on the controls window — labels, mode line,
+   and source line now use a darker brown (#3a2a18 / dark-mode
+   #f4e8c4) for better legibility on the parchment background.
+   Disabled inputs no longer fade to 0.55 opacity (which made
+   labels hard to read); they keep full text opacity and convey
+   disabled-ness via a darker tint. Add .sxw-tool-btn-danger
+   variant (red border/text) and .sxw-path-help line for inline
+   path-tool affordance hints.
    v1.6.1: add .sxw-mode-flash class for transient mode-label
    feedback (red, bold) when a click is received but nothing
    happened (e.g. erasing a feature on a cell that has no feature).
@@ -365,13 +373,16 @@ body.theme-dark .sxw-detail { border-top-color:#7a6a40; }
   font-size:10px;
   letter-spacing:0.08em;
   text-transform:uppercase;
-  color:#5a4a30;
+  color:#3a2a18;
+  font-weight:500;
 }
-body.theme-dark .sxw-row label { color:#c8a96e; }
+body.theme-dark .sxw-row label { color:#e8d8b0; }
 .sxw-readonly {
   font-size:13px;
   padding:0;
+  color:#1a1a1a;
 }
+body.theme-dark .sxw-readonly { color:#e8d8b0; }
 .sxw-owner-hint {
   font-size:11px;
   font-style:italic;
@@ -382,18 +393,18 @@ body.theme-dark .sxw-row label { color:#c8a96e; }
   border-radius:3px;
 }
 body.theme-dark .sxw-owner-hint {
-  color:#e07070;
-  background:rgba(224, 112, 112, 0.10);
-  border-color:rgba(224, 112, 112, 0.30);
+  color:#f49090;
+  background:rgba(244, 144, 144, 0.10);
+  border-color:rgba(244, 144, 144, 0.40);
 }
-.sxw-sep { color:#b09060; font-size:11px; }
-body.theme-dark .sxw-sep { color:#7a6a40; }
+.sxw-sep { color:#7a5a30; font-size:11px; }
+body.theme-dark .sxw-sep { color:#a89060; }
 .sxw-row input[type=text],
 .sxw-row textarea,
 .sxw-row select {
   flex:1;
   background:#fbf2da;
-  border:1px solid #b09060;
+  border:1px solid #8b6a30;
   border-radius:3px;
   padding:2px 5px;
   font-family:inherit;
@@ -405,12 +416,27 @@ body.theme-dark .sxw-row input[type=text],
 body.theme-dark .sxw-row textarea,
 body.theme-dark .sxw-row select {
   background:#1a1a1a;
-  color:#e8d8b0;
-  border-color:#7a6a40;
+  color:#f4e8c4;
+  border-color:#a89060;
 }
+/* Disabled state: keep text legible. Lower the background so the
+   disabled-ness is conveyed by tint, not by faded text. */
 .sxw-row input[type=text]:disabled,
 .sxw-row textarea:disabled,
-.sxw-row select:disabled { opacity:0.55; cursor:not-allowed; }
+.sxw-row select:disabled {
+  opacity:1;
+  background:#e8d8b0;
+  color:#5a4a30;
+  cursor:not-allowed;
+  border-color:#b09060;
+}
+body.theme-dark .sxw-row input[type=text]:disabled,
+body.theme-dark .sxw-row textarea:disabled,
+body.theme-dark .sxw-row select:disabled {
+  background:#222220;
+  color:#a89060;
+  border-color:#5a4a30;
+}
 .sxw-row textarea { min-height:30px; resize:vertical; }
 .sxw-row-inline { align-items:center; }
 /* Hosts row: kind narrow, name wider, libid narrow */
@@ -428,11 +454,12 @@ body.theme-dark .sxw-row select {
 }
 .sxw-source {
   font-size:10px;
-  color:#7a6a40;
+  color:#3a2a18;
   font-style:italic;
   padding:1px 4px 0 54px;
+  opacity:0.85;
 }
-body.theme-dark .sxw-source { color:#c8a96e; }
+body.theme-dark .sxw-source { color:#e8d8b0; opacity:0.85; }
 
 /* ── Palette strip (terrain + features) ───────────────────────────────── */
 .sxw-palette-strip {
@@ -746,26 +773,53 @@ body.theme-dark .sxw-path-armed {
 body.theme-dark .sxw-tools { border-top-color:#7a6a40; }
 .sxw-tool-btn {
   background:transparent;
-  color:#5a4a30;
-  border:1px solid #b09060;
+  color:#1a1a1a;
+  border:1px solid #8b6a30;
   border-radius:3px;
   padding:2px 6px;
   font-family:inherit;
   font-size:11px;
   cursor:pointer;
+  font-weight:500;
 }
 .sxw-tool-btn:hover { background:#c8a96e; color:#1a1a1a; }
 .sxw-tool-btn:disabled { opacity:0.45; cursor:not-allowed; }
-body.theme-dark .sxw-tool-btn { color:#c8a96e; border-color:#7a6a40; }
+body.theme-dark .sxw-tool-btn { color:#f4e8c4; border-color:#a89060; }
 body.theme-dark .sxw-tool-btn:hover { background:#c8a96e; color:#1a1a1a; }
+.sxw-tool-btn-danger {
+  border-color:#8b0000;
+  color:#8b0000;
+}
+.sxw-tool-btn-danger:hover {
+  background:#8b0000;
+  color:#f4e8c4;
+}
+body.theme-dark .sxw-tool-btn-danger {
+  border-color:#e07070;
+  color:#e07070;
+}
+body.theme-dark .sxw-tool-btn-danger:hover {
+  background:#e07070;
+  color:#1a1a1a;
+}
+.sxw-path-help {
+  flex:1 0 100%;
+  font-size:10px;
+  color:#3a2a18;
+  font-style:italic;
+  padding:3px 4px 0;
+  margin-top:2px;
+  border-top:1px dashed #c8a96e;
+}
+body.theme-dark .sxw-path-help { color:#f4e8c4; border-top-color:#7a6a40; }
 .sxw-mode {
-  color:#5a4a30;
+  color:#3a2a18;
   font-style:italic;
   margin-left:auto;
   font-size:10px;
   transition:color 0.15s, font-weight 0.15s;
 }
-body.theme-dark .sxw-mode { color:#c8a96e; }
+body.theme-dark .sxw-mode { color:#f4e8c4; }
 .sxw-mode.sxw-mode-flash {
   color:#8b0000;
   font-weight:500;

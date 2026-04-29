@@ -1,4 +1,15 @@
-// gcc-subhex-view.js v2.4.1 — 2026-04-28
+// gcc-subhex-view.js v2.4.2 — 2026-04-28
+// v2.4.2: path editing made discoverable. Once a path is armed
+// (selected from the picker, click-to-author from a marker, or new
+// path created), four action buttons appear in the tools row:
+// ↶ Undo last (popCell), ✎ Rename, ⌫ Delete (in danger color),
+// ✓ Done (disarm). A help line under the row explains the click
+// behavior: extend by clicking neighbors, truncate by clicking
+// own cells. The previous "↶ Undo last" and "⌫ Delete a path…"
+// items in the dropdown are removed since they're now real
+// buttons. New helpers: syncPathActionButtons,
+// onPathUndoClick / onPathRenameClick / onPathDeleteClick /
+// onPathDoneClick.
 // v2.4.1: two small UX fixes for feature/path erase confusion.
 // 1) Feature-erase tool now flashes "No feature here" in the mode
 //    label when the clicked cell has no feature to clear. The cell's
@@ -351,8 +362,15 @@
           </select>
           <button class="sxw-tool-btn" id="sxw-path-tool">Path…</button>
           <select class="sxw-path-armed" id="sxw-path-armed" style="display:none;"></select>
+          <button class="sxw-tool-btn sxw-path-action" id="sxw-path-undo" style="display:none;" title="Remove the last cell of the armed path">↶ Undo last</button>
+          <button class="sxw-tool-btn sxw-path-action" id="sxw-path-rename" style="display:none;" title="Rename the armed path">✎ Rename</button>
+          <button class="sxw-tool-btn sxw-path-action sxw-tool-btn-danger" id="sxw-path-delete" style="display:none;" title="Delete the armed path">⌫ Delete</button>
+          <button class="sxw-tool-btn sxw-path-action" id="sxw-path-done" style="display:none;" title="Stop editing this path">✓ Done</button>
           <button class="sxw-tool-btn" id="sxw-clear">Clear override</button>
           <span class="sxw-mode" id="sxw-mode">Mode: Select</span>
+          <div class="sxw-path-help" id="sxw-path-help" style="display:none;">
+            Click a neighboring cell to extend · click a cell already on this path to truncate
+          </div>
         </div>
       </div>
     `;
@@ -376,6 +394,10 @@
     c.querySelector('#sxw-region-armed').addEventListener('change', onRegionArmedChange);
     c.querySelector('#sxw-path-tool').addEventListener('click', onPathToolClick);
     c.querySelector('#sxw-path-armed').addEventListener('change', onPathArmedChange);
+    c.querySelector('#sxw-path-undo').addEventListener('click', onPathUndoClick);
+    c.querySelector('#sxw-path-rename').addEventListener('click', onPathRenameClick);
+    c.querySelector('#sxw-path-delete').addEventListener('click', onPathDeleteClick);
+    c.querySelector('#sxw-path-done').addEventListener('click', onPathDoneClick);
 
     try {
       const pos = JSON.parse(localStorage.getItem('gcc-subhex-controls-pos') || 'null');
@@ -769,6 +791,7 @@
     syncDetailPanel();
     syncPaletteUI();
     syncModeLabel();
+    syncPathActionButtons();
   }
 
   function close(){
@@ -790,6 +813,7 @@
     if (sel){ sel.style.display = 'none'; sel.value = ''; }
     const psel = findEl('sxw-path-armed');
     if (psel){ psel.style.display = 'none'; psel.value = ''; }
+    syncPathActionButtons();
   }
 
   function isOpen(){ return state.isOpen; }
@@ -1115,6 +1139,7 @@
     syncDetailPanel();
     syncPaletteUI();
     syncModeLabel();
+    syncPathActionButtons();
   }
 
   // ── Crossings ──────────────────────────────────────────────────────────
@@ -1962,12 +1987,14 @@
       if (svg){ renderPaths(svg); renderParentPathMarkers(svg); renderCrossings(svg); }
       syncPaletteUI();
       syncModeLabel();
+      syncPathActionButtons();
       return;
     }
     const rsel = findEl('sxw-region-armed');
     if (rsel) rsel.style.display = 'none';
     rebuildPathArmedPicker();
     showPathArmedPicker(true);
+    syncPathActionButtons();
   }
 
   function showPathArmedPicker(visible, presetValue){
@@ -2001,14 +2028,6 @@
       opt.textContent = `+ New ${kind}…`;
       sel.appendChild(opt);
     }
-    const undoOpt = document.createElement('option');
-    undoOpt.value = '__pop__';
-    undoOpt.textContent = '↶ Undo last cell on armed path';
-    sel.appendChild(undoOpt);
-    const delOpt = document.createElement('option');
-    delOpt.value = '__delete__';
-    delOpt.textContent = '⌫ Delete a path…';
-    sel.appendChild(delOpt);
     if (prev) sel.value = prev;
   }
 
@@ -2024,38 +2043,6 @@
       ev.target.value = path.id;
       state.armed = { type: 'path', value: path.id };
       state.markerHighlight = null;
-    } else if (val === '__pop__'){
-      if (state.armed && state.armed.type === 'path'){
-        window.GCCSubhexPaths.popCell(state.armed.value);
-        rebuildPathArmedPicker();
-        ev.target.value = state.armed.value;
-        const svg = state.win?.querySelector('#sxw-svg');
-        if (svg){ renderPaths(svg); renderCrossings(svg); }
-      } else {
-        ev.target.value = '';
-      }
-    } else if (val === '__delete__'){
-      const paths = window.GCCSubhexPaths.listPaths();
-      if (!paths.length){ ev.target.value = ''; return; }
-      const names = paths.map((p, i) => `${i+1}. ${p.name} (${p.kind})`).join('\n');
-      const choice = (typeof prompt === 'function')
-        ? prompt(`Delete which path? Enter number 1–${paths.length}:\n\n${names}`)
-        : null;
-      const n = parseInt(choice, 10);
-      if (Number.isFinite(n) && n >= 1 && n <= paths.length){
-        const target = paths[n - 1];
-        window.GCCSubhexPaths.deletePath(target.id);
-        if (state.armed && state.armed.type === 'path' && state.armed.value === target.id){
-          state.armed = null;
-          state.markerHighlight = null;
-        }
-        rebuildPathArmedPicker();
-        ev.target.value = (state.armed && state.armed.type === 'path') ? state.armed.value : '';
-        const svg = state.win?.querySelector('#sxw-svg');
-        if (svg){ renderPaths(svg); renderCrossings(svg); }
-      } else {
-        ev.target.value = (state.armed && state.armed.type === 'path') ? state.armed.value : '';
-      }
     } else if (val){
       // Switched to a different path. Drop the marker highlight unless
       // the new path still corresponds to the highlighted segment.
@@ -2077,6 +2064,89 @@
     syncDetailPanel();
     syncPaletteUI();
     syncModeLabel();
+    syncPathActionButtons();
+  }
+
+  // Show or hide the explicit path action buttons (Undo / Rename /
+  // Delete / Done) based on whether a path is armed. The buttons live
+  // outside the dropdown so the GM can see them without scrolling
+  // through option items.
+  function syncPathActionButtons(){
+    const armed = state.armed && state.armed.type === 'path';
+    const ids = ['sxw-path-undo', 'sxw-path-rename', 'sxw-path-delete', 'sxw-path-done'];
+    for (const id of ids){
+      const el = findEl(id);
+      if (el) el.style.display = armed ? '' : 'none';
+    }
+    const help = findEl('sxw-path-help');
+    if (help) help.style.display = armed ? '' : 'none';
+  }
+
+  function onPathUndoClick(){
+    if (!state.armed || state.armed.type !== 'path') return;
+    const ok = window.GCCSubhexPaths.popCell(state.armed.value);
+    if (!ok){
+      flashMode('Path is empty — nothing to undo');
+      return;
+    }
+    rebuildPathArmedPicker();
+    const sel = findEl('sxw-path-armed');
+    if (sel) sel.value = state.armed.value;
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg){ renderPaths(svg); renderParentPathMarkers(svg); renderCrossings(svg); }
+    syncModeLabel();
+  }
+
+  function onPathRenameClick(){
+    if (!state.armed || state.armed.type !== 'path') return;
+    const path = window.GCCSubhexPaths.getPath(state.armed.value);
+    if (!path) return;
+    const name = (typeof prompt === 'function') ? prompt('Rename path:', path.name) : null;
+    if (!name) return;
+    window.GCCSubhexPaths.renamePath(state.armed.value, name);
+    rebuildPathArmedPicker();
+    const sel = findEl('sxw-path-armed');
+    if (sel) sel.value = state.armed.value;
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg){ renderPaths(svg); renderParentPathMarkers(svg); renderCrossings(svg); }
+    syncModeLabel();
+  }
+
+  function onPathDeleteClick(){
+    if (!state.armed || state.armed.type !== 'path') return;
+    const path = window.GCCSubhexPaths.getPath(state.armed.value);
+    if (!path) return;
+    const ok = (typeof confirm === 'function')
+      ? confirm(`Delete path "${path.name}" (${path.kind})? This cannot be undone.`)
+      : true;
+    if (!ok) return;
+    window.GCCSubhexPaths.deletePath(state.armed.value);
+    state.armed = null;
+    state.markerHighlight = null;
+    rebuildPathArmedPicker();
+    showPathArmedPicker(false);
+    const sel = findEl('sxw-path-armed');
+    if (sel) sel.value = '';
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg){ renderPaths(svg); renderParentPathMarkers(svg); renderCrossings(svg); }
+    syncDetailPanel();
+    syncPaletteUI();
+    syncModeLabel();
+    syncPathActionButtons();
+  }
+
+  function onPathDoneClick(){
+    if (!state.armed || state.armed.type !== 'path') return;
+    state.armed = null;
+    state.markerHighlight = null;
+    showPathArmedPicker(false);
+    const sel = findEl('sxw-path-armed');
+    if (sel) sel.value = '';
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg){ renderPaths(svg); renderParentPathMarkers(svg); renderCrossings(svg); }
+    syncPaletteUI();
+    syncModeLabel();
+    syncPathActionButtons();
   }
 
   function persistFields(){
