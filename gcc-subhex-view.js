@@ -1,4 +1,12 @@
-// gcc-subhex-view.js v2.4.2 — 2026-04-28
+// gcc-subhex-view.js v2.4.3 — 2026-04-28
+// v2.4.3: path controls promoted to their own labeled section. The
+// path picker, four action buttons (Undo / Rename / Delete / Done),
+// and help text now live in a #sxw-path-section block between the
+// palette strip and the tools row. Section header shows the armed
+// path's name + kind + cell count: "PATH · Selintan (river · 7
+// cells)". Section is hidden until Path tool is opened or a path is
+// armed via a marker click. Tools row is now back to its original
+// short shape: Region… / Path… / Clear override / Mode line.
 // v2.4.2: path editing made discoverable. Once a path is armed
 // (selected from the picker, click-to-author from a marker, or new
 // path created), four action buttons appear in the tools row:
@@ -354,6 +362,19 @@
           <div class="sxw-palette" id="sxw-palette"></div>
           <div class="sxw-feature-palette" id="sxw-feature-palette"></div>
         </div>
+        <div class="sxw-path-section" id="sxw-path-section" style="display:none;">
+          <div class="sxw-section-head" id="sxw-path-section-head">PATH</div>
+          <select class="sxw-path-armed sxw-path-armed-block" id="sxw-path-armed"></select>
+          <div class="sxw-path-actions">
+            <button class="sxw-tool-btn sxw-path-action" id="sxw-path-undo" title="Remove the last cell of the armed path">↶ Undo</button>
+            <button class="sxw-tool-btn sxw-path-action" id="sxw-path-rename" title="Rename the armed path">✎ Rename</button>
+            <button class="sxw-tool-btn sxw-path-action sxw-tool-btn-danger" id="sxw-path-delete" title="Delete the armed path">⌫ Delete</button>
+            <button class="sxw-tool-btn sxw-path-action sxw-tool-btn-armed" id="sxw-path-done" title="Stop editing this path">✓ Done</button>
+          </div>
+          <div class="sxw-path-help" id="sxw-path-help">
+            Click a neighboring cell to extend · click a cell already on this path to remove it (and everything after)
+          </div>
+        </div>
         <div class="sxw-tools">
           <button class="sxw-tool-btn" id="sxw-region-tool">Region…</button>
           <select class="sxw-region-armed" id="sxw-region-armed" style="display:none;">
@@ -361,16 +382,8 @@
             <option value="__new__">+ New region from selected cell's terrain…</option>
           </select>
           <button class="sxw-tool-btn" id="sxw-path-tool">Path…</button>
-          <select class="sxw-path-armed" id="sxw-path-armed" style="display:none;"></select>
-          <button class="sxw-tool-btn sxw-path-action" id="sxw-path-undo" style="display:none;" title="Remove the last cell of the armed path">↶ Undo last</button>
-          <button class="sxw-tool-btn sxw-path-action" id="sxw-path-rename" style="display:none;" title="Rename the armed path">✎ Rename</button>
-          <button class="sxw-tool-btn sxw-path-action sxw-tool-btn-danger" id="sxw-path-delete" style="display:none;" title="Delete the armed path">⌫ Delete</button>
-          <button class="sxw-tool-btn sxw-path-action" id="sxw-path-done" style="display:none;" title="Stop editing this path">✓ Done</button>
           <button class="sxw-tool-btn" id="sxw-clear">Clear override</button>
           <span class="sxw-mode" id="sxw-mode">Mode: Select</span>
-          <div class="sxw-path-help" id="sxw-path-help" style="display:none;">
-            Click a neighboring cell to extend · click a cell already on this path to truncate
-          </div>
         </div>
       </div>
     `;
@@ -1997,13 +2010,22 @@
     syncPathActionButtons();
   }
 
+  // Show or hide the entire path section (picker + action buttons +
+  // help line). The picker stays visible whenever the Path tool is
+  // open (so the GM can pick or create a path), but the action
+  // buttons + help only appear once a path is actually armed.
+  function showPathSection(visible){
+    const sec = findEl('sxw-path-section');
+    if (sec) sec.style.display = visible ? '' : 'none';
+  }
+
   function showPathArmedPicker(visible, presetValue){
+    showPathSection(visible);
     const sel = findEl('sxw-path-armed');
-    if (!sel) return;
-    sel.style.display = visible ? '' : 'none';
-    if (visible && presetValue !== undefined){
+    if (sel && visible && presetValue !== undefined){
       sel.value = presetValue;
     }
+    syncPathActionButtons();
   }
 
   function rebuildPathArmedPicker(){
@@ -2067,19 +2089,36 @@
     syncPathActionButtons();
   }
 
-  // Show or hide the explicit path action buttons (Undo / Rename /
-  // Delete / Done) based on whether a path is armed. The buttons live
-  // outside the dropdown so the GM can see them without scrolling
-  // through option items.
+  // Show or hide the action buttons + help line based on whether a
+  // path is currently armed. The picker itself stays visible while the
+  // section is shown — only the actions hide when nothing is armed.
+  // Also updates the section header to show the armed path's name.
   function syncPathActionButtons(){
     const armed = state.armed && state.armed.type === 'path';
-    const ids = ['sxw-path-undo', 'sxw-path-rename', 'sxw-path-delete', 'sxw-path-done'];
-    for (const id of ids){
+    const actionIds = ['sxw-path-undo', 'sxw-path-rename', 'sxw-path-delete', 'sxw-path-done'];
+    for (const id of actionIds){
       const el = findEl(id);
       if (el) el.style.display = armed ? '' : 'none';
     }
     const help = findEl('sxw-path-help');
     if (help) help.style.display = armed ? '' : 'none';
+    const head = findEl('sxw-path-section-head');
+    if (head){
+      if (armed){
+        const path = window.GCCSubhexPaths?.getPath(state.armed.value);
+        if (path){
+          head.innerHTML = `PATH · ${escapeHtml(path.name)} <span class="sxw-section-meta">(${path.kind} · ${path.cells.length} cell${path.cells.length === 1 ? '' : 's'})</span>`;
+        } else {
+          head.textContent = 'PATH';
+        }
+      } else {
+        head.textContent = 'PATH';
+      }
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"]/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[ch]));
   }
 
   function onPathUndoClick(){

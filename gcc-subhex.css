@@ -1,4 +1,14 @@
-/* gcc-subhex.css v1.7.0 — 2026-04-28
+/* gcc-subhex.css v1.8.0 — 2026-04-28
+   v1.8: path controls move to their own labeled section block
+   (.sxw-path-section). Section header (.sxw-section-head) and
+   meta sub-label (.sxw-section-meta) styled to match other
+   labeled groups. Action buttons in a 4-col grid
+   (.sxw-path-actions). Help text gets a tinted callout with left
+   accent stripe instead of the previous dashed top border.
+   Placeholder text and select <option> text now have explicit
+   colors with full opacity so empty/disabled inputs don't read
+   as ghosted. New .sxw-tool-btn-armed variant (gold bg, dark
+   text, dark border) for the Done button.
    v1.7: contrast bump on the controls window — labels, mode line,
    and source line now use a darker brown (#3a2a18 / dark-mode
    #f4e8c4) for better legibility on the parchment background.
@@ -439,6 +449,47 @@ body.theme-dark .sxw-row select:disabled {
 }
 .sxw-row textarea { min-height:30px; resize:vertical; }
 .sxw-row-inline { align-items:center; }
+
+/* Placeholder text (empty inputs/textareas). Browser default fades to
+   ~50% opacity which makes the panel read as washed out even when the
+   field is enabled. Set explicit colors with strong contrast. */
+.sxw-row input[type=text]::placeholder,
+.sxw-row textarea::placeholder {
+  color:#7a5a30;
+  opacity:1;
+}
+body.theme-dark .sxw-row input[type=text]::placeholder,
+body.theme-dark .sxw-row textarea::placeholder {
+  color:#a89060;
+  opacity:1;
+}
+/* Disabled placeholder — slightly muted so the disabled state still
+   reads, but stays legible. */
+.sxw-row input[type=text]:disabled::placeholder,
+.sxw-row textarea:disabled::placeholder {
+  color:#8b6a30;
+  opacity:1;
+}
+body.theme-dark .sxw-row input[type=text]:disabled::placeholder,
+body.theme-dark .sxw-row textarea:disabled::placeholder {
+  color:#7a6a40;
+  opacity:1;
+}
+/* Select <option> inside the controls window. Browsers render
+   disabled-state option text very pale; force the same dark-text
+   treatment so "— none —" is readable. */
+.sxw-row select option,
+.sxw-region-armed option,
+.sxw-path-armed option {
+  color:#1a1a1a;
+  background:#fbf2da;
+}
+body.theme-dark .sxw-row select option,
+body.theme-dark .sxw-region-armed option,
+body.theme-dark .sxw-path-armed option {
+  color:#f4e8c4;
+  background:#1a1a1a;
+}
 /* Hosts row: kind narrow, name wider, libid narrow */
 .sxw-row-feature select { flex:0 0 88px; }
 .sxw-row-feature input[type=text]:nth-of-type(1) { flex:1.5; }
@@ -802,16 +853,83 @@ body.theme-dark .sxw-tool-btn-danger:hover {
   background:#e07070;
   color:#1a1a1a;
 }
-.sxw-path-help {
-  flex:1 0 100%;
+.sxw-tool-btn-armed {
+  background:#c8a96e;
+  color:#1a1a1a;
+  border-color:#5a4a30;
+}
+.sxw-tool-btn-armed:hover {
+  background:#b09060;
+  color:#1a1a1a;
+}
+body.theme-dark .sxw-tool-btn-armed {
+  background:#c8a96e;
+  color:#1a1a1a;
+  border-color:#5a4a30;
+}
+
+/* ── Path section (controls window) ───────────────────────────────────── */
+/* Dedicated block for path picker + action buttons + help text.
+   Sits between the palette strip and the tools row. Hidden until the
+   GM clicks the Path… button or arms a path via a marker click. */
+.sxw-path-section {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:6px 0 4px;
+  border-top:1px solid #b09060;
+  margin-top:4px;
+}
+body.theme-dark .sxw-path-section { border-top-color:#7a6a40; }
+.sxw-section-head {
   font-size:10px;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:#3a2a18;
+  font-weight:500;
+  padding-bottom:3px;
+  border-bottom:1px solid #c8a96e;
+}
+body.theme-dark .sxw-section-head { color:#f4e8c4; border-bottom-color:#7a6a40; }
+.sxw-section-meta {
+  text-transform:none;
+  letter-spacing:0;
+  font-weight:400;
+  font-size:11px;
+  color:#5a4a30;
+}
+body.theme-dark .sxw-section-meta { color:#c8a96e; }
+.sxw-path-armed-block {
+  width:100%;
+  max-width:none;
+  font-size:12px;
+  padding:3px 6px;
+}
+.sxw-path-actions {
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:5px;
+}
+.sxw-path-actions .sxw-tool-btn {
+  width:100%;
+  padding:4px 6px;
+  font-size:11px;
+}
+.sxw-path-help {
+  font-size:11px;
   color:#3a2a18;
   font-style:italic;
-  padding:3px 4px 0;
-  margin-top:2px;
-  border-top:1px dashed #c8a96e;
+  padding:5px 8px;
+  background:rgba(200, 169, 110, 0.18);
+  border-left:3px solid #8b6a30;
+  border-radius:0 3px 3px 0;
+  line-height:1.4;
 }
-body.theme-dark .sxw-path-help { color:#f4e8c4; border-top-color:#7a6a40; }
+body.theme-dark .sxw-path-help {
+  color:#f4e8c4;
+  background:rgba(168, 144, 96, 0.18);
+  border-left-color:#a89060;
+}
 .sxw-mode {
   color:#3a2a18;
   font-style:italic;
