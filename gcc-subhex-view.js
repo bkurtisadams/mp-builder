@@ -1,4 +1,12 @@
-// gcc-subhex-view.js v2.4.3 — 2026-04-28
+// gcc-subhex-view.js v2.4.4 — 2026-04-29
+// v2.4.4: path-append rejection no longer fails silently. When a
+// click on a cell while a path is armed couldn't extend the path
+// (the cell isn't axially adjacent to the path's last cell), the
+// mode label flashes "Not adjacent to path's last cell (QX, RY)"
+// so the GM knows their click was received and why it didn't
+// produce a stamp. Also includes the last cell's coordinates in
+// the flash so they can compare against where they're trying to
+// click.
 // v2.4.3: path controls promoted to their own labeled section. The
 // path picker, four action buttons (Undo / Rename / Delete / Done),
 // and help text now live in a #sxw-path-section block between the
@@ -1660,7 +1668,23 @@
         return;
       }
       const ok = window.GCCSubhexPaths.appendCell(a.value, Q, R);
-      if (ok){
+      if (!ok){
+        // appendCell rejected. The two reasons it returns false at this
+        // point: (1) the click was on the last cell of the path — but
+        // we've already handled that via the truncate branch above, so
+        // we won't reach here for that case. (2) the click was on a
+        // cell that's not axially adjacent to the path's last cell.
+        // The latter is the silent-failure case we want to surface.
+        const armedPath = window.GCCSubhexPaths.getPath(a.value);
+        if (armedPath && armedPath.cells.length){
+          const last = armedPath.cells[armedPath.cells.length - 1];
+          flashMode(`Not adjacent to path's last cell (Q${last.Q}, R${last.R})`);
+        } else {
+          flashMode('Could not extend path');
+        }
+        return;
+      }
+      {
         const svg = state.win?.querySelector('#sxw-svg');
         // If we're authoring toward a parent-path-marker destination,
         // check whether the newly-appended cell reached the
