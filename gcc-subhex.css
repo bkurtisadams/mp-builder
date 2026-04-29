@@ -1,4 +1,9 @@
-/* gcc-subhex.css v1.1.0 — 2026-04-28
+/* gcc-subhex.css v1.2.0 — 2026-04-28
+   v1.2 adds fragment-cell styling (faded fill, dashed stroke, still
+   clickable) and the "Owned by …" hint badge in the detail panel.
+   Fragments are subhexes whose centers fall in neighbor parents but
+   whose hex polygons overlap this parent — they render clipped to
+   the parent silhouette.
    v1.1 adds independent zoom on the SVG via a scrollable wrap with
    overlay zoom controls (+/-/⟲). Detail panel, palettes, and tools
    row stay at fixed sizes — only the map zooms.
@@ -218,6 +223,40 @@ body.theme-dark .sxw-parent-outline { stroke:#c8a96e; stroke-opacity:0.5; }
   stroke-opacity:1;
   filter:drop-shadow(0 0 3px #c8a96e);
 }
+/* Fragment cells: subhexes owned by a neighbor parent that visually
+   spill into this parent's silhouette. Render faded with a dashed
+   outline so they read as "not yours, but click-through." */
+.sxw-cell.fragment {
+  fill-opacity:0.55;
+  stroke:#5a4a30;
+  stroke-width:0.5;
+  stroke-opacity:0.7;
+  stroke-dasharray:2 2;
+}
+.sxw-cell.fragment:hover {
+  stroke:#1a1a1a;
+  stroke-width:2;
+  stroke-opacity:1;
+  stroke-dasharray:none;
+  fill-opacity:0.75;
+}
+.sxw-cell.fragment.authored {
+  stroke:#8b0000;
+  stroke-width:1.0;
+  stroke-opacity:1;
+  stroke-dasharray:2 2;
+}
+.sxw-cell.fragment.selected {
+  stroke:#c8a96e;
+  stroke-width:4;
+  stroke-opacity:1;
+  stroke-dasharray:none;
+  fill-opacity:0.85;
+  filter:drop-shadow(0 0 3px #c8a96e);
+}
+.sxw-fragment-layer { pointer-events:auto; }
+body.theme-dark .sxw-cell.fragment { stroke:#c8a96e; stroke-opacity:0.55; }
+body.theme-dark .sxw-cell.fragment:hover { stroke:#f4e8c4; }
 body.theme-dark .sxw-cell:hover { stroke:#f4e8c4; }
 .sxw-cell-group { cursor:pointer; }
 .sxw-icon { pointer-events:none; }
@@ -251,6 +290,20 @@ body.theme-dark .sxw-row label { color:#c8a96e; }
 .sxw-readonly {
   font-size:13px;
   padding:0;
+}
+.sxw-owner-hint {
+  font-size:11px;
+  font-style:italic;
+  color:#8b0000;
+  padding:1px 5px;
+  background:rgba(139, 0, 0, 0.08);
+  border:1px solid rgba(139, 0, 0, 0.25);
+  border-radius:3px;
+}
+body.theme-dark .sxw-owner-hint {
+  color:#e07070;
+  background:rgba(224, 112, 112, 0.10);
+  border-color:rgba(224, 112, 112, 0.30);
 }
 .sxw-sep { color:#b09060; font-size:11px; }
 body.theme-dark .sxw-sep { color:#7a6a40; }
