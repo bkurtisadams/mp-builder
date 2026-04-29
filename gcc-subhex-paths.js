@@ -1,4 +1,8 @@
-// gcc-subhex-paths.js v1.0.0 — 2026-04-28
+// gcc-subhex-paths.js v1.1.0 — 2026-04-28
+// v1.1.0: add truncateBefore(localId, Q, R) — keep cells up to but
+// not including the matched cell, drop the rest. Used by the view's
+// per-cell remove flow: clicking an armed path's cell during Path
+// tool authoring removes that cell (and everything after it).
 // Subhex path data layer, global-coordinate model. A path is an ordered
 // chain of subhex cells (each adjacent to the previous via axial neighbor
 // distance 1). Paths are now global — a single path can cross parent
@@ -162,6 +166,23 @@
     return true;
   }
 
+  // Truncate the path at the first cell matching (Q, R): keep all cells
+  // before it, drop that cell and everything after. If the matched
+  // cell is the first cell, the path becomes empty (callers may then
+  // choose to delete it). Used by the view's per-cell remove flow:
+  // clicking an armed path's cell while the Path tool is active treats
+  // the click as "I want the path to stop before here."
+  function truncateBefore(localId, Q, R){
+    const p = getPath(localId);
+    if (!p || !p.cells.length) return false;
+    const idx = p.cells.findIndex(c => c.Q === Q && c.R === R);
+    if (idx < 0) return false;
+    p.cells.splice(idx);
+    p.authoredAt = Date.now();
+    save();
+    return true;
+  }
+
   // Find every path that includes (Q, R).
   function pathsAtCell(Q, R){
     const out = [];
@@ -236,7 +257,7 @@
   window.GCCSubhexPaths = {
     PATH_KINDS, SCHEMA_VERSION,
     listPaths, pathsInParent, getPath, createPath, renamePath, deletePath,
-    appendCell, popCell, pathsAtCell, isNeighbor,
+    appendCell, popCell, truncateBefore, pathsAtCell, isNeighbor,
     exportPaths, importPaths,
   };
 })();

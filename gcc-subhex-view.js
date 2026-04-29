@@ -1,4 +1,13 @@
-// gcc-subhex-view.js v2.4.0 — 2026-04-28
+// gcc-subhex-view.js v2.4.1 — 2026-04-28
+// v2.4.1: two small UX fixes for feature/path erase confusion.
+// 1) Feature-erase tool now flashes "No feature here" in the mode
+//    label when the clicked cell has no feature to clear. The cell's
+//    path stamp is easily mistaken for a feature glyph; the feedback
+//    confirms the click was received but there was nothing to erase.
+// 2) Clicking a cell that's already on the armed path now truncates
+//    the path before that cell instead of trying (and silently
+//    failing) to append. This is the natural inverse of authoring:
+//    re-click a cell to remove it (and everything after it).
 // v2.4.0: auto-detected path crossings. Any owned subhex that sits
 // on 2+ subhex paths gets a small "×" badge in its upper-right
 // corner. Clicking the badge pops a kind picker — Bridge / Ford /
@@ -122,6 +131,7 @@
     // Cleared when the path tool is disarmed or a different segment
     // is started.
     markerHighlight: null,     // null | { segIndex, edge }
+    _flashTimer: null,         // mode-label flash dismiss timer id
   };
 
   // ── Build window DOM ───────────────────────────────────────────────────
@@ -685,11 +695,28 @@
       const path = window.GCCSubhexPaths?.getPath(a.value);
       const pname = path ? path.name : '(unknown)';
       const len = path ? path.cells.length : 0;
-      el.textContent = `Mode: Extend path · ${pname} · ${len} cell${len===1?'':'s'} · click neighbor to extend`;
+      el.textContent = `Mode: Extend path · ${pname} · ${len} cell${len===1?'':'s'} · click neighbor to extend, click own cell to truncate`;
     } else {
       const lbl = TERRAIN[a.value]?.label || a.value;
       el.textContent = `Mode: Paint · ${lbl} · drag to brush`;
     }
+  }
+
+  // Show a transient message in the mode label, then restore the
+  // armed-state label after a short delay. Used to give feedback when
+  // a click was received but no work was done (e.g. feature-erase on
+  // a cell that has no feature).
+  function flashMode(msg){
+    const el = findEl('sxw-mode');
+    if (!el) return;
+    if (state._flashTimer) clearTimeout(state._flashTimer);
+    el.textContent = `Mode: ${msg}`;
+    el.classList.add('sxw-mode-flash');
+    state._flashTimer = setTimeout(() => {
+      el.classList.remove('sxw-mode-flash');
+      syncModeLabel();
+      state._flashTimer = null;
+    }, 1600);
   }
 
   // ── Open / close ───────────────────────────────────────────────────────
@@ -1555,7 +1582,16 @@
       const next = (prior && prior.kind === a.value) ? prior : { kind: a.value };
       window.GCCSubhexData.setSubhexFeature(Q, R, next);
     } else if (a.type === 'feature-erase'){
+      const existing = window.GCCSubhexData.getSubhex(Q, R, pTerrain);
+      const hadFeature = existing && existing.feature && existing.feature.kind;
       window.GCCSubhexData.clearSubhexFeature(Q, R);
+      if (!hadFeature){
+        // The cell had no feature — most likely the user mistook a
+        // path stamp for a feature. Briefly flash the mode label so
+        // they know the click was received and there was nothing to
+        // erase.
+        flashMode('No feature here — paths use the Path tool');
+      }
     } else if (a.type === 'region'){
       window.GCCSubhexData.assignCellToRegion(Q, R, a.value, pTerrain);
       const svg = state.win?.querySelector('#sxw-svg');
@@ -1566,6 +1602,25 @@
       if (svg) renderRegionLabels(svg);
     } else if (a.type === 'path'){
       if (state.brushing) return;
+      // If the clicked cell is already part of the armed path, treat
+      // the click as "remove this cell and everything after it." This
+      // is the natural inverse of append — re-clicking a cell you
+      // previously laid down erases it. If the cell is NOT already on
+      // the path, append normally.
+      const armedPath = window.GCCSubhexPaths.getPath(a.value);
+      const onArmed = armedPath && armedPath.cells.some(c => c.Q === Q && c.R === R);
+      if (onArmed){
+        window.GCCSubhexPaths.truncateBefore(a.value, Q, R);
+        const svg = state.win?.querySelector('#sxw-svg');
+        if (svg){ renderPaths(svg); renderParentPathMarkers(svg); renderCrossings(svg); }
+        rebuildPathArmedPicker();
+        const psel = findEl('sxw-path-armed');
+        if (psel) psel.value = a.value;
+        syncModeLabel();
+        applyCellPaint(Q, R);
+        if (Q === state.selectedQ && R === state.selectedR) syncDetailPanel();
+        return;
+      }
       const ok = window.GCCSubhexPaths.appendCell(a.value, Q, R);
       if (ok){
         const svg = state.win?.querySelector('#sxw-svg');

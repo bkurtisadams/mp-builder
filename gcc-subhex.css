@@ -1,4 +1,7 @@
-/* gcc-subhex.css v1.6.0 — 2026-04-28
+/* gcc-subhex.css v1.6.1 — 2026-04-28
+   v1.6.1: add .sxw-mode-flash class for transient mode-label
+   feedback (red, bold) when a click is received but nothing
+   happened (e.g. erasing a feature on a cell that has no feature).
    v1.6 adds crossing badge + popup menu. Owned subhexes on 2+ paths
    get a small × badge in their upper-right corner; clicking pops a
    kind picker (Bridge / Ford / Ferry / Crossroads / Dismiss) styled
@@ -760,5 +763,12 @@ body.theme-dark .sxw-tool-btn:hover { background:#c8a96e; color:#1a1a1a; }
   font-style:italic;
   margin-left:auto;
   font-size:10px;
+  transition:color 0.15s, font-weight 0.15s;
 }
 body.theme-dark .sxw-mode { color:#c8a96e; }
+.sxw-mode.sxw-mode-flash {
+  color:#8b0000;
+  font-weight:500;
+  font-style:normal;
+}
+body.theme-dark .sxw-mode.sxw-mode-flash { color:#e07070; }
