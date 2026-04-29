@@ -2565,28 +2565,37 @@ function updateSidePanel(col,row,terrain,region,dist){
     const isWater = String(terrain).startsWith('water');
     const mode = state.travelProfile?.mode;
     const canEnterWater = (mode === 'flying' || mode === 'ship');
+    // Move Here: hides on party's own hex (no-op move), water without
+    // a water-capable mode, and during an active journey.
     if (!jActive && !isPartyHex && (!isWater || canEnterWater)){
       moveBtn.style.display = '';
       moveBtn.dataset.col = String(col);
       moveBtn.dataset.row = String(row);
       moveBtn.dataset.terrain = terrain;
       moveBtn.dataset.dist = String(dist);
-      if (planBtn){
-        planBtn.style.display = '';
-        planBtn.dataset.col = String(col);
-        planBtn.dataset.row = String(row);
-      }
     } else {
       moveBtn.style.display = 'none';
       delete moveBtn.dataset.col;
       delete moveBtn.dataset.row;
       delete moveBtn.dataset.terrain;
       delete moveBtn.dataset.dist;
-      if (planBtn){
-        planBtn.style.display = 'none';
-        delete planBtn.dataset.col;
-        delete planBtn.dataset.row;
-      }
+    }
+  }
+  // Plan Journey: shown on any hex the user could plan toward,
+  // including the party's own hex. Clicking opens the planner with
+  // this hex as the initial destination — if it's the party hex the
+  // initial route has zero distance, and the GM clicks elsewhere on
+  // the map to set a real destination. Only suppressed during an
+  // active journey to prevent clobbering executing-journey state.
+  if (planBtn){
+    if (!jActive){
+      planBtn.style.display = '';
+      planBtn.dataset.col = String(col);
+      planBtn.dataset.row = String(row);
+    } else {
+      planBtn.style.display = 'none';
+      delete planBtn.dataset.col;
+      delete planBtn.dataset.row;
     }
   }
   const sp=document.getElementById('side-panel');
