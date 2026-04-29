@@ -1,4 +1,12 @@
-// gcc-subhex-view.js v2.4.5 — 2026-04-29
+// gcc-subhex-view.js v2.4.6 — 2026-04-29
+// v2.4.6: workflow improvement for authoring across multiple parents.
+// The editor now auto-switches when the GM clicks a different parent
+// on the main map (provided the editor is already open). New
+// currentParent() export lets the main map check whether a click
+// would actually be a switch (vs. clicking the already-open parent
+// pointlessly). Hookup is in greyhawk-map.html's onHexClick handler;
+// it skips the auto-switch in journey-planning and move modes so
+// those workflows aren't disrupted.
 // v2.4.5: bug fix for the path picker not appearing when the GM
 // clicks the Path tool. The path section was being shown correctly
 // (display:flex), but the picker dropdown inside the section had a
@@ -846,6 +854,10 @@
   }
 
   function isOpen(){ return state.isOpen; }
+  function currentParent(){
+    if (!state.isOpen) return null;
+    return { col: state.parentCol, row: state.parentRow };
+  }
 
   // ── Geometry: axial (Q, R) → viewport (x, y) ──────────────────────────
   // Map a global axial cell to viewport coords for the current parent
@@ -2329,5 +2341,5 @@
   }
 
   // ── Public API ─────────────────────────────────────────────────────────
-  window.GCCSubhexView = { open, close, isOpen };
+  window.GCCSubhexView = { open, close, isOpen, currentParent };
 })();

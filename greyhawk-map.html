@@ -2471,6 +2471,24 @@ function onHexClick(col,row){
   if (state.journey && state.journey.status === 'planning'){
     if (state.journey.planMode === 'manual') extendJourneyTrace(col, row);
     else                                      moveJourneyDestination(col, row);
+    return;
+  }
+  // If the subhex editor is already open, switching parents on the
+  // main map auto-switches the editor too. Skips when we're in a
+  // journey plan (handled above) or move mode (handled above by the
+  // showMoveDialog call) so those workflows aren't disrupted. Also
+  // skips if the clicked parent is already the open one — that would
+  // reset armed state and selection unnecessarily. The editor's
+  // open() handles state cleanup (clears armed, selection, marker
+  // highlight) and re-renders for the new parent.
+  if (window.GCCSubhexView && window.GCCSubhexView.isOpen()
+      && !state.moveMode){
+    const cur = window.GCCSubhexView.currentParent
+              ? window.GCCSubhexView.currentParent()
+              : null;
+    if (!cur || cur.col !== col || cur.row !== row){
+      window.GCCSubhexView.open(col, row);
+    }
   }
 }
 
