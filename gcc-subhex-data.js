@@ -1,4 +1,9 @@
-// gcc-subhex-data.js v2.0.0 — 2026-04-28
+// gcc-subhex-data.js v2.0.1 — 2026-04-28
+// v2.0.1: fragmentsForParent now uses SAT polygon-overlap instead of
+// a circular reach test. The circle-of-radius-22 test included ~50
+// cells per parent; only ~33 actually overlap the parent's hex
+// polygon. The over-included cells rendered as floating hexes outside
+// the parent boundary, which looked wrong now that we don't clip.
 // Subhex data layer rebuilt on a global axial coord model. Replaces the
 // per-parent local (q,r) ∈ [0..10] layout (v0.4–v1.1), which did not tile
 // across parent boundaries.
@@ -193,13 +198,44 @@
     return out;
   }
 
+  // SAT: do two convex polygons (each as [[x,y], ...]) overlap?
+  function _polysOverlap(a, b){
+    for (const poly of [a, b]){
+      for (let i = 0; i < poly.length; i++){
+        const [x1, y1] = poly[i];
+        const [x2, y2] = poly[(i + 1) % poly.length];
+        const nx = y2 - y1, ny = -(x2 - x1);
+        let aMin = Infinity, aMax = -Infinity, bMin = Infinity, bMax = -Infinity;
+        for (const [x, y] of a){
+          const p = x*nx + y*ny;
+          if (p < aMin) aMin = p; if (p > aMax) aMax = p;
+        }
+        for (const [x, y] of b){
+          const p = x*nx + y*ny;
+          if (p < bMin) bMin = p; if (p > bMax) bMax = p;
+        }
+        if (aMax < bMin - 1e-9 || bMax < aMin - 1e-9) return false;
+      }
+    }
+    return true;
+  }
+  function _flatTopCorners(cx, cy, R){
+    const out = new Array(6);
+    for (let i = 0; i < 6; i++){
+      const a = (Math.PI / 180) * (60 * i);
+      out[i] = [cx + R * Math.cos(a), cy + R * Math.sin(a)];
+    }
+    return out;
+  }
+
   // Subhex axials whose hex polygon overlaps the given parent polygon
   // but are owned by a different parent — used for fragment rendering.
+  // Uses an actual polygon-overlap test (SAT) so cells that only
+  // approximately approach the parent are excluded.
   function fragmentsForParent(col, row){
     const center = parentCenterAxial(col, row);
     const pc = parentSvgCenter(col, row);
-    const reach = HEX_R + SUB_R;
-    const reach2 = reach * reach;
+    const parentPoly = _flatTopCorners(pc.x, pc.y, HEX_R);
     const out = [];
     for (let dQ = -11; dQ <= 11; dQ++){
       for (let dR = -11; dR <= 11; dR++){
@@ -207,8 +243,10 @@
         const o = ownerOf(Q, R);
         if (!o || (o.col === col && o.row === row)) continue;
         const sc = subhexSvgCenter(Q, R);
-        const dx = sc.x - pc.x, dy = sc.y - pc.y;
-        if (dx*dx + dy*dy <= reach2) out.push({ Q, R, ownerCol: o.col, ownerRow: o.row });
+        const cellPoly = _flatTopCorners(sc.x, sc.y, SUB_R);
+        if (_polysOverlap(parentPoly, cellPoly)){
+          out.push({ Q, R, ownerCol: o.col, ownerRow: o.row });
+        }
       }
     }
     return out;

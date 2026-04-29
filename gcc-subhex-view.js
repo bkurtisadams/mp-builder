@@ -1,4 +1,8 @@
-// gcc-subhex-view.js v2.0.0 — 2026-04-28
+// gcc-subhex-view.js v2.0.1 — 2026-04-28
+// v2.0.1: fragments no longer clipped to parent silhouette. They
+// render their full hex polygons extending beyond the parent
+// boundary so the GM can see exactly which cells span between
+// neighbor parents. ClipPath defs removed (unused).
 // Subhex editor window. Opens for one parent hex at a time; main map
 // stays at 30mi, untouched. Self-contained: own SVG, own paint palette,
 // own name/notes inputs.
@@ -623,27 +627,16 @@
     svg.innerHTML = '';
     const ns = 'http://www.w3.org/2000/svg';
 
-    // Clip path matching the parent silhouette — used to clip the
-    // fragment layer so neighbor-owned cells only show inside this
-    // parent. Pointer events still fire on the visible (clipped) area.
     const pCorners = parentCorners();
     const pPts = pCorners.map(([x,y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-    const defs = document.createElementNS(ns, 'defs');
-    const clip = document.createElementNS(ns, 'clipPath');
-    clip.id = 'sxw-parent-clip';
-    const clipPoly = document.createElementNS(ns, 'polygon');
-    clipPoly.setAttribute('points', pPts);
-    clip.appendChild(clipPoly);
-    defs.appendChild(clip);
-    svg.appendChild(defs);
 
     // Fragment layer: cells whose centers are in neighbor parents but
     // whose hexes overlap this parent silhouette. Drawn first so owned
-    // cells paint over them at any seam, and clipped to the parent
-    // polygon so they only show inside this hex.
+    // cells paint over them at any seam. Not clipped — fragments
+    // render their full hex shape extending beyond the parent boundary
+    // so the GM can see exactly how they bridge into neighbor parents.
     const fragLayer = document.createElementNS(ns, 'g');
     fragLayer.setAttribute('class', 'sxw-fragment-layer');
-    fragLayer.setAttribute('clip-path', 'url(#sxw-parent-clip)');
     const fragments = window.GCCSubhexData.fragmentsForParent(state.parentCol, state.parentRow);
     for (const f of fragments){
       buildCellGroup(f.Q, f.R, fragLayer, { ownerCol: f.ownerCol, ownerRow: f.ownerRow });
