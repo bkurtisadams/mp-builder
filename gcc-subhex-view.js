@@ -1,4 +1,12 @@
-// gcc-subhex-view.js v2.4.7 — 2026-04-29
+// gcc-subhex-view.js v2.4.8 — 2026-04-29
+// v2.4.8: don't fire the crossing × badge for river-meets-river
+// confluences. The detector now skips cells where every path is
+// kind 'river' or 'stream' — those aren't crossings, they're
+// geography (the Ery merging into the Selintan, etc.). Previously
+// such cells got a badge offering only "Landmark" or "Dismiss",
+// which created click noise without a useful action. The badge
+// remains for any cell where at least one road or track meets a
+// river (real bridges/fords/ferries).
 // v2.4.7: armed-path ghost marker. When a path is armed but has no
 // cells in the current parent (because it was authored in a neighbor
 // parent and hasn't crossed the boundary yet), a pulsing dot appears
@@ -1246,6 +1254,13 @@
     for (const [key, plist] of byCell){
       if (plist.length < 2) continue;
       if (!ownedSet.has(key)) continue;
+      // Skip pure water-meets-water confluences. A river joining
+      // another river isn't a "crossing" — it's geography. The ×
+      // badge concept is for two transportation modes intersecting
+      // (road×river = bridge, road×road = crossroads). When all
+      // paths at a cell are rivers/streams, suppress the badge.
+      const allWater = plist.every(p => p.kind === 'river' || p.kind === 'stream');
+      if (allWater) continue;
       const [Q, R] = key.split('_').map(Number);
       const sub = window.GCCSubhexData.getSubhex(Q, R, state.parentTerrain);
       if (sub && sub.feature && sub.feature.kind) continue;
@@ -1326,8 +1341,11 @@
       return ['crossroads'];
     }
     if (hasRiver && kinds.size === 1 && pathKinds.length >= 2){
-      // Two rivers meeting — a confluence. We don't have a confluence
-      // glyph (and rolled it into "landmark"), so offer landmark.
+      // Two rivers meeting — a confluence. detectCrossings now
+      // suppresses these so this branch is unreachable from the
+      // normal click flow, but kept as a defensive fallback in case
+      // suggestedCrossingKinds is called directly with such input.
+      // Returns landmark since that's the closest sensible offer.
       return ['landmark'];
     }
     return ['landmark'];
