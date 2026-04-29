@@ -1,4 +1,9 @@
-/* gcc-subhex.css v1.4.0 — 2026-04-28
+/* gcc-subhex.css v1.5.0 — 2026-04-28
+   v1.5 adds .authored and .destination styles on parent-path markers.
+   Authored markers render as hollow circles with kind-colored borders
+   (river=blue ring, road=brown ring, track=tan ring). The destination
+   marker — the OTHER end of a segment the GM just started authoring —
+   pulses so they can see where to draw to.
    v1.4 splits into two windows. The original #subhex-window keeps the
    map + zoom; #subhex-controls-window holds the detail panel, palette
    strip, and tools row. Each is independently draggable and resizable.
@@ -561,18 +566,46 @@ body.theme-dark .sxw-path-river  { stroke:#6098cc; }
 body.theme-dark .sxw-path-road   { stroke:#a08050; }
 body.theme-dark .sxw-path-trail  { stroke:#b09060; }
 
-/* ── Parent-path markers (SVG, read-only) ─────────────────────────────── */
+/* ── Parent-path markers (SVG, click-to-author) ───────────────────────── */
 /* Small colored dots placed on boundary subhexes where a 30-mile parent
-   path crosses into a neighbor parent. Read-only — surfaces gcc-paths.js
-   data in the subhex view without authoring it. Hover shows path name. */
+   path crosses into a neighbor parent. Click a marker to start
+   authoring the corresponding subhex path: the system pre-creates a
+   path of matching kind + name, anchors it at the boundary subhex,
+   and arms the Path tool so the next clicks extend it. The OTHER end
+   of the same parent segment gets the .destination class so the GM
+   can see where to draw to.
+
+   Marker states:
+     (default)     solid filled dot, white halo  — unauthored, click to start
+     .authored     hollow dot with same border    — already wired up
+     .destination  pulsing halo                   — currently being aimed at */
 .sxw-parent-path-marker {
   pointer-events:auto;
-  cursor:help;
+  cursor:pointer;
 }
 .sxw-parent-path-marker circle {
   stroke:#fff;
   stroke-width:1.2;
   filter:drop-shadow(0 0 1.5px rgba(0,0,0,0.35));
+}
+.sxw-parent-path-marker:hover circle {
+  stroke-width:2;
+  filter:drop-shadow(0 0 3px rgba(0,0,0,0.55));
+}
+.sxw-parent-path-marker.authored circle {
+  fill-opacity:0;
+  stroke-width:2.0;
+}
+.sxw-ppm-river.authored circle  { stroke:#378ADD; }
+.sxw-ppm-road.authored circle   { stroke:#8b5a2b; }
+.sxw-ppm-track.authored circle  { stroke:#c8a06f; }
+.sxw-parent-path-marker.destination circle {
+  stroke-width:2.5;
+  animation:sxw-marker-pulse 1.2s ease-in-out infinite;
+}
+@keyframes sxw-marker-pulse {
+  0%, 100% { filter:drop-shadow(0 0 1.5px rgba(0,0,0,0.35)); }
+  50%      { filter:drop-shadow(0 0 6px #c8a96e); }
 }
 body.theme-dark .sxw-parent-path-marker circle {
   stroke:#1a1a1a;

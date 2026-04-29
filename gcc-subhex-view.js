@@ -1,4 +1,13 @@
-// gcc-subhex-view.js v2.2.0 — 2026-04-28
+// gcc-subhex-view.js v2.3.0 — 2026-04-28
+// v2.3.0: parent-path markers are now click-to-author. Clicking a
+// marker creates (or arms) a subhex path of matching kind, pre-fills
+// the parent path's name, anchors the first cell at the boundary
+// subhex, and highlights the segment's other-end marker as the
+// authoring destination. The destination marker pulses; both
+// markers pick up the .authored class once a subhex path connects
+// them. This eliminates the manual "Path… → New river → name it →
+// click first cell" setup that the GM used to do for every river /
+// road / track passing through a parent.
 // v2.2.0: split into two independent windows. Map window holds the
 // SVG + zoom controls; controls window holds the detail panel,
 // palette strip, and tools row. Both are draggable and resizable
@@ -95,6 +104,12 @@
     brushing: false,
     brushedThisDrag: null,     // Set<string> of "Q_R" keys painted in current drag
     zoom: ZOOM_DEFAULT,
+    // When the GM clicks a parent-path marker to start authoring, we
+    // remember which segment they're working on. The pair-end marker
+    // gets the .destination class so the GM can see where to draw to.
+    // Cleared when the path tool is disarmed or a different segment
+    // is started.
+    markerHighlight: null,     // null | { segIndex, edge }
   };
 
   // ── Build window DOM ───────────────────────────────────────────────────
@@ -679,6 +694,7 @@
     state.selectedQ = null;
     state.selectedR = null;
     state.armed = null;
+    state.markerHighlight = null;
 
     const lm = (typeof GCCLandmarks !== 'undefined') ? GCCLandmarks.getById(state.parentId) : null;
     const t = state.win.querySelector('.sxw-title');
@@ -725,6 +741,7 @@
     state.parentQ = state.parentR = null;
     state.selectedQ = state.selectedR = null;
     state.armed = null;
+    state.markerHighlight = null;
     if (state.brushing){
       state.brushing = false;
       state.brushedThisDrag = null;
@@ -888,7 +905,8 @@
     const layer = document.createElementNS(ns, 'g');
     layer.setAttribute('class', 'sxw-parent-path-markers');
 
-    for (const seg of segments){
+    for (let segIndex = 0; segIndex < segments.length; segIndex++){
+      const seg = segments[segIndex];
       const color = pathMarkerColor(seg);
       if (!color) continue;
       // entryEdge and exitEdge each get their own marker (open ends are
@@ -896,7 +914,7 @@
       for (const edgeKey of ['entryEdge', 'exitEdge']){
         const edge = seg[edgeKey];
         if (typeof edge !== 'number' || edge < 0 || edge > 5) continue;
-        placeMarker(layer, seg, edge, owned, color);
+        placeMarker(layer, seg, edge, owned, color, segIndex);
       }
     }
     svg.appendChild(layer);
@@ -919,7 +937,11 @@
     };
   }
 
-  function placeMarker(layer, seg, edge, owned, color){
+  // Find the owned subhex closest to the midpoint of a given parent
+  // edge. The marker for that edge sits on this cell; the click-to-
+  // author destination check uses it to detect when an authored path
+  // has reached the boundary.
+  function boundaryCellForEdge(edge, owned){
     const mid = edgeMidpoint(edge);
     let best = null, bestD = Infinity;
     for (const cell of owned){
@@ -928,7 +950,13 @@
       const d2 = dx*dx + dy*dy;
       if (d2 < bestD){ bestD = d2; best = cell; }
     }
+    return best;
+  }
+
+  function placeMarker(layer, seg, edge, owned, color, segIndex){
+    const best = boundaryCellForEdge(edge, owned);
     if (!best) return;
+    const mid = edgeMidpoint(edge);
     const cellPos = cellViewport(best.Q, best.R);
     let dx = mid.x - cellPos.x, dy = mid.y - cellPos.y;
     const len = Math.sqrt(dx*dx + dy*dy);
@@ -940,7 +968,24 @@
     }
     const ns = 'http://www.w3.org/2000/svg';
     const g = document.createElementNS(ns, 'g');
-    g.setAttribute('class', `sxw-parent-path-marker sxw-ppm-${seg.kind}`);
+    const isEntry = edge === seg.entryEdge;
+    const authoredId = findSubhexPathForSegment(seg, best.Q, best.R);
+    let cls = `sxw-parent-path-marker sxw-ppm-${seg.kind}`;
+    if (authoredId) cls += ' authored';
+    if (state.markerHighlight && state.markerHighlight.segIndex === segIndex
+        && state.markerHighlight.edge !== edge){
+      // The OTHER end of the segment we just started authoring.
+      cls += ' destination';
+    }
+    g.setAttribute('class', cls);
+    g.dataset.segIndex = segIndex;
+    g.dataset.edge = edge;
+    g.dataset.kind = seg.kind;
+    g.dataset.name = seg.name || '';
+    g.dataset.cellQ = best.Q;
+    g.dataset.cellR = best.R;
+    g.dataset.end = isEntry ? 'entry' : 'exit';
+    if (authoredId) g.dataset.authoredPath = authoredId;
     const circle = document.createElementNS(ns, 'circle');
     circle.setAttribute('cx', mx.toFixed(1));
     circle.setAttribute('cy', my.toFixed(1));
@@ -948,12 +993,13 @@
     circle.setAttribute('fill', color);
     g.appendChild(circle);
     const title = document.createElementNS(ns, 'title');
-    title.textContent = pathMarkerTooltip(seg, edge);
+    title.textContent = pathMarkerTooltip(seg, edge, !!authoredId);
     g.appendChild(title);
+    g.addEventListener('click', onParentPathMarkerClick);
     layer.appendChild(g);
   }
 
-  function pathMarkerTooltip(seg, edge){
+  function pathMarkerTooltip(seg, edge, authored){
     const neighbor = (typeof window.GCCPaths.neighborAcross === 'function')
       ? window.GCCPaths.neighborAcross(state.parentCol, state.parentRow, edge)
       : null;
@@ -961,7 +1007,73 @@
       ? hexIdStr(neighbor.col, neighbor.row)
       : (neighbor ? `${neighbor.col},${neighbor.row}` : '?');
     const name = seg.name || '(unnamed)';
-    return `${name} (${seg.kind}) → ${neighborLabel}`;
+    const verb = authored ? ' [authored — click to extend]' : ' [click to author]';
+    return `${name} (${seg.kind}) → ${neighborLabel}${verb}`;
+  }
+
+  // Look up the subhex path (if any) that already authors this parent
+  // segment crossing. Match by name AND a cell at the boundary subhex.
+  // Returns the subhex path id, or null.
+  function findSubhexPathForSegment(seg, boundaryQ, boundaryR){
+    if (!window.GCCSubhexPaths || !seg.name) return null;
+    const paths = window.GCCSubhexPaths.listPaths();
+    for (const p of paths){
+      if (p.kind !== seg.kind) continue;
+      if (p.name !== seg.name) continue;
+      if (!p.cells || !p.cells.length) continue;
+      for (const c of p.cells){
+        if (c.Q === boundaryQ && c.R === boundaryR) return p.id;
+      }
+    }
+    return null;
+  }
+
+  // Click on a parent-path marker: create (or arm) a subhex path
+  // matching this parent crossing. Pre-fills name and kind, anchors
+  // the path's first cell at the marker's boundary subhex, arms the
+  // Path tool, and highlights the segment's other-end marker as the
+  // destination so the GM can see where to draw to.
+  function onParentPathMarkerClick(ev){
+    ev.stopPropagation();
+    const g = ev.currentTarget;
+    const segIndex = +g.dataset.segIndex;
+    const edge     = +g.dataset.edge;
+    const kind     = g.dataset.kind;
+    const name     = g.dataset.name || '(unnamed)';
+    const Q = +g.dataset.cellQ, R = +g.dataset.cellR;
+    const authoredId = g.dataset.authoredPath;
+
+    let pathId;
+    if (authoredId){
+      // Already authored — just arm it for extension.
+      pathId = authoredId;
+    } else {
+      // Create a new subhex path with matching kind + name, anchored
+      // at the boundary cell.
+      const newPath = window.GCCSubhexPaths.createPath(kind, name);
+      if (!newPath){
+        if (typeof console !== 'undefined') console.warn('[subhex-view] failed to create path for marker', { kind, name });
+        return;
+      }
+      window.GCCSubhexPaths.appendCell(newPath.id, Q, R);
+      pathId = newPath.id;
+    }
+
+    state.armed = { type: 'path', value: pathId };
+    state.markerHighlight = { segIndex, edge };
+    rebuildPathArmedPicker();
+    showPathArmedPicker(true, pathId);
+    showRegionArmedPicker(false);
+    // Re-render paths and markers so the new path appears + the
+    // destination marker gets the highlight class.
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg){
+      renderPaths(svg);
+      renderParentPathMarkers(svg);
+    }
+    syncDetailPanel();
+    syncPaletteUI();
+    syncModeLabel();
   }
 
   // Render every path that touches this parent as a polyline through
@@ -1168,7 +1280,27 @@
       const ok = window.GCCSubhexPaths.appendCell(a.value, Q, R);
       if (ok){
         const svg = state.win?.querySelector('#sxw-svg');
-        if (svg) renderPaths(svg);
+        // If we're authoring toward a parent-path-marker destination,
+        // check whether the newly-appended cell reached the
+        // destination marker's boundary subhex. If so, the segment is
+        // now end-to-end authored — clear the highlight and re-render
+        // markers so the destination dot drops its highlight class
+        // and both ends pick up the .authored class.
+        if (state.markerHighlight){
+          const segments = window.GCCPaths?.segmentsAt(state.parentCol, state.parentRow) || [];
+          const seg = segments[state.markerHighlight.segIndex];
+          if (seg){
+            const otherEdge = (state.markerHighlight.edge === seg.entryEdge) ? seg.exitEdge : seg.entryEdge;
+            if (typeof otherEdge === 'number' && otherEdge >= 0){
+              const owned = window.GCCSubhexData.ownedByParent(state.parentCol, state.parentRow);
+              const destCell = boundaryCellForEdge(otherEdge, owned);
+              if (destCell && destCell.Q === Q && destCell.R === R){
+                state.markerHighlight = null;
+              }
+            }
+          }
+        }
+        if (svg){ renderPaths(svg); renderParentPathMarkers(svg); }
         syncModeLabel();
       }
     }
@@ -1480,9 +1612,10 @@
   function onPathToolClick(){
     if (state.armed && state.armed.type === 'path'){
       state.armed = null;
+      state.markerHighlight = null;
       showPathArmedPicker(false);
       const svg = state.win?.querySelector('#sxw-svg');
-      if (svg) renderPaths(svg);
+      if (svg){ renderPaths(svg); renderParentPathMarkers(svg); }
       syncPaletteUI();
       syncModeLabel();
       return;
@@ -1546,6 +1679,7 @@
       rebuildPathArmedPicker();
       ev.target.value = path.id;
       state.armed = { type: 'path', value: path.id };
+      state.markerHighlight = null;
     } else if (val === '__pop__'){
       if (state.armed && state.armed.type === 'path'){
         window.GCCSubhexPaths.popCell(state.armed.value);
@@ -1569,6 +1703,7 @@
         window.GCCSubhexPaths.deletePath(target.id);
         if (state.armed && state.armed.type === 'path' && state.armed.value === target.id){
           state.armed = null;
+          state.markerHighlight = null;
         }
         rebuildPathArmedPicker();
         ev.target.value = (state.armed && state.armed.type === 'path') ? state.armed.value : '';
@@ -1578,12 +1713,23 @@
         ev.target.value = (state.armed && state.armed.type === 'path') ? state.armed.value : '';
       }
     } else if (val){
+      // Switched to a different path. Drop the marker highlight unless
+      // the new path still corresponds to the highlighted segment.
+      const prevHighlight = state.markerHighlight;
       state.armed = { type: 'path', value: val };
+      if (prevHighlight){
+        const segments = window.GCCPaths?.segmentsAt(state.parentCol, state.parentRow) || [];
+        const seg = segments[prevHighlight.segIndex];
+        const armedPath = window.GCCSubhexPaths.getPath(val);
+        const matches = seg && armedPath && armedPath.kind === seg.kind && armedPath.name === seg.name;
+        if (!matches) state.markerHighlight = null;
+      }
     } else {
       state.armed = null;
+      state.markerHighlight = null;
     }
     const svg = state.win?.querySelector('#sxw-svg');
-    if (svg) renderPaths(svg);
+    if (svg){ renderPaths(svg); renderParentPathMarkers(svg); }
     syncDetailPanel();
     syncPaletteUI();
     syncModeLabel();
