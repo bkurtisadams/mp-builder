@@ -1,9 +1,12 @@
-/* gcc-subhex.css v1.2.0 — 2026-04-28
+/* gcc-subhex.css v1.3.0 — 2026-04-28
+   v1.3 adds .sxw-parent-path-marker — small colored dots on boundary
+   subhexes for 30-mile parent paths (river=blue, road=brown, track=tan).
+   Dots offset toward the parent edge they cross; hover for path name.
    v1.2 adds fragment-cell styling (faded fill, dashed stroke, still
    clickable) and the "Owned by …" hint badge in the detail panel.
    Fragments are subhexes whose centers fall in neighbor parents but
-   whose hex polygons overlap this parent — they render clipped to
-   the parent silhouette.
+   whose hex polygons overlap this parent — they render with their
+   full hex shape extending past the parent boundary.
    v1.1 adds independent zoom on the SVG via a scrollable wrap with
    overlay zoom controls (+/-/⟲). Detail panel, palettes, and tools
    row stay at fixed sizes — only the map zooms.
@@ -491,6 +494,24 @@ body.theme-dark .sxw-region-label {
 body.theme-dark .sxw-path-river  { stroke:#6098cc; }
 body.theme-dark .sxw-path-road   { stroke:#a08050; }
 body.theme-dark .sxw-path-trail  { stroke:#b09060; }
+
+/* ── Parent-path markers (SVG, read-only) ─────────────────────────────── */
+/* Small colored dots placed on boundary subhexes where a 30-mile parent
+   path crosses into a neighbor parent. Read-only — surfaces gcc-paths.js
+   data in the subhex view without authoring it. Hover shows path name. */
+.sxw-parent-path-marker {
+  pointer-events:auto;
+  cursor:help;
+}
+.sxw-parent-path-marker circle {
+  stroke:#fff;
+  stroke-width:1.2;
+  filter:drop-shadow(0 0 1.5px rgba(0,0,0,0.35));
+}
+body.theme-dark .sxw-parent-path-marker circle {
+  stroke:#1a1a1a;
+  filter:drop-shadow(0 0 1.5px rgba(255,255,255,0.25));
+}
 
 /* ── Paths row (detail panel, read-only) ──────────────────────────────── */
 /* ── Path armed picker (tools row) ────────────────────────────────────── */

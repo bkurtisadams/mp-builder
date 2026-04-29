@@ -1,4 +1,11 @@
-// gcc-subhex-view.js v2.0.1 — 2026-04-28
+// gcc-subhex-view.js v2.1.0 — 2026-04-28
+// v2.1.0: parent-level paths (rivers, roads, tracks from gcc-paths.js)
+// surface as colored dots on boundary subhexes — blue for rivers,
+// brown for roads, tan for tracks. Each dot offsets ~50% toward the
+// parent edge it crosses, so the GM sees at a glance which side of
+// the parent the path heads to. Hover tooltip shows path name and
+// neighbor parent label. Read-only — does not author subhex paths,
+// just shows the connection from the parent layer.
 // v2.0.1: fragments no longer clipped to parent silhouette. They
 // render their full hex polygons extending beyond the parent
 // boundary so the GM can see exactly which cells span between
@@ -660,6 +667,101 @@
 
     renderPaths(svg);
     renderRegionLabels(svg);
+    renderParentPathMarkers(svg);
+  }
+
+  // Render small colored dots on boundary subhexes where a 30-mile
+  // parent-level path (river/road/track) crosses into a neighbor
+  // parent. Markers sit ~50% offset from cell center toward the parent
+  // edge, so the GM can see at a glance which side of this parent the
+  // path heads to. Native SVG <title> child carries the path name +
+  // neighbor parent label as a hover tooltip.
+  function renderParentPathMarkers(svg){
+    if (!window.GCCPaths) return;
+    svg.querySelectorAll('.sxw-parent-path-markers').forEach(n => n.remove());
+    const segments = window.GCCPaths.segmentsAt(state.parentCol, state.parentRow);
+    if (!segments || !segments.length) return;
+    const owned = window.GCCSubhexData.ownedByParent(state.parentCol, state.parentRow);
+    if (!owned.length) return;
+
+    const ns = 'http://www.w3.org/2000/svg';
+    const layer = document.createElementNS(ns, 'g');
+    layer.setAttribute('class', 'sxw-parent-path-markers');
+
+    for (const seg of segments){
+      const color = pathMarkerColor(seg);
+      if (!color) continue;
+      // entryEdge and exitEdge each get their own marker (open ends are
+      // -1 — path source/mouth/terminus, no boundary crossing there).
+      for (const edgeKey of ['entryEdge', 'exitEdge']){
+        const edge = seg[edgeKey];
+        if (typeof edge !== 'number' || edge < 0 || edge > 5) continue;
+        placeMarker(layer, seg, edge, owned, color);
+      }
+    }
+    svg.appendChild(layer);
+  }
+
+  function pathMarkerColor(seg){
+    if (seg.kind === 'river') return '#378ADD';
+    if (seg.kind === 'road')  return '#8b5a2b';
+    if (seg.kind === 'track') return '#c8a06f';
+    return null;
+  }
+
+  function edgeMidpoint(edge){
+    const cx = VIEWBOX_W / 2, cy = VIEWBOX_H / 2;
+    const a1 = (Math.PI / 180) * (60 * ((edge + 4) % 6));
+    const a2 = (Math.PI / 180) * (60 * ((edge + 5) % 6));
+    return {
+      x: cx + PARENT_R * (Math.cos(a1) + Math.cos(a2)) / 2,
+      y: cy + PARENT_R * (Math.sin(a1) + Math.sin(a2)) / 2,
+    };
+  }
+
+  function placeMarker(layer, seg, edge, owned, color){
+    const mid = edgeMidpoint(edge);
+    let best = null, bestD = Infinity;
+    for (const cell of owned){
+      const v = cellViewport(cell.Q, cell.R);
+      const dx = v.x - mid.x, dy = v.y - mid.y;
+      const d2 = dx*dx + dy*dy;
+      if (d2 < bestD){ bestD = d2; best = cell; }
+    }
+    if (!best) return;
+    const cellPos = cellViewport(best.Q, best.R);
+    let dx = mid.x - cellPos.x, dy = mid.y - cellPos.y;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    let mx = cellPos.x, my = cellPos.y;
+    if (len > 0){
+      const offset = SUB_R * 0.5;
+      mx = cellPos.x + dx * (offset / len);
+      my = cellPos.y + dy * (offset / len);
+    }
+    const ns = 'http://www.w3.org/2000/svg';
+    const g = document.createElementNS(ns, 'g');
+    g.setAttribute('class', `sxw-parent-path-marker sxw-ppm-${seg.kind}`);
+    const circle = document.createElementNS(ns, 'circle');
+    circle.setAttribute('cx', mx.toFixed(1));
+    circle.setAttribute('cy', my.toFixed(1));
+    circle.setAttribute('r', '4.5');
+    circle.setAttribute('fill', color);
+    g.appendChild(circle);
+    const title = document.createElementNS(ns, 'title');
+    title.textContent = pathMarkerTooltip(seg, edge);
+    g.appendChild(title);
+    layer.appendChild(g);
+  }
+
+  function pathMarkerTooltip(seg, edge){
+    const neighbor = (typeof window.GCCPaths.neighborAcross === 'function')
+      ? window.GCCPaths.neighborAcross(state.parentCol, state.parentRow, edge)
+      : null;
+    const neighborLabel = (neighbor && typeof hexIdStr === 'function')
+      ? hexIdStr(neighbor.col, neighbor.row)
+      : (neighbor ? `${neighbor.col},${neighbor.row}` : '?');
+    const name = seg.name || '(unnamed)';
+    return `${name} (${seg.kind}) → ${neighborLabel}`;
   }
 
   // Render every path that touches this parent as a polyline through
