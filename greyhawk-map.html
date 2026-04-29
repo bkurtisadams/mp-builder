@@ -744,6 +744,7 @@
     <div class="jd-row"><label>Est. Arrival</label><span class="jd-val" id="jd-arrival">—</span></div>
   </div>
   <div id="jd-footer">
+    <button id="jd-copy" title="Copy plan summary to clipboard">Copy</button>
     <button id="jd-cancel">Cancel</button>
     <button id="jd-begin" class="jd-primary">Begin Journey</button>
   </div>
@@ -808,7 +809,7 @@
 <script src="gcc-rng.js?v=1"></script>
 <script src="gcc-subhex-data.js?v=20"></script>
 <script src="gcc-subhex-icons.js?v=7"></script>
-<script src="gcc-subhex-paths.js?v=13"></script>
+<script src="gcc-subhex-paths.js?v=10"></script>
 <script src="gcc-hex-edit.js?v=16"></script>
 <script src="gcc-voyage.js?v=2"></script>
 <script src="gcc-subhex-view.js?v=20"></script>
@@ -4029,6 +4030,63 @@ function wireEvents(){
   document.getElementById('jd-begin').addEventListener('click', () => {
     startJourneyExecution();
   });
+  document.getElementById('jd-copy').addEventListener('click', () => {
+    const j = state.journey;
+    if (!j) return;
+    // Build a plain-text summary from the dialog's current values.
+    // Falls back to "—" placeholders for any field still empty.
+    const get = id => (document.getElementById(id)?.textContent || '').trim();
+    const lines = [];
+    lines.push(`Journey: ${get('jd-from')} → ${get('jd-to')}`);
+    lines.push(`Travel: ${get('jd-travel')}`);
+    lines.push(`Distance: ${get('jd-dist')}`);
+    lines.push(`Duration: ${get('jd-dur')}`);
+    lines.push(`Encounter Checks: ${get('jd-checks')}`);
+    const warn = get('jd-warn');
+    if (warn && warn !== '—') lines.push(`Warning: ${warn}`);
+    // Start date — assemble from the date inputs since they're not
+    // textContent-bearing display fields.
+    const month = document.getElementById('jd-month');
+    const monthName = month?.options[month.selectedIndex]?.text || '';
+    const day = document.getElementById('jd-day')?.value || '';
+    const year = document.getElementById('jd-year')?.value || '';
+    const tod = document.getElementById('jd-tod');
+    const todName = tod?.options[tod.selectedIndex]?.text || '';
+    lines.push(`Departure: ${day} ${monthName} ${year} CY (${todName})`);
+    lines.push(`Est. Arrival: ${get('jd-arrival')}`);
+    // Route as a list of Darlene IDs if we have one.
+    if (j.route && j.route.length){
+      const ids = j.route.map(h => hexIdStr(h.col, h.row));
+      lines.push(`Route: ${ids.join(' → ')}`);
+    }
+    const text = lines.join('\n');
+    // Use the modern Clipboard API where available; fall back to a
+    // hidden textarea + execCommand for older browsers (Safari < 13.1
+    // or any context where navigator.clipboard isn't allowed).
+    const done = () => {
+      const btn = document.getElementById('jd-copy');
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+    } else {
+      fallbackCopy(text, done);
+    }
+  });
+  function fallbackCopy(text, doneCb){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e){}
+    document.body.removeChild(ta);
+    if (doneCb) doneCb();
+  }
   for (const id of ['jd-month','jd-day','jd-year','jd-tod']){
     document.getElementById(id).addEventListener('change', recomputeJourneyPlan);
     document.getElementById(id).addEventListener('input',  recomputeJourneyPlan);
