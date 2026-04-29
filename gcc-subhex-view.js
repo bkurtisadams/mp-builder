@@ -1,4 +1,12 @@
-// gcc-subhex-view.js v2.4.6 — 2026-04-29
+// gcc-subhex-view.js v2.4.7 — 2026-04-29
+// v2.4.7: armed-path ghost marker. When a path is armed but has no
+// cells in the current parent (because it was authored in a neighbor
+// parent and hasn't crossed the boundary yet), a pulsing dot appears
+// on this parent's boundary subhex that's axially adjacent to the
+// path's last-authored cell. Click that dot's cell to continue the
+// path. The path section header also gains a "last in X4-NN" hint
+// when the path's last cell is owned by a different parent — gives
+// the GM textual orientation alongside the visual ghost.
 // v2.4.6: workflow improvement for authoring across multiple parents.
 // The editor now auto-switches when the GM clicks a different parent
 // on the main map (provided the editor is already open). New
@@ -1464,7 +1472,14 @@
     if (!window.GCCSubhexPaths) return;
     svg.querySelectorAll('.sxw-paths-layer').forEach(n => n.remove());
     const paths = window.GCCSubhexPaths.pathsInParent(state.parentCol, state.parentRow);
-    if (!paths.length) return;
+    if (!paths.length){
+      // No path cells in this parent — but if a path is armed and has
+      // cells in a neighbor parent, render a ghost marker on this
+      // parent's boundary cell so the GM can see where to click to
+      // continue.
+      renderArmedPathGhost(svg);
+      return;
+    }
     const ns = 'http://www.w3.org/2000/svg';
     const layer = document.createElementNS(ns, 'g');
     layer.setAttribute('class', 'sxw-paths-layer');
@@ -1492,6 +1507,61 @@
       }
       layer.appendChild(poly);
     }
+    svg.appendChild(layer);
+    // Always also evaluate ghost rendering — it handles the case where
+    // an armed path has cells in this parent AND neighbors. (When the
+    // path's last cell lies in a neighbor, we still want a ghost in
+    // this parent showing where to extend.)
+    renderArmedPathGhost(svg);
+  }
+
+  // When a path is armed but has no rendered glyphs in the current
+  // parent (or its last cell lies in a neighbor parent), draw a
+  // pulsing colored dot on this parent's boundary cell that is
+  // axially adjacent to the path's last-authored cell. Tells the GM
+  // "click here to continue the path into this parent" — mirrors
+  // the existing destination-marker treatment for parent-path
+  // click-to-author. No-op when no path is armed or the path has no
+  // cells anywhere.
+  function renderArmedPathGhost(svg){
+    svg.querySelectorAll('.sxw-armed-ghost-layer').forEach(n => n.remove());
+    if (!state.armed || state.armed.type !== 'path') return;
+    const armed = window.GCCSubhexPaths.getPath(state.armed.value);
+    if (!armed || !armed.cells || armed.cells.length === 0) return;
+    const last = armed.cells[armed.cells.length - 1];
+    const lastOwner = window.GCCSubhexData.ownerOf(last.Q, last.R);
+    // If the last cell is in this parent, no ghost — the regular
+    // path renderer already shows the live tip the GM can extend
+    // from. Ghosts are specifically for "the path is somewhere
+    // else, here's where to pick it up."
+    if (lastOwner && lastOwner.col === state.parentCol && lastOwner.row === state.parentRow){
+      return;
+    }
+    // Find a neighbor of the last cell that is owned by this parent.
+    // That cell is the GM's click target. Use the same axial neighbor
+    // offsets the data layer uses for adjacency.
+    const NEIGHBORS = [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
+    let target = null;
+    for (const [dq, dr] of NEIGHBORS){
+      const cQ = last.Q + dq, cR = last.R + dr;
+      const o = window.GCCSubhexData.ownerOf(cQ, cR);
+      if (o && o.col === state.parentCol && o.row === state.parentRow){
+        target = { Q: cQ, R: cR };
+        break;
+      }
+    }
+    if (!target) return;
+    const ns = 'http://www.w3.org/2000/svg';
+    const layer = document.createElementNS(ns, 'g');
+    layer.setAttribute('class', 'sxw-armed-ghost-layer');
+    const c = cellViewport(target.Q, target.R);
+    const dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', c.x);
+    dot.setAttribute('cy', c.y);
+    dot.setAttribute('r', 5);
+    dot.setAttribute('class', `sxw-armed-ghost sxw-path-${armed.kind}`);
+    dot.dataset.pathId = armed.id;
+    layer.appendChild(dot);
     svg.appendChild(layer);
   }
 
@@ -2157,7 +2227,22 @@
       if (armed){
         const path = window.GCCSubhexPaths?.getPath(state.armed.value);
         if (path){
-          head.innerHTML = `PATH · ${escapeHtml(path.name)} <span class="sxw-section-meta">(${path.kind} · ${path.cells.length} cell${path.cells.length === 1 ? '' : 's'})</span>`;
+          // Compose meta info: cell count, plus a hint about where the
+          // path's last-authored cell lives. If it's in this parent the
+          // hint is silent; if it's in a neighbor we show "last in
+          // X4-NN" so the GM knows to look at the boundary.
+          let meta = `${path.kind} · ${path.cells.length} cell${path.cells.length === 1 ? '' : 's'}`;
+          if (path.cells.length > 0 && window.GCCSubhexData){
+            const last = path.cells[path.cells.length - 1];
+            const owner = window.GCCSubhexData.ownerOf(last.Q, last.R);
+            if (owner && (owner.col !== state.parentCol || owner.row !== state.parentRow)){
+              const lastId = (typeof hexIdStr === 'function')
+                ? hexIdStr(owner.col, owner.row)
+                : `${owner.col},${owner.row}`;
+              meta += ` · last in ${lastId}`;
+            }
+          }
+          head.innerHTML = `PATH · ${escapeHtml(path.name)} <span class="sxw-section-meta">(${meta})</span>`;
         } else {
           head.textContent = 'PATH';
         }

@@ -1,4 +1,9 @@
-/* gcc-subhex.css v1.8.0 — 2026-04-28
+/* gcc-subhex.css v1.9.0 — 2026-04-29
+   v1.9: add .sxw-armed-ghost / .sxw-armed-ghost-layer for the new
+   ghost marker that appears on this parent's boundary cell when an
+   armed path's last cell lives in a neighbor parent. Pulses gently
+   in the path-kind color. New @keyframes sxw-ghost-pulse handles
+   the opacity + drop-shadow animation. Dark mode covered.
    v1.8: path controls move to their own labeled section block
    (.sxw-path-section). Section header (.sxw-section-head) and
    meta sub-label (.sxw-section-meta) styled to match other
@@ -650,6 +655,31 @@ body.theme-dark .sxw-region-label {
 body.theme-dark .sxw-path-river  { stroke:#6098cc; }
 body.theme-dark .sxw-path-road   { stroke:#a08050; }
 body.theme-dark .sxw-path-trail  { stroke:#b09060; }
+
+/* ── Armed-path ghost markers ──────────────────────────────────────────── */
+/* When a path is armed but has no cells in the current parent (its
+   last-authored cell lives in a neighbor parent), a pulsing dot
+   appears on this parent's boundary subhex that's axially adjacent
+   to the path's last cell. Tells the GM "click here to extend the
+   path into this parent." Disappears once the path has cells in
+   this parent. Color matches the path's kind. */
+.sxw-armed-ghost-layer { pointer-events:none; }
+.sxw-armed-ghost {
+  stroke:#fff;
+  stroke-width:1.4;
+  animation:sxw-ghost-pulse 1.5s ease-in-out infinite;
+}
+.sxw-armed-ghost.sxw-path-river { fill:#3a6fa8; }
+.sxw-armed-ghost.sxw-path-road  { fill:#5a3a18; }
+.sxw-armed-ghost.sxw-path-trail { fill:#6a5028; }
+body.theme-dark .sxw-armed-ghost { stroke:#1a1a1a; }
+body.theme-dark .sxw-armed-ghost.sxw-path-river { fill:#6098cc; }
+body.theme-dark .sxw-armed-ghost.sxw-path-road  { fill:#a08050; }
+body.theme-dark .sxw-armed-ghost.sxw-path-trail { fill:#b09060; }
+@keyframes sxw-ghost-pulse {
+  0%, 100% { filter:drop-shadow(0 0 1px rgba(0,0,0,0.4)); opacity:0.55; }
+  50%      { filter:drop-shadow(0 0 5px currentColor); opacity:1; }
+}
 
 /* ── Parent-path markers (SVG, click-to-author) ───────────────────────── */
 /* Small colored dots placed on boundary subhexes where a 30-mile parent
