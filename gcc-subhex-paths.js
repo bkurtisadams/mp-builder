@@ -1,4 +1,15 @@
-// gcc-subhex-paths.js v1.2.0 — 2026-04-29
+// gcc-subhex-paths.js v1.3.0 — 2026-04-29
+// v1.3.0: subhexBoundaryInfo now considers ALL boundary cell pairs
+// between two parents, not just the geometrically-closest one. The
+// old "single boundary cell" model failed when a road on one bank
+// of a river crossed a parent boundary at a cell offset from the
+// edge midpoint — the planner picked the midpoint cell (which had
+// only the river on it) and reported hasRoad=false. New model:
+// scan every cell of parent A whose axial neighbor is owned by
+// parent B; if any such pair is on the same road path, the edge
+// is traversable. Same for rivers. The boundaryCell returned now
+// prefers the road-bearing cell so callers (like the ghost marker)
+// can highlight the relevant cell.
 // v1.2.0: subhex layer is now consulted by the parent-layer movement
 // planner. Add subhexBoundaryInfo(parentColA, rowA, parentColB, rowB)
 // — returns { hasData, boundaryCell, hasRoad, hasRiver } describing
@@ -245,16 +256,48 @@
     if (!aHas && !bHas){
       return { hasData: false, boundaryCell: null, hasRoad: false, hasRiver: false };
     }
-    const cell = boundaryCellBetweenParents(parentColA, parentRowA, parentColB, parentRowB);
-    if (!cell){
-      return { hasData: true, boundaryCell: null, hasRoad: false, hasRiver: false };
-    }
+    // A road crosses the parent edge if any pair of axially-adjacent
+    // cells (one owned by A, one owned by B) are both on the same
+    // road or track path. We scan parent A's boundary cells, look at
+    // each cell's neighbors, and check whether any neighbor owned by
+    // parent B shares a path with it. Same for rivers.
+    const NEIGHBORS = [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
+    const ownedA = window.GCCSubhexData.ownedByParent(parentColA, parentRowA);
     let hasRoad = false, hasRiver = false;
-    const at = pathsAtCell(cell.Q, cell.R);
-    for (const p of at){
-      if (p.kind === 'road' || p.kind === 'track') hasRoad = true;
-      else if (p.kind === 'river' || p.kind === 'stream') hasRiver = true;
+    let representativeCell = null;
+    let roadCell = null;
+    for (const c of ownedA){
+      // For each neighbor of c that's owned by parent B, this cell c
+      // is on the parent edge. Check if c and the neighbor share any
+      // path, and bucket the result.
+      for (const [dq, dr] of NEIGHBORS){
+        const nQ = c.Q + dq, nR = c.R + dr;
+        const nOwner = window.GCCSubhexData.ownerOf(nQ, nR);
+        if (!nOwner || nOwner.col !== parentColB || nOwner.row !== parentRowB) continue;
+        // c is in A and (nQ, nR) is in B. Check shared paths.
+        const atC = pathsAtCell(c.Q, c.R);
+        const atN = pathsAtCell(nQ, nR);
+        if (!atC.length) continue;
+        for (const p of atC){
+          if (!atN.some(p2 => p2.id === p.id)) continue;
+          // p crosses the parent boundary at this cell pair.
+          if (p.kind === 'road' || p.kind === 'track'){
+            hasRoad = true;
+            roadCell = c;
+          } else if (p.kind === 'river' || p.kind === 'stream'){
+            hasRiver = true;
+          }
+        }
+        // Track at least one boundary cell for the return value.
+        if (!representativeCell) representativeCell = c;
+      }
     }
+    // Prefer the road cell as the "boundary cell" returned, since
+    // that's the one callers want to highlight or query about. Fall
+    // back to any boundary cell, then to the closest-to-midpoint
+    // computation for the no-data case.
+    const cell = roadCell || representativeCell
+      || boundaryCellBetweenParents(parentColA, parentRowA, parentColB, parentRowB);
     return { hasData: true, boundaryCell: cell, hasRoad, hasRiver };
   }
 
