@@ -1,4 +1,11 @@
-// gcc-subhex-view.js v2.5.1 — 2026-04-30
+// gcc-subhex-view.js v2.6.0 — 2026-04-30
+// v2.6.0: landmark pinning UI. The detail panel gains a "Landmark
+// pin" dropdown listing the parent landmark(s) of the cell's
+// owning parent. Pinning sets feature.landmarkId on the cell;
+// kind/name are auto-synced from the parent landmark and become
+// read-only (edit them in the parent landmark editor). A read-
+// only info row shows the landmark's name/kind/pop/ruler.
+// Single-pin invariant enforced by GCCSubhexData.pinLandmarkToCell.
 // v2.5.1: parent-path markers now follow authored subhex paths.
 // When the GM has drawn a subhex road/river matching a parent
 // segment, the corresponding parent-path marker sits on the cell
@@ -400,6 +407,16 @@
             <label>Feature notes</label>
             <textarea id="sxw-feature-notes" placeholder="Notes for this feature (toll, condition, lore…)" disabled></textarea>
           </div>
+          <div class="sxw-row sxw-row-inline sxw-row-landmark">
+            <label>Landmark pin</label>
+            <select id="sxw-landmark-pick" disabled>
+              <option value="">— none —</option>
+            </select>
+          </div>
+          <div class="sxw-row sxw-row-inline sxw-row-landmark-info" id="sxw-landmark-info-row" style="display:none;">
+            <label>Landmark</label>
+            <span class="sxw-readonly" id="sxw-landmark-info">—</span>
+          </div>
           <div class="sxw-row sxw-row-inline sxw-row-region">
             <label>Region</label>
             <select id="sxw-region-pick" disabled>
@@ -456,6 +473,7 @@
     c.querySelector('#sxw-feature-name').addEventListener('blur', persistFeature);
     c.querySelector('#sxw-feature-libid').addEventListener('blur', persistFeature);
     c.querySelector('#sxw-feature-notes').addEventListener('blur', persistFeature);
+    c.querySelector('#sxw-landmark-pick').addEventListener('change', onLandmarkPickChange);
     c.querySelector('#sxw-region-pick').addEventListener('change', onRegionPickChange);
     c.querySelector('#sxw-region-name').addEventListener('blur', onRegionRename);
     c.querySelector('#sxw-clear').addEventListener('click', onClearOverride);
@@ -725,6 +743,19 @@
     }
   }
 
+  // Gold halo drawn behind the feature glyph when the cell is pinned
+  // to a parent landmark. Visually distinguishes "the city is HERE"
+  // from a generic same-kind feature elsewhere on the map.
+  function appendLandmarkHalo(parent, cx, cy){
+    const ns = 'http://www.w3.org/2000/svg';
+    const halo = document.createElementNS(ns, 'circle');
+    halo.setAttribute('cx', cx);
+    halo.setAttribute('cy', cy);
+    halo.setAttribute('r', SUB_R * 0.95);
+    halo.setAttribute('class', 'sxw-landmark-halo');
+    parent.appendChild(halo);
+  }
+
   function armKey(armed){
     if (!armed) return null;
     if (armed.type === 'erase') return 'erase:';
@@ -970,6 +1001,7 @@
       if (sub.feature && sub.feature.kind){
         const featG = document.createElementNS(ns, 'g');
         featG.setAttribute('class', 'sxw-feature-layer');
+        if (sub.feature.landmarkId) appendLandmarkHalo(featG, c.x, c.y);
         window.GCCSubhexIcons.appendFeature(featG, sub.feature.kind, c.x, c.y, SUB_R);
         group.appendChild(featG);
       }
@@ -1742,6 +1774,7 @@
       if (sub.feature && sub.feature.kind){
         const featG = document.createElementNS(ns, 'g');
         featG.setAttribute('class', 'sxw-feature-layer');
+        if (sub.feature.landmarkId) appendLandmarkHalo(featG, c.x, c.y);
         window.GCCSubhexIcons.appendFeature(featG, sub.feature.kind, c.x, c.y, SUB_R);
         group.appendChild(featG);
       }
@@ -1955,6 +1988,9 @@
     const fname  = findEl('sxw-feature-name');
     const flib   = findEl('sxw-feature-libid');
     const fnotes = findEl('sxw-feature-notes');
+    const lpick  = findEl('sxw-landmark-pick');
+    const linfoR = findEl('sxw-landmark-info-row');
+    const linfo  = findEl('sxw-landmark-info');
     const rpick  = findEl('sxw-region-pick');
     const rname  = findEl('sxw-region-name');
     const plist  = findEl('sxw-paths-list');
@@ -1974,6 +2010,8 @@
       fname.value = '';  fname.disabled = true;
       flib.value  = '';  flib.disabled  = true;
       fnotes.value = ''; fnotes.disabled = true;
+      if (lpick){ lpick.value = ''; lpick.disabled = true; }
+      if (linfoR) linfoR.style.display = 'none';
       rebuildRegionPickOptions(rpick, '', null);
       rpick.disabled = true;
       rname.value = '';  rname.disabled = true;
@@ -2001,14 +2039,49 @@
     name.value  = sub.name  || '';  name.disabled  = false;
     notes.value = sub.notes || '';  notes.disabled = false;
     const f = sub.feature || null;
+    const isPinned = !!(f && f.landmarkId);
     fkind.value = f ? (f.kind || '') : '';
-    fkind.disabled = false;
+    // When pinned, kind/name are owned by the parent landmark — disable
+    // local edit and direct the GM to the parent record. Notes/libraryId
+    // remain editable.
+    fkind.disabled = isPinned ? true : false;
     fname.value = f ? (f.name || '') : '';
-    fname.disabled = !f;
+    fname.disabled = !f || isPinned;
     flib.value  = f ? (f.libraryId || '') : '';
     flib.disabled = !f;
     fnotes.value = f ? (f.notes || '') : '';
     fnotes.disabled = !f;
+    // Landmark pin: list the landmarks of the cell's parent so the GM
+    // can pin one to this cell. Only populated for cells whose owning
+    // parent has a landmark in gcc-landmarks.
+    if (lpick){
+      rebuildLandmarkPickOptions(lpick, owner, f && f.landmarkId);
+      lpick.disabled = false;
+    }
+    if (linfoR && linfo){
+      if (isPinned && window.GCCLandmarks){
+        const lm = window.GCCLandmarks.getById(f.landmarkId);
+        if (lm){
+          const bits = [];
+          bits.push(`${lm.kind || 'landmark'}`);
+          if (lm.size) bits.push(lm.size);
+          if (lm.pop != null) bits.push(`pop ${lm.pop}`);
+          if (lm.rulerName){
+            const rt = lm.rulerTitle ? `${lm.rulerTitle} ` : '';
+            bits.push(`ruler: ${rt}${lm.rulerName}`);
+          } else if (lm.rulerTitle){
+            bits.push(`ruler: ${lm.rulerTitle}`);
+          }
+          linfo.textContent = `${lm.name} · ${bits.join(' · ')} (edit in parent: ${f.landmarkId})`;
+          linfoR.style.display = '';
+        } else {
+          linfo.textContent = `Pin → ${f.landmarkId} (landmark not found)`;
+          linfoR.style.display = '';
+        }
+      } else {
+        linfoR.style.display = 'none';
+      }
+    }
     rebuildRegionPickOptions(rpick, sub.terrain, sub.regionId);
     rpick.disabled = false;
     const region = sub.regionId ? window.GCCSubhexData.getRegion(sub.regionId) : null;
@@ -2055,6 +2128,56 @@
       sel.appendChild(newOpt);
     }
     sel.value = selectedRegionId || '';
+  }
+
+  // Landmark pick options: only landmarks belonging to the cell's
+  // owning parent (Voronoi owner). Currently the gcc-landmarks store
+  // is one-landmark-per-parent-hex, so this is at most a single
+  // option, but we list-style it for forward compat (a hex with
+  // multiple settlements down the road). Out-of-parent landmarks
+  // never appear — there's no semantic for "Verbobonc lives in this
+  // subhex of D5-67".
+  function rebuildLandmarkPickOptions(sel, owner, selectedLandmarkId){
+    if (!sel) return;
+    sel.innerHTML = '';
+    const noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = '— none —';
+    sel.appendChild(noneOpt);
+    if (!owner || typeof window.GCCLandmarks === 'undefined'
+        || typeof hexIdStr !== 'function'){
+      sel.value = '';
+      return;
+    }
+    const parentId = hexIdStr(owner.col, owner.row);
+    const lm = window.GCCLandmarks.getById(parentId);
+    if (lm){
+      const opt = document.createElement('option');
+      opt.value = parentId;
+      opt.textContent = `${lm.name} (${lm.kind || 'landmark'})`;
+      sel.appendChild(opt);
+    }
+    sel.value = selectedLandmarkId || '';
+  }
+
+  function onLandmarkPickChange(ev){
+    if (state.selectedQ === null) return;
+    if (!window.GCCSubhexData) return;
+    const val = ev.target.value;
+    if (val){
+      window.GCCSubhexData.pinLandmarkToCell(state.selectedQ, state.selectedR, val);
+    } else {
+      // Find which landmark was previously pinned to this cell, if any,
+      // and clear it. We can't ask the dropdown — its value just
+      // changed to "" — so consult the cell's feature.
+      const sub = window.GCCSubhexData.getSubhex(state.selectedQ, state.selectedR);
+      const prev = sub.feature?.landmarkId;
+      if (prev) window.GCCSubhexData.unpinLandmark(prev);
+    }
+    applyCellPaint(state.selectedQ, state.selectedR);
+    syncDetailPanel();
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg) renderCrossings(svg);
   }
 
   function onRegionPickChange(ev){

@@ -1,4 +1,17 @@
-// gcc-subhex-data.js v2.2.0 — 2026-04-29
+// gcc-subhex-data.js v2.3.0 — 2026-04-30
+// v2.3.0: landmark pinning. The subhex layer can now refine WHERE
+// in a 30-mile parent a settlement sits. New optional feature
+// field `landmarkId` (the parent's Darlene hex ID) marks the cell
+// as the precise location of that landmark. The subhex doesn't
+// own the metadata — name, kind, pop, ruler still live in
+// gcc-landmarks; the subhex just owns the placement. Helpers:
+//   findCellPinnedToLandmark(landmarkId) — { Q, R } | null
+//   pinLandmarkToCell(Q, R, landmarkId)  — moves any prior pin
+//   unpinLandmark(landmarkId)            — clears the pin only
+// FEATURE_KINDS gains 'city' and 'town' so the glyph layer can
+// scale settlements; without a landmarkId pin these are homebrew
+// settlements (the parent layer remains the source of truth for
+// canonical/named settlements).
 // v2.2.0: feature.notes — bridges/fords/ferries/crossroads can carry
 // free-form notes alongside the existing name. New getCellFeature(Q,R)
 // helper returns just the feature without terrain plumbing, for
@@ -108,6 +121,7 @@
   };
 
   const FEATURE_KINDS = [
+    'city', 'town',
     'castle', 'ruin', 'tower', 'village',
     'camp', 'cache', 'shrine', 'lair',
     'grave', 'landmark',
@@ -361,6 +375,7 @@
     if (f.name && String(f.name).trim()) out.name = String(f.name).trim();
     if (f.libraryId && String(f.libraryId).trim()) out.libraryId = String(f.libraryId).trim();
     if (f.notes && String(f.notes).trim()) out.notes = String(f.notes).trim();
+    if (f.landmarkId && String(f.landmarkId).trim()) out.landmarkId = String(f.landmarkId).trim();
     return out;
   }
 
@@ -415,6 +430,83 @@
 
   function setSubhexFeature(Q, R, feature){ return setSubhexOverride(Q, R, { feature }); }
   function clearSubhexFeature(Q, R){ return setSubhexOverride(Q, R, { feature: null }); }
+
+  // Landmark pinning ──────────────────────────────────────────────────────
+  // A parent landmark (gcc-landmarks entry, keyed by Darlene hex ID) can
+  // be pinned to a single subhex cell within its parent. The pin lives
+  // on feature.landmarkId; metadata stays in gcc-landmarks. Pinning
+  // enforces single-source: only one cell may carry a given landmarkId
+  // at a time. Moving the pin clears the old cell automatically.
+  function findCellPinnedToLandmark(landmarkId){
+    if (!landmarkId) return null;
+    for (const id in OVERRIDES){
+      const ov = OVERRIDES[id];
+      if (ov.feature && ov.feature.landmarkId === landmarkId){
+        const parsed = parseSubhexId(id);
+        if (parsed) return { Q: parsed.Q, R: parsed.R };
+      }
+    }
+    return null;
+  }
+  // Pin landmarkId to (Q, R). If kind/name aren't provided in opts, infer
+  // from the landmark record (when GCCLandmarks is loaded). Clears any
+  // pre-existing pin to the same landmark on a different cell. If opts
+  // includes landmarkId === null, the call unpins (leaves any other
+  // feature data on the cell intact).
+  function pinLandmarkToCell(Q, R, landmarkId, opts){
+    opts = opts || {};
+    // Move-the-pin: clear the old cell's landmarkId if it differs.
+    const existing = findCellPinnedToLandmark(landmarkId);
+    if (existing && (existing.Q !== Q || existing.R !== R)){
+      unpinLandmark(landmarkId);
+    }
+    const cur = getSubhex(Q, R);
+    const f = { ...(cur.feature || {}) };
+    f.landmarkId = landmarkId;
+    // Sync kind/name from landmark when caller hasn't specified them.
+    // Falls back to leaving them alone if the landmark API is unavailable.
+    if (typeof window !== 'undefined' && window.GCCLandmarks){
+      const lm = window.GCCLandmarks.getById(landmarkId);
+      if (lm){
+        if (opts.kind != null) f.kind = opts.kind;
+        else if (FEATURE_KINDS_SET.has(lm.kind)) f.kind = lm.kind;
+        else f.kind = 'landmark';
+        if (opts.name != null) f.name = opts.name;
+        else if (lm.name) f.name = lm.name;
+      }
+    }
+    if (!f.kind) f.kind = 'landmark';
+    return setSubhexOverride(Q, R, { feature: f });
+  }
+  function unpinLandmark(landmarkId){
+    const existing = findCellPinnedToLandmark(landmarkId);
+    if (!existing) return false;
+    const id = subhexId(existing.Q, existing.R);
+    const ov = OVERRIDES[id];
+    if (!ov || !ov.feature) return false;
+    const oldF = ov.feature;
+    // If the feature on the cell looks pure-landmark (only the kind
+    // and name we'd have written from the landmark, no GM-authored
+    // notes/libraryId), clear it entirely. Otherwise just drop the
+    // landmarkId and leave the user's extras intact.
+    let isPureLandmark = false;
+    if (typeof window !== 'undefined' && window.GCCLandmarks){
+      const lm = window.GCCLandmarks.getById(landmarkId);
+      if (lm){
+        const expectedKind = FEATURE_KINDS_SET.has(lm.kind) ? lm.kind : 'landmark';
+        isPureLandmark = oldF.kind === expectedKind
+                      && (oldF.name || '') === (lm.name || '')
+                      && !oldF.notes && !oldF.libraryId;
+      }
+    }
+    if (isPureLandmark){
+      return setSubhexOverride(existing.Q, existing.R, { feature: null });
+    }
+    const newF = { ...oldF };
+    delete newF.landmarkId;
+    return setSubhexOverride(existing.Q, existing.R, { feature: newF });
+  }
+
   function clearSubhex(Q, R){
     const id = subhexId(Q, R);
     if (id in OVERRIDES){ delete OVERRIDES[id]; save(); return true; }
@@ -631,6 +723,7 @@
     subhexId, parseSubhexId, regionDocId, parseRegionId,
     getSubhex, setSubhexOverride, clearSubhex, clearAll,
     setSubhexFeature, clearSubhexFeature, getCellFeature,
+    findCellPinnedToLandmark, pinLandmarkToCell, unpinLandmark,
     listRegions, regionsInParent, getRegion, createRegion, renameRegion, deleteRegion,
     assignCellToRegion, unassignCellFromRegion, regionMembers, gcRegionIfEmpty,
     allAuthored, authoredCount,
