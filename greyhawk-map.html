@@ -821,7 +821,7 @@
 
 <script src="gcc-regions.js?v=16"></script>
 <script src="gcc-encounter-data.js?v=2"></script>
-<script src="gcc-encounters.js?v=6"></script>
+<script src="gcc-encounters.js?v=7"></script>
 <script src="gcc-encounter-panel.js?v=9"></script>
 <script src="gcc-landmarks.js?v=9"></script>
 <script src="gcc-terrain.js?v=3"></script>
@@ -3435,7 +3435,26 @@ function tickJourney(){
   let result;
   const slotKey = TIME_SLOTS[j.currentSlotIdx];
   if (j.profile.mode === 'flying'){
-    result = { occurred: false, aerial: true, reason: 'Aerial — DMG aerial tables TODO' };
+    // DMG p.49 airborne random encounters: "use the appropriate
+    // OUTDOOR RANDOM MONSTER ENCOUNTERS table. Check at every
+    // opportunity […] but an encounter occurs only if the creature
+    // indicated is able to fly or is actually flying." Hand off to
+    // the engine with airborne:true — it rolls normally and gates
+    // the result on canFly(mmStats).
+    //
+    // Slot model deviation: DMG specifies 4 daylight + 2 night slots
+    // for both-day-and-night flight (vs. our 6-slot 3+3 model used
+    // for ground travel). We retain the 6-slot model for flying;
+    // impact is roughly +1 daylight check / -1 night check vs RAW.
+    // Acceptable for now — revisit if it causes table-frequency
+    // skew in play.
+    if (typeof GCCEncounters === 'undefined'){
+      result = { occurred: false, reason: 'Encounter engine not loaded' };
+    } else {
+      const ctx = GCCEncounters.contextFor(entry.hex.col, entry.hex.row);
+      ctx.timeOfDay = slotKey;
+      result = GCCEncounters.check(ctx, { airborne: true });
+    }
   } else if (j.profile.mode === 'ship'){
     result = { occurred: false, naval: true, reason: 'Naval — DMG/Seafarer encounter tables TODO' };
   } else if (typeof GCCEncounters === 'undefined'){
@@ -3455,7 +3474,7 @@ function tickJourney(){
     hex: entry.hex,
     terrain: entry.terrain,
     occurred: !!result.occurred,
-    rolled: !!(result.occurs?.occurs || result.occurred || (!result.aerial && result.ctx && result.ctx.dmgTerrain != null)),
+    rolled: !!(result.occurs?.occurs || result.occurred || result.airborne || (result.ctx && result.ctx.dmgTerrain != null && !result.naval)),
     reason: result.reason || null,
     encounter: result.occurred ? result : null,
   };

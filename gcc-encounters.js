@@ -522,6 +522,23 @@
     return null;
   }
 
+  // canFly(mmStats) — true if any move string on the monster mentions
+  // "flying". Used by the airborne-encounter filter to determine
+  // whether a rolled creature actually engages a flying party. The
+  // predicate scans both the top-level move and each variants[].move,
+  // since some MM entries (dragons, etc.) put movement on variants.
+  function canFly(mmStats){
+    if (!mmStats) return false;
+    const re = /flying/i;
+    if (typeof mmStats.move === 'string' && re.test(mmStats.move)) return true;
+    if (Array.isArray(mmStats.variants)){
+      for (const v of mmStats.variants){
+        if (v && typeof v.move === 'string' && re.test(v.move)) return true;
+      }
+    }
+    return false;
+  }
+
   // ── Hex context resolver ──────────────────────────────────────────────────
   function contextFor(col, row){
     const ctx = {
@@ -661,6 +678,13 @@
   //   force: bool    — bypass timing rule + frequency die. The roll always
   //                    proceeds to table selection. Useful for a "force
   //                    encounter" GM action and for testing.
+  //   airborne: bool — party is flying. Roll proceeds normally but if the
+  //                    rolled monster can't fly, the result is treated as
+  //                    occurred:false per DMG: "an encounter occurs only
+  //                    if the creature indicated is able to fly or is
+  //                    actually flying." The rolled creature is reported
+  //                    in the reason for transparency ("groundling: hill
+  //                    giant — no airborne engagement").
   function check(hexOrCtx, opts){
     opts = opts || {};
     if (typeof window.GCCEncounterData === 'undefined'){
@@ -743,6 +767,23 @@
     // Look up MM stats for the rolled monster.
     const mmStats = lookupMonster(result.monster);
 
+    // Airborne party: filter out non-flying creatures. The frequency
+    // die already rolled and the table already produced a creature,
+    // but a flying party doesn't engage a groundling. We surface the
+    // rolled creature in the reason so the GM sees what would have
+    // appeared on the ground — useful for tracking what the region
+    // actually contains.
+    if (opts.airborne && !canFly(mmStats)){
+      return {
+        ctx,
+        occurred: false,
+        occurs,
+        airborne: true,
+        groundling: result.monster,
+        reason: `Airborne — rolled ${result.monster} (groundling, no airborne engagement)`,
+      };
+    }
+
     // Number-appearing resolution. Roll whatever the table or MM
     // provides — both small formulas (1d4, 2d6) and large ones
     // (50d6 for caravan totals). The panel always displays the
@@ -775,6 +816,7 @@
       ctx,
       occurred: true,
       occurs,
+      airborne: !!opts.airborne,
       monster: result.monster,
       numberFormula: numberAppearing,
       numberRolled,
