@@ -1,4 +1,8 @@
-// gcc-paths.js v0.6.0 — 2026-04-29
+// gcc-paths.js v0.7.0 — 2026-04-29
+// v0.7.0: Crossings carry an optional `notes` field. saveCrossing
+// signature is now (colA, rowA, colB, rowB, kind, name, notes);
+// allCrossings() returns notes alongside name. Override storage and
+// replay preserve notes.
 // v0.6.0: Greyhawk raft rule. Rivers no longer fully block movement.
 // Per the 1980 Greyhawk box: light parties swim across (no cost),
 // encumbered parties build floats (~half day). Bridges, fords, and
@@ -507,11 +511,11 @@
     if (!Number.isFinite(col) || !Number.isFinite(row) || !Number.isFinite(edge)) return null;
     return { col, row, edge };
   }
-  function saveCrossing(colA, rowA, colB, rowB, kind, name){
+  function saveCrossing(colA, rowA, colB, rowB, kind, name, notes){
     if (!CROSSING_KINDS.has(kind)) throw new Error(`bad crossing kind: ${kind}`);
     const k = _crossingKey(colA, rowA, colB, rowB);
     if (!k) throw new Error('hexes are not adjacent');
-    overrideCrossings[k] = { kind, name: (name || '').trim() };
+    overrideCrossings[k] = { kind, name: (name || '').trim(), notes: (notes || '').trim() };
     saveOverridesLS();
     rebuild();
   }
@@ -542,7 +546,7 @@
               key: `${col}-${row}-${e}`,
               ownerCol: col, ownerRow: row, edge: e,
               hexA: { col, row }, hexB: nb,
-              kind: f.kind, name: f.name || '',
+              kind: f.kind, name: f.name || '', notes: f.notes || '',
             });
           }
         }
@@ -651,7 +655,7 @@
       if (!parsed) continue;
       try {
         _addEdgeFeature(parsed.col, parsed.row, parsed.edge, {
-          kind: def.kind, name: def.name || '',
+          kind: def.kind, name: def.name || '', notes: def.notes || '',
         });
       } catch (e) {
         console.warn('[gcc-paths] crossing apply failed:', k, e);

@@ -835,6 +835,7 @@
             <option value="ferry">ferry</option>
           </select>
           <input class="he-input" id="he-pf-cross-form-name" type="text" placeholder="Name (optional)" autocomplete="off">
+          <textarea class="he-input he-pf-cross-form-notes" id="he-pf-cross-form-notes" rows="3" placeholder="Notes (optional)"></textarea>
           <div class="he-pf-form-btns">
             <button class="he-btn" id="he-pf-cross-form-save">Save</button>
             <button class="he-btn" id="he-pf-cross-form-cancel">Cancel</button>
@@ -1093,6 +1094,13 @@
       }
       #hex-edit-panel .he-pf-meta {
         margin:4px 0 6px; font-size:10px; color:#a89066; font-style:italic;
+      }
+      #hex-edit-panel .he-pf-cross-meta-notes {
+        margin-top:2px; font-size:10px; color:#c8a96e; font-style:normal;
+        white-space:pre-wrap; line-height:1.35;
+      }
+      #hex-edit-panel textarea.he-pf-cross-form-notes {
+        margin-top:4px; resize:vertical; min-height:48px; font-family:inherit;
       }
       #hex-edit-panel .he-pf-actrow,
       #hex-edit-panel .he-pf-form-btns {
@@ -2949,7 +2957,15 @@
     if (!c){ el.textContent = '—'; return; }
     const river = GCCPaths.riverNameOnEdge(c.hexA.col, c.hexA.row, c.hexB.col, c.hexB.row);
     const where = `${hexIdStr(c.hexA.col, c.hexA.row)}↔${hexIdStr(c.hexB.col, c.hexB.row)}`;
-    el.textContent = `${c.kind} · ${where}${river ? ` · over ${river}` : ' · (no river)'}`;
+    const head = `${c.kind} · ${where}${river ? ` · over ${river}` : ' · (no river)'}`;
+    if (c.notes){
+      el.innerHTML = '';
+      const h = document.createElement('div'); h.textContent = head;
+      const n = document.createElement('div'); n.className = 'he-pf-cross-meta-notes'; n.textContent = c.notes;
+      el.appendChild(h); el.appendChild(n);
+    } else {
+      el.textContent = head;
+    }
   }
   function refreshPfCrossActions(){
     const p = pfPanel(); if (!p) return;
@@ -2972,7 +2988,7 @@
     const river = GCCPaths.riverNameOnEdge(c.hexA.col, c.hexA.row, c.hexB.col, c.hexB.row);
     pfOpenCrossingForm({
       hexA: c.hexA, hexB: c.hexB, riverName: river,
-      kind: c.kind, name: c.name || '', isEdit: true,
+      kind: c.kind, name: c.name || '', notes: c.notes || '', isEdit: true,
     });
   }
   function onPfCrossDeleteClick(){
@@ -3036,6 +3052,7 @@
     p.querySelector('#he-pf-cross-form-loc').textContent = `${where}${river}`;
     p.querySelector('#he-pf-cross-form-kind').value = ctx.kind || 'bridge';
     p.querySelector('#he-pf-cross-form-name').value = ctx.name || '';
+    p.querySelector('#he-pf-cross-form-notes').value = ctx.notes || '';
     setTimeout(() => p.querySelector('#he-pf-cross-form-name').focus(), 0);
   }
   function onPfCrossFormCancel(){
@@ -3047,8 +3064,9 @@
     const p = pfPanel();
     const kind = p.querySelector('#he-pf-cross-form-kind').value;
     const name = (p.querySelector('#he-pf-cross-form-name').value || '').trim();
+    const notes = (p.querySelector('#he-pf-cross-form-notes').value || '').trim();
     try {
-      GCCPaths.saveCrossing(ctx.hexA.col, ctx.hexA.row, ctx.hexB.col, ctx.hexB.row, kind, name);
+      GCCPaths.saveCrossing(ctx.hexA.col, ctx.hexA.row, ctx.hexB.col, ctx.hexB.row, kind, name, notes);
     } catch (e){
       showToast(`Save failed: ${e.message}`);
       return;
