@@ -1,4 +1,8 @@
-// gcc-subhex-view.js v2.4.8 — 2026-04-29
+// gcc-subhex-view.js v2.5.0 — 2026-04-29
+// v2.5.0: feature notes. The detail panel grows a notes textarea for
+// the selected cell's feature, populated from feature.notes and
+// persisted on blur. Crossings (bridge/ford/ferry/crossroads) are
+// where this is most useful, but it works for any feature kind.
 // v2.4.8: don't fire the crossing × badge for river-meets-river
 // confluences. The detector now skips cells where every path is
 // kind 'river' or 'stream' — those aren't crossings, they're
@@ -385,6 +389,10 @@
             <input type="text" id="sxw-feature-name" placeholder="Feature name" disabled>
             <input type="text" id="sxw-feature-libid" placeholder="Library ID" disabled>
           </div>
+          <div class="sxw-row sxw-row-inline sxw-row-feature-notes">
+            <label>Feature notes</label>
+            <textarea id="sxw-feature-notes" placeholder="Notes for this feature (toll, condition, lore…)" disabled></textarea>
+          </div>
           <div class="sxw-row sxw-row-inline sxw-row-region">
             <label>Region</label>
             <select id="sxw-region-pick" disabled>
@@ -440,6 +448,7 @@
     c.querySelector('#sxw-feature-kind').addEventListener('change', persistFeature);
     c.querySelector('#sxw-feature-name').addEventListener('blur', persistFeature);
     c.querySelector('#sxw-feature-libid').addEventListener('blur', persistFeature);
+    c.querySelector('#sxw-feature-notes').addEventListener('blur', persistFeature);
     c.querySelector('#sxw-region-pick').addEventListener('change', onRegionPickChange);
     c.querySelector('#sxw-region-name').addEventListener('blur', onRegionRename);
     c.querySelector('#sxw-clear').addEventListener('click', onClearOverride);
@@ -1880,12 +1889,13 @@
     const fkind  = findEl('sxw-feature-kind');
     const fname  = findEl('sxw-feature-name');
     const flib   = findEl('sxw-feature-libid');
+    const fnotes = findEl('sxw-feature-notes');
     const rpick  = findEl('sxw-region-pick');
     const rname  = findEl('sxw-region-name');
     const plist  = findEl('sxw-paths-list');
     const source = findEl('sxw-source');
     const clearB = findEl('sxw-clear');
-    if (!coord || !terr || !name || !notes || !fkind || !fname || !flib
+    if (!coord || !terr || !name || !notes || !fkind || !fname || !flib || !fnotes
         || !rpick || !rname || !source || !clearB) return;
 
     if (state.selectedQ === null){
@@ -1898,6 +1908,7 @@
       fkind.value = '';  fkind.disabled = true;
       fname.value = '';  fname.disabled = true;
       flib.value  = '';  flib.disabled  = true;
+      fnotes.value = ''; fnotes.disabled = true;
       rebuildRegionPickOptions(rpick, '', null);
       rpick.disabled = true;
       rname.value = '';  rname.disabled = true;
@@ -1931,6 +1942,8 @@
     fname.disabled = !f;
     flib.value  = f ? (f.libraryId || '') : '';
     flib.disabled = !f;
+    fnotes.value = f ? (f.notes || '') : '';
+    fnotes.disabled = !f;
     rebuildRegionPickOptions(rpick, sub.terrain, sub.regionId);
     rpick.disabled = false;
     const region = sub.regionId ? window.GCCSubhexData.getRegion(sub.regionId) : null;
@@ -2363,12 +2376,15 @@
     } else {
       const fnameEl = findEl('sxw-feature-name');
       const flibEl  = findEl('sxw-feature-libid');
+      const fnotesEl = findEl('sxw-feature-notes');
       const fname = fnameEl ? fnameEl.value.trim() : '';
       const flib  = flibEl  ? flibEl.value.trim()  : '';
+      const fnotes = fnotesEl ? fnotesEl.value.trim() : '';
       window.GCCSubhexData.setSubhexFeature(state.selectedQ, state.selectedR, {
         kind,
         name: fname || undefined,
         libraryId: flib || undefined,
+        notes: fnotes || undefined,
       });
     }
     applyCellPaint(state.selectedQ, state.selectedR);

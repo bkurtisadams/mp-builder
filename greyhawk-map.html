@@ -301,13 +301,14 @@
      route preview rows. Mirrors the travel-dialog chrome: gold border,
      parchment palette, draggable header. */
   #journey-dialog { position:fixed; top:0; left:0; width:280px;
+    max-height:90vh;
     background:#120900; border:1px solid var(--gold); border-radius:2px;
     z-index:65; box-shadow:0 8px 32px rgba(0,0,0,.7);
     opacity:0; pointer-events:none; transition:opacity .18s ease;
-    display:flex; flex-direction:column; }
+    display:flex; flex-direction:column; overflow:hidden; }
   #journey-dialog.open { opacity:1; pointer-events:all; }
   #jd-header { padding:9px 30px 6px 11px; border-bottom:1px solid var(--panel-border);
-    position:relative; cursor:grab; user-select:none; }
+    position:relative; cursor:grab; user-select:none; flex:0 0 auto; }
   #jd-header.dragging { cursor:grabbing; }
   #jd-header h2 { font-family:'Cinzel',serif; font-size:12px; color:var(--gold-light);
     letter-spacing:.08em; }
@@ -315,13 +316,23 @@
     border:1px solid var(--panel-border); color:#c8a96e; font-size:12px;
     cursor:pointer; padding:2px 6px; border-radius:2px; line-height:1; }
   #jd-close:hover { background:rgba(200,148,26,.3); color:#ffeebb; }
-  #jd-body { padding:9px 11px; display:flex; flex-direction:column; gap:5px; }
+  #jd-body { flex:1 1 auto; min-height:0; overflow-y:auto; padding:9px 11px; display:flex; flex-direction:column; gap:5px; }
+  #jd-body::-webkit-scrollbar { width:4px; }
+  #jd-body::-webkit-scrollbar-thumb { background:rgba(200,148,26,.3); }
   .jd-row { display:flex; justify-content:space-between; align-items:baseline;
     gap:8px; font-size:11px; color:var(--parchment-light); }
   .jd-row label { font-family:'Cinzel',serif; font-size:9px; letter-spacing:.1em;
     text-transform:uppercase; color:#8b6e45; }
   .jd-row .jd-val { color:var(--gold-light); text-align:right; }
   .jd-row .jd-val.jd-warn { color:#e07555; }
+  /* Crossings list can hold multiple lines (one per authored crossing
+     used by the route). Keep the row baseline-aligned but let the
+     value wrap and break on its own. */
+  .jd-crossings-row { align-items:flex-start; }
+  .jd-crossings-row label { padding-top:1px; }
+  .jd-crossings-val { color:#9ed29a; text-align:right; line-height:1.35;
+    white-space:pre-line; max-width:200px; }
+  .jd-crossings-val .jd-cx-notes { color:#7ba577; font-size:10px; font-style:italic; display:block; }
   /* Plan-mode + trace controls (manual route mode). */
   .jd-mode-btns, .jd-trace-btns { display:flex; gap:4px; flex:1; justify-content:flex-end; }
   .jd-mode-btn, .jd-trace-btns button {
@@ -355,7 +366,7 @@
   .jd-date-row input[type="number"] { width:54px; }
   .jd-date-row select#jd-month { flex:1; min-width:0; }
   .jd-date-row select#jd-tod { flex:1; min-width:0; }
-  #jd-footer { display:flex; gap:6px; padding:8px 11px;
+  #jd-footer { display:flex; gap:6px; padding:8px 11px; flex:0 0 auto;
     border-top:1px solid var(--panel-border); }
   #jd-footer button { flex:1; background:rgba(200,148,26,.12); color:#c8a96e;
     border:1px solid var(--panel-border); border-radius:2px; padding:5px;
@@ -725,6 +736,10 @@
     <div class="jd-row"><label>Duration</label><span class="jd-val" id="jd-dur">—</span></div>
     <div class="jd-row"><label>Encounter Checks</label><span class="jd-val" id="jd-checks">—</span></div>
     <div class="jd-row" id="jd-warn-row" style="display:none"><label>Warning</label><span class="jd-val jd-warn" id="jd-warn">—</span></div>
+    <div class="jd-row jd-crossings-row" id="jd-crossings-row" style="display:none">
+      <label>Crossings</label>
+      <span class="jd-val jd-crossings-val" id="jd-crossings">—</span>
+    </div>
     <hr class="jd-div">
     <fieldset class="jd-fs">
       <legend>Start Date (campaign-local)</legend>
@@ -810,14 +825,14 @@
 <script src="gcc-encounter-panel.js?v=8"></script>
 <script src="gcc-landmarks.js?v=9"></script>
 <script src="gcc-terrain.js?v=3"></script>
-<script src="gcc-paths.js?v=7"></script>
+<script src="gcc-paths.js?v=8"></script>
 <script src="gcc-rng.js?v=1"></script>
-<script src="gcc-subhex-data.js?v=20"></script>
+<script src="gcc-subhex-data.js?v=21"></script>
 <script src="gcc-subhex-icons.js?v=7"></script>
-<script src="gcc-subhex-paths.js?v=10"></script>
+<script src="gcc-subhex-paths.js?v=11"></script>
 <script src="gcc-hex-edit.js?v=17"></script>
 <script src="gcc-voyage.js?v=2"></script>
-<script src="gcc-subhex-view.js?v=20"></script>
+<script src="gcc-subhex-view.js?v=21"></script>
 <script src="gcc-settings.js?v=1"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
@@ -1674,6 +1689,10 @@ function computeJourneyDuration(route, profile){
   // rivers" alongside the base travel time.
   let riverDelayDays = 0;
   const riverDelayNotes = [];
+  // Crossings used along the route — surfaced in a Crossings line so
+  // the GM can confirm authored bridges/fords/ferries are being
+  // credited. Each entry: { kind, name, notes, edgeId, source }.
+  const crossingsUsed = [];
   // Skip i=0 (origin — no travel cost). Each subsequent hex contributes
   // HEX_MILES / mi-per-day for its own terrain + the active profile.
   // GCCPaths supplies the river-edge resolver and the road-bonus
@@ -1750,6 +1769,21 @@ function computeJourneyDuration(route, profile){
           days: riverCost,
         });
       }
+      // Authored crossing on this edge? Subhex feature wins, parent
+      // crossing is the legacy fallback. List even when riverCost is
+      // zero — a working crossing is the whole point of authoring it.
+      if (typeof GCCPaths !== 'undefined' && typeof GCCPaths.edgeCrossingInfo === 'function'){
+        const cx = GCCPaths.edgeCrossingInfo(prev.col, prev.row, hex.col, hex.row);
+        if (cx){
+          crossingsUsed.push({
+            kind: cx.kind,
+            name: cx.name || '',
+            notes: cx.notes || '',
+            source: cx.source,
+            edgeId: `${hexIdStr(prev.col, prev.row)}→${hexIdStr(hex.col, hex.row)}`,
+          });
+        }
+      }
       const t = TERRAIN[terrain];
       const hasRiver = (typeof GCCPaths !== 'undefined') &&
                        GCCPaths.riversAt(hex.col, hex.row).length > 0;
@@ -1772,7 +1806,7 @@ function computeJourneyDuration(route, profile){
     }
   }
   totalDays += riverDelayDays;
-  return { days: totalDays, impassable, reason, riverDelayDays, riverDelayNotes };
+  return { days: totalDays, impassable, reason, riverDelayDays, riverDelayNotes, crossingsUsed };
 }
 // Rough projection: ~3 daylight time-of-day slots per hex check on
 // average (DMG p.47 timing rules range 1-4 slots/terrain). Phase 2 will
@@ -3158,6 +3192,39 @@ function recomputeJourneyPlan(){
     // mode after Reset, or a degenerate same-hex destination.
     document.getElementById('jd-begin').disabled = (j.route.length < 2);
   }
+  renderJourneyCrossings(dur.impassable ? [] : (dur.crossingsUsed || []));
+}
+
+// Render the Crossings row from the list of authored crossings used
+// along the route. Hidden when empty (no authored crossings on path).
+// Each entry: "<Kind> "<name>" — A→B" with an optional notes second
+// line in muted text. Notes line uses .jd-cx-notes (block-level).
+function renderJourneyCrossings(crossings){
+  const row = document.getElementById('jd-crossings-row');
+  const val = document.getElementById('jd-crossings');
+  if (!row || !val) return;
+  if (!crossings || !crossings.length){
+    row.style.display = 'none';
+    val.textContent = '—';
+    return;
+  }
+  row.style.display = '';
+  val.innerHTML = '';
+  for (const c of crossings){
+    const kCap = c.kind.charAt(0).toUpperCase() + c.kind.slice(1);
+    const head = c.name
+      ? `${kCap} "${c.name}" — ${c.edgeId}`
+      : `${kCap} — ${c.edgeId}`;
+    const line = document.createElement('div');
+    line.textContent = head;
+    val.appendChild(line);
+    if (c.notes){
+      const n = document.createElement('span');
+      n.className = 'jd-cx-notes';
+      n.textContent = c.notes;
+      val.appendChild(n);
+    }
+  }
 }
 
 // ── JOURNEY EXECUTION (Phase 2) ──────────────────────────────────────────────
@@ -4122,6 +4189,15 @@ function wireEvents(){
     lines.push(`Encounter Checks: ${get('jd-checks')}`);
     const warn = get('jd-warn');
     if (warn && warn !== '—') lines.push(`Warning: ${warn}`);
+    // Crossings — pulled from the rendered list. Empty rows mean the
+    // route doesn't use any authored bridges/fords/ferries; we omit
+    // the line in that case rather than emitting an empty header.
+    const cxRow = document.getElementById('jd-crossings-row');
+    if (cxRow && cxRow.style.display !== 'none'){
+      const val = document.getElementById('jd-crossings');
+      const text = (val?.innerText || '').trim();
+      if (text) lines.push(`Crossings: ${text.replace(/\n/g, ' | ')}`);
+    }
     // Start date — assemble from the date inputs since they're not
     // textContent-bearing display fields.
     const month = document.getElementById('jd-month');

@@ -1,4 +1,9 @@
-// gcc-paths.js v0.7.0 — 2026-04-29
+// gcc-paths.js v0.8.0 — 2026-04-29
+// v0.8.0: edgeCrossingInfo(colA,rowA,colB,rowB) returns the crossing
+// the journey planner would use on this edge, preferring the subhex
+// layer's named crossing over the parent-layer record. Lets the
+// dialog surface a Crossings line that confirms authored bridges
+// /fords/ferries are actually being used.
 // v0.7.0: Crossings carry an optional `notes` field. saveCrossing
 // signature is now (colA, rowA, colB, rowB, kind, name, notes);
 // allCrossings() returns notes alongside name. Override storage and
@@ -247,6 +252,29 @@
     // parent — but specifically not for this edge. Fall back to parent
     // data for river-block decisions.
     return { defer: true };
+  }
+
+  // Returns the "best" crossing on this parent edge, for the journey
+  // planner's Crossings summary. Subhex wins (it's the more precise
+  // layer): a named bridge on a subhex boundary cell takes precedence
+  // over a parent-edge crossing record. Returns either:
+  //   { source: 'subhex', kind, name, notes, Q, R }  — subhex feature
+  //   { source: 'parent', kind, name, notes }        — parent record
+  //   null                                            — no crossing
+  function edgeCrossingInfo(colA, rowA, colB, rowB){
+    if (typeof window !== 'undefined' && window.GCCSubhexPaths
+        && typeof window.GCCSubhexPaths.subhexBoundaryInfo === 'function'){
+      const info = window.GCCSubhexPaths.subhexBoundaryInfo(colA, rowA, colB, rowB);
+      if (info && info.crossing){
+        const c = info.crossing;
+        return { source: 'subhex', kind: c.kind, name: c.name || '', notes: c.notes || '', Q: c.Q, R: c.R };
+      }
+    }
+    const pc = crossingAt(colA, rowA, colB, rowB);
+    if (pc){
+      return { source: 'parent', kind: pc.kind, name: pc.name || '', notes: pc.notes || '' };
+    }
+    return null;
   }
 
   // Legacy: returns true only for genuinely impassable cases. With
@@ -682,6 +710,7 @@
     getRiverChain, getRiverInfo,
     getRoadChain, getRoadInfo,
     crossingAt, allCrossings, riverNameOnEdge,
+    edgeCrossingInfo,
     // CRUD (persists)
     saveRiver, deleteRiver, clearOverrides, exportOverrides,
     saveRoad, deleteRoad,
