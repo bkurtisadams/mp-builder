@@ -3500,7 +3500,15 @@ function tickJourney(){
     } else {
       const ctx = GCCEncounters.contextFor(entry.hex.col, entry.hex.row);
       ctx.timeOfDay = slotKey;
-      result = GCCEncounters.check(ctx, { airborne: true });
+      // Daylight slots = mount is in flight (incl. brief rest pauses
+      // between fly legs) → airborne check. Night slots = mount is
+      // grounded for the night, party camped → ground encounter, no
+      // flying-only filter. RAW (DMG p.49) implies parties land for
+      // the night by default; "twice if flying at night also" is the
+      // exceptional case. Phase 3 polish: add a "fly through the
+      // night" toggle on the travel profile to flip this.
+      const isDaylight = slotKey === 'morning' || slotKey === 'noon' || slotKey === 'evening';
+      result = GCCEncounters.check(ctx, { airborne: isDaylight });
     }
   } else if (j.profile.mode === 'ship'){
     result = { occurred: false, naval: true, reason: 'Naval — DMG/Seafarer encounter tables TODO' };
