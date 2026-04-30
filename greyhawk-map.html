@@ -1047,6 +1047,50 @@ function flightMilesPerDay(vehicleId){
   return Math.round((v.speedIn / 3) * v.hrs);
 }
 
+// ── DMG flying mount rules (p.49) ────────────────────────────────────────
+// "All flying mounts must rest one hour for every three they fly, and
+// they can never fly more than nine hours a day. During their rest
+// periods they will eat as if famished: this means meat for griffons
+// or hippogriffs, and green living plants, preferably of a succulent
+// nature, or fine hay and oats, for pegasi."
+//
+// The 9hr/day fly cap is already captured in mpd via FLIGHT_VEHICLES[].hrs.
+// The 3:1 fly:rest ratio fits naturally inside a single fly day
+// (3+1+3+1+3 = 11 elapsed hours of 9 fly hours), so no separate
+// timeline pause is required — the slot model already accommodates
+// it. What WAS missing: surfacing the rest cycle and the mount's
+// dietary requirement in the journey log so the GM can roleplay
+// foraging stops and provisioning. We emit one mount-rest log
+// event per fly day (at day boundary). Items like Carpet/Broom/
+// Wings of Flying are not living mounts — they don't rest or eat.
+function isFlyingMount(profile){
+  if (!profile || profile.mode !== 'flying') return false;
+  const v = FLIGHT_VEHICLES[profile.vehicle];
+  return !!(v && v.group === 'mount');
+}
+function mountRestNarrative(vehicleId){
+  switch (vehicleId){
+    case 'pegasus':
+      return 'Pegasus rests; grazes famished on succulent plants, hay, or oats.';
+    case 'griffon':
+      return 'Griffon rests; feeds famished on fresh meat.';
+    case 'hippogriff':
+      return 'Hippogriff rests; feeds famished on fresh meat.';
+    default:
+      return 'Flying mount rests and feeds.';
+  }
+}
+function emitMountRestEvent(j){
+  if (!isFlyingMount(j.profile)) return;
+  j.log.push({
+    type: 'mount-rest',
+    day: j.currentDay,
+    date: { ...j.currentDate },
+    vehicle: j.profile.vehicle,
+    message: mountRestNarrative(j.profile.vehicle),
+  });
+}
+
 // ── DMG WATER TRAVEL ─────────────────────────────────────────────────────────
 // DMG 1e (p.55) MOVEMENT AFLOAT tables, miles/day. Two propulsions per
 // vessel × five water types. `null` means the vessel cannot use that
@@ -3359,6 +3403,9 @@ function startJourneyExecution(){
   j.currentTimeOfDay = TIME_SLOTS[j.currentSlotIdx];
   j.pendingEncounter = null;
   j.pauseReason = null;
+  // Day 0 mount-rest event for living-mount flights — subsequent
+  // days emit at the day-rollover in advanceJourneySlot.
+  emitMountRestEvent(j);
   closeJourneyPlanner();
   // closeJourneyPlanner() set state.journey = null; restore.
   state.journey = j;
@@ -3520,6 +3567,10 @@ function advanceJourneySlot(){
         if (w) j.log.push({ day: j.currentDay, type: 'weather', date: { ...j.currentDate }, weather: w });
       } catch (e) {}
     }
+    // Mount-rest narrative for living-mount flights — fires on the
+    // same day-boundary trigger as weather. Items (carpet, broom,
+    // wings) skip via isFlyingMount === false.
+    emitMountRestEvent(j);
   } else {
     j.currentTimeOfDay = TIME_SLOTS[j.currentSlotIdx];
   }
@@ -3638,6 +3689,7 @@ function renderJourneyLog(){
     if (entry.type === 'weather') dayBuckets[k].events.push({ kind: 'weather', data: entry.weather });
     else if (entry.type === 'crossing')    dayBuckets[k].events.push({ kind: 'crossing',    data: entry });
     else if (entry.type === 'river-block') dayBuckets[k].events.push({ kind: 'river-block', data: entry });
+    else if (entry.type === 'mount-rest')  dayBuckets[k].events.push({ kind: 'mount-rest',  data: entry });
     else dayBuckets[k].slots.push(entry);
   }
   const dayKeys = Object.keys(dayBuckets).map(n => parseInt(n, 10)).sort((a, b) => a - b);
@@ -3685,6 +3737,12 @@ function renderJourneyLog(){
         b.className = 'jl-encounter';
         b.textContent = `⛔ ${ev.data.message}`;
         div.appendChild(b);
+      } else if (ev.kind === 'mount-rest'){
+        const m = document.createElement('div');
+        m.className = 'jl-day-summary';
+        m.style.color = '#c8a96e';
+        m.textContent = `🪶 ${ev.data.message}`;
+        div.appendChild(m);
       }
     }
     body.appendChild(div);
@@ -4328,7 +4386,7 @@ function wireEvents(){
       for (const entry of j.log){
         const k = entry.day;
         if (!buckets[k]) buckets[k] = { day: k, date: entry.date, slots: [], events: [] };
-        if (entry.type === 'weather' || entry.type === 'crossing' || entry.type === 'river-block'){
+        if (entry.type === 'weather' || entry.type === 'crossing' || entry.type === 'river-block' || entry.type === 'mount-rest'){
           buckets[k].events.push(entry);
         } else {
           buckets[k].slots.push(entry);
@@ -4350,6 +4408,8 @@ function wireEvents(){
             line = `    river crossing delay: ${e.river || ''} (+${e.days || 0.5} day${e.days === 1 ? '' : 's'})`;
           } else if (e.type === 'weather'){
             line = `    weather: ${e.weather?.summary || JSON.stringify(e.weather || {})}`;
+          } else if (e.type === 'mount-rest'){
+            line = `    ${e.message}`;
           }
           lines.push(line);
         }
