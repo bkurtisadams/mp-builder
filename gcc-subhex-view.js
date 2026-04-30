@@ -1,4 +1,8 @@
-// gcc-subhex-view.js v2.6.0 — 2026-04-30
+// gcc-subhex-view.js v2.6.1 — 2026-04-30
+// v2.6.1: landmark picker fallback. Interior cells (not on a fragment
+// edge) had selectedFragmentOwner()===null, so the picker came up
+// empty for the active parent's own landmark. Resolve the owning
+// parent as: fragment owner OR fall back to state.parentCol/Row.
 // v2.6.0: landmark pinning UI. The detail panel gains a "Landmark
 // pin" dropdown listing the parent landmark(s) of the cell's
 // owning parent. Pinning sets feature.landmarkId on the cell;
@@ -2052,10 +2056,16 @@
     fnotes.value = f ? (f.notes || '') : '';
     fnotes.disabled = !f;
     // Landmark pin: list the landmarks of the cell's parent so the GM
-    // can pin one to this cell. Only populated for cells whose owning
-    // parent has a landmark in gcc-landmarks.
+    // can pin one to this cell. Owning-parent resolution: prefer
+    // selectedFragmentOwner() (when this cell is a fragment of a
+    // neighbor parent shown in the current view), else fall back to
+    // the active parent (most interior cells). Without this fallback
+    // the picker came up empty for any non-fragment cell.
+    const cellOwner = owner || (state.parentCol != null && state.parentRow != null
+      ? { col: state.parentCol, row: state.parentRow }
+      : null);
     if (lpick){
-      rebuildLandmarkPickOptions(lpick, owner, f && f.landmarkId);
+      rebuildLandmarkPickOptions(lpick, cellOwner, f && f.landmarkId);
       lpick.disabled = false;
     }
     if (linfoR && linfo){
