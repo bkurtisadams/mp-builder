@@ -298,12 +298,24 @@
         `<span class="value">${result.reaction.label} (${result.reaction.roll})</span></div>`;
     }
     if (result.distance){
+      // Effective yards already account for terrain modifiers and any
+      // surprise reduction. When surprise reduced the distance, show
+      // "X yd (was Y yd)" to make the reduction visible. Confrontation
+      // (≤1″ final per DMG p.48) gets its own callout row.
+      const d = result.distance;
+      const distMain = (d.surpriseInches > 0 && d.rawYards !== d.yards)
+        ? `${d.yards} yd <span style="opacity:.6">(was ${d.rawYards} yd before surprise)</span>`
+        : `${d.yards} yd`;
       situ += `<div class="li-detail-row"><span class="label">Distance</span>` +
-        `<span class="value">${result.distance.yards} yd <span style="opacity:.6">(${ESC(result.distance.formula)})</span></span></div>`;
+        `<span class="value">${distMain} <span style="opacity:.6">(${ESC(d.formula)})</span></span></div>`;
+      if (d.confrontation){
+        situ += `<div class="li-detail-row"><span class="label">Confrontation</span>` +
+          `<span class="value" style="color:#e07555">Immediate — final distance ≤1″</span></div>`;
+      }
     }
     if (result.surprise){
       situ += `<div class="li-detail-row"><span class="label">Surprise</span>` +
-        `<span class="value">${result.surprise.label}</span></div>`;
+        `<span class="value">${ESC(result.surprise.label)}</span></div>`;
     }
     situ += '</div>';
     sections.push(situ);

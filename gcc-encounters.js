@@ -355,9 +355,11 @@
   //   Forest: −1 per die on EVERY roll (00's possible — i.e. 0 dist =
   //           immediate confrontation)
   //   Marsh:  −1 per die rolling 2, 3, or 4
-  // Surprise can further reduce the result (handled separately by the
-  // caller, since surprise is its own roll).
-  function rollDistance(dmgTerrain){
+  // Surprise further reduces the result by the surpriser's free-
+  // segment count in inches (passed in by the caller). Final
+  // distance ≤ 1″ (10 yd) flags an immediate confrontation per DMG.
+  function rollDistance(dmgTerrain, surpriseInches){
+    surpriseInches = surpriseInches || 0;
     const dieRolls = [];
     let modifiedSum = 0;
     for (let i = 0; i < 6; i++){
@@ -382,18 +384,25 @@
       dieRolls.push({ raw, modified });
       modifiedSum += modified;
     }
+    const rawInches = modifiedSum;
+    const effectiveInches = Math.max(0, rawInches - surpriseInches);
     // Convert inches to yards (outdoor scale: 1" = 10 yd).
-    const yards = modifiedSum * 10;
+    const yards = effectiveInches * 10;
+    const rawYards = rawInches * 10;
     let formula = '6d4';
     if (dmgTerrain === 'forest') formula = '6d4 (each −1, forest)';
     else if (dmgTerrain === 'marsh') formula = '6d4 (each 2-4 −1, marsh)';
     else if (dmgTerrain === 'scrub') formula = '6d4 (each 3-4 −1, scrub)';
+    if (surpriseInches > 0) formula += ` − ${surpriseInches}″ surprise`;
     formula += ' × 10 yd';
     return {
-      yards,
+      yards,                   // effective (post-surprise) yards
+      rawYards,                // pre-surprise yards
+      surpriseInches,          // applied
+      confrontation: effectiveInches <= 1,  // DMG: ≤1″ → confrontation
       formula,
-      raw: modifiedSum,    // sum in inches
-      dieRolls,            // for debugging / display
+      raw: effectiveInches,    // sum in inches (effective)
+      dieRolls,                // for debugging / display
     };
   }
   function rollSurprise(){
@@ -401,12 +410,35 @@
     const monsterRoll = d(6);
     const partySurprised   = partyRoll <= 2;
     const monsterSurprised = monsterRoll <= 2;
+    // DMG p.48 "value of surprise (as determined by the die which
+    // indicated that the condition existed)". When a side is surprised,
+    // their die value is the amount the *other* side gets as free
+    // action — so partyValue is monster's advantage over party, and
+    // monsterValue is party's advantage over monster. When both
+    // surprised, the segments cancel and the net goes to whichever
+    // side rolled higher.
+    const partyValue   = partySurprised   ? partyRoll   : 0;
+    const monsterValue = monsterSurprised ? monsterRoll : 0;
+    const netSegments = Math.abs(partyValue - monsterValue);
+    let surpriserSide = null;          // who gets the free segments
+    if (partyValue > monsterValue)      surpriserSide = 'monster';
+    else if (monsterValue > partyValue) surpriserSide = 'party';
     let label;
-    if (partySurprised && monsterSurprised) label = 'Both surprised';
-    else if (partySurprised)                label = 'Party surprised';
-    else if (monsterSurprised)              label = 'Monster surprised';
+    if (partySurprised && monsterSurprised){
+      if (netSegments === 0)            label = 'Both surprised (cancels)';
+      else if (surpriserSide === 'monster') label = `Both surprised — monster nets ${netSegments} segment${netSegments === 1 ? '' : 's'}`;
+      else                              label = `Both surprised — party nets ${netSegments} segment${netSegments === 1 ? '' : 's'}`;
+    }
+    else if (partySurprised) label = `Party surprised — monster gets ${partyValue} free segment${partyValue === 1 ? '' : 's'}`;
+    else if (monsterSurprised) label = `Monster surprised — party gets ${monsterValue} free segment${monsterValue === 1 ? '' : 's'}`;
     else                                    label = 'Neither surprised';
-    return { partyRoll, monsterRoll, partySurprised, monsterSurprised, label };
+    return {
+      partyRoll, monsterRoll,
+      partySurprised, monsterSurprised,
+      netSegments,           // free segments for the surpriser side
+      surpriserSide,         // 'party' | 'monster' | null
+      label,
+    };
   }
 
   // ── Monster Manual lookup ─────────────────────────────────────────────────
@@ -734,6 +766,11 @@
       numberSource = 'mm';
     }
 
+    // Roll surprise first so its segment value can reduce encounter
+    // distance per DMG p.48 ("subtracting the value of surprise […]
+    // from normal encounter distance").
+    const surprise = rollSurprise();
+    const distance = rollDistance(ctx.dmgTerrain, surprise.netSegments);
     return {
       ctx,
       occurred: true,
@@ -743,8 +780,8 @@
       numberRolled,
       numberSource,
       reaction: rollReaction(),
-      distance: rollDistance(ctx.dmgTerrain),
-      surprise: rollSurprise(),
+      distance,
+      surprise,
       tableSourceUsed,
       tableRoll: result.roll,
       note: result.note,
