@@ -1,4 +1,11 @@
-// gcc-subhex-view.js v2.5.0 — 2026-04-29
+// gcc-subhex-view.js v2.5.1 — 2026-04-30
+// v2.5.1: parent-path markers now follow authored subhex paths.
+// When the GM has drawn a subhex road/river matching a parent
+// segment, the corresponding parent-path marker sits on the cell
+// where the authored path actually crosses the parent boundary,
+// rather than on the geometric edge midpoint. The midpoint
+// behaviour still applies as a fallback when nothing is authored.
+// Helper: authoredBoundaryCellForSegment(seg, edge, owned).
 // v2.5.0: feature notes. The detail panel grows a notes textarea for
 // the selected cell's feature, populated from feature.notes and
 // persisted on blur. Crossings (bridge/ford/ferry/crossroads) are
@@ -1083,8 +1090,66 @@
     return best;
   }
 
+  // Authored-aware boundary cell: when the GM has drawn a subhex path
+  // matching this parent segment that actually crosses the parent
+  // edge, return the cell on this side of that crossing — so the
+  // parent-path marker visually sits where the authored road/river
+  // meets the boundary, instead of on the geometric midpoint.
+  // Returns null if no matching authored crossing exists; callers
+  // fall back to boundaryCellForEdge(...).
+  function authoredBoundaryCellForSegment(seg, edge, owned){
+    if (!window.GCCSubhexPaths || !seg.name) return null;
+    if (!window.GCCSubhexData) return null;
+    if (typeof window.GCCPaths?.neighborAcross !== 'function') return null;
+    const nbParent = window.GCCPaths.neighborAcross(state.parentCol, state.parentRow, edge);
+    if (!nbParent) return null;
+    const D = window.GCCSubhexData;
+    const NEIGHBORS = D.NEIGHBOR_DELTAS || [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]];
+    // Candidate cells: owned cells of this parent that sit on the
+    // edge toward nbParent (i.e., have an axial neighbor owned by
+    // nbParent). Building this list lets us check each as a possible
+    // crossing cell.
+    const edgeCells = [];
+    for (const c of owned){
+      for (const [dq, dr] of NEIGHBORS){
+        const owner = D.ownerOf(c.Q + dq, c.R + dr);
+        if (owner && owner.col === nbParent.col && owner.row === nbParent.row){
+          edgeCells.push(c);
+          break;
+        }
+      }
+    }
+    if (!edgeCells.length) return null;
+    // Find a subhex path that matches the segment by kind+name and
+    // includes one of the edge cells. Pick that cell as the marker
+    // anchor. If multiple edge cells qualify (path zigzags along the
+    // boundary), prefer the one closest to the midpoint so the
+    // marker still feels "on the edge" rather than at a corner.
+    const paths = window.GCCSubhexPaths.listPaths();
+    let bestCell = null, bestD = Infinity;
+    const mid = edgeMidpoint(edge);
+    for (const p of paths){
+      if (p.kind !== seg.kind) continue;
+      if (p.name !== seg.name) continue;
+      if (!p.cells || !p.cells.length) continue;
+      const cellSet = new Set(p.cells.map(c => `${c.Q}_${c.R}`));
+      for (const ec of edgeCells){
+        if (!cellSet.has(`${ec.Q}_${ec.R}`)) continue;
+        const v = cellViewport(ec.Q, ec.R);
+        const dx = v.x - mid.x, dy = v.y - mid.y;
+        const d2 = dx*dx + dy*dy;
+        if (d2 < bestD){ bestD = d2; bestCell = ec; }
+      }
+    }
+    return bestCell;
+  }
+
   function placeMarker(layer, seg, edge, owned, color, segIndex){
-    const best = boundaryCellForEdge(edge, owned);
+    // Prefer the cell where an authored subhex path actually crosses
+    // this parent edge. Falls back to the geometric midpoint cell
+    // when nothing is authored yet.
+    const authoredCell = authoredBoundaryCellForSegment(seg, edge, owned);
+    const best = authoredCell || boundaryCellForEdge(edge, owned);
     if (!best) return;
     const mid = edgeMidpoint(edge);
     const cellPos = cellViewport(best.Q, best.R);
