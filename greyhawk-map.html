@@ -55,7 +55,8 @@
 
   /* HEX CELLS */
   :root { --hex-paint-alpha: 0.4; }
-  .hex-cell { fill:rgba(var(--hex-paint-rgb, 0, 0, 0), var(--hex-paint-alpha, 0)); stroke:var(--hex-stroke); stroke-opacity:var(--grid-opacity, 1); stroke-width:.6; cursor:pointer; transition:fill .1s; }
+  #hex-cells { opacity:var(--grid-opacity, 1); }
+  .hex-cell { fill:rgba(var(--hex-paint-rgb, 0, 0, 0), var(--hex-paint-alpha, 0)); stroke:var(--hex-stroke); stroke-width:.6; cursor:pointer; transition:fill .1s; }
   .hex-cell:hover { fill:var(--hex-hover); stroke:rgba(255,200,80,.5); stroke-width:1; }
   .hex-cell.explored { fill:var(--hex-explored); }
   .hex-cell.selected { fill:var(--hex-selected)!important; stroke:var(--gold); stroke-width:1.5; }
@@ -575,7 +576,7 @@
 </div>
 
 <div id="coords">Hover over a hex</div>
-<div id="opacity-wrap">Grid <input type="range" id="opacity-slider" min="0" max="100" value="50"></div>
+<div id="opacity-wrap">Grid <input type="range" id="opacity-slider" min="0" max="100" value="100"></div>
 <div id="overlay-bg"></div>
 <div id="move-dialog">
   <h3>Move Party</h3>
@@ -809,12 +810,12 @@
 <script src="gcc-encounter-panel.js?v=8"></script>
 <script src="gcc-landmarks.js?v=9"></script>
 <script src="gcc-terrain.js?v=3"></script>
-<script src="gcc-paths.js?v=3"></script>
+<script src="gcc-paths.js?v=7"></script>
 <script src="gcc-rng.js?v=1"></script>
 <script src="gcc-subhex-data.js?v=20"></script>
 <script src="gcc-subhex-icons.js?v=7"></script>
 <script src="gcc-subhex-paths.js?v=10"></script>
-<script src="gcc-hex-edit.js?v=16"></script>
+<script src="gcc-hex-edit.js?v=17"></script>
 <script src="gcc-voyage.js?v=2"></script>
 <script src="gcc-subhex-view.js?v=20"></script>
 <script src="gcc-settings.js?v=1"></script>
@@ -4012,18 +4013,20 @@ function wireEvents(){
     e.target.value = '';  // reset selector so picking same index again still fires
   });
 
-  // Opacity slider
+  // Opacity slider — proxy into GCCSettings.display.gridOpacity. The
+  // CSS rule on #hex-cells consumes --grid-opacity which gcc-settings
+  // writes to documentElement, so we just keep the slider's value in
+  // sync with the store and let GCCSettings apply the visual change.
   document.getElementById('opacity-slider').addEventListener('input',e=>{
-    const cells=document.getElementById('hex-cells');
-    if(cells) cells.style.opacity=e.target.value/100;
+    if (window.GCCSettings) window.GCCSettings.set('display.gridOpacity', +e.target.value/100);
   });
-  // Apply the slider's initial value at load — the input event won't
-  // fire on its own, so without this the hex grid renders fully
-  // opaque on first paint regardless of where the slider sits.
+  // Initialise from the saved setting and subscribe so dialog drags
+  // update this slider too.
   (function(){
     const sl = document.getElementById('opacity-slider');
-    const cells = document.getElementById('hex-cells');
-    if (sl && cells) cells.style.opacity = sl.value / 100;
+    if (!sl || !window.GCCSettings) return;
+    sl.value = Math.round(window.GCCSettings.get('display.gridOpacity') * 100);
+    window.GCCSettings.onChange('display.gridOpacity', v => { sl.value = Math.round(v * 100); });
   })();
 
   // Explore Sub-Map → opens the subhex editor window for the currently
