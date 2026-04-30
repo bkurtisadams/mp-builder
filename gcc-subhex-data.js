@@ -1,4 +1,16 @@
-// gcc-subhex-data.js v2.3.0 — 2026-04-30
+// gcc-subhex-data.js v2.4.0 — 2026-04-30
+// v2.4.0: lakes — first-class records (storage key gcc-subhex-lakes,
+// schema v1: { id, kind:'lake'|'sea', name, depth:'shallow'|'deep',
+// regionId?, notes, schemaVersion, authoredAt }). Cells gain optional
+// lakeId pointer. Invariant: lakeId non-null ⟺ cell terrain ∈
+// WATER_TERRAINS; setSubhexOverride auto-clears lakeId when terrain
+// transitions to non-water. New CRUD: createLake, getLake, listLakes,
+// renameLake, deleteLake, setCellLake, unsetCellLake, lakeMembers,
+// lakesInParent, parentHasLakeAuthoring. Cell schema is unchanged
+// (still v2) — lakeId is additive, lazy migration, v2 readers ignore it.
+// Lake docs are independently versioned (LAKE_SCHEMA_VERSION).
+// Per design DESIGN-paths-water.md (Slice 1).
+// v2.3.0 — 2026-04-30
 // v2.3.0: landmark pinning. The subhex layer can now refine WHERE
 // in a 30-mile parent a settlement sits. New optional feature
 // field `landmarkId` (the parent's Darlene hex ID) marks the cell
@@ -95,6 +107,7 @@
 
   const LS_KEY = 'gcc-subhex-overrides';
   const LS_REGIONS_KEY = 'gcc-subhex-regions';
+  const LS_LAKES_KEY = 'gcc-subhex-lakes';
   const MIGRATION_FLAG_KEY = 'gcc-subhex-migrated-v5';
   const PARENT_BIAS = 0.75;
 
@@ -128,6 +141,20 @@
     'bridge', 'ford', 'crossroads', 'ferry',
   ];
   const FEATURE_KINDS_SET = new Set(FEATURE_KINDS);
+
+  // Water-terrain set. Membership in this set gates lake assignment:
+  // a cell may carry lakeId only if its effective terrain is one of
+  // these. Mirrors the keys in VARIATION above.
+  const WATER_TERRAINS = new Set([
+    'water', 'water_fresh', 'water_inland_sea',
+    'water_coastal', 'water_shallow', 'water_deep',
+  ]);
+
+  const LAKE_KINDS  = ['lake', 'sea'];
+  const LAKE_KINDS_SET = new Set(LAKE_KINDS);
+  const LAKE_DEPTHS = ['shallow', 'deep'];
+  const LAKE_DEPTHS_SET = new Set(LAKE_DEPTHS);
+  const LAKE_SCHEMA_VERSION = 1;
 
   // ── Geometry helpers ────────────────────────────────────────────────────
 
@@ -294,12 +321,24 @@
     if (raw) REGIONS = JSON.parse(raw) || {};
   } catch(e){ REGIONS = {}; }
 
+  let LAKES = {};
+  try {
+    const raw = localStorage.getItem(LS_LAKES_KEY);
+    if (raw) LAKES = JSON.parse(raw) || {};
+  } catch(e){ LAKES = {}; }
+
   function save(){
     try { localStorage.setItem(LS_KEY, JSON.stringify(OVERRIDES)); } catch(e){}
+    _rebuildLakeIndexes();
     try { window.dispatchEvent(new CustomEvent('gcc-subhex-changed')); } catch(e){}
   }
   function saveRegions(){
     try { localStorage.setItem(LS_REGIONS_KEY, JSON.stringify(REGIONS)); } catch(e){}
+    try { window.dispatchEvent(new CustomEvent('gcc-subhex-changed')); } catch(e){}
+  }
+  function saveLakes(){
+    try { localStorage.setItem(LS_LAKES_KEY, JSON.stringify(LAKES)); } catch(e){}
+    _rebuildLakeIndexes();
     try { window.dispatchEvent(new CustomEvent('gcc-subhex-changed')); } catch(e){}
   }
 
@@ -314,14 +353,25 @@
     const m = /^region_(.+)$/.exec(id);
     return m ? m[1] : null;
   }
-  function slugify(s){
+  function lakeDocId(localId){ return `lake_${localId}`; }
+  function parseLakeId(id){
+    const m = /^lake_(.+)$/.exec(id);
+    return m ? m[1] : null;
+  }
+  function slugify(s, fallback){
     return String(s || '').trim().toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'region';
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || (fallback || 'region');
   }
   function genRegionLocalId(name){
-    const base = slugify(name);
+    const base = slugify(name, 'region');
     let id = base, n = 2;
     while (REGIONS[regionDocId(id)]) id = `${base}-${n++}`;
+    return id;
+  }
+  function genLakeLocalId(name){
+    const base = slugify(name, 'lake');
+    let id = base, n = 2;
+    while (LAKES[lakeDocId(id)]) id = `${base}-${n++}`;
     return id;
   }
 
@@ -350,18 +400,19 @@
         notes:    ov.notes || '',
         feature:  ov.feature || null,
         regionId: ov.regionId || null,
+        lakeId:   ov.lakeId || null,
         source:   'authored',
         schemaVersion: ov.schemaVersion || SCHEMA_VERSION,
       };
     }
     const canon = canonicalSubhex(Q, R);
     if (canon){
-      return { id, Q, R, source: 'canonical', name: '', notes: '', feature: null, regionId: null, ...canon };
+      return { id, Q, R, source: 'canonical', name: '', notes: '', feature: null, regionId: null, lakeId: null, ...canon };
     }
     return {
       id, Q, R,
       terrain: proceduralTerrain(parentTerrain, Q, R),
-      name: '', notes: '', feature: null, regionId: null,
+      name: '', notes: '', feature: null, regionId: null, lakeId: null,
       source: 'seed',
       schemaVersion: SCHEMA_VERSION,
     };
@@ -406,6 +457,7 @@
     if ('notes'   in fields) next.notes   = fields.notes || '';
     if ('feature' in fields) next.feature = normalizeFeature(fields.feature);
     if ('regionId' in fields) next.regionId = fields.regionId || null;
+    if ('lakeId'   in fields) next.lakeId   = fields.lakeId   || null;
 
     const prevRegionId = cur.regionId || null;
     if (terrainChanged && next.regionId){
@@ -416,15 +468,30 @@
       }
     }
 
+    // Lake invariant: lakeId non-null ⟺ effective terrain ∈ WATER_TERRAINS.
+    // On any terrain change to a non-water value, clear lakeId. Symmetric
+    // to the regionId guard above but membership-based, not equality-based.
+    if (terrainChanged && next.lakeId){
+      const effective = next.terrain || canonicalSubhex(Q, R)?.terrain || null;
+      if (!effective || !WATER_TERRAINS.has(effective)){
+        next.lakeId = null;
+      }
+    }
+
     next.schemaVersion = SCHEMA_VERSION;
     next.authoredAt = Date.now();
-    const empty = !next.terrain && !next.name && !next.notes && !next.feature && !next.regionId;
+    const empty = !next.terrain && !next.name && !next.notes && !next.feature
+                  && !next.regionId && !next.lakeId;
     if (empty) delete OVERRIDES[id];
     else       OVERRIDES[id] = next;
     save();
 
     const newRegionId = next.regionId || null;
     if (prevRegionId && prevRegionId !== newRegionId) gcRegionIfEmpty(prevRegionId);
+    // Note: no auto-gc for lakes on detach. Per design Q1, lake docs are
+    // independent metadata — they don't track membership and don't go
+    // stale when their last cell unassigns. GC is opt-in via explicit
+    // gcLakeIfEmpty call from a "clean up unused lakes" tool.
     return true;
   }
 
@@ -614,6 +681,165 @@
     saveRegions();
   }
 
+  // ── Lakes (global scope) ───────────────────────────────────────────────
+  // Lake records mirror regions: cell-pointer membership via cell.lakeId
+  // (no parallel members[] list to keep in sync). Cell terrain must be
+  // in WATER_TERRAINS for the cell to carry lakeId — enforced at
+  // setCellLake write time and re-checked on terrain change in
+  // setSubhexOverride. Two indexes (_LAKES_BY_PARENT, _CELLS_BY_LAKE)
+  // serve hot-path queries; both are eagerly rebuilt by save() and
+  // saveLakes() so callers see consistent state without manual
+  // invalidation.
+
+  let _LAKES_BY_PARENT = new Map();   // 'col-row'  → Set<lakeLocalId>
+  let _CELLS_BY_LAKE   = new Map();   // lakeLocalId → Array<{Q,R}>
+
+  function _rebuildLakeIndexes(){
+    _LAKES_BY_PARENT = new Map();
+    _CELLS_BY_LAKE = new Map();
+    for (const cellId of Object.keys(OVERRIDES)){
+      const ov = OVERRIDES[cellId];
+      if (!ov || !ov.lakeId) continue;
+      const p = parseSubhexId(cellId);
+      if (!p) continue;
+      // Cells-by-lake.
+      let arr = _CELLS_BY_LAKE.get(ov.lakeId);
+      if (!arr){ arr = []; _CELLS_BY_LAKE.set(ov.lakeId, arr); }
+      arr.push({ Q: p.Q, R: p.R });
+      // Lakes-by-parent.
+      const o = ownerOf(p.Q, p.R);
+      if (!o) continue;
+      const k = `${o.col}-${o.row}`;
+      let set = _LAKES_BY_PARENT.get(k);
+      if (!set){ set = new Set(); _LAKES_BY_PARENT.set(k, set); }
+      set.add(ov.lakeId);
+    }
+  }
+
+  function listLakes(){
+    return Object.values(LAKES).slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }
+
+  function getLake(localId){
+    if (!localId) return null;
+    return LAKES[lakeDocId(localId)] || null;
+  }
+
+  function createLake(name, kind, depth, regionId, notes){
+    if (!name) return null;
+    if (!LAKE_KINDS_SET.has(kind))   return null;
+    if (!LAKE_DEPTHS_SET.has(depth)) return null;
+    const localId = genLakeLocalId(name);
+    const lake = {
+      id: localId,
+      kind,
+      name: String(name).trim(),
+      depth,
+      regionId: regionId || null,
+      notes: notes ? String(notes) : '',
+      schemaVersion: LAKE_SCHEMA_VERSION,
+      authoredAt: Date.now(),
+    };
+    LAKES[lakeDocId(localId)] = lake;
+    saveLakes();
+    return lake;
+  }
+
+  function renameLake(localId, newName){
+    const lake = getLake(localId);
+    if (!lake || !newName) return false;
+    lake.name = String(newName).trim() || lake.name;
+    lake.authoredAt = Date.now();
+    saveLakes();
+    return true;
+  }
+
+  // Generic field updater for kind/depth/regionId/notes. Validates
+  // constrained fields. Skips unknown fields silently.
+  function updateLake(localId, fields){
+    const lake = getLake(localId);
+    if (!lake || !fields || typeof fields !== 'object') return false;
+    if ('kind'  in fields){
+      if (!LAKE_KINDS_SET.has(fields.kind)) return false;
+      lake.kind = fields.kind;
+    }
+    if ('depth' in fields){
+      if (!LAKE_DEPTHS_SET.has(fields.depth)) return false;
+      lake.depth = fields.depth;
+    }
+    if ('regionId' in fields) lake.regionId = fields.regionId || null;
+    if ('notes'    in fields) lake.notes    = fields.notes ? String(fields.notes) : '';
+    if ('name'     in fields && fields.name){
+      lake.name = String(fields.name).trim() || lake.name;
+    }
+    lake.authoredAt = Date.now();
+    saveLakes();
+    return true;
+  }
+
+  function deleteLake(localId){
+    const docId = lakeDocId(localId);
+    if (!LAKES[docId]) return false;
+    delete LAKES[docId];
+    saveLakes();
+    // Detach lakeId from any cells that pointed at this lake.
+    let dirty = false;
+    for (const cellId of Object.keys(OVERRIDES)){
+      const ov = OVERRIDES[cellId];
+      if (ov.lakeId !== localId) continue;
+      delete ov.lakeId;
+      if (!ov.terrain && !ov.name && !ov.notes && !ov.feature && !ov.regionId){
+        delete OVERRIDES[cellId];
+      }
+      dirty = true;
+    }
+    if (dirty) save();
+    return true;
+  }
+
+  function setCellLake(Q, R, localId, parentTerrain){
+    const lake = getLake(localId);
+    if (!lake) return false;
+    const sub = getSubhex(Q, R, parentTerrain);
+    if (!sub) return false;
+    if (!WATER_TERRAINS.has(sub.terrain)) return false;
+    return setSubhexOverride(Q, R, { lakeId: localId });
+  }
+
+  function unsetCellLake(Q, R){
+    return setSubhexOverride(Q, R, { lakeId: null });
+  }
+
+  function lakeMembers(localId){
+    const arr = _CELLS_BY_LAKE.get(localId);
+    return arr ? arr.slice() : [];
+  }
+
+  function lakesInParent(col, row){
+    const set = _LAKES_BY_PARENT.get(`${col}-${row}`);
+    if (!set) return [];
+    const out = [];
+    for (const id of set){
+      const doc = LAKES[lakeDocId(id)];
+      if (doc) out.push(doc);
+    }
+    return out.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }
+
+  function parentHasLakeAuthoring(col, row){
+    const set = _LAKES_BY_PARENT.get(`${col}-${row}`);
+    return !!(set && set.size > 0);
+  }
+
+  function gcLakeIfEmpty(localId){
+    if (!localId) return;
+    const docId = lakeDocId(localId);
+    if (!LAKES[docId]) return;
+    if (lakeMembers(localId).length > 0) return;
+    delete LAKES[docId];
+    saveLakes();
+  }
+
   // ── Export / import / introspection ────────────────────────────────────
 
   function allAuthored(){
@@ -635,6 +861,13 @@
     if (!obj || typeof obj !== 'object') return false;
     REGIONS = JSON.parse(JSON.stringify(obj));
     saveRegions();
+    return true;
+  }
+  function exportLakes(){ return JSON.parse(JSON.stringify(LAKES)); }
+  function importLakes(obj){
+    if (!obj || typeof obj !== 'object') return false;
+    LAKES = JSON.parse(JSON.stringify(obj));
+    saveLakes();
     return true;
   }
 
@@ -714,21 +947,30 @@
     }
   }
 
+  // Initial lake index build. save() and saveLakes() rebuild on every
+  // mutation — this seeds the initial state for the first frame's reads.
+  _rebuildLakeIndexes();
+
   window.GCCSubhexData = {
     WORLD_SEED, SCHEMA_VERSION, ANCHOR_COL, ANCHOR_ROW, HEX_R, SUB_R,
     FEATURE_KINDS,
+    WATER_TERRAINS, LAKE_KINDS, LAKE_DEPTHS, LAKE_SCHEMA_VERSION,
     parentSvgCenter, parentCenterAxial, subhexSvgCenter,
     svgToAxial, ownerOf, ownedByParent, fragmentsForParent,
     NEIGHBOR_DELTAS,
     subhexId, parseSubhexId, regionDocId, parseRegionId,
+    lakeDocId, parseLakeId,
     getSubhex, setSubhexOverride, clearSubhex, clearAll,
     setSubhexFeature, clearSubhexFeature, getCellFeature,
     findCellPinnedToLandmark, pinLandmarkToCell, unpinLandmark,
     listRegions, regionsInParent, getRegion, createRegion, renameRegion, deleteRegion,
     assignCellToRegion, unassignCellFromRegion, regionMembers, gcRegionIfEmpty,
+    listLakes, lakesInParent, getLake, createLake, renameLake, updateLake, deleteLake,
+    setCellLake, unsetCellLake, lakeMembers, gcLakeIfEmpty, parentHasLakeAuthoring,
     allAuthored, authoredCount,
     exportOverrides, importOverrides,
     exportRegions, importRegions,
+    exportLakes, importLakes,
     proceduralTerrain, canonicalSubhex,
     VARIATION,
   };
