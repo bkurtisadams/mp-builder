@@ -1,4 +1,12 @@
-// gcc-subhex-icons.js v0.8.0 — 2026-04-28
+// gcc-subhex-icons.js v0.9.0 — 2026-04-30
+// v0.9 adds CITY and TOWN glyphs. City reads as a walled silhouette
+// (wall + three buildings + central tower with flag); town reads as
+// a central peaked-roof building flanked by two smaller huts. Both
+// scale visually larger than the existing village (three small huts)
+// so the three settlement tiers — village/town/city — are
+// distinguishable at a glance.
+//
+// v0.8.0 — 2026-04-28
 // Terrain icon registry for the subhex window. One small SVG glyph per
 // terrain type, stamped into each cell at a deterministic-jittered
 // position so identical-terrain neighbors don't form a polka-dot grid.
@@ -234,6 +242,88 @@
       g.appendChild(el('rect', {
         x: cx - s*0.1, y: cy - s*0.1, width: s*0.2, height: s*0.3,
         fill: FEATURE_HALO_FILL,
+      }));
+    },
+    city(g, cx, cy, s){
+      // Walled silhouette: low base wall, three buildings of varied
+      // heights behind it, central one taller with a flag. Reads
+      // unambiguously bigger than town/village at the same scale.
+      // Wall base
+      g.appendChild(el('rect', {
+        x: cx - s*0.85, y: cy + s*0.25, width: s*1.7, height: s*0.35, fill: FEATURE_INK,
+      }));
+      // Crenellations along wall top
+      const cw = s * 0.18;
+      for (let i = 0; i < 5; i++){
+        g.appendChild(el('rect', {
+          x: cx - s*0.8 + i * s*0.34, y: cy + s*0.13, width: cw, height: s*0.14, fill: FEATURE_INK,
+        }));
+      }
+      // Left building (medium)
+      g.appendChild(el('rect', {
+        x: cx - s*0.7, y: cy - s*0.15, width: s*0.34, height: s*0.4, fill: FEATURE_INK,
+      }));
+      g.appendChild(el('path', {
+        d: `M ${cx - s*0.78} ${cy - s*0.15} L ${cx - s*0.53} ${cy - s*0.4} L ${cx - s*0.28} ${cy - s*0.15} Z`,
+        fill: FEATURE_INK,
+      }));
+      // Right building (medium)
+      g.appendChild(el('rect', {
+        x: cx + s*0.36, y: cy - s*0.15, width: s*0.34, height: s*0.4, fill: FEATURE_INK,
+      }));
+      g.appendChild(el('path', {
+        d: `M ${cx + s*0.28} ${cy - s*0.15} L ${cx + s*0.53} ${cy - s*0.4} L ${cx + s*0.78} ${cy - s*0.15} Z`,
+        fill: FEATURE_INK,
+      }));
+      // Central tower (tallest)
+      g.appendChild(el('rect', {
+        x: cx - s*0.18, y: cy - s*0.55, width: s*0.36, height: s*0.8, fill: FEATURE_INK,
+      }));
+      // Tower roof — flat with crenellation gap
+      g.appendChild(el('rect', {
+        x: cx - s*0.22, y: cy - s*0.65, width: s*0.44, height: s*0.12, fill: FEATURE_INK,
+      }));
+      // Flagpole + flag
+      g.appendChild(el('line', {
+        x1: cx, y1: cy - s*0.65, x2: cx, y2: cy - s*1.0,
+        stroke: FEATURE_INK, 'stroke-width': '0.8',
+      }));
+      g.appendChild(el('path', {
+        d: `M ${cx} ${cy - s*1.0} L ${cx + s*0.3} ${cy - s*0.88} L ${cx} ${cy - s*0.76} Z`,
+        fill: FEATURE_ACCENT,
+      }));
+    },
+    town(g, cx, cy, s){
+      // Central square building (peaked roof) flanked by two smaller
+      // huts. Bigger than village's three-hut cluster, smaller than
+      // city's walled silhouette.
+      // Central building
+      g.appendChild(el('rect', {
+        x: cx - s*0.32, y: cy - s*0.05, width: s*0.64, height: s*0.55, fill: FEATURE_INK,
+      }));
+      g.appendChild(el('path', {
+        d: `M ${cx - s*0.42} ${cy - s*0.05} L ${cx} ${cy - s*0.5} L ${cx + s*0.42} ${cy - s*0.05} Z`,
+        fill: FEATURE_INK,
+      }));
+      // Left hut
+      g.appendChild(el('rect', {
+        x: cx - s*0.78, y: cy + s*0.18, width: s*0.34, height: s*0.32, fill: FEATURE_INK,
+      }));
+      g.appendChild(el('path', {
+        d: `M ${cx - s*0.85} ${cy + s*0.18} L ${cx - s*0.61} ${cy - s*0.05} L ${cx - s*0.37} ${cy + s*0.18} Z`,
+        fill: FEATURE_INK,
+      }));
+      // Right hut
+      g.appendChild(el('rect', {
+        x: cx + s*0.44, y: cy + s*0.18, width: s*0.34, height: s*0.32, fill: FEATURE_INK,
+      }));
+      g.appendChild(el('path', {
+        d: `M ${cx + s*0.37} ${cy + s*0.18} L ${cx + s*0.61} ${cy - s*0.05} L ${cx + s*0.85} ${cy + s*0.18} Z`,
+        fill: FEATURE_INK,
+      }));
+      // Small accent dot in central building (door/window)
+      g.appendChild(el('rect', {
+        x: cx - s*0.06, y: cy + s*0.22, width: s*0.12, height: s*0.28, fill: FEATURE_HALO_FILL,
       }));
     },
     village(g, cx, cy, s){
