@@ -162,7 +162,53 @@
   window.rebuildPathOverlay = function(){};
   window.rebuildGrid = function(){};
   window.buildHexGrid = function(){};
-  window.makeDraggable = function(){};
+  window.makeDraggable = function(){
+    // hex-edit calls .restore() on the returned object after construction.
+    return { restore(){}, save(){}, place(){} };
+  };
+  // hex-edit's enter() bails early if GCCLandmarks isn't loaded
+  // ("gcc-landmarks.js not loaded" toast). Stub the surface it
+  // touches at panel-build / refresh time. Empty data is fine — we
+  // only exercise the Paths tab.
+  window.GCCLandmarks = window.GCCLandmarks || {
+    allNames(){ return []; },
+    unplacedPending(){ return []; },
+    exportOverrides(){ return {}; },
+    getByName(){ return null; },
+    setOverride(){ return true; },
+    removeOverride(){ return true; },
+    clearOverrides(){},
+    exportMergedSource(){ return {}; },
+    keys(){ return []; },
+  };
+  // Same for Regions + Terrain — touched by other panes' refresh
+  // paths even when those panes aren't active.
+  window.GCCRegions = window.GCCRegions || {
+    all(){ return []; },
+    stats(){ return { count: 0, byCategory: {} }; },
+    countByTerrain(){ return {}; },
+    getByName(){ return null; },
+    isBase(){ return false; },
+    exportOverrides(){ return { hexes: {}, regions: {} }; },
+    addRegion(){}, addHexes(){}, clearHexes(){},
+    setRegionMeta(){}, removeRegion(){},
+    bootstrapFromLandmarks(){},
+    getMembership(){ return null; },
+    getHexTagged(){ return null; },
+    fillFromPolygon(){},
+    erasePaintAt(){},
+    clearAll(){},
+    allOverridden(){ return []; },
+    colorToRgbTriplet(c){ return [0,0,0]; },
+  };
+  window.GCCTerrain = window.GCCTerrain || {
+    get(){ return null; },
+    set(){ return true; },
+    clear(){},
+    count(){ return 0; },
+    exportOverrides(){ return {}; },
+    clearOverrides(){},
+  };
   // For the GCCSubhexView.open click-handler test, capture invocations.
   window.__sandboxStorage = sandbox;
   window.__sandboxInstalled = installed;
@@ -310,6 +356,18 @@ window.GCCSubhexView = window.GCCSubhexView || {
     HE.enter();
     const panel = document.getElementById('hex-edit-panel');
     assert('panel exists',              !!panel);
+    if (!panel){
+      // Without a panel, every subsequent test is going to fault out.
+      // Bail with a clear group so the user can see what's missing.
+      group('FATAL: panel never built — check globals');
+      assert('GCCLandmarks stub present', !!window.GCCLandmarks);
+      assert('GCCRegions stub present',   !!window.GCCRegions);
+      assert('GCCTerrain stub present',   !!window.GCCTerrain);
+      assert('last toast (if any)',       !window.__lastToast,
+        window.__lastToast || 'no toast captured');
+      render();
+      return;
+    }
     assert('river banner element exists',
       !!panel?.querySelector('#he-pf-banner'));
     assert('road banner element exists',
