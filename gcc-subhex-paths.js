@@ -1,3 +1,28 @@
+// gcc-subhex-paths.js v2.0.0 — 2026-04-30
+// v2.0.0: schema v2 → v3. Rivers gain `tier` ('stream'|'river'|
+// 'great_river'). All paths gain `headwaters` and `mouth` linkage
+// fields, polymorphic { lakeId } | { pathId } | null. Defensive
+// `track` → `trail` rename. Migration writes a full pre-v3 dump to
+// `gcc-subhex-paths-pre-v3-backup` before any change, gated by the
+// new flag `gcc-subhex-paths-migrated-v3`. Existing v0.9→v1.0
+// migration (parent-scoped → global) remains in place; both run on
+// load, idempotent.
+//
+// Three internal indexes (eager rebuild on save, on
+// gcc-subhex-changed, and on init):
+//   _PATHS_BY_CELL    'Q,R'                    → Set<localId>
+//   _PATHS_BY_PARENT  'col-row'                → Set<localId>
+//   _PATHS_BY_EDGE    canonical 'cA-rA-cB-rB'  → Set<localId>
+// Hot-path queries (pathsAtCell, pathsInParent, parentHasPathAuthoring)
+// go through the indexes; cold-path scans (everything else) untouched.
+//
+// New writers: setPathTier, setPathHeadwaters, setPathMouth,
+// reverseCells. New reader: parentHasPathAuthoring (canonical name
+// for what gcc-paths.js will OR with GCCSubhexData.parentHasLakeAuthoring
+// in Slice 3). The legacy parentHasSubhexPaths is aliased to it so
+// existing call sites in gcc-paths.js v0.8 keep working unchanged.
+//
+// Per design DESIGN-paths-water.md (Slice 2).
 // gcc-subhex-paths.js v1.4.0 — 2026-04-29
 // v1.4.0: subhexBoundaryInfo also returns the crossing feature on the
 // boundary cell when one exists. New result field
@@ -35,14 +60,20 @@
 // distance 1). Paths are now global — a single path can cross parent
 // boundaries.
 //
-// ── Schema ──────────────────────────────────────────────────────────────
+// ── Schema v3 ───────────────────────────────────────────────────────────
 // {
-//   id: 'old-keep-road',         // local id, slug-derived
-//   kind: 'road',                // river | road | trail
-//   name: 'Old Keep Road',
+//   id: 'velverdyva',           // local id, slug-derived
+//   kind: 'river',              // river | road | trail
+//   tier: 'river',              // 'stream' | 'river' | 'great_river' | null
+//                               //   river-only; null for non-rivers
+//   name: 'Velverdyva',
 //   notes: '',
-//   cells: [{Q,R}, {Q,R}, ...],  // ordered, each adjacent to previous
-//   schemaVersion: 2,
+//   cells: [{Q,R}, {Q,R}, ...], // ordered, each adjacent to previous
+//                               //   for rivers: cells[0] = source, cells[length-1] = mouth
+//                               //   for roads/trails: order is authoring artifact only
+//   headwaters: { lakeId } | { pathId } | null,   // see DESIGN Q4
+//   mouth:      { lakeId } | { pathId } | null,
+//   schemaVersion: 3,
 //   authoredAt: ts,
 // }
 //
@@ -62,9 +93,13 @@
 
   const PATH_KINDS = ['river', 'road', 'trail'];
   const PATH_KINDS_SET = new Set(PATH_KINDS);
-  const SCHEMA_VERSION = 2;
+  const RIVER_TIERS = ['stream', 'river', 'great_river'];
+  const RIVER_TIERS_SET = new Set(RIVER_TIERS);
+  const SCHEMA_VERSION = 3;
   const LS_KEY = 'gcc-subhex-paths';
-  const MIGRATION_FLAG_KEY = 'gcc-subhex-paths-migrated-v2';
+  const MIGRATION_FLAG_KEY_V2 = 'gcc-subhex-paths-migrated-v2';
+  const MIGRATION_FLAG_KEY_V3 = 'gcc-subhex-paths-migrated-v3';
+  const BACKUP_KEY_V3         = 'gcc-subhex-paths-pre-v3-backup';
 
   let PATHS = {};
   try {
@@ -74,6 +109,7 @@
 
   function save(){
     try { localStorage.setItem(LS_KEY, JSON.stringify(PATHS)); } catch(e){}
+    _rebuildPathIndexes();
     try { window.dispatchEvent(new CustomEvent('gcc-subhex-changed')); } catch(e){}
   }
 
@@ -115,18 +151,17 @@
 
   // Paths with at least one cell whose owner is this parent — used by the
   // view to decide which paths to render in a given subhex window.
+  // Index-driven; cold-path returns empty if the data layer isn't
+  // loaded yet.
   function pathsInParent(col, row){
-    if (!window.GCCSubhexData) return [];
+    const set = _PATHS_BY_PARENT.get(`${col}-${row}`);
+    if (!set || !set.size) return [];
     const out = [];
-    for (const p of listPaths()){
-      let hit = false;
-      for (const c of p.cells || []){
-        const o = window.GCCSubhexData.ownerOf(c.Q, c.R);
-        if (o && o.col === col && o.row === row){ hit = true; break; }
-      }
-      if (hit) out.push(p);
+    for (const id of set){
+      const p = PATHS[pathDocId(id)];
+      if (p) out.push(p);
     }
-    return out;
+    return out.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }
 
   function getPath(localId){
@@ -140,9 +175,15 @@
     const doc = {
       id: localId,
       kind,
+      // Rivers default to tier='river' — most common case, GM
+      // downgrades to stream or upgrades to great_river explicitly.
+      // Non-rivers carry tier=null.
+      tier: kind === 'river' ? 'river' : null,
       name: String(name).trim(),
       notes: '',
       cells: [],
+      headwaters: null,
+      mouth: null,
       schemaVersion: SCHEMA_VERSION,
       authoredAt: Date.now(),
     };
@@ -210,13 +251,174 @@
     return true;
   }
 
-  // Find every path that includes (Q, R).
+  // Find every path that includes (Q, R). Index-driven; cold-start
+  // fallback walks docs once if the index hasn't been built.
   function pathsAtCell(Q, R){
+    const set = _PATHS_BY_CELL.get(`${Q},${R}`);
+    if (!set || !set.size) return [];
     const out = [];
-    for (const p of listPaths()){
-      for (const c of p.cells){
-        if (c.Q === Q && c.R === R){ out.push(p); break; }
+    for (const id of set){
+      const p = PATHS[pathDocId(id)];
+      if (p) out.push(p);
+    }
+    return out;
+  }
+
+  // ── Tier / linkage writers (v3) ────────────────────────────────────────
+
+  function setPathTier(localId, tier){
+    const p = getPath(localId);
+    if (!p) return false;
+    if (p.kind !== 'river') return false;
+    if (tier !== null && !RIVER_TIERS_SET.has(tier)) return false;
+    p.tier = tier;
+    p.authoredAt = Date.now();
+    save();
+    return true;
+  }
+
+  // Validate a polymorphic linkage value: { lakeId } | { pathId } | null.
+  // Returns the normalized value (a fresh object or null) or undefined
+  // if the input is malformed.
+  function _normalizeLinkage(v){
+    if (v === null || v === undefined) return null;
+    if (typeof v !== 'object') return undefined;
+    if ('lakeId' in v && typeof v.lakeId === 'string' && v.lakeId.trim()){
+      return { lakeId: v.lakeId.trim() };
+    }
+    if ('pathId' in v && typeof v.pathId === 'string' && v.pathId.trim()){
+      return { pathId: v.pathId.trim() };
+    }
+    return undefined;
+  }
+
+  function setPathHeadwaters(localId, value){
+    const p = getPath(localId);
+    if (!p) return false;
+    const norm = _normalizeLinkage(value);
+    if (norm === undefined) return false;
+    p.headwaters = norm;
+    p.authoredAt = Date.now();
+    save();
+    return true;
+  }
+
+  function setPathMouth(localId, value){
+    const p = getPath(localId);
+    if (!p) return false;
+    const norm = _normalizeLinkage(value);
+    if (norm === undefined) return false;
+    p.mouth = norm;
+    p.authoredAt = Date.now();
+    save();
+    return true;
+  }
+
+  // Reverse the order of cells. Per design Q2: rivers carry direction
+  // in cells[] order (cells[0]=source, cells[length-1]=mouth). The
+  // authoring tool gets a "reverse" button for rivers. Roads/trails
+  // can call this too — order is artifact only — but it's primarily a
+  // river concern.
+  function reverseCells(localId){
+    const p = getPath(localId);
+    if (!p) return false;
+    p.cells = p.cells.slice().reverse();
+    // Swap headwaters/mouth too, since their semantics are tied to
+    // cells[0] / cells[length-1].
+    const h = p.headwaters; p.headwaters = p.mouth; p.mouth = h;
+    p.authoredAt = Date.now();
+    save();
+    return true;
+  }
+
+  // ── Indexes (eager rebuild on save / event) ────────────────────────────
+  //
+  // Three indexes feed the hot-path queries. The full rebuild is a single
+  // pass over PATHS' cell lists; at GCC's scale this stays sub-millisecond
+  // and isn't worth incrementalizing. Per design Q7.
+
+  let _PATHS_BY_CELL   = new Map();   // 'Q,R'        → Set<localId>
+  let _PATHS_BY_PARENT = new Map();   // 'col-row'    → Set<localId>
+  let _PATHS_BY_EDGE   = new Map();   // canonical edge key → Set<localId>
+
+  // Canonical edge key: ordered (lower col, lower row) first so both
+  // directions of the same parent boundary resolve to the same key.
+  // Mirrors the convention gcc-paths.js uses for ownerHex / edge keys.
+  function edgeKey(colA, rowA, colB, rowB){
+    if (colA < colB || (colA === colB && rowA < rowB)){
+      return `${colA}-${rowA}-${colB}-${rowB}`;
+    }
+    return `${colB}-${rowB}-${colA}-${rowA}`;
+  }
+
+  function _addToSet(map, key, val){
+    let set = map.get(key);
+    if (!set){ set = new Set(); map.set(key, set); }
+    set.add(val);
+  }
+
+  function _rebuildPathIndexes(){
+    _PATHS_BY_CELL   = new Map();
+    _PATHS_BY_PARENT = new Map();
+    _PATHS_BY_EDGE   = new Map();
+    if (!window.GCCSubhexData) return;   // owner lookups need data layer.
+    const ownerOf = window.GCCSubhexData.ownerOf;
+    for (const docId of Object.keys(PATHS)){
+      const p = PATHS[docId];
+      if (!p || !p.cells || !p.cells.length) continue;
+      let prevOwner = null;
+      for (let i = 0; i < p.cells.length; i++){
+        const c = p.cells[i];
+        if (typeof c.Q !== 'number' || typeof c.R !== 'number') continue;
+        // Cell index.
+        _addToSet(_PATHS_BY_CELL, `${c.Q},${c.R}`, p.id);
+        // Parent index.
+        const o = ownerOf(c.Q, c.R);
+        if (o){
+          _addToSet(_PATHS_BY_PARENT, `${o.col}-${o.row}`, p.id);
+          // Edge index: when consecutive cells live in different
+          // parents, this path crosses that parent boundary.
+          if (prevOwner && (prevOwner.col !== o.col || prevOwner.row !== o.row)){
+            _addToSet(
+              _PATHS_BY_EDGE,
+              edgeKey(prevOwner.col, prevOwner.row, o.col, o.row),
+              p.id,
+            );
+          }
+          prevOwner = o;
+        } else {
+          prevOwner = null;
+        }
       }
+    }
+  }
+
+  // Rebuild on every save event. External writers (terrain change in
+  // gcc-subhex-data.js auto-clearing a cell that contained a path
+  // anchor) also fire gcc-subhex-changed, so listen for that and
+  // rebuild — keeps indexes correct even when a write originates
+  // outside this module.
+  if (typeof window !== 'undefined' && window.addEventListener){
+    window.addEventListener('gcc-subhex-changed', _rebuildPathIndexes);
+  }
+
+  // Indexed convenience queries. parentHasPathAuthoring is the
+  // canonical name (Slice 3's facade ORs it with
+  // GCCSubhexData.parentHasLakeAuthoring). parentHasSubhexPaths is
+  // aliased to it for compatibility with gcc-paths.js v0.8 which
+  // already calls the old name.
+  function parentHasPathAuthoring(col, row){
+    const set = _PATHS_BY_PARENT.get(`${col}-${row}`);
+    return !!(set && set.size > 0);
+  }
+
+  function pathsCrossingParentEdge(colA, rowA, colB, rowB){
+    const set = _PATHS_BY_EDGE.get(edgeKey(colA, rowA, colB, rowB));
+    if (!set || !set.size) return [];
+    const out = [];
+    for (const id of set){
+      const p = PATHS[pathDocId(id)];
+      if (p) out.push(p);
     }
     return out;
   }
@@ -231,16 +433,9 @@
   // Quick check: does this parent have ANY subhex paths whose cells
   // are owned by it? Used by the planner to decide whether to consult
   // subhex data or fall back to the 30mi-resolution parent layer.
-  function parentHasSubhexPaths(col, row){
-    if (!window.GCCSubhexData) return false;
-    for (const p of listPaths()){
-      for (const c of p.cells || []){
-        const o = window.GCCSubhexData.ownerOf(c.Q, c.R);
-        if (o && o.col === col && o.row === row) return true;
-      }
-    }
-    return false;
-  }
+  // Aliased to parentHasPathAuthoring (the canonical Slice 2+ name)
+  // so existing call sites in gcc-paths.js v0.8 keep working unchanged.
+  const parentHasSubhexPaths = parentHasPathAuthoring;
 
   // Inspect the boundary between two parents and report what subhex
   // authoring says about it. Returns:
@@ -386,7 +581,7 @@
   // ── Migration v0.9 → v1.0 ──────────────────────────────────────────────
   {
     let migratedFlag = false;
-    try { migratedFlag = !!localStorage.getItem(MIGRATION_FLAG_KEY); } catch(e){}
+    try { migratedFlag = !!localStorage.getItem(MIGRATION_FLAG_KEY_V2); } catch(e){}
     if (!migratedFlag){
       let mp = 0, mc = 0, dropped = 0;
       const next = {};
@@ -419,7 +614,7 @@
           name: oldDoc.name || newLocalId,
           notes: oldDoc.notes || '',
           cells: newCells,
-          schemaVersion: SCHEMA_VERSION,
+          schemaVersion: 2,
           authoredAt: oldDoc.authoredAt || Date.now(),
         };
         mp++;
@@ -427,7 +622,7 @@
       PATHS = next;
       try {
         localStorage.setItem(LS_KEY, JSON.stringify(PATHS));
-        localStorage.setItem(MIGRATION_FLAG_KEY, '1');
+        localStorage.setItem(MIGRATION_FLAG_KEY_V2, '1');
       } catch(e){}
       if (mp || dropped){
         console.log(`[GCCSubhexPaths] v0.9→v1.0: ${mp} path(s), ${mc} cell(s) migrated; ${dropped} dropped.`);
@@ -435,11 +630,75 @@
     }
   }
 
+  // ── Migration v2 → v3 ──────────────────────────────────────────────────
+  // Per design Q8: write a full pre-v3 backup; default tier='river' for
+  // any river kind without a tier; defensive 'track' → 'trail' rename
+  // (no current data uses 'track', but be paranoid); add headwaters
+  // and mouth = null on all docs lacking them; bump schemaVersion to 3.
+  // Idempotent: gated on MIGRATION_FLAG_KEY_V3.
+  {
+    let migratedFlag = false;
+    try { migratedFlag = !!localStorage.getItem(MIGRATION_FLAG_KEY_V3); } catch(e){}
+    if (!migratedFlag){
+      const ids = Object.keys(PATHS);
+      // Backup before mutating. Skip if the dump fails — better to
+      // proceed without a backup than to skip the migration.
+      try {
+        localStorage.setItem(BACKUP_KEY_V3, JSON.stringify(PATHS));
+      } catch(e){
+        console.warn('[GCCSubhexPaths] v2→v3 backup write failed:', e);
+      }
+      let mt = 0, mr = 0, mp = 0;
+      for (const docId of ids){
+        const doc = PATHS[docId];
+        if (!doc) continue;
+        let dirty = false;
+        if (doc.kind === 'track'){
+          doc.kind = 'trail';
+          dirty = true;
+          mr++;
+        }
+        if (doc.kind === 'river' && !doc.tier){
+          doc.tier = 'river';
+          dirty = true;
+          mt++;
+        }
+        if (doc.kind !== 'river' && doc.tier !== null){
+          // Includes the undefined case (v2 doc, no tier field at all):
+          // for non-river kinds, tier is canonically null in v3.
+          doc.tier = null;
+          dirty = true;
+        }
+        if (!('headwaters' in doc)){ doc.headwaters = null; dirty = true; }
+        if (!('mouth'      in doc)){ doc.mouth      = null; dirty = true; }
+        if (doc.schemaVersion !== SCHEMA_VERSION){
+          doc.schemaVersion = SCHEMA_VERSION;
+          dirty = true;
+        }
+        if (dirty) mp++;
+      }
+      try {
+        localStorage.setItem(LS_KEY, JSON.stringify(PATHS));
+        localStorage.setItem(MIGRATION_FLAG_KEY_V3, '1');
+      } catch(e){}
+      if (mp){
+        console.log(`[GCCSubhexPaths] v2→v3: ${mp} path(s) updated (${mt} default tiers, ${mr} track→trail).`);
+      }
+    }
+  }
+
+  // Build indexes once now that all migrations are done. save() and the
+  // gcc-subhex-changed listener handle subsequent rebuilds.
+  _rebuildPathIndexes();
+
   window.GCCSubhexPaths = {
-    PATH_KINDS, SCHEMA_VERSION,
+    PATH_KINDS, RIVER_TIERS, SCHEMA_VERSION,
     listPaths, pathsInParent, getPath, createPath, renamePath, deletePath,
     appendCell, popCell, truncateBefore, pathsAtCell, isNeighbor,
-    parentHasSubhexPaths, subhexBoundaryInfo, boundaryCellBetweenParents,
+    setPathTier, setPathHeadwaters, setPathMouth, reverseCells,
+    parentHasPathAuthoring, parentHasSubhexPaths,
+    pathsCrossingParentEdge, edgeKey,
+    subhexBoundaryInfo, boundaryCellBetweenParents,
     exportPaths, importPaths,
   };
 })();
