@@ -141,6 +141,8 @@
   the real GCC site. Refresh the page to wipe.
 </div>
 
+<div id="install-error" class="notice" style="display:none; background:#3a1818; border-left-color:#b03030; color:#f0c0c0;"></div>
+
 <div class="toolbar">
   <button class="primary" id="run-btn">▶ Run all tests</button>
   <button id="clear-btn">Clear results</button>
@@ -160,7 +162,13 @@
 (function(){
   // Replace the global with a Map-backed in-memory store. Survives only
   // until page refresh. Modules loaded after this <script> see the
-  // sandboxed object as `window.localStorage` (and bare `localStorage`).
+  // sandboxed object as `window.localStorage`.
+  //
+  // Some browsers refuse Object.defineProperty on the built-in
+  // localStorage. We try the strict path first; if it throws, we fall
+  // back to monkey-patching getItem/setItem/removeItem/clear directly
+  // on the real localStorage object — which still gives us isolation
+  // for our keys without redefining the global.
   const memory = new Map();
   const sandbox = {
     getItem: k => memory.has(k) ? memory.get(k) : null,
@@ -169,13 +177,36 @@
     clear: () => memory.clear(),
     key: i => Array.from(memory.keys())[i] || null,
     get length(){ return memory.size; },
-    // Custom inspector for Dump button.
     __dump: () => Object.fromEntries(memory),
   };
-  Object.defineProperty(window, 'localStorage', {
-    value: sandbox, writable: false, configurable: false,
-  });
+
+  let installed = false;
+  let installError = null;
+  try {
+    Object.defineProperty(window, 'localStorage', {
+      value: sandbox, writable: false, configurable: true,
+    });
+    installed = true;
+  } catch(e1){
+    installError = e1;
+    // Fallback: monkey-patch methods on the real localStorage.
+    try {
+      const real = window.localStorage;
+      real.getItem    = sandbox.getItem;
+      real.setItem    = sandbox.setItem;
+      real.removeItem = sandbox.removeItem;
+      real.clear      = sandbox.clear;
+      real.key        = sandbox.key;
+      // length is read-only on the real one; we ignore it.
+      window.__sandboxStorage = sandbox;
+      installed = true;
+    } catch(e2){
+      installError = e2;
+    }
+  }
   window.__sandboxStorage = sandbox;
+  window.__sandboxInstalled = installed;
+  window.__sandboxError = installError ? String(installError) : null;
 })();
 </script>
 
@@ -477,6 +508,20 @@
   }
 
   // ── Wire up buttons ─────────────────────────────────────────────────
+  // Surface sandbox install issues if any.
+  if (window.__sandboxError){
+    const banner = document.getElementById('install-error');
+    banner.style.display = 'block';
+    banner.innerHTML = `<strong>Sandbox install failed:</strong> ${
+      String(window.__sandboxError).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))
+    }<br>Tests may still run but writes will hit your real localStorage.`;
+  }
+  if (!window.GCCSubhexData){
+    const banner = document.getElementById('install-error');
+    banner.style.display = 'block';
+    banner.innerHTML = `<strong>gcc-subhex-data.js failed to load.</strong> Check that this HTML file is in the same folder as gcc-subhex-data.js and gcc-rng.js, and check the DevTools console for 404 errors.`;
+  }
+
   runBtn.addEventListener('click', () => {
     runBtn.disabled = true;
     try { runAll(); }
