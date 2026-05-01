@@ -168,28 +168,27 @@
   };
   // hex-edit's enter() bails early if GCCLandmarks isn't loaded
   // ("gcc-landmarks.js not loaded" toast). Stub the surface it
-  // touches at panel-build / refresh time. Empty data is fine — we
-  // only exercise the Paths tab.
+  // touches at panel-build / refresh time. Methods listed are
+  // every GCC{Landmarks,Regions,Terrain}.* call site in hex-edit
+  // (verified via grep). Empty data is fine — we only exercise
+  // the Paths tab.
   window.GCCLandmarks = window.GCCLandmarks || {
     allNames(){ return []; },
     unplacedPending(){ return []; },
     exportOverrides(){ return {}; },
+    exportMergedSource(){ return {}; },
     getByName(){ return null; },
     setOverride(){ return true; },
     removeOverride(){ return true; },
     clearOverrides(){},
-    exportMergedSource(){ return {}; },
-    keys(){ return []; },
   };
-  // Same for Regions + Terrain — touched by other panes' refresh
-  // paths even when those panes aren't active.
   window.GCCRegions = window.GCCRegions || {
     all(){ return []; },
     stats(){ return { count: 0, byCategory: {} }; },
-    countByTerrain(){ return {}; },
     getByName(){ return null; },
     isBase(){ return false; },
     exportOverrides(){ return { hexes: {}, regions: {} }; },
+    exportMergedSource(){ return {}; },
     addRegion(){}, addHexes(){}, clearHexes(){},
     setRegionMeta(){}, removeRegion(){},
     bootstrapFromLandmarks(){},
@@ -197,17 +196,19 @@
     getHexTagged(){ return null; },
     fillFromPolygon(){},
     erasePaintAt(){},
-    clearAll(){},
-    allOverridden(){ return []; },
-    colorToRgbTriplet(c){ return [0,0,0]; },
+    clearOverrides(){},
+    colorToRgbTriplet(){ return [0,0,0]; },
   };
   window.GCCTerrain = window.GCCTerrain || {
     get(){ return null; },
     set(){ return true; },
     clear(){},
+    clearAll(){},
     count(){ return 0; },
+    countByTerrain(){ return {}; },
     exportOverrides(){ return {}; },
-    clearOverrides(){},
+    exportMergedSource(){ return {}; },
+    allOverridden(){ return []; },
   };
   // For the GCCSubhexView.open click-handler test, capture invocations.
   window.__sandboxStorage = sandbox;
