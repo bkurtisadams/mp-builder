@@ -1,4 +1,24 @@
-// gcc-hex-edit.js v0.9.0 — 2026-04-27
+// gcc-hex-edit.js v1.0.0 — 2026-05-01
+// v1.0.0 (Slice 5): per-parent authoring gate. When the currently
+// selected river/road touches any parent that has subhex authoring
+// (via GCCPaths.parentHasSubhexAuthoring), the panel hides edit/
+// delete controls and shows a banner: "This {river/road} passes
+// through subhex-authored parent(s). Edit subhex paths instead."
+// Banner includes one "Open Subhex View →" button per authored
+// parent (deduped, sorted by col,row). Buttons call
+// GCCSubhexView.open(col, row).
+//
+// Crossings panel: same gating per crossing — if the crossing's
+// owner-hex parent OR neighbor parent is subhex-authored, hide
+// edit/delete and show the same banner.
+//
+// During tracing (onPathsClick): clicks on hexes whose parent is
+// subhex-authored are rejected with a clear status message ("That
+// parent is subhex-authored — edit subhex paths instead"). Same
+// for crossing arming. The data layer's throw from Slice 3 is the
+// final safety net; this UI is the friendly first line.
+//
+// v0.9.0 — 2026-04-27
 // Hex Editor: tab shell for Landmarks / Paint / Outline / Paths.
 // Requires globals: GCCLandmarks, GCCTerrain, GCCPaths, TERRAIN, hexIdStr,
 //   darleneToInternal, mapToHex, screenToMap, showToast,
@@ -709,6 +729,7 @@
             <option value="">— choose —</option>
           </select>
           <div class="he-pf-meta" id="he-pf-meta">No river selected.</div>
+          <div class="he-pf-banner" id="he-pf-banner" style="display:none"></div>
           <div class="he-pf-actrow he-pf-actrow-4">
             <button class="he-btn he-pf-act-wide" id="he-pf-new">+ New River</button>
             <button class="he-btn" id="he-pf-edit"      disabled>Edit Trace</button>
@@ -757,6 +778,7 @@
             <option value="">— choose —</option>
           </select>
           <div class="he-pf-meta" id="he-pf-road-meta">No road selected.</div>
+          <div class="he-pf-banner" id="he-pf-road-banner" style="display:none"></div>
           <div class="he-pf-actrow he-pf-actrow-4">
             <button class="he-btn he-pf-act-wide" id="he-pf-road-new">+ New Road</button>
             <button class="he-btn" id="he-pf-road-edit"      disabled>Edit Trace</button>
@@ -811,6 +833,7 @@
             <option value="">— choose —</option>
           </select>
           <div class="he-pf-meta" id="he-pf-cross-meta">No crossing selected.</div>
+          <div class="he-pf-banner" id="he-pf-cross-banner" style="display:none"></div>
           <div class="he-pf-actrow">
             <button class="he-btn" id="he-pf-cross-new">+ New</button>
             <button class="he-btn" id="he-pf-cross-edit"   disabled>Edit</button>
@@ -1094,6 +1117,33 @@
       }
       #hex-edit-panel .he-pf-meta {
         margin:4px 0 6px; font-size:10px; color:#a89066; font-style:italic;
+      }
+      #hex-edit-panel .he-pf-banner {
+        margin:4px 0 6px; padding:6px 8px;
+        background:rgba(140, 90, 30, 0.18);
+        border:1px solid #8b5a1a;
+        border-left:3px solid #c8941a;
+        border-radius:2px;
+        font-size:10px; color:#d4b070;
+      }
+      #hex-edit-panel .he-pf-banner-title {
+        font-weight:600; color:#e8c080; margin-bottom:3px;
+      }
+      #hex-edit-panel .he-pf-banner-parents {
+        margin-top:4px; display:flex; flex-wrap:wrap; gap:3px;
+      }
+      #hex-edit-panel .he-pf-banner-btn {
+        background:rgba(40,28,12,0.8);
+        color:#e8c080;
+        border:1px solid #8b5a1a;
+        padding:2px 6px;
+        font-size:10px;
+        cursor:pointer;
+        font-family:inherit;
+      }
+      #hex-edit-panel .he-pf-banner-btn:hover {
+        background:rgba(60,40,16,0.9);
+        border-color:#c8941a;
       }
       #hex-edit-panel .he-pf-cross-meta-notes {
         margin-top:2px; font-size:10px; color:#c8a96e; font-style:normal;
@@ -2322,6 +2372,88 @@
     else document.addEventListener('DOMContentLoaded', applyPfShowOverlay);
   }
 
+  // ── Per-parent authoring gate (Slice 5) ─────────────────────────────
+  // When a parent has any subhex paths or lakes authored in it, we hide
+  // parent-layer edit controls for any river/road/crossing that touches
+  // that parent. The gate is per-entity: an entity that touches even
+  // one authored parent is fully locked at the parent layer; the GM
+  // must edit at the subhex layer instead. Banner offers a one-click
+  // jump into the subhex view per affected parent.
+
+  // Returns the unique authored parents from a chain, sorted (col, row).
+  // Empty array means no parent in the chain is subhex-authored.
+  function _authoredParentsInChain(chain){
+    if (!chain || !Array.isArray(chain)) return [];
+    if (typeof GCCPaths === 'undefined') return [];
+    if (typeof GCCPaths.parentHasSubhexAuthoring !== 'function') return [];
+    const seen = new Set();
+    const out = [];
+    for (const h of chain){
+      const k = `${h.col}-${h.row}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      if (GCCPaths.parentHasSubhexAuthoring(h.col, h.row)){
+        out.push({ col: h.col, row: h.row });
+      }
+    }
+    out.sort((a, b) => a.col - b.col || a.row - b.row);
+    return out;
+  }
+
+  // Render the banner DOM for a list of authored parents. entityLabel
+  // ('river' | 'road' | 'crossing') controls the wording. Returns a
+  // string of HTML for innerHTML use; click handlers are wired by the
+  // caller after assignment via querySelectorAll.
+  function _authoringBannerHtml(entityLabel, parents){
+    if (!parents.length) return '';
+    const buttons = parents.map(p => {
+      const id = (typeof darleneFromInternal === 'function')
+        ? darleneFromInternal(p.col, p.row)
+        : `${p.col},${p.row}`;
+      return `<button class="he-pf-banner-btn" data-pf-open-col="${p.col}" data-pf-open-row="${p.row}">Open ${id} →</button>`;
+    }).join('');
+    const label = entityLabel === 'crossing' ? 'crossing'
+                : entityLabel === 'road'     ? 'road'
+                : 'river';
+    const parentWord = parents.length === 1 ? 'parent' : 'parents';
+    return `
+      <div class="he-pf-banner-title">Subhex-authored — edit subhex paths instead</div>
+      <div>This ${label} touches ${parents.length} ${parentWord} that ${parents.length === 1 ? 'has' : 'have'} subhex authoring. Parent-layer edit controls are disabled for this entity.</div>
+      <div class="he-pf-banner-parents">${buttons}</div>
+    `;
+  }
+
+  // Wire the banner's "Open Subhex View" buttons. Idempotent — safe to
+  // call after every refresh.
+  function _wireBannerButtons(bannerEl){
+    if (!bannerEl) return;
+    bannerEl.querySelectorAll('.he-pf-banner-btn').forEach(btn => {
+      btn.onclick = () => {
+        const col = +btn.dataset.pfOpenCol;
+        const row = +btn.dataset.pfOpenRow;
+        if (!Number.isFinite(col) || !Number.isFinite(row)) return;
+        if (window.GCCSubhexView && typeof window.GCCSubhexView.open === 'function'){
+          window.GCCSubhexView.open(col, row);
+        } else if (typeof showToast === 'function'){
+          showToast('Subhex view module not loaded');
+        }
+      };
+    });
+  }
+
+  // Returns the authored-parents list for the currently-selected river.
+  // Empty array if none selected or none authored.
+  function _selectedRiverAuthoredParents(){
+    if (!state.pfSelected || typeof GCCPaths === 'undefined') return [];
+    const chain = GCCPaths.getRiverChain(state.pfSelected) || [];
+    return _authoredParentsInChain(chain);
+  }
+  function _selectedRoadAuthoredParents(){
+    if (!state.pfRoadSelected || typeof GCCPaths === 'undefined') return [];
+    const chain = GCCPaths.getRoadChain(state.pfRoadSelected) || [];
+    return _authoredParentsInChain(chain);
+  }
+
   function refreshPfSelect(){
     const sel = pfPanel()?.querySelector('#he-pf-select');
     if (!sel) return;
@@ -2351,9 +2483,22 @@
   function refreshPfActions(){
     const p = pfPanel(); if (!p) return;
     const has = !!state.pfSelected;
-    p.querySelector('#he-pf-edit').disabled      = !has;
-    p.querySelector('#he-pf-meta-edit').disabled = !has;
-    p.querySelector('#he-pf-delete').disabled    = !has;
+    const authored = has ? _selectedRiverAuthoredParents() : [];
+    const locked = has && authored.length > 0;
+    p.querySelector('#he-pf-edit').disabled      = !has || locked;
+    p.querySelector('#he-pf-meta-edit').disabled = !has || locked;
+    p.querySelector('#he-pf-delete').disabled    = !has || locked;
+    const banner = p.querySelector('#he-pf-banner');
+    if (banner){
+      if (locked){
+        banner.innerHTML = _authoringBannerHtml('river', authored);
+        banner.style.display = '';
+        _wireBannerButtons(banner);
+      } else {
+        banner.innerHTML = '';
+        banner.style.display = 'none';
+      }
+    }
   }
   function refreshPfStats(){
     const el = pfPanel()?.querySelector('#he-pf-stats');
@@ -2518,6 +2663,15 @@
     if (!m) return;
     const hit = mapToHex(m.x, m.y);
     if (!hit){ pfSetStatus('Click was outside the hex grid.'); return; }
+    // Subhex-authored gate (Slice 5). Any tracing click on a hex whose
+    // parent has subhex authoring is rejected with a clear message.
+    // The data layer's saveRiver/saveRoad throw is the safety net; this
+    // is the friendly first line so the GM doesn't waste clicks.
+    if (typeof GCCPaths !== 'undefined' && typeof GCCPaths.parentHasSubhexAuthoring === 'function'
+        && GCCPaths.parentHasSubhexAuthoring(hit.col, hit.row)){
+      pfSetStatus(`${hexIdStr(hit.col, hit.row)} is subhex-authored — edit subhex paths instead.`);
+      return;
+    }
     const chain = state.pfTrace.chain;
     // First hex: any pick is fine.
     if (chain.length === 0){
@@ -2567,6 +2721,20 @@
     if (!hit){
       pfSetCrossArmStatus('No river edge near that click — try again or Cancel.');
       return;
+    }
+    // Subhex-authored gate (Slice 5). If either side of the edge is in
+    // a subhex-authored parent, abort with a clear message.
+    if (typeof GCCPaths !== 'undefined' && typeof GCCPaths.parentHasSubhexAuthoring === 'function'){
+      const a = hit.hexA, b = hit.hexB;
+      const aA = GCCPaths.parentHasSubhexAuthoring(a.col, a.row);
+      const bA = GCCPaths.parentHasSubhexAuthoring(b.col, b.row);
+      if (aA || bA){
+        const which = aA && bA ? `${hexIdStr(a.col,a.row)} and ${hexIdStr(b.col,b.row)}`
+                    : aA       ? hexIdStr(a.col, a.row)
+                    :            hexIdStr(b.col, b.row);
+        pfSetCrossArmStatus(`${which} subhex-authored — edit subhex paths instead.`);
+        return;
+      }
     }
     pfClearCrossingHover();
     state.pfCrossingArmed = false;
@@ -2792,9 +2960,22 @@
   function refreshPfRoadActions(){
     const p = pfPanel(); if (!p) return;
     const has = !!state.pfRoadSelected;
-    p.querySelector('#he-pf-road-edit').disabled      = !has;
-    p.querySelector('#he-pf-road-meta-edit').disabled = !has;
-    p.querySelector('#he-pf-road-delete').disabled    = !has;
+    const authored = has ? _selectedRoadAuthoredParents() : [];
+    const locked = has && authored.length > 0;
+    p.querySelector('#he-pf-road-edit').disabled      = !has || locked;
+    p.querySelector('#he-pf-road-meta-edit').disabled = !has || locked;
+    p.querySelector('#he-pf-road-delete').disabled    = !has || locked;
+    const banner = p.querySelector('#he-pf-road-banner');
+    if (banner){
+      if (locked){
+        banner.innerHTML = _authoringBannerHtml('road', authored);
+        banner.style.display = '';
+        _wireBannerButtons(banner);
+      } else {
+        banner.innerHTML = '';
+        banner.style.display = 'none';
+      }
+    }
   }
   function setPfRoadFormVisible(open){
     const p = pfPanel(); if (!p) return;
@@ -2967,11 +3148,32 @@
       el.textContent = head;
     }
   }
+  // Returns authored parents for the currently-selected crossing, if
+  // either of its two hexes' parents are subhex-authored.
+  function _selectedCrossingAuthoredParents(){
+    if (!state.pfCrossingSelected) return [];
+    const c = findCrossingByKey(state.pfCrossingSelected);
+    if (!c) return [];
+    return _authoredParentsInChain([c.hexA, c.hexB]);
+  }
   function refreshPfCrossActions(){
     const p = pfPanel(); if (!p) return;
     const has = !!state.pfCrossingSelected;
-    p.querySelector('#he-pf-cross-edit').disabled   = !has;
-    p.querySelector('#he-pf-cross-delete').disabled = !has;
+    const authored = has ? _selectedCrossingAuthoredParents() : [];
+    const locked = has && authored.length > 0;
+    p.querySelector('#he-pf-cross-edit').disabled   = !has || locked;
+    p.querySelector('#he-pf-cross-delete').disabled = !has || locked;
+    const banner = p.querySelector('#he-pf-cross-banner');
+    if (banner){
+      if (locked){
+        banner.innerHTML = _authoringBannerHtml('crossing', authored);
+        banner.style.display = '';
+        _wireBannerButtons(banner);
+      } else {
+        banner.innerHTML = '';
+        banner.style.display = 'none';
+      }
+    }
   }
   function onPfCrossSelectChange(ev){
     state.pfCrossingSelected = ev.target.value || null;
@@ -3198,6 +3400,21 @@
 
   function onKey(e){
     if (e.key === 'Escape'){ exit(); }
+  }
+
+  // ── React to subhex changes (Slice 5) ────────────────────────────────────
+  // If the GM authors a subhex path or lake while the hex-editor is
+  // open, the banners and disabled states should update without
+  // requiring the user to re-select. Listen for gcc-subhex-changed
+  // (fired by GCCSubhexData / GCCSubhexPaths on every write) and
+  // refresh whichever paths-mode panel is currently visible.
+  if (typeof window !== 'undefined' && window.addEventListener){
+    window.addEventListener('gcc-subhex-changed', () => {
+      if (!state.panelEl) return;     // editor closed
+      try { refreshPfActions(); } catch(e){}
+      try { refreshPfRoadActions(); } catch(e){}
+      try { refreshPfCrossActions(); } catch(e){}
+    });
   }
 
   // ── Wire toolbar button after DOM ready ──────────────────────────────────
