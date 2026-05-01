@@ -16386,6 +16386,39 @@ const GREYHAWK_GEOGRAPHICAL_TABLES = {
   // Export default for easier importing
 
 
+// ── Waterborne tables (Slice 4) ───────────────────────────────────────
+// Lake / sea encounter tables, dispatched by lake.kind × lake.depth.
+// Empty stubs — content seeding is a separate task. Engine returns
+// "no entries seeded" when the table is empty, mirroring the existing
+// "no outdoor table for terrain X" pattern.
+//
+// Schema matches GREYHAWK_GEOGRAPHICAL_TABLES rows:
+//   { min, max, encounter, useStandard?, note?, subtable? }
+// The d100 roll runs on these the same way rollOnTable does.
+//
+// Per design DESIGN-paths-water.md Slice 4. Tables stay empty until
+// the GM seeds them — this just wires the dispatch.
+
+const WATERBORNE_TABLES = {
+  lake_shallow: [
+    // TODO: seed from MM water encounters (giant frog, giant crayfish,
+    // crocodile, lizardman, fish men) and Greyhawk-canonical lake life.
+  ],
+  lake_deep: [
+    // TODO: seed deep-lake creatures (giant pike, lake serpents,
+    // sahuagin in inland sea cases, etc).
+  ],
+  sea_shallow: [
+    // TODO: seed coastal / shallow sea (sharks, barracuda, lacedons,
+    // merfolk, sahuagin, ixitxachitl).
+  ],
+  sea_deep: [
+    // TODO: seed open-ocean / deep-sea (giant squid, kraken, deepspawn,
+    // pirate ships, sahuagin raiders, dragon turtles).
+  ],
+};
+
+
 // ─── expose as a single namespace object ──────────────────────────
 window.GCCEncounterData = {
   MONSTER_MANUAL,
@@ -16401,5 +16434,6 @@ window.GCCEncounterData = {
   DMG_FORTRESS_ENCOUNTERS,
   GREYHAWK_REGIONAL_TABLES,
   GREYHAWK_GEOGRAPHICAL_TABLES,
+  WATERBORNE_TABLES,
 };
 })();

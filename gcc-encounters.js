@@ -1,3 +1,18 @@
+// gcc-encounters.js v2.0.0 — 2026-04-30
+// v2.0.0 (Slice 4): waterborne dispatch. When the caller passes
+// opts.lakeId to check() (typically the journey planner when the
+// party is on a subhex with a lakeId), check() looks up the lake
+// doc via GCCSubhexData.getLake, picks the table by lake.kind ×
+// lake.depth (lake_shallow / lake_deep / sea_shallow / sea_deep),
+// and rolls on it. Tables are stubbed empty in
+// gcc-encounter-data.js for now — engine returns "no entries
+// seeded" until they're filled in.
+//
+// contextFor stays pure parent-level. Lakes are subhex-resolved
+// at the call site, not in contextFor.
+//
+// Per design DESIGN-paths-water.md Slice 4.
+//
 // gcc-encounters.js — AD&D 1e encounter engine for GCC
 //
 // Wraps the data in gcc-encounter-data.js with:
@@ -709,6 +724,95 @@
         occurred: false,
         settlement: s,
         reason: `${kindLabel} hex (${s.name || 'unnamed'}) — see DMG city/town tables (TODO)`,
+      };
+    }
+    // Lake branch (Slice 4). When the caller threads opts.lakeId, the
+    // party is on a subhex cell with that lake assigned. Dispatch to
+    // the matching waterborne table by kind × depth. Forced rolls
+    // bypass the frequency die just like land encounters.
+    if (opts.lakeId){
+      const lake = (window.GCCSubhexData && typeof window.GCCSubhexData.getLake === 'function')
+        ? window.GCCSubhexData.getLake(opts.lakeId)
+        : null;
+      if (!lake){
+        return {
+          ctx,
+          occurred: false,
+          reason: `Unknown lake id "${opts.lakeId}"`,
+        };
+      }
+      const D = window.GCCEncounterData;
+      const tableKey = `${lake.kind}_${lake.depth}`;     // e.g. "lake_shallow"
+      const table = D.WATERBORNE_TABLES?.[tableKey];
+      if (!table || !table.length){
+        return {
+          ctx,
+          occurred: false,
+          lake,
+          tableKey,
+          reason: `No waterborne table seeded for ${tableKey} — see TODO in gcc-encounter-data.js`,
+        };
+      }
+      // Lake encounter frequency falls outside the DMG's land-terrain
+      // timing rules. For now, lakes always check (gated by the journey
+      // planner's per-day cadence at the call site). When opts.force
+      // is true we still mark it forced for display parity. Future
+      // hook: per-depth frequency dice.
+      const occurs = opts.force
+        ? { occurs: true, reason: 'Forced encounter', forced: true }
+        : { occurs: true, reason: 'Waterborne (always checks)' };
+      const rollResult = rollOnTable(table);
+      if (!rollResult){
+        return {
+          ctx,
+          occurred: false,
+          lake,
+          tableKey,
+          reason: `Waterborne table ${tableKey} rolled empty`,
+        };
+      }
+      // Resolve any subtable / monster lookup. Reuse the same machinery
+      // as land tables — waterborne tables can use subtables too if a
+      // future seeder wants ("Sahuagin (humanoid by terrain)").
+      const resolved = resolveSubtable(rollResult, ctx.dmgTerrain);
+      const mmStats = lookupMonster(resolved.monster);
+      let numberAppearing = resolved.number;
+      let numberRolled = null, numberSource = null;
+      if (numberAppearing){
+        numberRolled = rollDice(numberAppearing);
+        numberSource = 'table';
+      } else if (mmStats?.numberAppearing){
+        numberAppearing = mmStats.numberAppearing;
+        numberRolled = rollDice(numberAppearing);
+        numberSource = 'mm';
+      }
+      const surprise = rollSurprise();
+      // Distance: water encounters get spotted further than land. The
+      // DMG calls out 6"-12" for water, vs 4d6" land base. We borrow
+      // rollDistance with the dmgTerrain set to whatever's resolved
+      // above; a future tweak can specialize. For now, fall through to
+      // the existing rollDistance logic using ctx.dmgTerrain (may be
+      // null on pure-water hexes — rollDistance handles that).
+      const distance = rollDistance(ctx.dmgTerrain, surprise.netSegments);
+      return {
+        ctx,
+        occurred: true,
+        occurs,
+        lake,
+        tableKey,
+        airborne: !!opts.airborne,
+        monster: resolved.monster,
+        numberFormula: numberAppearing,
+        numberRolled,
+        numberSource,
+        reaction: rollReaction(),
+        distance,
+        surprise,
+        tableSourceUsed: 'waterborne',
+        tableRoll: resolved.roll,
+        note: resolved.note,
+        mmStats,
+        raw: resolved,
       };
     }
     if (ctx.dmgTerrain == null){
