@@ -1,4 +1,14 @@
-// gcc-subhex-view.js v2.6.1 — 2026-04-30
+// gcc-subhex-view.js v2.7.0 — 2026-05-01
+// v2.7.0 (Slice 6a): Lake authoring tool. New "Lake…" button in the
+// tools row peer to Region…/Path…, with an inline picker mirroring
+// Region: pick a lake to assign / ⌫ Remove from lake / + New lake….
+// New armed types 'lake' and 'lake-erase'; cell click dispatches via
+// setCellLake / unsetCellLake. setCellLake's water-terrain reject
+// surfaces as a flashMode soft warning. New-lake dialog (GCCDialog
+// confirm with HTML body) collects name / kind (lake|sea) / depth
+// (shallow|deep) / regionId (optional) / notes; on success, arms the
+// new lake and rebuilds the picker. Detail panel gains a read-only
+// Lake row so cell clicks have visible feedback.
 // v2.6.1: landmark picker fallback. Interior cells (not on a fragment
 // edge) had selectedFragmentOwner()===null, so the picker came up
 // empty for the active parent's own landmark. Resolve the owning
@@ -432,6 +442,10 @@
             <label>Paths</label>
             <span class="sxw-readonly" id="sxw-paths-list">—</span>
           </div>
+          <div class="sxw-row sxw-row-inline sxw-row-paths">
+            <label>Lake</label>
+            <span class="sxw-readonly" id="sxw-lake-info">—</span>
+          </div>
           <div class="sxw-source" id="sxw-source"></div>
         </div>
         <div class="sxw-palette-strip">
@@ -458,6 +472,8 @@
             <option value="__new__">+ New region from selected cell's terrain…</option>
           </select>
           <button class="sxw-tool-btn" id="sxw-path-tool">Path…</button>
+          <button class="sxw-tool-btn" id="sxw-lake-tool">Lake…</button>
+          <select class="sxw-region-armed" id="sxw-lake-armed" style="display:none;"></select>
           <button class="sxw-tool-btn" id="sxw-clear">Clear override</button>
           <span class="sxw-mode" id="sxw-mode">Mode: Select</span>
         </div>
@@ -485,6 +501,8 @@
     c.querySelector('#sxw-region-armed').addEventListener('change', onRegionArmedChange);
     c.querySelector('#sxw-path-tool').addEventListener('click', onPathToolClick);
     c.querySelector('#sxw-path-armed').addEventListener('change', onPathArmedChange);
+    c.querySelector('#sxw-lake-tool').addEventListener('click', onLakeToolClick);
+    c.querySelector('#sxw-lake-armed').addEventListener('change', onLakeArmedChange);
     c.querySelector('#sxw-path-undo').addEventListener('click', onPathUndoClick);
     c.querySelector('#sxw-path-rename').addEventListener('click', onPathRenameClick);
     c.querySelector('#sxw-path-delete').addEventListener('click', onPathDeleteClick);
@@ -776,6 +794,8 @@
       if (sel){ sel.style.display = 'none'; }
       const psel = findEl('sxw-path-armed');
       if (psel){ psel.style.display = 'none'; }
+      const lsel = findEl('sxw-lake-armed');
+      if (lsel){ lsel.style.display = 'none'; }
     }
     syncPaletteUI();
     syncModeLabel();
@@ -797,6 +817,11 @@
       const isPath = state.armed && state.armed.type === 'path';
       pathTool.classList.toggle('armed', !!isPath);
     }
+    const lakeTool = findEl('sxw-lake-tool');
+    if (lakeTool){
+      const isLake = state.armed && (state.armed.type === 'lake' || state.armed.type === 'lake-erase');
+      lakeTool.classList.toggle('armed', !!isLake);
+    }
   }
 
   function syncModeLabel(){
@@ -817,6 +842,12 @@
       el.textContent = `Mode: Assign to region · ${rname} · drag to brush`;
     } else if (a.type === 'region-erase'){
       el.textContent = 'Mode: Remove from region · click cells';
+    } else if (a.type === 'lake'){
+      const lake = window.GCCSubhexData.getLake(a.value);
+      const lname = lake ? lake.name : '(unknown)';
+      el.textContent = `Mode: Assign to lake · ${lname} · drag to brush`;
+    } else if (a.type === 'lake-erase'){
+      el.textContent = 'Mode: Remove from lake · click cells';
     } else if (a.type === 'path'){
       const path = window.GCCSubhexPaths?.getPath(a.value);
       const pname = path ? path.name : '(unknown)';
@@ -917,6 +948,8 @@
     if (sel){ sel.style.display = 'none'; sel.value = ''; }
     const psel = findEl('sxw-path-armed');
     if (psel){ psel.style.display = 'none'; psel.value = ''; }
+    const lsel = findEl('sxw-lake-armed');
+    if (lsel){ lsel.style.display = 'none'; lsel.value = ''; }
     syncPathActionButtons();
   }
 
@@ -1865,6 +1898,15 @@
       window.GCCSubhexData.unassignCellFromRegion(Q, R);
       const svg = state.win?.querySelector('#sxw-svg');
       if (svg) renderRegionLabels(svg);
+    } else if (a.type === 'lake'){
+      const ok = window.GCCSubhexData.setCellLake(Q, R, a.value, pTerrain);
+      if (!ok){
+        flashMode('Cell terrain must be water to assign to a lake');
+      }
+      if (Q === state.selectedQ && R === state.selectedR) syncDetailPanel();
+    } else if (a.type === 'lake-erase'){
+      window.GCCSubhexData.unsetCellLake(Q, R);
+      if (Q === state.selectedQ && R === state.selectedR) syncDetailPanel();
     } else if (a.type === 'path'){
       if (state.brushing) return;
       // If the clicked cell is already part of the armed path, treat
@@ -1998,6 +2040,7 @@
     const rpick  = findEl('sxw-region-pick');
     const rname  = findEl('sxw-region-name');
     const plist  = findEl('sxw-paths-list');
+    const lakeInfo = findEl('sxw-lake-info');
     const source = findEl('sxw-source');
     const clearB = findEl('sxw-clear');
     if (!coord || !terr || !name || !notes || !fkind || !fname || !flib || !fnotes
@@ -2020,6 +2063,7 @@
       rpick.disabled = true;
       rname.value = '';  rname.disabled = true;
       if (plist) plist.textContent = '—';
+      if (lakeInfo) lakeInfo.textContent = '—';
       source.textContent = '';
       clearB.disabled    = true;
       return;
@@ -2103,6 +2147,12 @@
         : [];
       plist.textContent = cellPaths.length
         ? cellPaths.map(p => `${p.name} (${p.kind})`).join(', ')
+        : '—';
+    }
+    if (lakeInfo){
+      const lake = sub.lakeId ? window.GCCSubhexData.getLake(sub.lakeId) : null;
+      lakeInfo.textContent = lake
+        ? `${lake.name} (${lake.kind} · ${lake.depth})`
         : '—';
     }
     source.textContent = sub.source === 'authored' ? 'Authored override (localStorage)'
@@ -2249,6 +2299,8 @@
     }
     const psel = findEl('sxw-path-armed');
     if (psel) psel.style.display = 'none';
+    const lsel = findEl('sxw-lake-armed');
+    if (lsel) lsel.style.display = 'none';
     rebuildRegionArmedPicker();
     showRegionArmedPicker(true);
   }
@@ -2348,6 +2400,8 @@
     }
     const rsel = findEl('sxw-region-armed');
     if (rsel) rsel.style.display = 'none';
+    const lsel = findEl('sxw-lake-armed');
+    if (lsel) lsel.style.display = 'none';
     rebuildPathArmedPicker();
     showPathArmedPicker(true);
     syncPathActionButtons();
@@ -2550,6 +2604,158 @@
     syncPaletteUI();
     syncModeLabel();
     syncPathActionButtons();
+  }
+
+  // ── Lake tool (toolbar) ────────────────────────────────────────────────
+  function onLakeToolClick(){
+    if (state.armed && (state.armed.type === 'lake' || state.armed.type === 'lake-erase')){
+      state.armed = null;
+      showLakeArmedPicker(false);
+      syncPaletteUI();
+      syncModeLabel();
+      return;
+    }
+    const rsel = findEl('sxw-region-armed');
+    if (rsel) rsel.style.display = 'none';
+    const psel = findEl('sxw-path-armed');
+    if (psel) psel.style.display = 'none';
+    showPathSection(false);
+    rebuildLakeArmedPicker();
+    showLakeArmedPicker(true);
+  }
+
+  function showLakeArmedPicker(visible, presetValue){
+    const sel = findEl('sxw-lake-armed');
+    if (!sel) return;
+    sel.style.display = visible ? '' : 'none';
+    if (visible && presetValue !== undefined){
+      sel.value = presetValue;
+    } else if (visible && !sel.value){
+      const lakes = window.GCCSubhexData.listLakes();
+      if (lakes.length){ sel.value = lakes[0].id; }
+    }
+  }
+
+  function rebuildLakeArmedPicker(){
+    const sel = findEl('sxw-lake-armed');
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '';
+    const noneOpt = document.createElement('option');
+    noneOpt.value = '';
+    noneOpt.textContent = '— pick a lake to assign —';
+    sel.appendChild(noneOpt);
+    const lakes = window.GCCSubhexData.listLakes();
+    for (const l of lakes){
+      const opt = document.createElement('option');
+      opt.value = l.id;
+      opt.textContent = `${l.name} (${l.kind} · ${l.depth})`;
+      sel.appendChild(opt);
+    }
+    const eraseOpt = document.createElement('option');
+    eraseOpt.value = '__erase__';
+    eraseOpt.textContent = '⌫ Remove from lake (click cells)';
+    sel.appendChild(eraseOpt);
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ New lake…';
+    sel.appendChild(newOpt);
+    if (prev) sel.value = prev;
+  }
+
+  function onLakeArmedChange(ev){
+    const val = ev.target.value;
+    if (val === '__erase__'){
+      state.armed = { type: 'lake-erase' };
+    } else if (val === '__new__'){
+      ev.target.value = '';
+      openNewLakeDialog();
+      return;
+    } else if (val){
+      state.armed = { type: 'lake', value: val };
+    } else {
+      state.armed = null;
+    }
+    syncDetailPanel();
+    syncPaletteUI();
+    syncModeLabel();
+  }
+
+  // New-lake form. GCCDialog.confirm accepts raw HTML in its body
+  // (autoclose <p> wrapper means our <div>s render correctly). On OK,
+  // read field values from DOM, validate, call createLake, arm the
+  // result. On cancel or empty name, no-op.
+  function openNewLakeDialog(){
+    const dlg = window.GCCDialog || window.MPDialog;
+    if (!dlg || typeof dlg.confirm !== 'function'){
+      if (typeof alert === 'function') alert('Dialog system not available');
+      return;
+    }
+    const regions = window.GCCSubhexData.listRegions();
+    const regOpts = ['<option value="">— none —</option>']
+      .concat(regions.map(r =>
+        `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)} (${escapeHtml(r.terrain)})</option>`
+      )).join('');
+    const html = ''
+      + '<div class="sxw-lake-form" style="text-align:left;">'
+      +   '<div style="margin-bottom:8px">'
+      +     '<label style="display:block;font-size:11px;font-weight:700;margin-bottom:2px">Name</label>'
+      +     '<input id="sxw-lake-form-name" type="text" style="width:100%;padding:4px" placeholder="Lake Quagflow">'
+      +   '</div>'
+      +   '<div style="margin-bottom:8px;display:flex;gap:8px">'
+      +     '<div style="flex:1">'
+      +       '<label style="display:block;font-size:11px;font-weight:700;margin-bottom:2px">Kind</label>'
+      +       '<select id="sxw-lake-form-kind" style="width:100%;padding:4px">'
+      +         '<option value="lake">lake</option>'
+      +         '<option value="sea">sea</option>'
+      +       '</select>'
+      +     '</div>'
+      +     '<div style="flex:1">'
+      +       '<label style="display:block;font-size:11px;font-weight:700;margin-bottom:2px">Depth</label>'
+      +       '<select id="sxw-lake-form-depth" style="width:100%;padding:4px">'
+      +         '<option value="shallow">shallow</option>'
+      +         '<option value="deep">deep</option>'
+      +       '</select>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div style="margin-bottom:8px">'
+      +     '<label style="display:block;font-size:11px;font-weight:700;margin-bottom:2px">Region (optional)</label>'
+      +     '<select id="sxw-lake-form-region" style="width:100%;padding:4px">' + regOpts + '</select>'
+      +   '</div>'
+      +   '<div>'
+      +     '<label style="display:block;font-size:11px;font-weight:700;margin-bottom:2px">Notes</label>'
+      +     '<textarea id="sxw-lake-form-notes" style="width:100%;min-height:60px;padding:4px" placeholder="optional"></textarea>'
+      +   '</div>'
+      + '</div>';
+    dlg.confirm('New Lake', html, { okText: 'Create', cancelText: 'Cancel' }).then(ok => {
+      if (!ok) return;
+      const nameEl  = document.getElementById('sxw-lake-form-name');
+      const kindEl  = document.getElementById('sxw-lake-form-kind');
+      const depthEl = document.getElementById('sxw-lake-form-depth');
+      const regEl   = document.getElementById('sxw-lake-form-region');
+      const notesEl = document.getElementById('sxw-lake-form-notes');
+      const name  = (nameEl?.value || '').trim();
+      const kind  = kindEl?.value || 'lake';
+      const depth = depthEl?.value || 'shallow';
+      const regionId = regEl?.value || null;
+      const notes = notesEl?.value || '';
+      if (!name){
+        if (dlg.alert) dlg.alert('New Lake', 'Name is required.');
+        return;
+      }
+      const lake = window.GCCSubhexData.createLake(name, kind, depth, regionId, notes);
+      if (!lake){
+        if (dlg.alert) dlg.alert('New Lake', 'Could not create lake. Check name/kind/depth.');
+        return;
+      }
+      rebuildLakeArmedPicker();
+      const sel = findEl('sxw-lake-armed');
+      if (sel) sel.value = lake.id;
+      state.armed = { type: 'lake', value: lake.id };
+      syncDetailPanel();
+      syncPaletteUI();
+      syncModeLabel();
+    });
   }
 
   function persistFields(){
