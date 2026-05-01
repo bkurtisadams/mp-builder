@@ -1,3 +1,29 @@
+// gcc-paths.js v0.9.0 — 2026-04-30
+// v0.9.0: per-parent fallback gate (Slice 3 of DESIGN-paths-water.md).
+// Tightening of v0.5+: when EITHER parent of a queried edge has any
+// subhex authoring (paths or lakes — checked via
+// _parentHasSubhexAuthoring), the subhex layer is canonical for that
+// parent's edges. Parent-layer rivers, roads, and crossings are
+// hidden from the planner for that parent. When neither parent has
+// subhex authoring, parent-layer data is used as before.
+//
+// This is a behavior shift from v0.5+ which used per-edge fallback
+// (parent data filled gaps the GM hadn't subhex-authored at this
+// specific edge). Per-parent makes "I've taken authority for this
+// parent" the cleaner mental model.
+//
+// New TIER_COST const at the top — placeholder numbers per the design:
+//   stream:      0 / 0
+//   river:       0 / 0.5    (light / encumbered)
+//   great_river: 0.5 / 1.0
+// Pin to the Greyhawk box raft rules when Kurt confirms citation.
+//
+// Helpers rewritten internally; public API stable. New export
+// parentHasSubhexAuthoring (Slice 5's hex-edit gating uses it).
+// CRUD writers (saveRiver, saveRoad, saveCrossing, deleteRiver,
+// deleteRoad, deleteCrossing) now throw a specific Error when any
+// chain hex's parent has subhex authoring — UI catches & shows the
+// disabled-with-explanation banner.
 // gcc-paths.js v0.8.0 — 2026-04-29
 // v0.8.0: edgeCrossingInfo(colA,rowA,colB,rowB) returns the crossing
 // the journey planner would use on this edge, preferring the subhex
@@ -79,6 +105,41 @@
   const RIVER_TYPES = ['stream','river','great_river'];
   const ROAD_KINDS = ['road','track'];
   const CROSSING_KINDS = new Set(['bridge','footbridge','ford','ferry']);
+
+  // Tier-cost table — extra travel-days added by an unbridged river
+  // edge of the given tier, indexed by party burden. Placeholder
+  // numbers per DESIGN-paths-water.md Q6; pin to Greyhawk box raft
+  // rules when the citation is confirmed.
+  const TIER_COST = {
+    stream:      { light: 0,   encumbered: 0   },
+    river:       { light: 0,   encumbered: 0.5 },
+    great_river: { light: 0.5, encumbered: 1.0 },
+  };
+
+  // Subhex-authoring gate (Slice 3). The subhex layer is canonical for
+  // a parent when EITHER paths or lakes are authored anywhere in it.
+  // Defensive: returns false when the subhex modules haven't loaded
+  // yet (script-load order puts gcc-paths.js before the subhex modules).
+  function _parentHasSubhexAuthoring(col, row){
+    if (typeof window === 'undefined') return false;
+    const SP = window.GCCSubhexPaths;
+    const SD = window.GCCSubhexData;
+    if (SP && typeof SP.parentHasPathAuthoring === 'function'){
+      if (SP.parentHasPathAuthoring(col, row)) return true;
+    }
+    if (SD && typeof SD.parentHasLakeAuthoring === 'function'){
+      if (SD.parentHasLakeAuthoring(col, row)) return true;
+    }
+    return false;
+  }
+  // Either-side gate: an edge is subhex-canonical if either parent is
+  // subhex-authored. Per design Q3.
+  function _edgeIsSubhexCanonical(colA, rowA, colB, rowB){
+    return _parentHasSubhexAuthoring(colA, rowA)
+        || _parentHasSubhexAuthoring(colB, rowB);
+  }
+  // Public alias for Slice 5's hex-edit gating.
+  const parentHasSubhexAuthoring = _parentHasSubhexAuthoring;
 
   function neighborAcross(col, row, edge){
     const off = (col % 2 === 0) ? NEIGHBOR_OFFSETS.even : NEIGHBOR_OFFSETS.odd;
@@ -191,84 +252,147 @@
     return null;
   }
 
+  // ── Subhex-edge inspection helpers (Slice 3) ───────────────────────────
+  //
+  // When a parent is subhex-canonical, we ask the subhex layer "is there
+  // a river / road / crossing on this parent boundary?" These return
+  // shapes the existing resolvers can plug into. They consult
+  // GCCSubhexPaths.subhexBoundaryInfo (already cell-pair-aware in v1.3+)
+  // and return river tier from the subhex path doc directly.
+
+  // Returns { hasRiver, tier, name, crossing } describing the subhex
+  // layer's verdict for the parent boundary. Returns null when the
+  // subhex modules aren't loaded.
+  function _subhexEdgeView(colA, rowA, colB, rowB){
+    if (typeof window === 'undefined' || !window.GCCSubhexPaths) return null;
+    const SP = window.GCCSubhexPaths;
+    if (typeof SP.subhexBoundaryInfo !== 'function') return null;
+    const info = SP.subhexBoundaryInfo(colA, rowA, colB, rowB);
+    if (!info) return null;
+    // subhexBoundaryInfo gives hasRoad / hasRiver / crossing but not
+    // the river's tier / name. Walk the cells it found and pull from
+    // path docs.
+    let tier = null;
+    let name = null;
+    if (info.hasRiver && info.boundaryCell && typeof SP.pathsAtCell === 'function'){
+      // Find a river-kind path whose cells include this boundary cell
+      // AND a neighbor cell owned by the *other* parent (that's the
+      // edge crossing). pathsAtCell already returns all paths through
+      // the cell; we just pick the first river/stream and read its
+      // tier.
+      const here = SP.pathsAtCell(info.boundaryCell.Q, info.boundaryCell.R);
+      for (const p of here){
+        if (p.kind === 'river' || p.kind === 'stream'){
+          // v3 docs carry tier; v2 docs (forward-compat downgrade) may
+          // not. Default to 'river' (the v2→v3 migration default).
+          tier = p.tier || 'river';
+          name = p.name || null;
+          break;
+        }
+      }
+    }
+    return {
+      hasRiver: !!info.hasRiver,
+      hasRoad:  !!info.hasRoad,
+      tier,
+      riverName: name,
+      crossing: info.crossing || null,
+      boundaryCell: info.boundaryCell || null,
+    };
+  }
+
   // ── Resolver ───────────────────────────────────────────────────────────
-  // The Greyhawk box (1980) lets parties cross rivers without a
-  // bridge or ford by swimming if light, or by building floats if
-  // encumbered (~half day delay). So rivers don't "block" — they
-  // add a time cost when no crossing is present and the party can't
-  // just swim. edgeRiverInfo still returns the blocks flag for
-  // legacy callers that expect a binary, but the cost-aware planner
-  // path now uses edgeRiverCost.
+  // Per-parent fallback gate (Slice 3). When either parent of the queried
+  // edge has subhex authoring, the subhex layer is canonical for this
+  // boundary. Parent layer is consulted only when neither parent is
+  // subhex-authored.
+  //
+  // The Greyhawk box (1980) lets parties cross rivers without a bridge
+  // or ford by swimming if light, or by building floats if encumbered
+  // (~half day delay). So rivers don't "block" — they add a time cost
+  // when no crossing is present and the party can't just swim.
+  // edgeRiverInfo still returns the legacy `blocks` flag for callers
+  // that expect a binary, but the cost-aware planner uses
+  // edgeRiverCost.
+  //
+  // Map subhex tier → parent-shape `type` for legacy callers reading
+  // `info.river.type`. Subhex tier values already match the legacy
+  // RIVER_TYPES strings exactly, so this is identity. Parent-layer
+  // rivers carry `current: 1|2|3` but also `type` directly, so the
+  // existing parent path already returns a compatible shape.
   function edgeRiverInfo(colA, rowA, colB, rowB){
+    if (_edgeIsSubhexCanonical(colA, rowA, colB, rowB)){
+      const view = _subhexEdgeView(colA, rowA, colB, rowB);
+      if (!view || !view.hasRiver){
+        return { blocks: false, river: null, crossing: null };
+      }
+      const tier = view.tier || 'river';
+      const river = {
+        kind: 'river',
+        type: tier,                     // 'stream' | 'river' | 'great_river'
+        tier,                           // explicit tier surface (new)
+        name: view.riverName || '',
+        // current is parent-layer-specific (1/2/3); subhex paths don't
+        // carry it. Map tier back to a sensible default for callers
+        // that read it: stream=1, river=2, great_river=3.
+        current: tier === 'stream' ? 1 : (tier === 'great_river' ? 3 : 2),
+        source: 'subhex',
+      };
+      const crossing = view.crossing
+        ? { kind: view.crossing.kind, name: view.crossing.name || '', notes: view.crossing.notes || '' }
+        : null;
+      if (tier === 'stream') return { blocks: false, river, crossing };
+      return { blocks: !crossing, river, crossing };
+    }
+    // Parent-canonical path (no subhex authoring on either side).
     const river = _riverOnEdge(colA, rowA, colB, rowB);
     if (!river) return { blocks: false, river: null, crossing: null };
     const crossing = edgeFeaturesAt(colA, rowA, colB, rowB)
       .find(f => CROSSING_KINDS.has(f.kind));
-    if (river.type === 'stream') return { blocks: false, river, crossing: crossing || null };
-    // Legacy `blocks` is now informational only — the cost-aware
-    // planner doesn't use it. Kept true-when-no-crossing for any
-    // legacy caller still expecting the old semantics.
-    return { blocks: !crossing, river, crossing: crossing || null };
+    // Surface tier alongside legacy `type` for forward-compat.
+    const enriched = { ...river, tier: river.type };
+    if (river.type === 'stream') return { blocks: false, river: enriched, crossing: crossing || null };
+    return { blocks: !crossing, river: enriched, crossing: crossing || null };
   }
 
-  // Extra days added by crossing this edge, given the river state
-  // and party's burden. Greyhawk rule: zero if there's a crossing
-  // (bridge/ford/ferry) or the river is a stream, zero if the party
-  // is light enough to swim, otherwise half a day to build floats.
-  // Subhex authority overrides parent crossing data — if a subhex
-  // road, or a subhex crossing feature on the boundary cell, is
-  // present, the cost is zero regardless of parent layer.
+  // Extra days added by crossing this edge, given the river state and
+  // party's burden. Per design Q6: gated by per-parent authoring.
+  // Tier-aware via TIER_COST table.
   function edgeRiverCost(colA, rowA, colB, rowB, mode, burden){
     if (mode === 'flying' || mode === 'ship') return 0;
-    // Subhex layer — road on the boundary cell means free passage.
-    const verdict = _subhexEdgeVerdict(colA, rowA, colB, rowB);
-    if (!verdict.defer && verdict.blocks === false) return 0;
-    // Parent layer.
     const info = edgeRiverInfo(colA, rowA, colB, rowB);
     if (!info.river) return 0;
-    if (info.river.type === 'stream') return 0;
     if (info.crossing) return 0;
-    // Unbridged river. Light-burden parties swim across with no cost.
-    if (burden === 'light') return 0;
-    return 0.5;
-  }
-
-  // Consult the subhex layer for an authoritative answer about this
-  // parent boundary, when the GM has authored detail there. Returns
-  // either { defer: true } meaning "use parent data" or
-  // { defer: false, blocks: bool } with the subhex verdict.
-  // Rule 1 (per Kurt's design call 2026-04-29): a road on the boundary
-  // cell makes the edge traversable, regardless of any river. A river
-  // alone — no road — falls through to the parent layer's crossing
-  // logic, since rivers without a road still need an authored bridge
-  // / ford / ferry on the parent edge.
-  function _subhexEdgeVerdict(colA, rowA, colB, rowB){
-    if (typeof window === 'undefined' || !window.GCCSubhexPaths) return { defer: true };
-    if (typeof window.GCCSubhexPaths.subhexBoundaryInfo !== 'function') return { defer: true };
-    const info = window.GCCSubhexPaths.subhexBoundaryInfo(colA, rowA, colB, rowB);
-    if (!info || !info.hasData) return { defer: true };
-    if (info.hasRoad) return { defer: false, blocks: false };
-    // No road on the boundary cell. Subhex authoring exists in this
-    // parent — but specifically not for this edge. Fall back to parent
-    // data for river-block decisions.
-    return { defer: true };
+    // Subhex-canonical: a road on the boundary cell also makes
+    // passage free (Rule 1 from v0.5+, preserved). edgeRiverInfo's
+    // crossing field already covers authored bridges/fords/ferries;
+    // we additionally check road via the subhex-edge view.
+    if (info.river.source === 'subhex'){
+      const view = _subhexEdgeView(colA, rowA, colB, rowB);
+      if (view && view.hasRoad) return 0;
+    }
+    const tier = info.river.tier || 'river';
+    const row = TIER_COST[tier] || TIER_COST.river;
+    return burden === 'light' ? row.light : row.encumbered;
   }
 
   // Returns the "best" crossing on this parent edge, for the journey
-  // planner's Crossings summary. Subhex wins (it's the more precise
-  // layer): a named bridge on a subhex boundary cell takes precedence
-  // over a parent-edge crossing record. Returns either:
+  // planner's Crossings summary. Per-parent fallback gate (Slice 3).
+  // Returns:
   //   { source: 'subhex', kind, name, notes, Q, R }  — subhex feature
   //   { source: 'parent', kind, name, notes }        — parent record
   //   null                                            — no crossing
   function edgeCrossingInfo(colA, rowA, colB, rowB){
-    if (typeof window !== 'undefined' && window.GCCSubhexPaths
-        && typeof window.GCCSubhexPaths.subhexBoundaryInfo === 'function'){
-      const info = window.GCCSubhexPaths.subhexBoundaryInfo(colA, rowA, colB, rowB);
-      if (info && info.crossing){
-        const c = info.crossing;
+    if (_edgeIsSubhexCanonical(colA, rowA, colB, rowB)){
+      const view = _subhexEdgeView(colA, rowA, colB, rowB);
+      if (view && view.crossing){
+        const c = view.crossing;
         return { source: 'subhex', kind: c.kind, name: c.name || '', notes: c.notes || '', Q: c.Q, R: c.R };
       }
+      // Subhex-canonical but no crossing on this edge — do NOT fall
+      // back to parent. Per design Q3: a parent with subhex authoring
+      // hides parent-layer data entirely.
+      return null;
     }
     const pc = crossingAt(colA, rowA, colB, rowB);
     if (pc){
@@ -277,41 +401,30 @@
     return null;
   }
 
-  // Legacy: returns true only for genuinely impassable cases. With
-  // the raft rule, river edges no longer block — they just add cost.
-  // edgeBlocks is preserved for legacy callers (it always returns
-  // false now in normal play); the cost-aware planner uses
-  // edgeRiverCost instead. Flying and ship modes still cross any
-  // river edge for free as before.
+  // Legacy: returns true only for genuinely impassable cases. With the
+  // raft rule, river edges no longer block — they just add cost.
+  // edgeBlocks is preserved for legacy callers (always false in normal
+  // play); the cost-aware planner uses edgeRiverCost. Flying / ship
+  // modes still cross any river edge for free.
   function edgeBlocks(colA, rowA, colB, rowB, mode){
     if (mode === 'flying' || mode === 'ship') return false;
-    // Per the raft rule, no river edge is fully impassable for land
-    // travel — the worst case is a half-day delay. So edgeBlocks
-    // returns false in all river situations now. Preserved as a
-    // function so legacy callers that didn't migrate to the cost
-    // model don't crash.
     return false;
   }
+
   function edgeRoadBonus(colA, rowA, colB, rowB, terrain){
-    // Subhex layer wins: if the GM has authored a road on the boundary
-    // cell at 3mi resolution, use that for the bonus regardless of
-    // whether parent-level roads exist.
-    if (typeof window !== 'undefined' && window.GCCSubhexPaths
-        && typeof window.GCCSubhexPaths.subhexBoundaryInfo === 'function'){
-      const info = window.GCCSubhexPaths.subhexBoundaryInfo(colA, rowA, colB, rowB);
-      if (info && info.hasData && info.hasRoad){
-        const t = (typeof window !== 'undefined' && window.TERRAIN) ? window.TERRAIN[terrain] : null;
-        const isHard = t && t.difficulty && t.difficulty !== 'normal';
-        // The subhex layer doesn't currently distinguish road vs track
-        // at this query point — pick the conservative "road" bonus on
-        // easy terrain and "track" bonus on hard.
-        return isHard ? 1.2 : 1.5;
-      }
-    }
-    const road = _roadOnEdge(colA, rowA, colB, rowB);
-    if (!road) return 1.0;
     const t = (typeof window !== 'undefined' && window.TERRAIN) ? window.TERRAIN[terrain] : null;
     const isHard = t && t.difficulty && t.difficulty !== 'normal';
+    if (_edgeIsSubhexCanonical(colA, rowA, colB, rowB)){
+      const view = _subhexEdgeView(colA, rowA, colB, rowB);
+      if (!view || !view.hasRoad) return 1.0;
+      // Subhex layer doesn't currently distinguish road vs trail at
+      // this query point — pick conservative road bonus on easy
+      // terrain, track bonus on hard. Same as v0.5+ behavior.
+      return isHard ? 1.2 : 1.5;
+    }
+    // Parent-canonical.
+    const road = _roadOnEdge(colA, rowA, colB, rowB);
+    if (!road) return 1.0;
     const effKind = (road.kind === 'road' && isHard) ? 'track' : road.kind;
     return effKind === 'road' ? 1.5 : 1.2;
   }
@@ -468,18 +581,60 @@
     } catch (e) {}
   }
 
+  // Hard-gate (Slice 3, design Q3 #4 / Q6 helper table). When any chain
+  // hex's parent has subhex authoring, parent-layer CRUD is disabled.
+  // Throws a specific error so Slice 5's UI can catch and display the
+  // disabled-with-explanation banner. UI gates first; this is the
+  // last line of defense.
+  function _assertChainNotSubhexAuthored(chain){
+    if (!chain || !chain.length) return;
+    for (const h of chain){
+      if (_parentHasSubhexAuthoring(h.col, h.row)){
+        throw new Error(
+          `parent (${h.col},${h.row}) is subhex-authored — edit subhex paths instead`
+        );
+      }
+    }
+  }
+  // For deleteRiver / deleteRoad, the chain isn't passed in. Look it up
+  // from the in-memory state and gate on that.
+  function _assertNamedRiverNotSubhexAuthored(name){
+    const entries = namedRivers[name];
+    if (!entries || !entries.length) return;
+    for (const e of entries){
+      if (_parentHasSubhexAuthoring(e.col, e.row)){
+        throw new Error(
+          `parent (${e.col},${e.row}) is subhex-authored — edit subhex paths instead`
+        );
+      }
+    }
+  }
+  function _assertNamedRoadNotSubhexAuthored(name){
+    const entries = namedRoads[name];
+    if (!entries || !entries.length) return;
+    for (const e of entries){
+      if (_parentHasSubhexAuthoring(e.col, e.row)){
+        throw new Error(
+          `parent (${e.col},${e.row}) is subhex-authored — edit subhex paths instead`
+        );
+      }
+    }
+  }
+
   // Editor-driven save: persist override + replay.
   function saveRiver(name, type, current, chain){
     const cleanChain = chain.map(h => ({ col: h.col|0, row: h.row|0 }));
     const broken = validateChain(cleanChain);
     if (broken !== null) throw new Error(`chain breaks at index ${broken}`);
     if (!RIVER_TYPES.includes(type)) throw new Error(`bad river type: ${type}`);
+    _assertChainNotSubhexAuthored(cleanChain);
     overrideRivers[name] = { type, current: +current, chain: cleanChain };
     deletedBaseRivers.delete(name);
     saveOverridesLS();
     rebuild();
   }
   function deleteRiver(name){
+    _assertNamedRiverNotSubhexAuthored(name);
     if (overrideRivers[name]) delete overrideRivers[name];
     if (baseRiverNames.includes(name)) deletedBaseRivers.add(name);
     saveOverridesLS();
@@ -490,12 +645,14 @@
     const broken = validateChain(cleanChain);
     if (broken !== null) throw new Error(`chain breaks at index ${broken}`);
     if (!ROAD_KINDS.includes(kind)) throw new Error(`bad road kind: ${kind}`);
+    _assertChainNotSubhexAuthored(cleanChain);
     overrideRoads[name] = { kind, chain: cleanChain };
     deletedBaseRoads.delete(name);
     saveOverridesLS();
     rebuild();
   }
   function deleteRoad(name){
+    _assertNamedRoadNotSubhexAuthored(name);
     if (overrideRoads[name]) delete overrideRoads[name];
     if (baseRoadNames.includes(name)) deletedBaseRoads.add(name);
     saveOverridesLS();
@@ -543,6 +700,11 @@
     if (!CROSSING_KINDS.has(kind)) throw new Error(`bad crossing kind: ${kind}`);
     const k = _crossingKey(colA, rowA, colB, rowB);
     if (!k) throw new Error('hexes are not adjacent');
+    if (_parentHasSubhexAuthoring(colA, rowA) || _parentHasSubhexAuthoring(colB, rowB)){
+      throw new Error(
+        `parent (${colA},${rowA}) or (${colB},${rowB}) is subhex-authored — edit subhex paths instead`
+      );
+    }
     overrideCrossings[k] = { kind, name: (name || '').trim(), notes: (notes || '').trim() };
     saveOverridesLS();
     rebuild();
@@ -550,6 +712,11 @@
   function deleteCrossing(colA, rowA, colB, rowB){
     const k = _crossingKey(colA, rowA, colB, rowB);
     if (!k) return;
+    if (_parentHasSubhexAuthoring(colA, rowA) || _parentHasSubhexAuthoring(colB, rowB)){
+      throw new Error(
+        `parent (${colA},${rowA}) or (${colB},${rowB}) is subhex-authored — edit subhex paths instead`
+      );
+    }
     if (overrideCrossings[k]){
       delete overrideCrossings[k];
       saveOverridesLS();
@@ -698,12 +865,25 @@
   loadOverrides();
   rebuild();
 
+  // When the subhex layer changes (paths or lakes), the per-parent
+  // gate may flip for some parents — rebuild the overlay so any
+  // parent-layer chains hidden by a newly-authored subhex don't keep
+  // rendering as if they were canonical. Doesn't change the in-memory
+  // override stores, just refreshes display.
+  if (typeof window !== 'undefined' && window.addEventListener){
+    window.addEventListener('gcc-subhex-changed', () => {
+      if (typeof window.rebuildPathOverlay === 'function'){
+        try { window.rebuildPathOverlay(); } catch (e) {}
+      }
+    });
+  }
+
   // ── Export ─────────────────────────────────────────────────────────────
   window.GCCPaths = {
     // Geometry
     neighborAcross, edgeBetween, ownerHex, areAdjacent,
     EDGE_NAMES, EDGE_N: 0, EDGE_NE: 1, EDGE_SE: 2, EDGE_S: 3, EDGE_SW: 4, EDGE_NW: 5,
-    RIVER_TYPES, ROAD_KINDS, CROSSING_KINDS,
+    RIVER_TYPES, ROAD_KINDS, CROSSING_KINDS, TIER_COST,
     // Data accessors
     segmentsAt, riversAt, roadsAt, edgeFeaturesAt,
     getNamedRiver, getNamedRoad, allRiverNames, allRoadNames,
@@ -717,6 +897,8 @@
     saveCrossing, deleteCrossing,
     // Resolver
     edgeRiverInfo, edgeBlocks, edgeRiverCost, edgeRoadBonus,
+    // Authoring gate (Slice 3)
+    parentHasSubhexAuthoring,
     // Utility
     chainToSegments, validateChain,
     // Lifecycle
