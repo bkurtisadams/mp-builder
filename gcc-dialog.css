@@ -1,5 +1,14 @@
-/* gcc-dialog.css v1.0 — Unified dialog system for GCC
-   Replaces: mp-dialog.css, inline .modal/.mf-* styles
+/* gcc-dialog.css v1.1 — Unified dialog system for GCC
+   v1.1 (2026-05-01): overlay top-padding clears fixed page headers.
+     Was 40px — too low for pages like greyhawk-map.html which stack
+     two fixed header rows (gcc-bar 44px + #topbar 46px = 90px) above
+     the dialog. The dialog box was visually starting right where
+     #topbar ends, making the title look tucked under the headers
+     even though z-index 9000 was correct.
+     Now uses --gcc-dlg-top (default 110px) so the dialog box always
+     clears both rows. Pages with only gcc-bar can override on :root
+     with --gcc-dlg-top: 60px to claw back the space.
+   v1.0: initial. Replaces mp-dialog.css, inline .modal/.mf-* styles
    Compact sizing: 12px header, 10-12px body, 12px inputs, 6px margins
    Light header (surface bg + border), CSS variables, sentence case */
 
@@ -9,7 +18,12 @@
   background: rgba(0,0,0,0.45);
   z-index: 9000;
   display: flex; align-items: flex-start; justify-content: center;
-  padding: 40px 16px; overflow-y: auto;
+  /* Top padding clears the GCC fixed header(s) so the dialog box
+     never sits visually under them, regardless of z-index. Per-page
+     override via --gcc-dlg-top on :root. Default 110px = gcc-bar
+     (44px) + #topbar (46px) + 20px breathing room. */
+  padding: var(--gcc-dlg-top, 110px) 16px 40px;
+  overflow-y: auto;
   opacity: 0; pointer-events: none;
   transition: opacity 0.15s;
 }
