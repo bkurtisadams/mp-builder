@@ -384,10 +384,21 @@ window.GCCSubhexView = window.GCCSubhexView || {
     G.saveRiver('TestRiver', 'river', 2,
       [{col:50,row:50},{col:50,row:51},{col:50,row:52}]);
     assert('river saved', G.getRiverInfo('TestRiver') !== null);
-    // Switch to Paths tab and select the river.
+    // Switch to Paths tab.
     HE.setActiveTab('paths');
-    panel.querySelector('#he-pf-select').value = 'TestRiver';
-    panel.querySelector('#he-pf-select').dispatchEvent(new Event('change'));
+    // External CRUD on GCCPaths doesn't trigger hex-edit's
+    // refreshPfSelect, so the select dropdown won't yet have the
+    // option for 'TestRiver'. Inject it manually so we can then
+    // dispatch a change event and exercise the gating logic.
+    const sel = panel.querySelector('#he-pf-select');
+    if (!Array.from(sel.options).some(o => o.value === 'TestRiver')){
+      const opt = document.createElement('option');
+      opt.value = 'TestRiver';
+      opt.textContent = 'TestRiver';
+      sel.appendChild(opt);
+    }
+    sel.value = 'TestRiver';
+    sel.dispatchEvent(new Event('change'));
     // Edit Trace should be enabled.
     assert('Edit Trace enabled (no authoring)',
       panel.querySelector('#he-pf-edit').disabled === false);
@@ -451,8 +462,12 @@ window.GCCSubhexView = window.GCCSubhexView || {
           SP.createPath('road', 'TestRoad2');
           SP.appendCell('testroad2', center.Q, center.R);
           setTimeout(() => {
-            // Re-trigger refresh via select change.
-            panel.querySelector('#he-pf-select').dispatchEvent(new Event('change'));
+            // Re-set the select value (pfSelected may have been
+            // cleared by the intervening refreshes) and dispatch
+            // change to trigger refresh.
+            const sel7 = panel.querySelector('#he-pf-select');
+            sel7.value = 'TestRiver';
+            sel7.dispatchEvent(new Event('change'));
             const banner = panel.querySelector('#he-pf-banner');
             const title  = banner.querySelector('.he-pf-banner-title');
             const parents = banner.querySelector('.he-pf-banner-parents');
