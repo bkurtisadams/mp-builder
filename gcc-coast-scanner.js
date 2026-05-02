@@ -1,4 +1,25 @@
-// gcc-coast-scanner.js v0.4.1 — 2026-05-02
+// gcc-coast-scanner.js v0.4.2 — 2026-05-02
+// v0.4.2: pass-2 majority rule. v0.4.1's strict "no opposing
+// neighbor" rule mis-classified coastal-transition cells in water-
+// typed parents (e.g., U3-74 / Nyr Dyv interior): a cell with mixed
+// neighbors (4 water + 2 land) hit "both" and fell through to the
+// parent-prior, which is water for water_* parents — even when the
+// cell visually leans land. Same problem symmetrically on the land
+// side, just less visible because most of the Flanaess is land-
+// typed.
+//
+// New pass-2 has three phases:
+//   2a — finalize direct (definite) classifications
+//   2b — iterate up to 10 passes; each ambiguous cell resolves to
+//        its definite/already-resolved neighbor majority. Ties and
+//        no-evidence stay ambiguous for the next pass; newly-
+//        resolved cells become evidence on the next pass.
+//   2c — still-ambiguous after stabilization → parent-prior tiebreak
+// Definite classifications still anchor everything, so well-tuned
+// parents (verified Nyr Dyv proper at ~99%) are unaffected: only
+// coastal-transition cells with previously-unresolvable mixed
+// neighbors get classified now instead of falling to parent-prior.
+//
 // v0.4.1: bulk apply perf — was crashing the page on coast-scope.
 // applyBulk and undoBulk are now async and chunked (2000 cells per
 // chunk with setTimeout(0) yields), and they pass {deferSave:true}
@@ -384,15 +405,26 @@
       byKey.set(`${Q},${R}`, r);
     }
 
-    // ── Pass 2: resolve ambiguous via neighbors, then parent ───────────
-    // Definite-classified cells finalize first (they're their own
-    // evidence). Then ambiguous cells inspect their 6 axial neighbors
-    // and resolve based on what the surrounding terrain looks like.
+    // ── Pass 2: resolve ambiguous via iterative majority, then parent ──
+    // 2a finalizes direct classifications. 2b iterates: each ambiguous
+    // cell counts its 6 axial neighbors (definite OR previously-resolved)
+    // and resolves to whichever side is the majority. Ties stay
+    // ambiguous and feed the next pass — newly-resolved cells become
+    // evidence for their still-ambiguous neighbors. 2c falls back to
+    // parent-terrain prior for cells still ambiguous after stabilization.
+    //
+    // The change from v0.4.1's strict "no opposing neighbor" rule to
+    // a majority rule fixes water-typed parents whose coastal-transition
+    // cells had mixed neighbors: they previously fell through to the
+    // water parent-prior even when leaning land. Symmetric on the land
+    // side. Definite-classified neighbors still anchor everything.
     const NB = SD.NEIGHBOR_DELTAS;
     let waterN = 0, landN = 0, ambigN = 0, alreadyN = 0;
     let resWaterDirect = 0, resLandDirect = 0;
     let resWaterByNeighbor = 0, resLandByNeighbor = 0;
     let resWaterByParent = 0, resLandByParent = 0;
+
+    // 2a: finalize direct classifications and tally already-authored.
     for (const r of results){
       if (r.alreadyAuthored) alreadyN++;
       if (r.classification === 'water'){
@@ -405,32 +437,63 @@
         resLandDirect++;
       } else {
         ambigN++;
-        // Count definite-water vs definite-land neighbors. Neighbors
-        // outside this parent (or sample-failed) just don't appear in
-        // byKey and don't contribute evidence either way.
+      }
+    }
+
+    // 2b: iterative majority resolution. MAX_PASSES caps propagation
+    // distance — at ~10 cells across a parent, 10 passes is enough for
+    // any signal to traverse the parent if needed.
+    const MAX_PASSES = 10;
+    let pass = 0;
+    let changed = true;
+    while (changed && pass < MAX_PASSES){
+      changed = false;
+      pass++;
+      for (const r of results){
+        if (r.classification !== 'ambiguous' || r.resolution) continue;
         let nw = 0, nl = 0;
         for (const [dQ, dR] of NB){
           const nb = byKey.get(`${r.Q + dQ},${r.R + dR}`);
           if (!nb) continue;
-          if (nb.classification === 'water') nw++;
-          else if (nb.classification === 'land') nl++;
+          // A neighbor counts as water/land if it's directly classified
+          // OR resolved via a prior iteration. Cells outside this parent
+          // don't contribute evidence either way.
+          const c = nb.resolution
+            ? (nb.resolution === 'water' || nb.resolution === 'water-via-neighbor' ? 'water'
+              : nb.resolution === 'land'  || nb.resolution === 'land-via-neighbor'  ? 'land'
+              : null)
+            : (nb.classification === 'water' ? 'water'
+              : nb.classification === 'land'  ? 'land'
+              : null);
+          if (c === 'water') nw++;
+          else if (c === 'land') nl++;
         }
-        if (nw > 0 && nl === 0){
+        if (nw > nl){
           r.isWater = true;
           r.resolution = 'water-via-neighbor';
           resWaterByNeighbor++;
-        } else if (nl > 0 && nw === 0){
+          changed = true;
+        } else if (nl > nw){
           r.isWater = false;
           r.resolution = 'land-via-neighbor';
           resLandByNeighbor++;
-        } else {
-          // Both or neither — defer to parent-terrain prior.
-          r.isWater = !!parentIsWater;
-          r.resolution = parentIsWater ? 'water-via-parent' : 'land-via-parent';
-          if (parentIsWater) resWaterByParent++;
-          else               resLandByParent++;
+          changed = true;
         }
+        // Tie or no evidence — leave for next pass / parent prior.
       }
+    }
+
+    // 2c: anything still ambiguous → parent prior.
+    for (const r of results){
+      if (r.classification !== 'ambiguous' || r.resolution) continue;
+      r.isWater = !!parentIsWater;
+      r.resolution = parentIsWater ? 'water-via-parent' : 'land-via-parent';
+      if (parentIsWater) resWaterByParent++;
+      else               resLandByParent++;
+    }
+
+    // Final tally: water-variant assignment + water/land counts.
+    for (const r of results){
       if (r.isWater){
         r.terrain = waterVariant;
         waterN++;
