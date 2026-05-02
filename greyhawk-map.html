@@ -1304,6 +1304,11 @@ const state={
   // only; Phase 2 will add execution + persistence.
   journey:null,
 };
+// Expose state and imgX on window so modules loaded via <script src=>
+// can read them. Top-level `const` declarations in classic scripts are
+// confined to their script's lexical scope and don't propagate, so
+// gcc-coast-scanner et al need this assignment to see the live object.
+window.state = state;
 
 // ── IMAGE TRANSFORM ───────────────────────────────────────────────────────────
 // The Darlene scan is aligned to the canonical SVG hex grid by transforming
@@ -1316,6 +1321,7 @@ const state={
 // loadImgTransform() still overrides this from localStorage, so anyone who
 // re-aligns keeps their own copy; fresh devices start aligned.
 const imgX = { tx:-0.081475302718232, ty:-42.38657072504594, sx:1.0427791124276655, sy:1.053243463445003, rot:0 };
+window.imgX = imgX;
 function applyImgTransform(){
   const img = document.getElementById('map-img');
   if (!img) return;

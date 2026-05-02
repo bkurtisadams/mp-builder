@@ -78,13 +78,8 @@
   function svgToImagePixel(svgX, svgY){
     const img = document.getElementById('map-img');
     if (!img) return null;
-    // imgX is declared in greyhawk-map.html's top-level script as a
-    // `const`. It lives in the shared lexical scope of all <script>
-    // tags loaded into the page (this module is one of them). Read
-    // defensively in case of ES-module loading or test harnesses.
-    let X = null;
-    try { if (typeof imgX !== 'undefined') X = imgX; } catch(e){}
-    if (!X) X = { tx:0, ty:0, sx:1, sy:1, rot:0 };
+    // greyhawk-map.html exposes its imgX transform as window.imgX.
+    const X = window.imgX || { tx:0, ty:0, sx:1, sy:1, rot:0 };
     // Image's pre-transform position: top-left at (0,0) in the same
     // SVG-stage coord system. Center is (nw/2, nh/2). The CSS
     // transform translates (tx, ty), rotates rot°, scales (sx, sy)
@@ -240,17 +235,11 @@
 
   function openPreview(col, row){
     if (col == null || row == null){
-      // Default to the currently selected hex if any. See the click
-      // handler below for why we read bare `state` rather than
-      // `window.state` — the page's state lives in the script's
-      // lexical scope, not on window.
-      try {
-        if (typeof state !== 'undefined' && state && state.selectedCol != null){
-          col = state.selectedCol;
-          row = state.selectedRow;
-        }
-      } catch(e){ /* not in scope */ }
-      if (col == null){
+      const s = window.state;
+      if (s && s.selectedCol != null){
+        col = s.selectedCol;
+        row = s.selectedRow;
+      } else {
         alert('Pick a parent hex first (click one on the map), then run the coast scanner.');
         return;
       }
@@ -462,18 +451,11 @@
     if (btn.dataset.coastWired) return true;
     btn.dataset.coastWired = '1';
     btn.addEventListener('click', () => {
-      // The page's top-level state object holds selectedCol/Row. It's
-      // declared as a `const` at the page's script scope — reachable
-      // here because we're loaded via a plain <script src=> into the
-      // same global execution context. Read defensively in case the
-      // module ever gets loaded as an ES module.
-      let col = null, row = null;
-      try {
-        if (typeof state !== 'undefined' && state){
-          col = state.selectedCol;
-          row = state.selectedRow;
-        }
-      } catch(e){ /* state not in scope — leave col/row null */ }
+      // greyhawk-map.html exposes its top-level `state` const as
+      // window.state for cross-module access.
+      const s = window.state;
+      const col = s ? s.selectedCol : null;
+      const row = s ? s.selectedRow : null;
       if (col == null || row == null){
         alert('Click a parent hex first, then run the Coast Scanner on it.');
         return;
