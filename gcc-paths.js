@@ -1,4 +1,60 @@
-// gcc-paths.js v0.9.0 — 2026-04-30
+// gcc-paths.js v0.10.1 — 2026-05-02
+// v0.10.1: reconcile current mapping with the journey planner.
+// The journey planner's existing inline shipCurrentModifier (in
+// greyhawk-map.html) treats the chain's `current` field (1/2/3) as
+// the direct daily modifier (×8), so:
+//   current=1 → ±8 mi/day
+//   current=2 → ±16 mi/day
+//   current=3 → ±24 mi/day
+// v0.10.0 mistakenly mapped current → mph first (1→0.5, 2→1, 3→2),
+// which under-applied by 2× compared to what the planner ships were
+// already running on. Match the planner — it's the older code, the
+// displayed travel times have been calibrated against it, and the
+// data model treats `current` as a tier value not an mph.
+//
+// Per docs/rules/movement.md (updated): GCC interprets WoG current
+// 1/2/3 as the direct ×8 daily modifier in DMG terms, folding the
+// C×8 calculation into a single multiplier.
+//
+// Public surface unchanged — currentMphFromTier returns the value
+// callers will multiply by 8, so it now returns 1/2/3 directly.
+// edgeRiverCurrentMph stays usefully named (the *8 happens at the
+// consumer); the field is still in mph-equivalent units, just no
+// longer divided by 2.
+//
+// v0.10.0 — 2026-05-02
+// v0.10.0: river direction helpers for voyage. Adds:
+//   - edgeRiverDirection(cA, rA, cB, rB) →
+//       null | { tier, current, riverName, direction, source }
+//     where direction ∈ 'with' | 'against' | 'cross':
+//       'with'    — moving A→B is downstream (B is downstream of A on
+//                   the same river chain)
+//       'against' — moving A→B is upstream (A is downstream of B)
+//       'cross'   — both A and B are river hexes but not on the same
+//                   chain or not adjacent on the chain (i.e. the river
+//                   crosses the A↔B edge perpendicularly)
+//     Returns null when neither hex has a river segment that touches
+//     the A↔B edge.
+//   - currentMphFromTier(current) →
+//       0.5 mph (current=1, gentle), 1 mph (=2, normal), 2 mph (=3, strong)
+//     This is GCC's interpretation of WoG's 1/2/3 current scale,
+//     used to feed DMG's C×8 formula. See docs/rules/movement.md.
+//   - edgeRiverCurrentMph(cA, rA, cB, rB) →
+//       null | { mph, direction, riverName, tier }
+//     convenience wrapper that combines edgeRiverDirection +
+//     currentMphFromTier with sign applied:
+//       direction='with'    → mph =  +C
+//       direction='against' → mph =  -C
+//       direction='cross'   → mph =   0
+//     The voyage planner consumes this directly.
+//
+// Subhex-canonical edges are handled too — they delegate to the
+// subhex layer for direction. Subhex paths don't carry per-segment
+// direction yet, so subhex-only edges return direction='cross' for
+// now (no with/against bonus). TODO: subhex paths need an
+// upstream/downstream tag for full parity.
+//
+// v0.9.0 — 2026-04-30
 // v0.9.0: per-parent fallback gate (Slice 3 of DESIGN-paths-water.md).
 // Tightening of v0.5+: when EITHER parent of a queried edge has any
 // subhex authoring (paths or lakes — checked via
@@ -353,6 +409,138 @@
     const enriched = { ...river, tier: river.type };
     if (river.type === 'stream') return { blocks: false, river: enriched, crossing: crossing || null };
     return { blocks: !crossing, river: enriched, crossing: crossing || null };
+  }
+
+  // ── River direction (for voyage planner) ─────────────────────────────
+  //
+  // "If a boat moves from hex A to hex B, is it going downstream,
+  // upstream, or across?" The chain model stores direction implicitly:
+  // segment.exitEdge is the downstream-pointing edge. So:
+  //   - if A's segment.exitEdge points at B → A→B is downstream ('with')
+  //   - if A's segment.entryEdge points at B → A→B is upstream ('against')
+  //   - both A and B have a river but no chain link between them →
+  //     'cross' (the river runs perpendicular to A↔B and is being
+  //     crossed). This is the existing crossing case, returned for
+  //     completeness so callers can short-circuit to base speed.
+  //   - neither A nor B has a relevant river → null
+  //
+  // Crucially, this only fires for the river segment that touches the
+  // A↔B edge. A hex can have multiple rivers passing through; we want
+  // the one that the boat is *on*, which is the one whose chain
+  // includes both A and B as adjacent stops.
+  function edgeRiverDirection(colA, rowA, colB, rowB){
+    // Subhex-canonical: subhex layer tells us there's a river on this
+    // boundary, but doesn't carry segment-level direction yet. Mark
+    // 'cross' so the voyage planner uses base speed without bonus.
+    // TODO: when subhex paths grow upstream/downstream tags, lift this.
+    if (_edgeIsSubhexCanonical(colA, rowA, colB, rowB)){
+      const view = _subhexEdgeView(colA, rowA, colB, rowB);
+      if (!view || !view.hasRiver) return null;
+      const tier = view.tier || 'river';
+      return {
+        tier,
+        current: tier === 'stream' ? 1 : (tier === 'great_river' ? 3 : 2),
+        riverName: view.riverName || '',
+        direction: 'cross',
+        source: 'subhex',
+      };
+    }
+    const eA = edgeBetween(colA, rowA, colB, rowB);
+    if (eA < 0) return null;
+    const eB = (eA + 3) % 6;
+    // Check A's segments for one that links to B via this edge.
+    for (const seg of riversAt(colA, rowA)){
+      if (seg.exitEdge === eA){
+        return {
+          tier: seg.type,
+          current: seg.current,
+          riverName: seg.name,
+          direction: 'with',
+          source: 'parent',
+        };
+      }
+      if (seg.entryEdge === eA){
+        return {
+          tier: seg.type,
+          current: seg.current,
+          riverName: seg.name,
+          direction: 'against',
+          source: 'parent',
+        };
+      }
+    }
+    // Symmetric check from B's side, in case A's segment data is
+    // missing but B's records the same edge from the other angle.
+    for (const seg of riversAt(colB, rowB)){
+      if (seg.exitEdge === eB){
+        // B's exit points at A, so river flows B→A; A→B is upstream.
+        return {
+          tier: seg.type,
+          current: seg.current,
+          riverName: seg.name,
+          direction: 'against',
+          source: 'parent',
+        };
+      }
+      if (seg.entryEdge === eB){
+        // B's entry comes from A; river flows A→B; A→B is downstream.
+        return {
+          tier: seg.type,
+          current: seg.current,
+          riverName: seg.name,
+          direction: 'with',
+          source: 'parent',
+        };
+      }
+    }
+    // Neither hex has a chain link via this edge — but is there still
+    // a river crossing it (river enters/exits through eA from a side
+    // not in our chain link check)? edgeRiverInfo answers this; if so,
+    // it's a 'cross'. This handles the case where two different rivers
+    // converge near the same edge.
+    const info = edgeRiverInfo(colA, rowA, colB, rowB);
+    if (info && info.river){
+      return {
+        tier: info.river.tier || info.river.type || 'river',
+        current: info.river.current,
+        riverName: info.river.name || '',
+        direction: 'cross',
+        source: 'parent',
+      };
+    }
+    return null;
+  }
+
+  // GCC's interpretation of WoG current 1/2/3 as the direct ×8 daily
+  // modifier in DMG-equivalent terms. Caller multiplies by 8 to get
+  // mi/day. See docs/rules/movement.md.
+  function currentMphFromTier(current){
+    if (current === 1) return 1;
+    if (current === 2) return 2;
+    if (current === 3) return 3;
+    return 0;
+  }
+
+  // Convenience for voyage planner. Returns signed mph adjustment:
+  //   { mph: +C, direction: 'with',    riverName, tier }  downstream
+  //   { mph: -C, direction: 'against', riverName, tier }  upstream
+  //   { mph:  0, direction: 'cross',   riverName, tier }  crossing
+  //   null                                                 no river
+  // Voyage planner consumes mph as: dailyMiles += mph * 8.
+  function edgeRiverCurrentMph(colA, rowA, colB, rowB){
+    const dir = edgeRiverDirection(colA, rowA, colB, rowB);
+    if (!dir) return null;
+    const C = currentMphFromTier(dir.current);
+    let mph = 0;
+    if (dir.direction === 'with')    mph =  C;
+    else if (dir.direction === 'against') mph = -C;
+    return {
+      mph,
+      direction: dir.direction,
+      riverName: dir.riverName,
+      tier: dir.tier,
+      current: dir.current,
+    };
   }
 
   // Extra days added by crossing this edge, given the river state and
@@ -897,6 +1085,7 @@
     saveCrossing, deleteCrossing,
     // Resolver
     edgeRiverInfo, edgeBlocks, edgeRiverCost, edgeRoadBonus,
+    edgeRiverDirection, edgeRiverCurrentMph, currentMphFromTier,
     // Authoring gate (Slice 3)
     parentHasSubhexAuthoring,
     // Utility

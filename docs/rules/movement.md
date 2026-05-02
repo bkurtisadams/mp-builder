@@ -256,13 +256,19 @@ Use **DMG vessel-type tables** as the base rate (per-vessel granularity is what 
 
 `current` lives on the river chain record (`overrideRivers[name].current`, integer 1/2/3 = gentle/normal/strong).
 
-For the formula, treat current values as approximate mph:
+**GCC's working interpretation**: treat the `current` value (1, 2, or 3) as the per-day modifier directly, multiplied by 8:
 
-- `current = 1` (gentle stream/spring): C ≈ 0.5 mph → C×8 = ±4 mi/day
-- `current = 2` (normal river): C ≈ 1 mph → C×8 = ±8 mi/day
-- `current = 3` (strong/snowmelt/great river): C ≈ 2 mph → C×8 = ±16 mi/day; treat as 2×C if hazards present (Lord knows the Att has rapids)
+- `current = 1` (gentle): ±8 mi/day
+- `current = 2` (normal river): ±16 mi/day
+- `current = 3` (strong/great river / snowmelt): ±24 mi/day
 
-The **gentle/normal/strong → mph mapping is GCC's interpretation** of WoG's three-tier `current` field. Adjust as needed.
+This matches what the planner has been showing since the river-direction code was first introduced. It's a houserule layer on DMG's literal `C×8` mph-times-eight formula — closer to WoG's narrative speeds (which approach +30 to +60 mi/day on big rivers) without going all the way there. Current=3 with hazards (rapids, falls) may multiply further per DMG (×2C or ×4C); not yet implemented.
+
+The existing `edgeRiverCurrentMph` helper returns the value to multiply by 8 (the conversion `current → mph-equivalent` is identity, retained for future flexibility). Voyage planner formula:
+
+    dailyMiles = baseMpd + (mph × 8)
+
+where `mph` is signed: positive downstream, negative upstream, zero crossing.
 
 ### Crossing rivers (existing GCC code, unchanged)
 

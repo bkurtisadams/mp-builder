@@ -745,6 +745,7 @@
     <hr class="jd-div">
     <div class="jd-row"><label>Distance</label><span class="jd-val" id="jd-dist">—</span></div>
     <div class="jd-row"><label>Duration</label><span class="jd-val" id="jd-dur">—</span></div>
+    <div class="jd-row" id="jd-current-row" style="display:none"><label>Current</label><span class="jd-val" id="jd-current">—</span></div>
     <div class="jd-row"><label>Encounter Checks</label><span class="jd-val" id="jd-checks">—</span></div>
     <div class="jd-row" id="jd-warn-row" style="display:none"><label>Warning</label><span class="jd-val jd-warn" id="jd-warn">—</span></div>
     <div class="jd-row jd-crossings-row" id="jd-crossings-row" style="display:none">
@@ -836,7 +837,7 @@
 <script src="gcc-encounter-panel.js?v=9"></script>
 <script src="gcc-landmarks.js?v=9"></script>
 <script src="gcc-terrain.js?v=3"></script>
-<script src="gcc-paths.js?v=9"></script>
+<script src="gcc-paths.js?v=10"></script>
 <script src="gcc-rng.js?v=1"></script>
 <script src="gcc-subhex-data.js?v=23"></script>
 <script src="gcc-subhex-icons.js?v=8"></script>
@@ -1763,6 +1764,14 @@ function computeJourneyDuration(route, profile){
   // the GM can confirm authored bridges/fords/ferries are being
   // credited. Each entry: { kind, name, notes, edgeId, source }.
   const crossingsUsed = [];
+  // Ship-only: track the river-current effect per leg so the dialog
+  // can surface "Current: ±N day(s)" with a per-river breakdown.
+  // currentEffectDays is signed: positive saved time (downstream),
+  // negative lost time (upstream). currentNotes accumulates per-river
+  // signed mile totals for the "Sailing the Selintan downstream
+  // (+24 mi)" summary.
+  let currentEffectDays = 0;
+  const currentByRiver = new Map();   // name → { miles: signed, dir: 'with'|'against'|'mixed' }
   // Skip i=0 (origin — no travel cost). Each subsequent hex contributes
   // HEX_MILES / mi-per-day for its own terrain + the active profile.
   // GCCPaths supplies the river-edge resolver and the road-bonus
@@ -1814,8 +1823,30 @@ function computeJourneyDuration(route, profile){
       // Current modifier on rivers/streams. Capped at zero so a strong
       // upstream current can't make the day count negative; a vessel
       // unable to make headway against current is a stall (Phase 2 polish).
+      // Track the signed effect so the dialog can surface "Current:
+      // ±N day(s)" with a per-river breakdown.
       if (water === 'river' || water === 'stream'){
-        mpd = Math.max(1, mpd + shipCurrentModifier(prev.col, prev.row, hex.col, hex.row));
+        const baseMpd = mpd;
+        const delta = shipCurrentModifier(prev.col, prev.row, hex.col, hex.row);
+        mpd = Math.max(1, mpd + delta);
+        if (delta !== 0){
+          // Time saved (delta>0) or lost (delta<0) on this hex vs. base.
+          // hexDays(base) − hexDays(actual) is signed: + when faster.
+          const hexDaysBase   = HEX_MILES / baseMpd;
+          const hexDaysActual = HEX_MILES / mpd;
+          currentEffectDays += (hexDaysBase - hexDaysActual);
+          // Per-river breakdown for the dialog.
+          const info = (typeof GCCPaths !== 'undefined' && GCCPaths.edgeRiverInfo)
+            ? GCCPaths.edgeRiverInfo(prev.col, prev.row, hex.col, hex.row)
+            : null;
+          const rname = info?.river?.name || 'river';
+          const cur = currentByRiver.get(rname) || { miles: 0, dir: null };
+          cur.miles += delta;
+          // Track direction; flips to 'mixed' on disagreement.
+          const thisDir = delta > 0 ? 'with' : 'against';
+          cur.dir = (cur.dir == null) ? thisDir : (cur.dir === thisDir ? thisDir : 'mixed');
+          currentByRiver.set(rname, cur);
+        }
       }
       totalDays += HEX_MILES / mpd;
     } else {
@@ -1876,7 +1907,20 @@ function computeJourneyDuration(route, profile){
     }
   }
   totalDays += riverDelayDays;
-  return { days: totalDays, impassable, reason, riverDelayDays, riverDelayNotes, crossingsUsed };
+  // Convert per-river map to a sorted array for stable display.
+  const currentByRiverArr = [];
+  for (const [name, info] of currentByRiver){
+    currentByRiverArr.push({ name, miles: info.miles, direction: info.dir });
+  }
+  currentByRiverArr.sort((a, b) => Math.abs(b.miles) - Math.abs(a.miles));
+  return {
+    days: totalDays,
+    impassable, reason,
+    riverDelayDays, riverDelayNotes,
+    crossingsUsed,
+    currentEffectDays,
+    currentByRiver: currentByRiverArr,
+  };
 }
 // Rough projection: ~3 daylight time-of-day slots per hex check on
 // average (DMG p.47 timing rules range 1-4 slots/terrain). Phase 2 will
@@ -3255,6 +3299,37 @@ function recomputeJourneyPlan(){
       durText += ` (incl. ${dur.riverDelayDays.toFixed(1)} day${dur.riverDelayDays === 1 ? '' : 's'} at ${n} unbridged river${n === 1 ? '' : 's'})`;
     }
     document.getElementById('jd-dur').textContent = durText;
+    // Current row — only shown when ship travel produced river-current
+    // effect on the route. Format example:
+    //   −0.7 day · Selintan downstream (+24 mi), Nyr Dyv crossing (0 mi)
+    // Wait — crossings are 0 mi by definition; suppress them. Direction
+    // labels: 'downstream', 'upstream', 'mixed'. Negative effect days =
+    // time saved (downstream); positive = time lost (upstream).
+    const curRow = document.getElementById('jd-current-row');
+    const curEl  = document.getElementById('jd-current');
+    if (curRow && curEl){
+      if (m === 'ship' && dur.currentEffectDays !== 0 && dur.currentByRiver && dur.currentByRiver.length){
+        const eff = dur.currentEffectDays;
+        const sign = eff > 0 ? '−' : '+';   // saved time → minus from total
+        const head = `${sign}${Math.abs(eff).toFixed(1)} day(s)`;
+        const parts = dur.currentByRiver
+          .filter(r => r.miles !== 0)
+          .map(r => {
+            const label = r.direction === 'with'    ? 'downstream'
+                        : r.direction === 'against' ? 'upstream'
+                        : 'mixed';
+            const mSign = r.miles > 0 ? '+' : '';
+            return `${r.name} ${label} (${mSign}${r.miles} mi)`;
+          });
+        curEl.textContent = parts.length
+          ? `${head} · ${parts.join(', ')}`
+          : head;
+        curRow.style.display = '';
+      } else {
+        curRow.style.display = 'none';
+        curEl.textContent = '—';
+      }
+    }
     document.getElementById('jd-checks').textContent = `~${j.estChecks} (approx)`;
     const arrival = ghDateAdd(j.startDate, Math.ceil(dur.days));
     document.getElementById('jd-arrival').textContent = ghDateLabel(arrival);
@@ -4372,6 +4447,12 @@ function wireEvents(){
     lines.push(`Travel: ${get('jd-travel')}`);
     lines.push(`Distance: ${get('jd-dist')}`);
     lines.push(`Duration: ${get('jd-dur')}`);
+    // Current — only when shown (visible only on ship legs with effect).
+    const curRow = document.getElementById('jd-current-row');
+    if (curRow && curRow.style.display !== 'none'){
+      const cur = get('jd-current');
+      if (cur && cur !== '—') lines.push(`Current: ${cur}`);
+    }
     lines.push(`Encounter Checks: ${get('jd-checks')}`);
     const warn = get('jd-warn');
     if (warn && warn !== '—') lines.push(`Warning: ${warn}`);
