@@ -78,7 +78,13 @@
   function svgToImagePixel(svgX, svgY){
     const img = document.getElementById('map-img');
     if (!img) return null;
-    const imgX = window.imgX || { tx:0, ty:0, sx:1, sy:1, rot:0 };
+    // imgX is declared in greyhawk-map.html's top-level script as a
+    // `const`. It lives in the shared lexical scope of all <script>
+    // tags loaded into the page (this module is one of them). Read
+    // defensively in case of ES-module loading or test harnesses.
+    let X = null;
+    try { if (typeof imgX !== 'undefined') X = imgX; } catch(e){}
+    if (!X) X = { tx:0, ty:0, sx:1, sy:1, rot:0 };
     // Image's pre-transform position: top-left at (0,0) in the same
     // SVG-stage coord system. Center is (nw/2, nh/2). The CSS
     // transform translates (tx, ty), rotates rot°, scales (sx, sy)
@@ -87,16 +93,16 @@
     const cy = img.naturalHeight / 2;
     // 1. Subtract translation. The translation moves the *center* of
     //    the transformed image.
-    let x = svgX - cx - imgX.tx;
-    let y = svgY - cy - imgX.ty;
+    let x = svgX - cx - X.tx;
+    let y = svgY - cy - X.ty;
     // 2. Inverse rotate.
-    const a = -imgX.rot * Math.PI / 180;
+    const a = -X.rot * Math.PI / 180;
     const ca = Math.cos(a), sa = Math.sin(a);
     const xr = x*ca - y*sa;
     const yr = x*sa + y*ca;
     // 3. Inverse scale.
-    x = xr / imgX.sx;
-    y = yr / imgX.sy;
+    x = xr / X.sx;
+    y = yr / X.sy;
     // 4. Add center back to get pre-transform pixel coords.
     return { px: x + cx, py: y + cy };
   }
@@ -234,11 +240,17 @@
 
   function openPreview(col, row){
     if (col == null || row == null){
-      // Default to the currently selected hex if any.
-      if (window.state && window.state.selectedCol != null){
-        col = window.state.selectedCol;
-        row = window.state.selectedRow;
-      } else {
+      // Default to the currently selected hex if any. See the click
+      // handler below for why we read bare `state` rather than
+      // `window.state` — the page's state lives in the script's
+      // lexical scope, not on window.
+      try {
+        if (typeof state !== 'undefined' && state && state.selectedCol != null){
+          col = state.selectedCol;
+          row = state.selectedRow;
+        }
+      } catch(e){ /* not in scope */ }
+      if (col == null){
         alert('Pick a parent hex first (click one on the map), then run the coast scanner.');
         return;
       }
@@ -450,12 +462,18 @@
     if (btn.dataset.coastWired) return true;
     btn.dataset.coastWired = '1';
     btn.addEventListener('click', () => {
-      // Use the currently selected parent hex; if none, prompt user.
+      // The page's top-level state object holds selectedCol/Row. It's
+      // declared as a `const` at the page's script scope — reachable
+      // here because we're loaded via a plain <script src=> into the
+      // same global execution context. Read defensively in case the
+      // module ever gets loaded as an ES module.
       let col = null, row = null;
-      if (window.state){
-        col = window.state.selectedCol;
-        row = window.state.selectedRow;
-      }
+      try {
+        if (typeof state !== 'undefined' && state){
+          col = state.selectedCol;
+          row = state.selectedRow;
+        }
+      } catch(e){ /* state not in scope — leave col/row null */ }
       if (col == null || row == null){
         alert('Click a parent hex first, then run the Coast Scanner on it.');
         return;
