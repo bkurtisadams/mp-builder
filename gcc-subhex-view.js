@@ -1,4 +1,13 @@
-// gcc-subhex-view.js v2.8.0 — 2026-05-01
+// gcc-subhex-view.js v2.9.0 — 2026-05-01
+// v2.9.0 (Slice 2 of the panel reorg): readable parchment palette pass
+// + button/dropdown ergonomics fix. The Region/Path/Lake tool buttons
+// stay fixed in their row; clicking a button highlights it (gold-fill
+// armed style) and reveals a tinted callout block immediately below
+// the row holding that tool's controls (picker, action grid, help
+// text). Same callout idiom for all three tools — no more asymmetry
+// between Region's inline-right dropdown and Path's full-section block.
+// Colors and contrast bumps land in gcc-subhex.css v1.12.0; per-kind
+// feature glyph colors land in gcc-subhex-icons.js v1.1.0.
 // v2.8.0 (Controls reorg, slice 1 of 2): Tools moved to the top of the
 // Controls panel — palette, glyphs, and Region…/Path…/Lake…/Clear
 // buttons are now always in the line of sight. Cell details collapse
@@ -409,34 +418,47 @@
         </span>
       </div>
       <div class="sxw-body sxw-ctrl-body">
-        <div class="sxw-tools">
+        <div class="sxw-tools-row">
           <button class="sxw-tool-btn" id="sxw-region-tool">Region…</button>
-          <select class="sxw-region-armed" id="sxw-region-armed" style="display:none;">
-            <option value="">— pick a region to assign —</option>
-            <option value="__new__">+ New region from selected cell's terrain…</option>
-          </select>
           <button class="sxw-tool-btn" id="sxw-path-tool">Path…</button>
           <button class="sxw-tool-btn" id="sxw-lake-tool">Lake…</button>
-          <select class="sxw-region-armed" id="sxw-lake-armed" style="display:none;"></select>
-          <button class="sxw-tool-btn" id="sxw-clear">Clear override</button>
+          <button class="sxw-tool-btn" id="sxw-clear">Clear</button>
           <span class="sxw-mode" id="sxw-mode">Mode: Select</span>
+        </div>
+        <div class="sxw-tool-callout" id="sxw-tool-callout" style="display:none;">
+          <div class="sxw-callout-pane" id="sxw-callout-region" style="display:none;">
+            <span class="sxw-callout-label">Region:</span>
+            <select class="sxw-region-armed" id="sxw-region-armed">
+              <option value="">— pick a region to assign —</option>
+              <option value="__new__">+ New region from selected cell's terrain…</option>
+            </select>
+          </div>
+          <div class="sxw-callout-pane" id="sxw-callout-lake" style="display:none;">
+            <span class="sxw-callout-label">Lake:</span>
+            <select class="sxw-region-armed" id="sxw-lake-armed"></select>
+          </div>
+          <div class="sxw-callout-pane" id="sxw-callout-path" style="display:none;">
+            <div class="sxw-callout-pathrow">
+              <span class="sxw-callout-label">Path:</span>
+              <select class="sxw-path-armed" id="sxw-path-armed"></select>
+            </div>
+            <div class="sxw-path-actions">
+              <button class="sxw-tool-btn sxw-path-action" id="sxw-path-undo" title="Remove the last cell of the armed path">↶ Undo</button>
+              <button class="sxw-tool-btn sxw-path-action" id="sxw-path-rename" title="Rename the armed path">✎ Rename</button>
+              <button class="sxw-tool-btn sxw-path-action sxw-tool-btn-danger" id="sxw-path-delete" title="Delete the armed path">⌫ Delete</button>
+              <button class="sxw-tool-btn sxw-path-action sxw-tool-btn-armed" id="sxw-path-done" title="Stop editing this path">✓ Done</button>
+            </div>
+            <div class="sxw-path-help" id="sxw-path-help">
+              Click a neighboring cell to extend · click an existing cell to remove it (and everything after)
+            </div>
+          </div>
         </div>
         <div class="sxw-palette-strip">
           <div class="sxw-palette" id="sxw-palette"></div>
           <div class="sxw-feature-palette" id="sxw-feature-palette"></div>
         </div>
         <div class="sxw-path-section" id="sxw-path-section" style="display:none;">
-          <div class="sxw-section-head" id="sxw-path-section-head">PATH</div>
-          <select class="sxw-path-armed sxw-path-armed-block" id="sxw-path-armed"></select>
-          <div class="sxw-path-actions">
-            <button class="sxw-tool-btn sxw-path-action" id="sxw-path-undo" title="Remove the last cell of the armed path">↶ Undo</button>
-            <button class="sxw-tool-btn sxw-path-action" id="sxw-path-rename" title="Rename the armed path">✎ Rename</button>
-            <button class="sxw-tool-btn sxw-path-action sxw-tool-btn-danger" id="sxw-path-delete" title="Delete the armed path">⌫ Delete</button>
-            <button class="sxw-tool-btn sxw-path-action sxw-tool-btn-armed" id="sxw-path-done" title="Stop editing this path">✓ Done</button>
-          </div>
-          <div class="sxw-path-help" id="sxw-path-help">
-            Click a neighboring cell to extend · click a cell already on this path to remove it (and everything after)
-          </div>
+          <div class="sxw-section-head" id="sxw-path-section-head" style="display:none;">PATH</div>
         </div>
         <div class="sxw-detail" id="sxw-detail">
           <div class="sxw-detail-head" id="sxw-detail-head">
@@ -786,9 +808,27 @@
     }
   }
 
-  // Gold halo drawn behind the feature glyph when the cell is pinned
-  // to a parent landmark. Visually distinguishes "the city is HERE"
-  // from a generic same-kind feature elsewhere on the map.
+  // Show one of the tool callout panes ('region' | 'path' | 'lake')
+  // and hide the others. Pass null to hide the callout entirely. Also
+  // syncs the .armed class on the corresponding tool button so the
+  // visual state and the active pane stay in lockstep. Used by all
+  // three show*ArmedPicker fns plus armPalette and the close path.
+  function showCalloutPane(name){
+    const cont = findEl('sxw-tool-callout');
+    if (!cont) return;
+    cont.style.display = name ? '' : 'none';
+    const panes = ['region', 'path', 'lake'];
+    for (const p of panes){
+      const el = findEl('sxw-callout-' + p);
+      if (el) el.style.display = (p === name) ? '' : 'none';
+    }
+    const btnIds = { region:'sxw-region-tool', path:'sxw-path-tool', lake:'sxw-lake-tool' };
+    for (const [k, id] of Object.entries(btnIds)){
+      const btn = findEl(id);
+      if (btn) btn.classList.toggle('armed', k === name);
+    }
+  }
+
   function appendLandmarkHalo(parent, cx, cy){
     const ns = 'http://www.w3.org/2000/svg';
     const halo = document.createElementNS(ns, 'circle');
@@ -811,12 +851,7 @@
     const nxt = armKey(next);
     state.armed = (cur === nxt) ? null : next;
     if (state.armed){
-      const sel = findEl('sxw-region-armed');
-      if (sel){ sel.style.display = 'none'; }
-      const psel = findEl('sxw-path-armed');
-      if (psel){ psel.style.display = 'none'; }
-      const lsel = findEl('sxw-lake-armed');
-      if (lsel){ lsel.style.display = 'none'; }
+      showCalloutPane(null);
     }
     syncPaletteUI();
     syncModeLabel();
@@ -828,27 +863,17 @@
     state.ctrl.querySelectorAll('.sxw-swatch, .sxw-feature-btn').forEach(b => {
       b.classList.toggle('armed', b.dataset.armKey === cur);
     });
-    const regionTool = findEl('sxw-region-tool');
-    if (regionTool){
-      const isRegion = state.armed && (state.armed.type === 'region' || state.armed.type === 'region-erase');
-      regionTool.classList.toggle('armed', !!isRegion);
-    }
-    const pathTool = findEl('sxw-path-tool');
-    if (pathTool){
-      const isPath = state.armed && state.armed.type === 'path';
-      pathTool.classList.toggle('armed', !!isPath);
-    }
-    const lakeTool = findEl('sxw-lake-tool');
-    if (lakeTool){
-      const isLake = state.armed && (state.armed.type === 'lake' || state.armed.type === 'lake-erase');
-      lakeTool.classList.toggle('armed', !!isLake);
-    }
+    // Note: armed class on the tool buttons (#sxw-region-tool /
+    // sxw-path-tool / sxw-lake-tool) is driven by showCalloutPane(name)
+    // which is called from each show*ArmedPicker entry. Keeping it in
+    // a single place avoids the two paths drifting out of sync.
   }
 
   function syncModeLabel(){
     const el = findEl('sxw-mode');
     if (!el) return;
     const a = state.armed;
+    el.classList.toggle('sxw-mode-armed', !!a);
     if (!a){
       el.textContent = 'Mode: Select';
     } else if (a.type === 'erase'){
@@ -971,6 +996,7 @@
     if (psel){ psel.style.display = 'none'; psel.value = ''; }
     const lsel = findEl('sxw-lake-armed');
     if (lsel){ lsel.style.display = 'none'; lsel.value = ''; }
+    showCalloutPane(null);
     syncPathActionButtons();
   }
 
@@ -2334,10 +2360,6 @@
       syncModeLabel();
       return;
     }
-    const psel = findEl('sxw-path-armed');
-    if (psel) psel.style.display = 'none';
-    const lsel = findEl('sxw-lake-armed');
-    if (lsel) lsel.style.display = 'none';
     rebuildRegionArmedPicker();
     showRegionArmedPicker(true);
   }
@@ -2345,12 +2367,22 @@
   function showRegionArmedPicker(visible, presetValue){
     const sel = findEl('sxw-region-armed');
     if (!sel) return;
-    sel.style.display = visible ? '' : 'none';
-    if (visible && presetValue !== undefined){
-      sel.value = presetValue;
-    } else if (visible && !sel.value){
-      const regions = window.GCCSubhexData.listRegions();
-      if (regions.length){ sel.value = regions[0].id; }
+    if (visible){
+      sel.style.display = '';
+      showCalloutPane('region');
+      if (presetValue !== undefined){
+        sel.value = presetValue;
+      } else if (!sel.value){
+        const regions = window.GCCSubhexData.listRegions();
+        if (regions.length){ sel.value = regions[0].id; }
+      }
+    } else {
+      sel.style.display = 'none';
+      // Only hide the callout if no other pane is active. The tool's
+      // own onClick toggles state.armed, and the caller of this fn
+      // either arms a different tool (which will showCalloutPane
+      // itself) or clears (no callout). Safe to just hide ours.
+      showCalloutPane(null);
     }
   }
 
@@ -2435,10 +2467,6 @@
       syncPathActionButtons();
       return;
     }
-    const rsel = findEl('sxw-region-armed');
-    if (rsel) rsel.style.display = 'none';
-    const lsel = findEl('sxw-lake-armed');
-    if (lsel) lsel.style.display = 'none';
     rebuildPathArmedPicker();
     showPathArmedPicker(true);
     syncPathActionButtons();
@@ -2449,8 +2477,11 @@
   // open (so the GM can pick or create a path), but the action
   // buttons + help only appear once a path is actually armed.
   function showPathSection(visible){
-    const sec = findEl('sxw-path-section');
-    if (sec) sec.style.display = visible ? '' : 'none';
+    if (visible){
+      showCalloutPane('path');
+    } else {
+      showCalloutPane(null);
+    }
   }
 
   function showPathArmedPicker(visible, presetValue){
@@ -2652,11 +2683,6 @@
       syncModeLabel();
       return;
     }
-    const rsel = findEl('sxw-region-armed');
-    if (rsel) rsel.style.display = 'none';
-    const psel = findEl('sxw-path-armed');
-    if (psel) psel.style.display = 'none';
-    showPathSection(false);
     rebuildLakeArmedPicker();
     showLakeArmedPicker(true);
   }
@@ -2664,12 +2690,18 @@
   function showLakeArmedPicker(visible, presetValue){
     const sel = findEl('sxw-lake-armed');
     if (!sel) return;
-    sel.style.display = visible ? '' : 'none';
-    if (visible && presetValue !== undefined){
-      sel.value = presetValue;
-    } else if (visible && !sel.value){
-      const lakes = window.GCCSubhexData.listLakes();
-      if (lakes.length){ sel.value = lakes[0].id; }
+    if (visible){
+      sel.style.display = '';
+      showCalloutPane('lake');
+      if (presetValue !== undefined){
+        sel.value = presetValue;
+      } else if (!sel.value){
+        const lakes = window.GCCSubhexData.listLakes();
+        if (lakes.length){ sel.value = lakes[0].id; }
+      }
+    } else {
+      sel.style.display = 'none';
+      showCalloutPane(null);
     }
   }
 

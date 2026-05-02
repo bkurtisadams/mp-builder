@@ -1,4 +1,11 @@
-/* gcc-subhex.css v1.11.0 — 2026-05-01
+/* gcc-subhex.css v1.12.0 — 2026-05-01
+   v1.12: Slice 2 of the panel reorg. New .sxw-tools-row + .sxw-tool-
+   callout + .sxw-callout-pane / .sxw-callout-label / .sxw-callout-
+   pathrow for the unified tool dropdown idiom. Readability bumps:
+   body inputs to 13px, labels to 11px, stronger input backgrounds and
+   1.5px borders. Mode label gets .sxw-mode-armed (red-orange) when a
+   tool is active — matches the orange selected-hex stroke on the
+   main map. See bottom of file for the new rules.
    v1.11: Controls panel reorg (subhex-view v2.8.0 slice 1). New
    classes for the collapsible cell-details section: .sxw-detail-head,
    .sxw-detail-label, .sxw-detail-summary, .sxw-summary-label,
@@ -1088,3 +1095,139 @@ body.theme-dark .sxw-more-fields { border-top-color:rgba(232,200,110,0.22); }
 .sxw-more-fields > summary:hover { color:#5a3a0a; }
 body.theme-dark .sxw-more-fields > summary { color:#f4e8c4; }
 body.theme-dark .sxw-more-fields > summary:hover { color:#fff8d8; }
+
+/* ── v1.12.0 (Slice 2: button/dropdown ergonomics + readability) ───
+   The Region/Path/Lake tool buttons stay fixed in their row; clicking
+   one opens a tinted callout block immediately below holding that
+   tool's controls. Same idiom for all three tools. The callout uses
+   a soft gold tint to visually associate with the gold-armed button
+   above it.
+
+   Readability bumps: body text up to 13px, labels stay at 11px (was
+   9-10), inputs gain stronger backgrounds and 1.5px borders, the
+   mode label gets red-orange when armed to share visual language with
+   the orange selected-hex stroke. */
+
+.sxw-tools-row {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:6px;
+  padding:8px 0 6px;
+  border-bottom:1px dashed rgba(90,58,10,0.25);
+  margin-bottom:6px;
+}
+body.theme-dark .sxw-tools-row { border-bottom-color:rgba(232,200,110,0.22); }
+
+.sxw-tool-callout {
+  background:rgba(200,148,26,0.10);
+  border:1px solid #c8941a;
+  border-radius:3px;
+  padding:6px 8px;
+  margin-bottom:8px;
+}
+body.theme-dark .sxw-tool-callout {
+  background:rgba(232,200,110,0.10);
+  border-color:#c8941a;
+}
+.sxw-callout-pane {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+#sxw-callout-path {
+  display:block;
+}
+.sxw-callout-pathrow {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:6px;
+}
+.sxw-callout-label {
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  color:#5a3a0a;
+  font-weight:600;
+  flex:0 0 auto;
+}
+body.theme-dark .sxw-callout-label { color:#e8c870; }
+
+/* Inputs inside the callout: stronger contrast than detail-row inputs
+   because they're action-driving rather than field-edit. */
+.sxw-tool-callout select {
+  flex:1;
+  background:#fff;
+  border:1.5px solid #3d2807;
+  border-radius:3px;
+  padding:4px 6px;
+  font-family:inherit;
+  font-size:13px;
+  color:#1a0f03;
+  min-width:0;
+}
+body.theme-dark .sxw-tool-callout select {
+  background:#1f1611;
+  color:#f0e6d0;
+  border-color:#c8941a;
+}
+
+/* Mode label gets red-orange when something is armed. Matches the
+   orange selected-hex stroke on the main map so panel + map share a
+   single "active state" visual language. */
+.sxw-mode { color:#3a2a18; font-style:italic; margin-left:auto; font-size:11px; }
+body.theme-dark .sxw-mode { color:#f4e8c4; }
+.sxw-mode.sxw-mode-armed {
+  color:#b8500a;
+  font-style:normal;
+  font-weight:600;
+}
+body.theme-dark .sxw-mode.sxw-mode-armed { color:#ff9800; }
+
+/* Readability bumps. Labels move from 9-10px up to 11px, body inputs
+   to 13px. Input backgrounds get a stronger contrast against the
+   parchment panel so they read as "inputs" without squinting. */
+.sxw-row label {
+  font-size:11px;
+}
+.sxw-row input[type=text],
+.sxw-row textarea,
+.sxw-row select {
+  background:#fff;
+  border:1.5px solid #8b6a30;
+  font-size:13px;
+  padding:4px 6px;
+}
+body.theme-dark .sxw-row input[type=text],
+body.theme-dark .sxw-row textarea,
+body.theme-dark .sxw-row select {
+  background:#1a1208;
+}
+.sxw-row input[type=text]:disabled,
+.sxw-row textarea:disabled,
+.sxw-row select:disabled {
+  background:#f4e8c4;
+}
+
+/* Path actions inside the callout — slightly tighter spacing than
+   the freestanding tool button row so the action grid feels grouped. */
+.sxw-tool-callout .sxw-path-actions {
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:4px;
+  margin-bottom:4px;
+}
+.sxw-tool-callout .sxw-path-action {
+  font-size:11px;
+  padding:4px 6px;
+  text-align:center;
+}
+.sxw-tool-callout .sxw-path-help {
+  font-size:11px;
+  color:#5a3a0a;
+  font-style:italic;
+  line-height:1.4;
+}
+body.theme-dark .sxw-tool-callout .sxw-path-help { color:#e8c870; }
