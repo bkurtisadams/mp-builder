@@ -1,4 +1,25 @@
-// gcc-voyage.js v0.2.0 — 2026-04-22
+// gcc-voyage.js v0.3.0 — 2026-05-02
+// v0.3.0: river current direction modifier per DMG p.49.
+// On river legs (leg.waterType === 'river'), each day's navMiles is
+// adjusted by C×8 in the direction of travel:
+//   downstream → +C×8 mi/day (sometimes ×2 or ×4 if hazards)
+//   upstream   → -C×8 mi/day
+//   crossing   → no change
+// where C is the river's current converted to mph via
+// GCCPaths.currentMphFromTier (1=0.5, 2=1, 3=2 mph).
+//
+// Implementation reads the day's river edge from leg.path: the
+// segment from the current path index to index+1. If neither end of
+// that segment has a river chain that points the right way (e.g. ship
+// has overshot or rounded out), no modifier is applied. Per-day
+// adjustment is also surfaced as an event so the player sees why
+// they're moving fast/slow.
+//
+// Per docs/rules/movement.md: this only fires on water travel.
+// Land parties walking alongside a river get nothing — their speed
+// is purely terrain-driven (with road bonus where applicable).
+//
+// v0.2.0 — 2026-04-22
 // Voyage Simulator plugin for greyhawk-map.html. Replaces the standalone
 // voyage-map.html (Leaflet-based, separate hex grid, no GCC integration).
 // Ports reference GCCLandmarks by name — hex positions resolve at runtime
@@ -313,6 +334,39 @@
     const leg = state.voyage.legs[state.voyage.currentLegIdx];
     return leg ? leg.waterType : 'coastal';
   }
+
+  // For a river leg, look up the current hex and the next hex on
+  // leg.path, then ask GCCPaths how that edge relates to the river:
+  // 'with' (downstream), 'against' (upstream), or 'cross'. Returns
+  //   null                       — not a river leg / no path / no
+  //                                GCCPaths / no river on that edge
+  //   { miles, direction, riverName, current }
+  //                              — daily mi adjustment (signed)
+  // Voyage planner adds `miles` to navMiles before final accounting.
+  function currentLegRiverModifier(){
+    if (!state.voyage) return null;
+    const v = state.voyage;
+    const leg = v.legs[v.currentLegIdx];
+    if (!leg || leg.waterType !== 'river') return null;
+    if (!leg.path || leg.path.length < 2) return null;
+    if (!window.GCCPaths || !window.GCCPaths.edgeRiverCurrentMph) return null;
+    // Find current path index. shipHexPosition returns the hex; we
+    // recompute index here so we can also see the next step.
+    const progress = leg.distance > 0 ? v.milesOnLeg / leg.distance : 0;
+    const idx = Math.min(leg.path.length - 2, Math.max(0, Math.floor(progress * (leg.path.length - 1))));
+    const a = leg.path[idx];
+    const b = leg.path[idx + 1];
+    if (!a || !b) return null;
+    const info = window.GCCPaths.edgeRiverCurrentMph(a.col, a.row, b.col, b.row);
+    if (!info) return null;
+    return {
+      miles: info.mph * 8,             // DMG: C × 8 mi/day
+      direction: info.direction,
+      riverName: info.riverName,
+      current: info.current,
+      tier: info.tier,
+    };
+  }
   function shipHexPosition(){
     const v = state.voyage; if (!v) return null;
     const leg = v.legs[v.currentLegIdx];
@@ -380,6 +434,19 @@
         } else {
           events.push({ type:'encounter', text:`${enc.name} at ${enc.distance}.` });
         }
+      }
+
+      // River current modifier (DMG C×8). Applies only to river legs.
+      // Adds positive mi/day downstream, negative upstream. Crossing
+      // legs (river perpendicular to travel) get zero. Logs an event
+      // so the player can see why progress is fast or slow.
+      const riverMod = currentLegRiverModifier();
+      if (riverMod && riverMod.miles !== 0){
+        navMiles = Math.max(0, navMiles + riverMod.miles);
+        const sign  = riverMod.miles > 0 ? '+' : '';
+        const verb  = riverMod.direction === 'with' ? 'downstream' : 'upstream';
+        const river = riverMod.riverName || 'river';
+        events.push({ type:'current', text:`${river} current (${verb}) ${sign}${riverMod.miles} mi/day.` });
       }
 
       milesThisDay = navMiles;
