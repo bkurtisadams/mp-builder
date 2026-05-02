@@ -1,4 +1,21 @@
-// gcc-subhex-data.js v2.4.0 — 2026-04-30
+// gcc-subhex-data.js v2.5.0 — 2026-05-02
+// v2.5.0: bulk-write hooks. setSubhexOverride and clearSubhex accept
+// an optional `opts.deferSave` flag that suppresses the per-call save()
+// (which serializes the entire OVERRIDES object). flushOverrides()
+// performs an explicit save when the bulk caller is done. peekOverride
+// (Q, R) returns the raw OVERRIDES entry (or undefined) without
+// running canonicalSubhex/proceduralTerrain — much faster than
+// getSubhex when the caller only needs to know whether an override
+// already exists.
+//
+// Default behavior unchanged: callers that don't pass opts get the
+// same per-call save semantics as before.
+//
+// Motivation: coast scanner's bulk apply writes 100k+ subhex
+// overrides in one operation. Per-call save() did O(N²) total work
+// because each save serializes the whole OVERRIDES object.
+//
+// v2.4.0 — 2026-04-30
 // v2.4.0: lakes — first-class records (storage key gcc-subhex-lakes,
 // schema v1: { id, kind:'lake'|'sea', name, depth:'shallow'|'deep',
 // regionId?, notes, schemaVersion, authoredAt }). Cells gain optional
@@ -442,7 +459,7 @@
     return (canon && canon.feature) || null;
   }
 
-  function setSubhexOverride(Q, R, fields){
+  function setSubhexOverride(Q, R, fields, opts){
     const id = subhexId(Q, R);
     const cur = OVERRIDES[id] || {};
     const next = { ...cur };
@@ -484,7 +501,7 @@
                   && !next.regionId && !next.lakeId;
     if (empty) delete OVERRIDES[id];
     else       OVERRIDES[id] = next;
-    save();
+    if (!opts || !opts.deferSave) save();
 
     const newRegionId = next.regionId || null;
     if (prevRegionId && prevRegionId !== newRegionId) gcRegionIfEmpty(prevRegionId);
@@ -574,12 +591,26 @@
     return setSubhexOverride(existing.Q, existing.R, { feature: newF });
   }
 
-  function clearSubhex(Q, R){
+  function clearSubhex(Q, R, opts){
     const id = subhexId(Q, R);
-    if (id in OVERRIDES){ delete OVERRIDES[id]; save(); return true; }
+    if (id in OVERRIDES){
+      delete OVERRIDES[id];
+      if (!opts || !opts.deferSave) save();
+      return true;
+    }
     return false;
   }
   function clearAll(){ OVERRIDES = {}; save(); }
+
+  // Bulk-write helpers. peekOverride returns the raw OVERRIDES entry
+  // (or undefined) without invoking canonicalSubhex/proceduralTerrain
+  // — much cheaper than getSubhex when the caller only needs to know
+  // whether an override exists. flushOverrides is the explicit save
+  // call after a series of {deferSave:true} writes.
+  function peekOverride(Q, R){
+    return OVERRIDES[subhexId(Q, R)];
+  }
+  function flushOverrides(){ save(); }
 
   // ── Regions (global scope) ─────────────────────────────────────────────
 
@@ -961,6 +992,7 @@
     subhexId, parseSubhexId, regionDocId, parseRegionId,
     lakeDocId, parseLakeId,
     getSubhex, setSubhexOverride, clearSubhex, clearAll,
+    peekOverride, flushOverrides,
     setSubhexFeature, clearSubhexFeature, getCellFeature,
     findCellPinnedToLandmark, pinLandmarkToCell, unpinLandmark,
     listRegions, regionsInParent, getRegion, createRegion, renameRegion, deleteRegion,

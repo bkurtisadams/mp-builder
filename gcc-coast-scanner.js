@@ -1,4 +1,23 @@
-// gcc-coast-scanner.js v0.4.0 — 2026-05-02
+// gcc-coast-scanner.js v0.4.1 — 2026-05-02
+// v0.4.1: bulk apply perf — was crashing the page on coast-scope.
+// applyBulk and undoBulk are now async and chunked (2000 cells per
+// chunk with setTimeout(0) yields), and they pass {deferSave:true}
+// through to the data layer so the per-call save() that serializes
+// the entire OVERRIDES blob runs once at the end via flushOverrides
+// instead of once per cell. Was O(N²) total work; now O(N).
+//
+// Companion change in gcc-subhex-data.js v2.5.0: setSubhexOverride
+// and clearSubhex accept {deferSave:true}, plus new peekOverride
+// and flushOverrides helpers. Falls back gracefully if those aren't
+// present (older data layer) — slow path still works, just won't
+// scale past a few thousand cells.
+//
+// Apply phase gains a progress bar + cancel button. Undo phase
+// likewise shows progress (red bar). Cancellation captures a
+// partial snapshot so undo still works on the cells that were
+// written before cancel fired.
+//
+// v0.4.0 — 2026-05-02
 // v0.4.0: bulk apply. Three new public functions and a bulk dialog
 // UI. collectParents(scope) returns the parents to scan for one of
 // three scopes:
@@ -571,59 +590,95 @@
   }
 
   // Write water overrides for every isWater cell across all scanned
-  // parents. Captures a per-cell undo snapshot keyed by (Q,R) — undoBulk
-  // restores the prior state cell-by-cell. Skips cells whose existing
-  // override is from any source unless overwriteAuthored is set.
-  function applyBulk(scanData, opts){
+  // parents. Async + chunked so the page stays responsive: yields to
+  // the event loop every WRITE_CHUNK cells. Uses peekOverride for fast
+  // prior-check and {deferSave:true} on every write, then a single
+  // flushOverrides at the end (one full localStorage serialization
+  // instead of one per cell — fixes O(N²) blowup that crashed coast-
+  // scope applies). Captures a per-cell undo snapshot.
+  async function applyBulk(scanData, opts, onProgress){
     opts = opts || {};
     const overwriteAuthored = !!opts.overwriteAuthored;
     if (!window.GCCSubhexData){
-      return { error: 'no data layer', written: 0, skipped: 0, parentsAffected: 0, snapshot: [] };
+      return { error: 'no data layer', written: 0, skipped: 0, parentsAffected: 0, snapshot: [], cancelled: false };
     }
     const SD = window.GCCSubhexData;
+    const hasFastPath = (typeof SD.peekOverride === 'function' && typeof SD.flushOverrides === 'function');
     let written = 0, skipped = 0;
     const parentsAffected = new Set();
     const snapshot = [];
+    // Flatten parent → cell candidates for chunked iteration. Store
+    // parent terrain alongside each cell so the loop doesn't re-resolve
+    // it. Also pre-tag prior state for the snapshot.
+    const work = [];
     for (const [key, p] of scanData.perParent){
       const parentTerrain = (typeof window.getHexTerrain === 'function')
         ? window.getHexTerrain(p.col, p.row) : null;
-      let touched = false;
       for (const r of p.results){
         if (!r.isWater) continue;
-        const prior = SD.getSubhex(r.Q, r.R, parentTerrain);
-        const hadOverride = !!(prior && prior.source === 'authored');
-        if (hadOverride && !overwriteAuthored){ skipped++; continue; }
-        snapshot.push({
-          Q: r.Q, R: r.R,
-          hadOverride,
-          priorTerrain: hadOverride ? prior.terrain : null,
-        });
-        SD.setSubhexOverride(r.Q, r.R, { terrain: r.terrain });
-        written++;
-        touched = true;
+        work.push({ key, Q: r.Q, R: r.R, terrain: r.terrain, parentTerrain });
       }
-      if (touched) parentsAffected.add(key);
     }
+    const total = work.length;
+    const WRITE_CHUNK = 2000;
+    let cancelled = false;
+    for (let i = 0; i < work.length; i += WRITE_CHUNK){
+      if (opts.shouldCancel && opts.shouldCancel()){ cancelled = true; break; }
+      const end = Math.min(i + WRITE_CHUNK, work.length);
+      for (let j = i; j < end; j++){
+        const w = work[j];
+        let hadOverride = false, priorTerrain = null;
+        if (hasFastPath){
+          const peek = SD.peekOverride(w.Q, w.R);
+          if (peek){
+            hadOverride = true;
+            priorTerrain = peek.terrain || null;
+          }
+        } else {
+          const prior = SD.getSubhex(w.Q, w.R, w.parentTerrain);
+          hadOverride = !!(prior && prior.source === 'authored');
+          priorTerrain = hadOverride ? prior.terrain : null;
+        }
+        if (hadOverride && !overwriteAuthored){ skipped++; continue; }
+        snapshot.push({ Q: w.Q, R: w.R, hadOverride, priorTerrain });
+        SD.setSubhexOverride(w.Q, w.R, { terrain: w.terrain }, hasFastPath ? { deferSave: true } : undefined);
+        written++;
+        parentsAffected.add(w.key);
+      }
+      if (onProgress) onProgress(end, total);
+      await new Promise(res => setTimeout(res, 0));
+    }
+    if (hasFastPath) SD.flushOverrides();
     return {
       written, skipped,
       parentsAffected: parentsAffected.size,
       snapshot,
+      cancelled,
     };
   }
 
-  function undoBulk(snapshot){
+  async function undoBulk(snapshot, onProgress){
     if (!snapshot || !Array.isArray(snapshot)) return { restored: 0 };
     if (!window.GCCSubhexData) return { restored: 0, error: 'no data layer' };
     const SD = window.GCCSubhexData;
+    const hasFastPath = (typeof SD.flushOverrides === 'function');
+    const WRITE_CHUNK = 2000;
     let restored = 0;
-    for (const s of snapshot){
-      if (s.hadOverride){
-        SD.setSubhexOverride(s.Q, s.R, { terrain: s.priorTerrain });
-      } else {
-        SD.clearSubhex(s.Q, s.R);
+    for (let i = 0; i < snapshot.length; i += WRITE_CHUNK){
+      const end = Math.min(i + WRITE_CHUNK, snapshot.length);
+      for (let j = i; j < end; j++){
+        const s = snapshot[j];
+        if (s.hadOverride){
+          SD.setSubhexOverride(s.Q, s.R, { terrain: s.priorTerrain }, hasFastPath ? { deferSave: true } : undefined);
+        } else {
+          SD.clearSubhex(s.Q, s.R, hasFastPath ? { deferSave: true } : undefined);
+        }
+        restored++;
       }
-      restored++;
+      if (onProgress) onProgress(end, snapshot.length);
+      await new Promise(res => setTimeout(res, 0));
     }
+    if (hasFastPath) SD.flushOverrides();
     return { restored };
   }
 
@@ -978,7 +1033,9 @@
     if (_bulkState.phase === 'pick')     return renderBulkPick(body);
     if (_bulkState.phase === 'scanning') return renderBulkScanning(body);
     if (_bulkState.phase === 'review')   return renderBulkReview(body);
+    if (_bulkState.phase === 'applying') return renderBulkApplying(body);
     if (_bulkState.phase === 'applied')  return renderBulkApplied(body);
+    if (_bulkState.phase === 'undoing')  return renderBulkUndoing(body);
   }
 
   function renderBulkPick(body){
@@ -1128,10 +1185,23 @@
     document.getElementById('csb-apply').addEventListener('click', onBulkApplyClick);
   }
 
-  function onBulkApplyClick(){
+  async function onBulkApplyClick(){
     if (!_bulkState || !_bulkState.scanData) return;
     const overwriteAuthored = document.getElementById('csb-overwrite').checked;
-    const out = applyBulk(_bulkState.scanData, { overwriteAuthored });
+    _bulkState.phase = 'applying';
+    _bulkState.applyTotal = 0;
+    _bulkState.applyDone = 0;
+    renderBulkBody();
+    const out = await applyBulk(_bulkState.scanData, {
+      overwriteAuthored,
+      shouldCancel: _bulkShouldCancel,
+    }, (done, total) => {
+      const bar = document.getElementById('csb-progress-bar');
+      const lbl = document.getElementById('csb-progress-label');
+      if (bar) bar.style.width = `${(done / Math.max(1,total)) * 100}%`;
+      if (lbl) lbl.textContent = `${done.toLocaleString()} / ${total.toLocaleString()} cells`;
+    });
+    if (!_bulkState) return;
     _bulkState.lastSnapshot = out.snapshot;
     _bulkState.applyResult = out;
     _bulkState.phase = 'applied';
@@ -1139,13 +1209,31 @@
     window.dispatchEvent(new CustomEvent('gcc-subhex-changed', { detail: { reason: 'coast-scanner-bulk' } }));
   }
 
+  function renderBulkApplying(body){
+    body.innerHTML = `
+      <div style="font-size:13px; line-height:1.5; margin-bottom:10px;">Writing overrides…</div>
+      <div style="height:14px; background:#2a1a08; border:1px solid #5a4a30; border-radius:2px; overflow:hidden; margin-bottom:6px;">
+        <div id="csb-progress-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#c8941a,#e8b840); transition:width .2s;"></div>
+      </div>
+      <div id="csb-progress-label" style="font-size:11px; color:#c8a070; margin-bottom:12px;">starting…</div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button id="csb-cancel-apply" style="background:transparent; color:#f4e8c4; border:1px solid #8b6a30; border-radius:3px; padding:6px 14px; font-family:inherit; font-size:13px; cursor:pointer;">Cancel</button>
+      </div>
+    `;
+    document.getElementById('csb-cancel-apply').addEventListener('click', () => {
+      if (_bulkState) _bulkState.cancelRequested = true;
+    });
+  }
+
   function renderBulkApplied(body){
     const out = _bulkState.applyResult;
+    const cancelMsg = out.cancelled ? `<div style="color:#c87070; margin-top:6px;">Cancelled mid-apply — partial write captured. Undo will roll back what was written.</div>` : '';
     body.innerHTML = `
       <div style="font-size:13px; line-height:1.6; margin-bottom:12px; padding:10px; background:#1a0e02; border:1px solid #5a4a30; border-radius:2px;">
         Wrote <b style="color:#9adfff;">${out.written.toLocaleString()}</b> water override${out.written === 1 ? '' : 's'}
         across <b>${out.parentsAffected.toLocaleString()}</b> parent${out.parentsAffected === 1 ? '' : 's'}.
         ${out.skipped ? `<br><span style="color:#a08a60;">${out.skipped.toLocaleString()} already-authored cell${out.skipped === 1 ? '' : 's'} skipped.</span>` : ''}
+        ${cancelMsg}
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
         <button id="csb-undo" style="background:transparent; color:#f4e8c4; border:1px solid #c87070; border-radius:3px; padding:6px 14px; font-family:inherit; font-size:13px; cursor:pointer;" ${out.written ? '' : 'disabled style="opacity:.4;"'}>Undo</button>
@@ -1153,13 +1241,32 @@
       </div>
     `;
     document.getElementById('csb-done').addEventListener('click', closeBulkDialog);
-    document.getElementById('csb-undo').addEventListener('click', () => {
-      if (!_bulkState || !_bulkState.lastSnapshot) return;
-      const r = undoBulk(_bulkState.lastSnapshot);
-      window.dispatchEvent(new CustomEvent('gcc-subhex-changed', { detail: { reason: 'coast-scanner-bulk-undo' } }));
-      alert(`Restored ${r.restored.toLocaleString()} cell${r.restored === 1 ? '' : 's'}.`);
-      closeBulkDialog();
+    document.getElementById('csb-undo').addEventListener('click', onBulkUndoClick);
+  }
+
+  async function onBulkUndoClick(){
+    if (!_bulkState || !_bulkState.lastSnapshot) return;
+    _bulkState.phase = 'undoing';
+    renderBulkBody();
+    const r = await undoBulk(_bulkState.lastSnapshot, (done, total) => {
+      const bar = document.getElementById('csb-progress-bar');
+      const lbl = document.getElementById('csb-progress-label');
+      if (bar) bar.style.width = `${(done / Math.max(1,total)) * 100}%`;
+      if (lbl) lbl.textContent = `${done.toLocaleString()} / ${total.toLocaleString()} cells`;
     });
+    window.dispatchEvent(new CustomEvent('gcc-subhex-changed', { detail: { reason: 'coast-scanner-bulk-undo' } }));
+    alert(`Restored ${r.restored.toLocaleString()} cell${r.restored === 1 ? '' : 's'}.`);
+    closeBulkDialog();
+  }
+
+  function renderBulkUndoing(body){
+    body.innerHTML = `
+      <div style="font-size:13px; line-height:1.5; margin-bottom:10px;">Restoring…</div>
+      <div style="height:14px; background:#2a1a08; border:1px solid #5a4a30; border-radius:2px; overflow:hidden; margin-bottom:6px;">
+        <div id="csb-progress-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#c87070,#e8a8a8); transition:width .2s;"></div>
+      </div>
+      <div id="csb-progress-label" style="font-size:11px; color:#c8a070; margin-bottom:12px;">starting…</div>
+    `;
   }
 
   // ── Public surface ──────────────────────────────────────────────────
