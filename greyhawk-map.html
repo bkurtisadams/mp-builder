@@ -60,7 +60,7 @@
   .hex-cell { fill:rgba(var(--hex-paint-rgb, 0, 0, 0), var(--hex-paint-alpha, 0)); stroke:var(--hex-stroke); stroke-width:.6; cursor:pointer; transition:fill .1s; }
   .hex-cell:hover { fill:var(--hex-hover); stroke:rgba(255,200,80,.5); stroke-width:1; }
   .hex-cell.explored { fill:var(--hex-explored); }
-  .hex-cell.selected { fill:var(--hex-selected)!important; stroke:var(--gold); stroke-width:1.5; }
+  .hex-cell.selected { stroke:#ff9800; stroke-width:2.8; }
   .hex-cell.party-hex { stroke:#cc2200; stroke-width:1.8; }
   /* Journey route overlay — dashed polyline + per-hex stroke highlight
      along the planned path. Destination hex gets a brighter stroke and
@@ -2166,8 +2166,9 @@ function buildHexGrid(){
       poly.dataset.col=col; poly.dataset.row=row; poly.id=`hex-${col}-${row}`;
       // Terrain paint (GCCTerrain overrides) — store just the RGB triple
       // as a CSS var; .hex-cell composes rgba() with the global opacity
-      // var (controlled by the Paint tab slider). :hover / .explored /
-      // .selected override fill entirely via cascade specificity.
+      // var (controlled by the Paint tab slider). :hover / .explored
+      // override fill via cascade; .selected only adds an orange stroke
+      // so the underlying terrain/region tint stays visible.
       if (typeof GCCTerrain !== 'undefined'){
         const t = GCCTerrain.get(col, row);
         if (t && TERRAIN[t]?.rgb) poly.style.setProperty('--hex-paint-rgb', TERRAIN[t].rgb);
