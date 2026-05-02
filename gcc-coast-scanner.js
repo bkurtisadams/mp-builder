@@ -1,4 +1,13 @@
-// gcc-coast-scanner.js v0.2.0 — 2026-05-02
+// gcc-coast-scanner.js v0.2.1 — 2026-05-02
+// v0.2.1: raise DEFAULT_LAND_THRESHOLDS.vMax from 0.70 to 0.92.
+// Verified empirically against I4-89: Darlene's land coloring is
+// pale-bright yellow-tan (V~0.85-0.88), not the moderate-tone V<0.70
+// I assumed. With the old default, land cells fell into "ambiguous"
+// and the parent-terrain tiebreaker (water_inland_sea → water) flipped
+// them all to water. New cap at 0.92 catches Darlene's pale land
+// without picking up pure-white coastal pixels (V≈0.98).
+//
+// v0.2.0 — 2026-05-02
 // v0.2.0: parent-terrain tiebreaker for ambiguous pixels.
 // Darlene's coastal water is nearly white (RGB ~245,245,250 with H~240°
 // but S~0.02, V~0.98), failing the v0.1 saturated-blue threshold. Same
@@ -68,15 +77,17 @@
     sMin: 0.20, sMax: 1.00,
     vMin: 0.30, vMax: 0.85,
   };
-  // Land threshold — anything clearly green/brown/dark is "definitely
-  // land". Together with DEFAULT_THRESHOLDS for water, the remaining
-  // pixels are "ambiguous" and resolved by parent-terrain tiebreaker
-  // in scanParent. Defaults catch forest/hills/plains/mountain hues
-  // (earthy browns from ~20°, greens through ~110°).
+  // Land threshold — anything clearly green/brown/yellow-tan is
+  // "definitely land". Together with DEFAULT_THRESHOLDS for water, the
+  // remaining pixels are "ambiguous" and resolved by parent-terrain
+  // tiebreaker in scanParent. Defaults catch forest/hills/plains/
+  // mountain/Darlene-pale-tan hues (earthy browns from ~20°, greens
+  // through ~110°, V up to 0.92 to include Darlene's pale-bright land
+  // coloring without grabbing pure-white coast pixels at V≈0.98).
   const DEFAULT_LAND_THRESHOLDS = {
-    hMin: 20, hMax: 110,        // earthy brown through green
+    hMin: 20, hMax: 110,
     sMin: 0.15, sMax: 1.00,
-    vMin: 0.10, vMax: 0.70,     // up to "still clearly tinted", not pale
+    vMin: 0.10, vMax: 0.92,
   };
   const SAMPLE_RADIUS_PX = 2;     // average over a (2r+1)x(2r+1) window
   const SOURCE_TAG = 'scanner-coast-v1';
