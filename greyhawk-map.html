@@ -175,6 +175,15 @@
   #move-dialog h3 { font-family:'Cinzel',serif; font-size:12px; color:var(--gold-light); margin-bottom:9px; letter-spacing:.08em; cursor:grab; user-select:none; padding-bottom:6px; border-bottom:1px solid var(--panel-border); }
   #move-dialog h3.dragging { cursor:grabbing; }
   #move-dialog p { font-size:12px; color:var(--parchment-light); margin-bottom:3px; line-height:1.35; }
+  /* Hex context menu — fires on right-click-tap (mouse) or long-press
+     (touch) on a parent hex. Right-click-drag still pans the map; the
+     menu only shows when the press didn't drag. */
+  .hex-ctx-menu { position:fixed; background:#120900; border:1px solid var(--gold); border-radius:2px; padding:4px 0; z-index:300; box-shadow:0 6px 24px rgba(0,0,0,.85); min-width:180px; font-family:'Crimson Text',serif; }
+  .hex-ctx-menu .hex-ctx-head { font-family:'Cinzel',serif; font-size:10px; color:var(--gold-light); letter-spacing:.08em; padding:5px 12px 6px; border-bottom:1px solid var(--panel-border); margin-bottom:3px; }
+  .hex-ctx-menu .hex-ctx-item { padding:6px 12px; font-size:13px; color:var(--parchment-light); cursor:pointer; user-select:none; }
+  .hex-ctx-menu .hex-ctx-item:hover { background:rgba(200,148,26,.15); color:var(--gold-light); }
+  .hex-ctx-menu .hex-ctx-item.disabled { color:#666; cursor:default; }
+  .hex-ctx-menu .hex-ctx-item.disabled:hover { background:transparent; color:#666; }
   #move-dialog p span { color:var(--gold-light); font-weight:600; }
   #move-dialog .dialog-btns { display:flex; gap:7px; margin-top:11px; }
   #move-dialog .dialog-btns button { flex:1; padding:5px; font-family:'Cinzel',serif; font-size:10px; cursor:pointer; border-radius:2px; letter-spacing:.05em; transition:all .14s; }
@@ -3961,13 +3970,87 @@ function showToast(msg){
   clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),3500);
 }
 
+// ── HEX CONTEXT MENU ──────────────────────────────────────────────────────────
+// Right-click-tap (mouse) or long-press (touch) on a parent hex shows a small
+// floating menu. Right-click-drag still pans (existing behavior); the menu
+// only shows when the gesture didn't drag. Listeners suppress journey-plan,
+// move-mode, image-align, and Hex Editor edit modes — same gates as left-click.
+let _hexCtxMenuEl = null;
+function showHexContextMenu(x, y, col, row){
+  closeHexContextMenu();
+  const menu = document.createElement('div');
+  menu.className = 'hex-ctx-menu';
+  const id = (typeof hexIdStr === 'function') ? hexIdStr(col, row) : `${col},${row}`;
+  const lm = (typeof GCCLandmarks !== 'undefined') ? GCCLandmarks.getById(id) : null;
+  const head = document.createElement('div');
+  head.className = 'hex-ctx-head';
+  head.textContent = lm ? `${lm.name} (${id})` : id;
+  menu.appendChild(head);
+  const item = document.createElement('div');
+  item.className = 'hex-ctx-item';
+  item.textContent = 'Open Subhex View';
+  if (!window.GCCSubhexView || typeof window.GCCSubhexView.open !== 'function'){
+    item.classList.add('disabled');
+    item.title = 'Subhex view not loaded';
+  } else {
+    item.addEventListener('click', () => {
+      closeHexContextMenu();
+      window.GCCSubhexView.open(col, row);
+    });
+  }
+  menu.appendChild(item);
+  document.body.appendChild(menu);
+  // Clamp to viewport so a click near the edge doesn't push the menu off.
+  const r = menu.getBoundingClientRect();
+  const px = Math.max(2, Math.min(x, window.innerWidth - r.width - 4));
+  const py = Math.max(2, Math.min(y, window.innerHeight - r.height - 4));
+  menu.style.left = px + 'px';
+  menu.style.top  = py + 'px';
+  _hexCtxMenuEl = menu;
+  // Defer dismiss listeners by a tick so the gesture that opened the menu
+  // doesn't immediately close it.
+  setTimeout(() => {
+    document.addEventListener('mousedown',  _hexCtxMenuOutside, true);
+    document.addEventListener('touchstart', _hexCtxMenuOutside, true);
+    document.addEventListener('keydown',    _hexCtxMenuKey,     true);
+    window.addEventListener('blur',         closeHexContextMenu);
+  }, 0);
+}
+function closeHexContextMenu(){
+  if (!_hexCtxMenuEl) return;
+  _hexCtxMenuEl.remove();
+  _hexCtxMenuEl = null;
+  document.removeEventListener('mousedown',  _hexCtxMenuOutside, true);
+  document.removeEventListener('touchstart', _hexCtxMenuOutside, true);
+  document.removeEventListener('keydown',    _hexCtxMenuKey,     true);
+  window.removeEventListener('blur',         closeHexContextMenu);
+}
+function _hexCtxMenuOutside(e){
+  if (_hexCtxMenuEl && !_hexCtxMenuEl.contains(e.target)) closeHexContextMenu();
+}
+function _hexCtxMenuKey(e){
+  if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); closeHexContextMenu(); }
+}
+
 // ── WIRE ALL EVENTS ───────────────────────────────────────────────────────────
 function wireEvents(){
   const wrap=document.getElementById('map-wrap');
 
   // Suppress the native browser context menu on the map wrap so right-click
   // can be used as a pan gesture without the menu popping up over it.
-  wrap.addEventListener('contextmenu', e => e.preventDefault());
+  // When the right-click was a tap (no drag), show the hex context menu
+  // instead — same gates as left-click (no menu in image-align or Hex
+  // Editor edit modes).
+  wrap.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    if (state.didDrag) return;            // right-click-pan was used → no menu
+    if (state.imgAlignMode) return;
+    if (document.body.classList.contains('he-editing')) return;
+    const m = screenToMap(e.clientX, e.clientY);
+    const hit = mapToHex(m.x, m.y);
+    if (!hit) return;
+    showHexContextMenu(e.clientX, e.clientY, hit.col, hit.row);
+  });
 
   // Pan
   wrap.addEventListener('mousedown',e=>{
@@ -4468,6 +4551,21 @@ function wireEvents(){
       tState.sx = t.clientX; tState.sy = t.clientY;
       tState.pStartX = state.panX; tState.pStartY = state.panY;
       tState.didMove = false;
+      // Long-press → hex context menu (touch equivalent of right-click-tap).
+      // Same gates as the contextmenu handler. Cancelled on move or early
+      // touchend. tState.longPressed suppresses the subsequent tap-to-click.
+      if (tState.longPressTimer){ clearTimeout(tState.longPressTimer); }
+      tState.longPressed = false;
+      tState.longPressTimer = setTimeout(() => {
+        tState.longPressTimer = null;
+        if (!tState.active || tState.didMove) return;
+        if (document.body.classList.contains('he-editing')) return;
+        const m = screenToMap(tState.sx, tState.sy);
+        const hit = mapToHex(m.x, m.y);
+        if (!hit) return;
+        tState.longPressed = true;
+        showHexContextMenu(tState.sx, tState.sy, hit.col, hit.row);
+      }, 500);
     } else if (e.touches.length === 2){
       tState.active = true; tState.mode = 'pinch';
       tState.pinchD0 = _tDist(e.touches[0], e.touches[1]);
@@ -4475,6 +4573,7 @@ function wireEvents(){
       tState.pinchCX = (e.touches[0].clientX + e.touches[1].clientX)/2;
       tState.pinchCY = (e.touches[0].clientY + e.touches[1].clientY)/2;
       tState.didMove = true;  // suppress tap after pinch
+      if (tState.longPressTimer){ clearTimeout(tState.longPressTimer); tState.longPressTimer = null; }
     }
   }, {passive:true});
 
@@ -4488,6 +4587,8 @@ function wireEvents(){
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) tState.didMove = true;
         else return;
       }
+      // Once we've crossed the drag threshold, cancel the long-press timer.
+      if (tState.longPressTimer){ clearTimeout(tState.longPressTimer); tState.longPressTimer = null; }
       state.panX = tState.pStartX + dx; state.panY = tState.pStartY + dy;
       clampPan(); applyTransform();
     } else if (tState.mode === 'pinch' && e.touches.length >= 2){
@@ -4502,8 +4603,11 @@ function wireEvents(){
 
   wrap.addEventListener('touchend', e=>{
     if (!tState.active) return;
-    // Tap (single finger, no drag) → hex click
-    if (tState.mode === 'pan' && !tState.didMove && e.changedTouches.length === 1){
+    if (tState.longPressTimer){ clearTimeout(tState.longPressTimer); tState.longPressTimer = null; }
+    // Tap (single finger, no drag) → hex click. Skipped if a long-press
+    // already opened the context menu — that gesture consumed the tap.
+    if (tState.mode === 'pan' && !tState.didMove && !tState.longPressed
+        && e.changedTouches.length === 1){
       if (!document.body.classList.contains('he-editing')){
         const t = e.changedTouches[0];
         const m = screenToMap(t.clientX, t.clientY);
@@ -4513,6 +4617,7 @@ function wireEvents(){
     }
     if (e.touches.length === 0){
       tState.active = false; tState.mode = null;
+      tState.longPressed = false;
     } else if (tState.mode === 'pinch' && e.touches.length === 1){
       // Downgrade pinch → pan with the remaining finger (no jump).
       const t = e.touches[0];
@@ -4524,7 +4629,9 @@ function wireEvents(){
   }, {passive:true});
 
   wrap.addEventListener('touchcancel', ()=>{
+    if (tState.longPressTimer){ clearTimeout(tState.longPressTimer); tState.longPressTimer = null; }
     tState.active = false; tState.mode = null;
+    tState.longPressed = false;
   });
 
   // Keyboard
