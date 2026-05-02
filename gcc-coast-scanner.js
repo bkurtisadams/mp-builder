@@ -1,4 +1,27 @@
-// gcc-coast-scanner.js v0.4.2 — 2026-05-02
+// gcc-coast-scanner.js v0.4.3 — 2026-05-02
+// v0.4.3: apply-side fix for water-typed parents. v0.4.2's pass-2
+// correctly classified land cells inside water-typed parents (e.g.,
+// U3-74 / Nyr Dyv interior), but applyResults / applyBulk only ever
+// wrote isWater cells. Land cells in those parents fell through to
+// procedural fallback — which is water for water_* parents. So the
+// preview was right but the rendered cells stayed water.
+//
+// Now scanParent populates r.terrain on land cells in water-typed
+// parents (default 'plains', via landVariantForParent — pluggable
+// via opts.landVariant). applyResults / applyBulk gate on
+// r.terrain != null instead of r.isWater. Land-typed parents are
+// unchanged: r.terrain stays null on land cells, applyResults skips
+// them (procedural fallback already gives the right thing).
+//
+// Single-parent dialog gains an "Overwrite already-authored cells"
+// checkbox matching the bulk dialog. Use it to clean up any cells
+// that the v0.4.1 broken algorithm over-authored as water in
+// water-typed parents.
+//
+// Summary now exposes toWrite, toWriteWater, toWriteLand so the
+// dialog can show a meaningful breakdown ("Will write 79 water +
+// 21 land overrides"). Bulk totals likewise.
+//
 // v0.4.2: pass-2 majority rule. v0.4.1's strict "no opposing
 // neighbor" rule mis-classified coastal-transition cells in water-
 // typed parents (e.g., U3-74 / Nyr Dyv interior): a cell with mixed
@@ -358,6 +381,18 @@
     return 'water_fresh';
   }
 
+  // Pick the land variant to author when the parent is water-typed
+  // and the scanner identifies a land cell. Land-typed parents don't
+  // need this — their procedural fallback is already land. But a
+  // water-typed parent procedurally renders water everywhere, so any
+  // land cell needs an explicit override or it'll display as water.
+  // Plains is a safe default; future enhancement could pick by pixel
+  // hue (greens → forest_oak, browns → hills, tan → plains).
+  const DEFAULT_LAND_VARIANT = 'plains';
+  function landVariantForParent(parentTerrain, opts){
+    return (opts && opts.landVariant) || DEFAULT_LAND_VARIANT;
+  }
+
   // ── Scan one parent ─────────────────────────────────────────────────
   function scanParent(col, row, opts){
     opts = opts || {};
@@ -492,13 +527,27 @@
       else               resLandByParent++;
     }
 
-    // Final tally: water-variant assignment + water/land counts.
+    // Final tally: terrain assignment + water/land counts. r.terrain
+    // is what applyResults will write — null means no override needed
+    // (procedural fallback is already correct). Specifically:
+    //   isWater  → waterVariant always
+    //   !isWater → landVariant only when parent is water-typed
+    //              (otherwise procedural already gives land)
+    const landVariant = landVariantForParent(parentTerrain, opts);
+    let toWriteWater = 0, toWriteLand = 0;
     for (const r of results){
       if (r.isWater){
         r.terrain = waterVariant;
         waterN++;
+        toWriteWater++;
       } else {
         landN++;
+        if (parentIsWater){
+          r.terrain = landVariant;
+          toWriteLand++;
+        } else {
+          r.terrain = null;
+        }
       }
     }
 
@@ -509,12 +558,17 @@
         parentTerrain,
         parentIsWater,
         waterVariant,
+        landVariant: parentIsWater ? landVariant : null,
         cellCount: cells.length,
         water: waterN,
         land: landN,
         ambiguous: ambigN,
         sampleFails,
         alreadyAuthored: alreadyN,
+        // Cells that will get an override on apply.
+        toWrite: toWriteWater + toWriteLand,
+        toWriteWater,
+        toWriteLand,
         // Breakdown of how ambiguous cells got resolved.
         resolution: {
           waterDirect: resWaterDirect,
@@ -531,22 +585,30 @@
   }
 
   // ── Apply results to overrides ──────────────────────────────────────
+  // Writes the override for every cell whose r.terrain is set:
+  //   isWater  → waterVariant (e.g., water_inland_sea)
+  //   land in water-typed parent → landVariant (default 'plains')
+  //   land in land-typed parent  → r.terrain stays null, skipped
+  //                                (procedural fallback is already land)
+  // Returns { written, skipped, water, land } so the dialog can show a
+  // breakdown. Uses deferred saves when available for batch efficiency.
   function applyResults(results, opts){
     opts = opts || {};
     const overwriteAuthored = !!opts.overwriteAuthored;
-    if (!window.GCCSubhexData) return { written: 0, skipped: 0, error: 'no data layer' };
+    if (!window.GCCSubhexData) return { written: 0, skipped: 0, water: 0, land: 0, error: 'no data layer' };
     const SD = window.GCCSubhexData;
-    let written = 0, skipped = 0;
+    const hasFastPath = (typeof SD.peekOverride === 'function' && typeof SD.flushOverrides === 'function');
+    let written = 0, skipped = 0, waterW = 0, landW = 0;
     for (const r of results){
-      if (!r.isWater) continue;
+      if (!r.terrain) continue;
       if (r.alreadyAuthored && !overwriteAuthored){ skipped++; continue; }
-      SD.setSubhexOverride(r.Q, r.R, {
-        terrain: r.terrain,
-        source: SOURCE_TAG,
-      });
+      SD.setSubhexOverride(r.Q, r.R, { terrain: r.terrain }, hasFastPath ? { deferSave: true } : undefined);
       written++;
+      if (r.isWater) waterW++;
+      else           landW++;
     }
-    return { written, skipped };
+    if (hasFastPath) SD.flushOverrides();
+    return { written, skipped, water: waterW, land: landW };
   }
 
   // ── Bulk scan helpers ───────────────────────────────────────────────
@@ -621,6 +683,9 @@
         sampleFails: 0,
         alreadyAuthored: 0,
         errors: 0,
+        toWrite: 0,
+        toWriteWater: 0,
+        toWriteLand: 0,
       },
       cancelled: false,
     };
@@ -645,6 +710,9 @@
         out.totals.land            += s.land;
         out.totals.sampleFails     += s.sampleFails;
         out.totals.alreadyAuthored += s.alreadyAuthored;
+        out.totals.toWrite         += (s.toWrite      || 0);
+        out.totals.toWriteWater    += (s.toWriteWater || 0);
+        out.totals.toWriteLand     += (s.toWriteLand  || 0);
       }
       if (onProgress) onProgress(Math.min(i + CHUNK, parents.length), parents.length);
       await new Promise(res => setTimeout(res, 0));
@@ -652,34 +720,31 @@
     return out;
   }
 
-  // Write water overrides for every isWater cell across all scanned
-  // parents. Async + chunked so the page stays responsive: yields to
-  // the event loop every WRITE_CHUNK cells. Uses peekOverride for fast
-  // prior-check and {deferSave:true} on every write, then a single
-  // flushOverrides at the end (one full localStorage serialization
-  // instead of one per cell — fixes O(N²) blowup that crashed coast-
-  // scope applies). Captures a per-cell undo snapshot.
+  // Write the override for every cell whose r.terrain is set across
+  // all scanned parents. Includes land cells in water-typed parents
+  // (where procedural fallback is water and would mis-render the cell).
+  // Async + chunked for responsiveness; uses peekOverride for fast
+  // prior-check and {deferSave:true} on every write with a single
+  // flushOverrides at the end.
   async function applyBulk(scanData, opts, onProgress){
     opts = opts || {};
     const overwriteAuthored = !!opts.overwriteAuthored;
     if (!window.GCCSubhexData){
-      return { error: 'no data layer', written: 0, skipped: 0, parentsAffected: 0, snapshot: [], cancelled: false };
+      return { error: 'no data layer', written: 0, skipped: 0, water: 0, land: 0, parentsAffected: 0, snapshot: [], cancelled: false };
     }
     const SD = window.GCCSubhexData;
     const hasFastPath = (typeof SD.peekOverride === 'function' && typeof SD.flushOverrides === 'function');
-    let written = 0, skipped = 0;
+    let written = 0, skipped = 0, waterW = 0, landW = 0;
     const parentsAffected = new Set();
     const snapshot = [];
-    // Flatten parent → cell candidates for chunked iteration. Store
-    // parent terrain alongside each cell so the loop doesn't re-resolve
-    // it. Also pre-tag prior state for the snapshot.
+    // Flatten parent → cells-with-non-null-terrain for chunked iteration.
     const work = [];
     for (const [key, p] of scanData.perParent){
       const parentTerrain = (typeof window.getHexTerrain === 'function')
         ? window.getHexTerrain(p.col, p.row) : null;
       for (const r of p.results){
-        if (!r.isWater) continue;
-        work.push({ key, Q: r.Q, R: r.R, terrain: r.terrain, parentTerrain });
+        if (!r.terrain) continue;
+        work.push({ key, Q: r.Q, R: r.R, terrain: r.terrain, isWater: r.isWater, parentTerrain });
       }
     }
     const total = work.length;
@@ -706,6 +771,8 @@
         snapshot.push({ Q: w.Q, R: w.R, hadOverride, priorTerrain });
         SD.setSubhexOverride(w.Q, w.R, { terrain: w.terrain }, hasFastPath ? { deferSave: true } : undefined);
         written++;
+        if (w.isWater) waterW++;
+        else           landW++;
         parentsAffected.add(w.key);
       }
       if (onProgress) onProgress(end, total);
@@ -714,6 +781,7 @@
     if (hasFastPath) SD.flushOverrides();
     return {
       written, skipped,
+      water: waterW, land: landW,
       parentsAffected: parentsAffected.size,
       snapshot,
       cancelled,
@@ -846,9 +914,14 @@
             <span id="cs-l-vmax-v">${Math.round(DEFAULT_LAND_THRESHOLDS.vMax*100)}%</span>
         </div>
       </div>
-      <div style="display:flex; gap:8px; justify-content:flex-end;">
-        <button id="cs-cancel" style="background:transparent; color:#f4e8c4; border:1px solid #8b6a30; border-radius:3px; padding:6px 14px; font-family:inherit; font-size:13px; cursor:pointer;">Close</button>
-        <button id="cs-apply" style="background:#5a3a0a; color:#f4e8c4; border:1px solid #c8941a; border-radius:3px; padding:6px 14px; font-family:inherit; font-size:13px; cursor:pointer; font-weight:600;">Apply water overrides</button>
+      <div style="display:flex; gap:8px; justify-content:space-between; align-items:center;">
+        <label style="font-size:11px; color:#c8a070; cursor:pointer; user-select:none;">
+          <input type="checkbox" id="cs-overwrite"> Overwrite already-authored cells
+        </label>
+        <div style="display:flex; gap:8px;">
+          <button id="cs-cancel" style="background:transparent; color:#f4e8c4; border:1px solid #8b6a30; border-radius:3px; padding:6px 14px; font-family:inherit; font-size:13px; cursor:pointer;">Close</button>
+          <button id="cs-apply" style="background:#5a3a0a; color:#f4e8c4; border:1px solid #c8941a; border-radius:3px; padding:6px 14px; font-family:inherit; font-size:13px; cursor:pointer; font-weight:600;">Apply</button>
+        </div>
       </div>
     `;
     document.body.appendChild(wrap);
@@ -906,12 +979,17 @@
     if (r.waterByParent)    parts.push(`<span style="color:#9adfff;">${r.waterByParent} → water (parent)</span>`);
     if (r.landByParent)     parts.push(`<span style="color:#e8c890;">${r.landByParent} → land (parent)</span>`);
     const ambigDetail = parts.length ? ` · ${parts.join(' · ')}` : '';
+    // When the parent is water-typed, land cells need explicit overrides
+    // (procedural fallback would render water). Surface that as "would
+    // write Y as <landVariant>" so the user understands what apply does.
+    const writeNote = s.parentIsWater
+      ? `would write water as <b>${s.waterVariant}</b>, land as <b>${s.landVariant}</b>`
+      : `would write water as <b>${s.waterVariant}</b>; land cells use procedural fallback (no override)`;
     sumEl.innerHTML = `
-      <div>Parent: <b>${s.parentTerrain || '(unknown)'}</b> · would write as <b>${s.waterVariant}</b></div>
+      <div>Parent: <b>${s.parentTerrain || '(unknown)'}</b> · ${writeNote}</div>
       <div>${s.cellCount} cells · <span style="color:#6dc8c8;">${s.water} water</span> · <span style="color:#c8a070;">${s.land} land</span>${ambigDetail}</div>
       <div style="font-size:11px; color:#a08a60; margin-top:2px;">
-        ${s.sampleFails ? `${s.sampleFails} sample fail · ` : ''}
-        ${s.alreadyAuthored ? `${s.alreadyAuthored} already authored (will skip)` : ''}
+        Apply will write <b style="color:#e8b840;">${s.toWrite}</b> override${s.toWrite === 1 ? '' : 's'}${s.toWriteLand ? ` (${s.toWriteWater} water + ${s.toWriteLand} land)` : ''}${s.sampleFails ? ` · ${s.sampleFails} sample fail` : ''}${s.alreadyAuthored ? ` · ${s.alreadyAuthored} already authored (skipped unless overwrite)` : ''}
       </div>
     `;
     drawPreviewCanvas();
@@ -1015,8 +1093,14 @@
 
   function onApplyClick(){
     if (!_previewState || !_previewState.results) return;
-    const out = applyResults(_previewState.results);
-    alert(`Wrote ${out.written} water override${out.written === 1 ? '' : 's'}` +
+    const cb = document.getElementById('cs-overwrite');
+    const overwriteAuthored = !!(cb && cb.checked);
+    const out = applyResults(_previewState.results, { overwriteAuthored });
+    const parts = [];
+    if (out.water) parts.push(`${out.water} water`);
+    if (out.land)  parts.push(`${out.land} land`);
+    const breakdown = parts.length ? ` (${parts.join(' + ')})` : '';
+    alert(`Wrote ${out.written} override${out.written === 1 ? '' : 's'}${breakdown}` +
       (out.skipped ? `, skipped ${out.skipped} already-authored cell${out.skipped === 1 ? '' : 's'}.` : '.'));
     closePreview();
     // Notify the rest of the app that subhex data changed.
@@ -1203,10 +1287,15 @@
     const sd = _bulkState.scanData;
     const t = sd.totals;
     const elapsed = (_bulkState.elapsedMs / 1000).toFixed(1);
-    // Cells that would be written = water cells minus the ones that
-    // are already authored (since default behavior skips them).
-    const candidateWrites = t.water;
+    // toWrite = cells scanParent flagged for authoring (water everywhere
+    // + land cells inside water-typed parents). alreadyAuthored is the
+    // overlap of those with existing overrides — they're skipped unless
+    // overwriteAuthored is checked.
+    const candidateWrites = t.toWrite;
     const skippedAlready  = t.alreadyAuthored;
+    const landBreakdown = (t.toWriteLand > 0)
+      ? ` (${t.toWriteWater.toLocaleString()} water + ${t.toWriteLand.toLocaleString()} land)`
+      : '';
     body.innerHTML = `
       <div style="font-size:13px; line-height:1.5; margin-bottom:10px;">
         Scanned <b>${t.parents.toLocaleString()}</b> parents in ${elapsed}s.
@@ -1235,7 +1324,7 @@
       const writes = ow ? candidateWrites : Math.max(0, candidateWrites - skippedAlready);
       const skipMsg = ow ? '' : ` (${skippedAlready.toLocaleString()} already-authored will be skipped)`;
       document.getElementById('csb-write-summary').innerHTML =
-        `Will write <b style="color:#e8b840;">${writes.toLocaleString()}</b> water override${writes === 1 ? '' : 's'}${skipMsg}.`;
+        `Will write <b style="color:#e8b840;">${writes.toLocaleString()}</b> override${writes === 1 ? '' : 's'}${landBreakdown}${skipMsg}.`;
     };
     updateWriteSummary();
     document.getElementById('csb-overwrite').addEventListener('change', updateWriteSummary);
@@ -1291,9 +1380,12 @@
   function renderBulkApplied(body){
     const out = _bulkState.applyResult;
     const cancelMsg = out.cancelled ? `<div style="color:#c87070; margin-top:6px;">Cancelled mid-apply — partial write captured. Undo will roll back what was written.</div>` : '';
+    const breakdown = (out.land > 0)
+      ? ` (<span style="color:#9adfff;">${out.water.toLocaleString()} water</span> + <span style="color:#e8c890;">${out.land.toLocaleString()} land</span>)`
+      : '';
     body.innerHTML = `
       <div style="font-size:13px; line-height:1.6; margin-bottom:12px; padding:10px; background:#1a0e02; border:1px solid #5a4a30; border-radius:2px;">
-        Wrote <b style="color:#9adfff;">${out.written.toLocaleString()}</b> water override${out.written === 1 ? '' : 's'}
+        Wrote <b style="color:#e8b840;">${out.written.toLocaleString()}</b> override${out.written === 1 ? '' : 's'}${breakdown}
         across <b>${out.parentsAffected.toLocaleString()}</b> parent${out.parentsAffected === 1 ? '' : 's'}.
         ${out.skipped ? `<br><span style="color:#a08a60;">${out.skipped.toLocaleString()} already-authored cell${out.skipped === 1 ? '' : 's'} skipped.</span>` : ''}
         ${cancelMsg}
@@ -1338,7 +1430,7 @@
     DEFAULT_LAND_THRESHOLDS,
     SOURCE_TAG,
     rgbToHsv, isWaterRgb, classifyPixel, svgToImagePixel,
-    waterVariantForParent,
+    waterVariantForParent, landVariantForParent,
     scanParent, applyResults,
     openPreview, closePreview,
     // Bulk
