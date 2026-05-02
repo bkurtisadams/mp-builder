@@ -1,4 +1,16 @@
-// gcc-coast-scanner.js v0.1.2 — 2026-05-02
+// gcc-coast-scanner.js v0.2.0 — 2026-05-02
+// v0.2.0: parent-terrain tiebreaker for ambiguous pixels.
+// Darlene's coastal water is nearly white (RGB ~245,245,250 with H~240°
+// but S~0.02, V~0.98), failing the v0.1 saturated-blue threshold. Same
+// goes for pale parchment land: too desaturated to call definitively.
+// New tri-state classifier:
+//   classifyPixel(r,g,b) → 'water' | 'land' | 'ambiguous'
+// And in scanParent, ambiguous cells use the parent's terrain as the
+// tiebreaker (water_* parents default ambiguous → water; land parents
+// default ambiguous → land). The modal now exposes a separate land
+// threshold so the GM can tune both water and land detection.
+//
+// v0.1.2 — 2026-05-02
 // v0.1.2: fix svgToImagePixel — world coords from hexCenter() are
 // already in image-CSS-box space (origin at the image's CSS top-left).
 // The 0.1.1 fix added a stageBounds offset that shouldn't have been
@@ -55,6 +67,16 @@
     hMin: 180, hMax: 230,
     sMin: 0.20, sMax: 1.00,
     vMin: 0.30, vMax: 0.85,
+  };
+  // Land threshold — anything clearly green/brown/dark is "definitely
+  // land". Together with DEFAULT_THRESHOLDS for water, the remaining
+  // pixels are "ambiguous" and resolved by parent-terrain tiebreaker
+  // in scanParent. Defaults catch forest/hills/plains/mountain hues
+  // (earthy browns from ~20°, greens through ~110°).
+  const DEFAULT_LAND_THRESHOLDS = {
+    hMin: 20, hMax: 110,        // earthy brown through green
+    sMin: 0.15, sMax: 1.00,
+    vMin: 0.10, vMax: 0.70,     // up to "still clearly tinted", not pale
   };
   const SAMPLE_RADIUS_PX = 2;     // average over a (2r+1)x(2r+1) window
   const SOURCE_TAG = 'scanner-coast-v1';
@@ -152,6 +174,23 @@
         && s >= T.sMin && s <= T.sMax
         && v >= T.vMin && v <= T.vMax;
   }
+  function passesThreshold(h, s, v, T){
+    return h >= T.hMin && h <= T.hMax
+        && s >= T.sMin && s <= T.sMax
+        && v >= T.vMin && v <= T.vMax;
+  }
+  // Tri-state classification. 'ambiguous' means neither water nor land
+  // threshold matched — the caller should resolve via parent-terrain
+  // tiebreaker. Order matters: water check first because some water
+  // hues overlap loosely with land hues at the edges.
+  function classifyPixel(r, g, b, waterT, landT){
+    waterT = waterT || DEFAULT_THRESHOLDS;
+    landT  = landT  || DEFAULT_LAND_THRESHOLDS;
+    const { h, s, v } = rgbToHsv(r, g, b);
+    if (passesThreshold(h, s, v, waterT)) return 'water';
+    if (passesThreshold(h, s, v, landT))  return 'land';
+    return 'ambiguous';
+  }
 
   // Sample at (px, py) with a (2r+1)x(2r+1) average. Out-of-bounds
   // pixels skip; if all pixels are out, return null.
@@ -185,7 +224,8 @@
   // ── Scan one parent ─────────────────────────────────────────────────
   function scanParent(col, row, opts){
     opts = opts || {};
-    const T = Object.assign({}, DEFAULT_THRESHOLDS, opts.threshold || {});
+    const T  = Object.assign({}, DEFAULT_THRESHOLDS,      opts.threshold     || {});
+    const TL = Object.assign({}, DEFAULT_LAND_THRESHOLDS, opts.landThreshold || {});
     const ctx = ensureCanvas();
     if (!ctx){
       return { error: 'map image not ready', results: [], summary: null };
@@ -198,26 +238,38 @@
     const parentTerrain = (typeof window.getHexTerrain === 'function')
       ? window.getHexTerrain(col, row) : null;
     const waterVariant = waterVariantForParent(parentTerrain);
+    const parentIsWater = parentTerrain && (parentTerrain === 'water' || parentTerrain.startsWith('water_'));
 
     const results = [];
-    let waterN = 0, landN = 0, sampleFails = 0, alreadyN = 0;
+    let waterN = 0, landN = 0, ambigN = 0, sampleFails = 0, alreadyN = 0;
     for (const { Q, R } of cells){
       const svg = SD.subhexSvgCenter(Q, R);
       const pix = svgToImagePixel(svg.x, svg.y);
       if (!pix){ sampleFails++; continue; }
       const rgb = samplePixel(ctx, pix.px, pix.py);
       if (!rgb){ sampleFails++; continue; }
-      const isWater = isWaterRgb(rgb.r, rgb.g, rgb.b, T);
+      const cls = classifyPixel(rgb.r, rgb.g, rgb.b, T, TL);
+      // Parent-terrain tiebreaker for ambiguous pixels. A water-terrain
+      // parent (water_inland_sea, water_coastal, etc.) was painted as
+      // water by the GM; ambiguous interior pixels (Darlene's near-
+      // white coastal blues, label text on water) default to water.
+      // Non-water parents default ambiguous to land.
+      let isWater;
+      if      (cls === 'water')  isWater = true;
+      else if (cls === 'land')   isWater = false;
+      else                       isWater = parentIsWater;
       const sub = SD.getSubhex(Q, R, parentTerrain);
       const alreadyAuthored = sub && sub.source === 'authored';
       results.push({
         Q, R,
         rgb,
+        classification: cls,
         isWater,
         terrain: isWater ? waterVariant : null,
         alreadyAuthored,
       });
       if (alreadyAuthored) alreadyN++;
+      if (cls === 'ambiguous') ambigN++;
       if (isWater) waterN++; else landN++;
     }
     return {
@@ -225,13 +277,16 @@
       summary: {
         col, row,
         parentTerrain,
+        parentIsWater,
         waterVariant,
         cellCount: cells.length,
         water: waterN,
         land: landN,
+        ambiguous: ambigN,
         sampleFails,
         alreadyAuthored: alreadyN,
         threshold: T,
+        landThreshold: TL,
       },
     };
   }
@@ -273,7 +328,12 @@
       }
     }
     closePreview();
-    _previewState = { col, row, threshold: Object.assign({}, DEFAULT_THRESHOLDS), results: null };
+    _previewState = {
+      col, row,
+      threshold:     Object.assign({}, DEFAULT_THRESHOLDS),
+      landThreshold: Object.assign({}, DEFAULT_LAND_THRESHOLDS),
+      results: null,
+    };
     buildPreviewDOM();
     runPreview();
   }
@@ -294,6 +354,7 @@
       border:1px solid #c8941a; border-radius:3px;
       padding:14px 16px; z-index:400;
       min-width:480px; max-width:560px;
+      max-height:90vh; overflow-y:auto;
       box-shadow:0 10px 50px rgba(0,0,0,.85);
       font-family:'Crimson Text', Georgia, serif;
     `;
@@ -306,24 +367,45 @@
       </div>
       <div id="cs-summary" style="font-size:13px; line-height:1.5; margin-bottom:10px;">scanning…</div>
       <canvas id="cs-canvas" width="320" height="320" style="display:block; margin:0 auto 10px; border:1px solid #5a4a30; background:#000;"></canvas>
-      <div style="font-size:11px; color:#c8a070; margin-bottom:8px; line-height:1.4;">Blue overlay = classified water · Red dot = sample fail · No overlay = land</div>
-      <div style="font-size:11px; line-height:1.6; margin-bottom:10px;">
+      <div style="font-size:11px; color:#c8a070; margin-bottom:8px; line-height:1.4;">Blue = classified water · Amber = land · Light grey = ambiguous (resolved by parent terrain)</div>
+      <div style="font-size:11px; line-height:1.6; margin-bottom:6px;">
+        <div style="font-size:10px; color:#e8b840; letter-spacing:.06em; text-transform:uppercase; margin-bottom:4px;">Water threshold (blue hues)</div>
         <div style="display:grid; grid-template-columns:60px 1fr 60px; gap:4px 8px; align-items:center;">
           <label>Hue min</label>
-            <input type="range" id="cs-hmin" min="0" max="360" value="${DEFAULT_THRESHOLDS.hMin}" style="width:100%;">
-            <span id="cs-hmin-v">${DEFAULT_THRESHOLDS.hMin}°</span>
+            <input type="range" id="cs-w-hmin" min="0" max="360" value="${DEFAULT_THRESHOLDS.hMin}" style="width:100%;">
+            <span id="cs-w-hmin-v">${DEFAULT_THRESHOLDS.hMin}°</span>
           <label>Hue max</label>
-            <input type="range" id="cs-hmax" min="0" max="360" value="${DEFAULT_THRESHOLDS.hMax}" style="width:100%;">
-            <span id="cs-hmax-v">${DEFAULT_THRESHOLDS.hMax}°</span>
+            <input type="range" id="cs-w-hmax" min="0" max="360" value="${DEFAULT_THRESHOLDS.hMax}" style="width:100%;">
+            <span id="cs-w-hmax-v">${DEFAULT_THRESHOLDS.hMax}°</span>
           <label>Sat min</label>
-            <input type="range" id="cs-smin" min="0" max="100" value="${Math.round(DEFAULT_THRESHOLDS.sMin*100)}" style="width:100%;">
-            <span id="cs-smin-v">${Math.round(DEFAULT_THRESHOLDS.sMin*100)}%</span>
+            <input type="range" id="cs-w-smin" min="0" max="100" value="${Math.round(DEFAULT_THRESHOLDS.sMin*100)}" style="width:100%;">
+            <span id="cs-w-smin-v">${Math.round(DEFAULT_THRESHOLDS.sMin*100)}%</span>
           <label>Val min</label>
-            <input type="range" id="cs-vmin" min="0" max="100" value="${Math.round(DEFAULT_THRESHOLDS.vMin*100)}" style="width:100%;">
-            <span id="cs-vmin-v">${Math.round(DEFAULT_THRESHOLDS.vMin*100)}%</span>
+            <input type="range" id="cs-w-vmin" min="0" max="100" value="${Math.round(DEFAULT_THRESHOLDS.vMin*100)}" style="width:100%;">
+            <span id="cs-w-vmin-v">${Math.round(DEFAULT_THRESHOLDS.vMin*100)}%</span>
           <label>Val max</label>
-            <input type="range" id="cs-vmax" min="0" max="100" value="${Math.round(DEFAULT_THRESHOLDS.vMax*100)}" style="width:100%;">
-            <span id="cs-vmax-v">${Math.round(DEFAULT_THRESHOLDS.vMax*100)}%</span>
+            <input type="range" id="cs-w-vmax" min="0" max="100" value="${Math.round(DEFAULT_THRESHOLDS.vMax*100)}" style="width:100%;">
+            <span id="cs-w-vmax-v">${Math.round(DEFAULT_THRESHOLDS.vMax*100)}%</span>
+        </div>
+      </div>
+      <div style="font-size:11px; line-height:1.6; margin-bottom:10px;">
+        <div style="font-size:10px; color:#c8a070; letter-spacing:.06em; text-transform:uppercase; margin-bottom:4px;">Land threshold (greens, browns)</div>
+        <div style="display:grid; grid-template-columns:60px 1fr 60px; gap:4px 8px; align-items:center;">
+          <label>Hue min</label>
+            <input type="range" id="cs-l-hmin" min="0" max="360" value="${DEFAULT_LAND_THRESHOLDS.hMin}" style="width:100%;">
+            <span id="cs-l-hmin-v">${DEFAULT_LAND_THRESHOLDS.hMin}°</span>
+          <label>Hue max</label>
+            <input type="range" id="cs-l-hmax" min="0" max="360" value="${DEFAULT_LAND_THRESHOLDS.hMax}" style="width:100%;">
+            <span id="cs-l-hmax-v">${DEFAULT_LAND_THRESHOLDS.hMax}°</span>
+          <label>Sat min</label>
+            <input type="range" id="cs-l-smin" min="0" max="100" value="${Math.round(DEFAULT_LAND_THRESHOLDS.sMin*100)}" style="width:100%;">
+            <span id="cs-l-smin-v">${Math.round(DEFAULT_LAND_THRESHOLDS.sMin*100)}%</span>
+          <label>Val min</label>
+            <input type="range" id="cs-l-vmin" min="0" max="100" value="${Math.round(DEFAULT_LAND_THRESHOLDS.vMin*100)}" style="width:100%;">
+            <span id="cs-l-vmin-v">${Math.round(DEFAULT_LAND_THRESHOLDS.vMin*100)}%</span>
+          <label>Val max</label>
+            <input type="range" id="cs-l-vmax" min="0" max="100" value="${Math.round(DEFAULT_LAND_THRESHOLDS.vMax*100)}" style="width:100%;">
+            <span id="cs-l-vmax-v">${Math.round(DEFAULT_LAND_THRESHOLDS.vMax*100)}%</span>
         </div>
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end;">
@@ -336,10 +418,11 @@
     document.getElementById('cs-cancel').addEventListener('click', closePreview);
     document.getElementById('cs-apply').addEventListener('click', onApplyClick);
     for (const ctl of ['hmin','hmax','smin','vmin','vmax']){
-      const el = document.getElementById('cs-' + ctl);
-      el.addEventListener('input', () => { onSliderInput(ctl); });
+      const wEl = document.getElementById('cs-w-' + ctl);
+      const lEl = document.getElementById('cs-l-' + ctl);
+      if (wEl) wEl.addEventListener('input', () => onSliderInput('water', ctl));
+      if (lEl) lEl.addEventListener('input', () => onSliderInput('land',  ctl));
     }
-    // Esc dismiss
     document.addEventListener('keydown', _onCsKey, true);
   }
 
@@ -351,21 +434,22 @@
     }
   }
 
-  function onSliderInput(name){
-    const T = _previewState.threshold;
-    const v = parseFloat(document.getElementById('cs-' + name).value);
-    if (name === 'hmin'){ T.hMin = v; document.getElementById('cs-hmin-v').textContent = v + '°'; }
-    if (name === 'hmax'){ T.hMax = v; document.getElementById('cs-hmax-v').textContent = v + '°'; }
-    if (name === 'smin'){ T.sMin = v/100; document.getElementById('cs-smin-v').textContent = v + '%'; }
-    if (name === 'vmin'){ T.vMin = v/100; document.getElementById('cs-vmin-v').textContent = v + '%'; }
-    if (name === 'vmax'){ T.vMax = v/100; document.getElementById('cs-vmax-v').textContent = v + '%'; }
+  function onSliderInput(kind, name){
+    const T = (kind === 'water') ? _previewState.threshold : _previewState.landThreshold;
+    const prefix = (kind === 'water') ? 'cs-w-' : 'cs-l-';
+    const v = parseFloat(document.getElementById(prefix + name).value);
+    if (name === 'hmin'){ T.hMin = v; document.getElementById(prefix + 'hmin-v').textContent = v + '°'; }
+    if (name === 'hmax'){ T.hMax = v; document.getElementById(prefix + 'hmax-v').textContent = v + '°'; }
+    if (name === 'smin'){ T.sMin = v/100; document.getElementById(prefix + 'smin-v').textContent = v + '%'; }
+    if (name === 'vmin'){ T.vMin = v/100; document.getElementById(prefix + 'vmin-v').textContent = v + '%'; }
+    if (name === 'vmax'){ T.vMax = v/100; document.getElementById(prefix + 'vmax-v').textContent = v + '%'; }
     runPreview();
   }
 
   function runPreview(){
     if (!_previewState) return;
-    const { col, row, threshold } = _previewState;
-    const out = scanParent(col, row, { threshold });
+    const { col, row, threshold, landThreshold } = _previewState;
+    const out = scanParent(col, row, { threshold, landThreshold });
     _previewState.results = out.results;
     const sumEl = document.getElementById('cs-summary');
     if (out.error){
@@ -373,9 +457,12 @@
       return;
     }
     const s = out.summary;
+    const ambigNote = s.ambiguous
+      ? ` · <span style="color:#c8c8c8;">${s.ambiguous} ambiguous → ${s.parentIsWater ? 'water' : 'land'}</span>`
+      : '';
     sumEl.innerHTML = `
       <div>Parent: <b>${s.parentTerrain || '(unknown)'}</b> · would write as <b>${s.waterVariant}</b></div>
-      <div>${s.cellCount} cells · <span style="color:#6dc8c8;">${s.water} water</span> · <span style="color:#c8a070;">${s.land} land</span> ·
+      <div>${s.cellCount} cells · <span style="color:#6dc8c8;">${s.water} water</span> · <span style="color:#c8a070;">${s.land} land</span>${ambigNote} ·
         ${s.sampleFails ? `<span style="color:#e07070;">${s.sampleFails} sample fail</span> · ` : ''}
         ${s.alreadyAuthored ? `<span style="color:#e8b840;">${s.alreadyAuthored} already authored (will skip)</span>` : ''}
       </div>
@@ -439,15 +526,23 @@
       const y = offY + (pix.py - minPy) * scale;
       ctx.beginPath();
       ctx.arc(x, y, 4, 0, 2*Math.PI);
-      if (r.isWater){
-        ctx.fillStyle = 'rgba(50,160,255,0.55)';
-        ctx.strokeStyle = 'rgba(120,200,255,0.95)';
+      // Three-state coloring: definite water (blue), definite land
+      // (amber), ambiguous (grey — outline shows tiebreaker direction).
+      if (r.classification === 'water'){
+        ctx.fillStyle = 'rgba(50,160,255,0.65)';
+        ctx.strokeStyle = 'rgba(120,200,255,1.0)';
+      } else if (r.classification === 'land'){
+        ctx.fillStyle = 'rgba(200,140,60,0.50)';
+        ctx.strokeStyle = 'rgba(220,180,100,0.90)';
       } else {
-        ctx.fillStyle = 'rgba(180,140,60,0.30)';
-        ctx.strokeStyle = 'rgba(220,180,100,0.65)';
+        // ambiguous — fill light grey, stroke shows the tiebreaker.
+        ctx.fillStyle = 'rgba(220,220,220,0.45)';
+        ctx.strokeStyle = r.isWater
+          ? 'rgba(120,200,255,0.90)'
+          : 'rgba(220,180,100,0.90)';
       }
       ctx.fill();
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.2;
       ctx.stroke();
     }
   }
@@ -465,8 +560,9 @@
   // ── Public surface ──────────────────────────────────────────────────
   window.GCCCoastScanner = {
     DEFAULT_THRESHOLDS,
+    DEFAULT_LAND_THRESHOLDS,
     SOURCE_TAG,
-    rgbToHsv, isWaterRgb, svgToImagePixel,
+    rgbToHsv, isWaterRgb, classifyPixel, svgToImagePixel,
     waterVariantForParent,
     scanParent, applyResults,
     openPreview, closePreview,
