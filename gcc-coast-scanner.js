@@ -1,4 +1,29 @@
-// gcc-coast-scanner.js v0.2.1 — 2026-05-02
+// gcc-coast-scanner.js v0.3.0 — 2026-05-02
+// v0.3.0: edge-aware classification (approach C). The v0.2 parent-
+// terrain tiebreaker pointed in the wrong direction for parents that
+// CONTAIN water but aren't water-typed (e.g. plains hex containing
+// the western edge of Whyestil Lake at G4-88). Ambiguous coastal
+// pixels there were defaulting to land regardless of the visible
+// water signal in neighboring cells.
+//
+// Two-pass scan now:
+//   Pass 1: classify each cell as 'water' | 'land' | 'ambiguous'
+//   Pass 2: for each ambiguous cell, look at its 6 axial neighbors:
+//     - if any definite-water neighbor and no definite-land → water
+//     - if any definite-land neighbor and no definite-water → land
+//     - if both/neither → fall through to parent-terrain tiebreaker
+//
+// This means definite classifications "spread" one cell into ambiguous
+// regions. Cells far from any color signal still use the parent's
+// terrain as the prior. Result on G4-88 (plains parent): ambiguous
+// cells adjacent to the definite-blue strip in the upper-left now
+// correctly classify as water; cells deep in the plains stay land.
+//
+// Result.resolution field added: 'water' | 'land' | 'water-via-neighbor'
+// | 'land-via-neighbor' | 'water-via-parent' | 'land-via-parent'.
+// Preview summary breaks down which way ambiguous cells went.
+//
+// v0.2.1 — 2026-05-02
 // v0.2.1: raise DEFAULT_LAND_THRESHOLDS.vMax from 0.70 to 0.92.
 // Verified empirically against I4-89: Darlene's land coloring is
 // pale-bright yellow-tan (V~0.85-0.88), not the moderate-tone V<0.70
@@ -251,8 +276,13 @@
     const waterVariant = waterVariantForParent(parentTerrain);
     const parentIsWater = parentTerrain && (parentTerrain === 'water' || parentTerrain.startsWith('water_'));
 
+    // ── Pass 1: per-cell classification ────────────────────────────────
+    // Build results indexed by "Q,R" key for fast neighbor lookup in
+    // pass 2. Each entry has classification ∈ water|land|ambiguous and
+    // sample data; isWater + resolution are filled in pass 2.
+    const byKey = new Map();
     const results = [];
-    let waterN = 0, landN = 0, ambigN = 0, sampleFails = 0, alreadyN = 0;
+    let sampleFails = 0;
     for (const { Q, R } of cells){
       const svg = SD.subhexSvgCenter(Q, R);
       const pix = svgToImagePixel(svg.x, svg.y);
@@ -260,29 +290,75 @@
       const rgb = samplePixel(ctx, pix.px, pix.py);
       if (!rgb){ sampleFails++; continue; }
       const cls = classifyPixel(rgb.r, rgb.g, rgb.b, T, TL);
-      // Parent-terrain tiebreaker for ambiguous pixels. A water-terrain
-      // parent (water_inland_sea, water_coastal, etc.) was painted as
-      // water by the GM; ambiguous interior pixels (Darlene's near-
-      // white coastal blues, label text on water) default to water.
-      // Non-water parents default ambiguous to land.
-      let isWater;
-      if      (cls === 'water')  isWater = true;
-      else if (cls === 'land')   isWater = false;
-      else                       isWater = parentIsWater;
       const sub = SD.getSubhex(Q, R, parentTerrain);
       const alreadyAuthored = sub && sub.source === 'authored';
-      results.push({
-        Q, R,
-        rgb,
+      const r = {
+        Q, R, rgb,
         classification: cls,
-        isWater,
-        terrain: isWater ? waterVariant : null,
+        isWater: false,        // filled in pass 2
+        resolution: null,      // filled in pass 2
+        terrain: null,
         alreadyAuthored,
-      });
-      if (alreadyAuthored) alreadyN++;
-      if (cls === 'ambiguous') ambigN++;
-      if (isWater) waterN++; else landN++;
+      };
+      results.push(r);
+      byKey.set(`${Q},${R}`, r);
     }
+
+    // ── Pass 2: resolve ambiguous via neighbors, then parent ───────────
+    // Definite-classified cells finalize first (they're their own
+    // evidence). Then ambiguous cells inspect their 6 axial neighbors
+    // and resolve based on what the surrounding terrain looks like.
+    const NB = SD.NEIGHBOR_DELTAS;
+    let waterN = 0, landN = 0, ambigN = 0, alreadyN = 0;
+    let resWaterDirect = 0, resLandDirect = 0;
+    let resWaterByNeighbor = 0, resLandByNeighbor = 0;
+    let resWaterByParent = 0, resLandByParent = 0;
+    for (const r of results){
+      if (r.alreadyAuthored) alreadyN++;
+      if (r.classification === 'water'){
+        r.isWater = true;
+        r.resolution = 'water';
+        resWaterDirect++;
+      } else if (r.classification === 'land'){
+        r.isWater = false;
+        r.resolution = 'land';
+        resLandDirect++;
+      } else {
+        ambigN++;
+        // Count definite-water vs definite-land neighbors. Neighbors
+        // outside this parent (or sample-failed) just don't appear in
+        // byKey and don't contribute evidence either way.
+        let nw = 0, nl = 0;
+        for (const [dQ, dR] of NB){
+          const nb = byKey.get(`${r.Q + dQ},${r.R + dR}`);
+          if (!nb) continue;
+          if (nb.classification === 'water') nw++;
+          else if (nb.classification === 'land') nl++;
+        }
+        if (nw > 0 && nl === 0){
+          r.isWater = true;
+          r.resolution = 'water-via-neighbor';
+          resWaterByNeighbor++;
+        } else if (nl > 0 && nw === 0){
+          r.isWater = false;
+          r.resolution = 'land-via-neighbor';
+          resLandByNeighbor++;
+        } else {
+          // Both or neither — defer to parent-terrain prior.
+          r.isWater = !!parentIsWater;
+          r.resolution = parentIsWater ? 'water-via-parent' : 'land-via-parent';
+          if (parentIsWater) resWaterByParent++;
+          else               resLandByParent++;
+        }
+      }
+      if (r.isWater){
+        r.terrain = waterVariant;
+        waterN++;
+      } else {
+        landN++;
+      }
+    }
+
     return {
       results,
       summary: {
@@ -296,6 +372,15 @@
         ambiguous: ambigN,
         sampleFails,
         alreadyAuthored: alreadyN,
+        // Breakdown of how ambiguous cells got resolved.
+        resolution: {
+          waterDirect: resWaterDirect,
+          landDirect: resLandDirect,
+          waterByNeighbor: resWaterByNeighbor,
+          landByNeighbor: resLandByNeighbor,
+          waterByParent: resWaterByParent,
+          landByParent: resLandByParent,
+        },
         threshold: T,
         landThreshold: TL,
       },
@@ -378,7 +463,7 @@
       </div>
       <div id="cs-summary" style="font-size:13px; line-height:1.5; margin-bottom:10px;">scanning…</div>
       <canvas id="cs-canvas" width="320" height="320" style="display:block; margin:0 auto 10px; border:1px solid #5a4a30; background:#000;"></canvas>
-      <div style="font-size:11px; color:#c8a070; margin-bottom:8px; line-height:1.4;">Blue = classified water · Amber = land · Light grey = ambiguous (resolved by parent terrain)</div>
+      <div style="font-size:11px; color:#c8a070; margin-bottom:8px; line-height:1.4;">Solid = definite · Faded = inferred from neighbors · Grey = inferred from parent terrain</div>
       <div style="font-size:11px; line-height:1.6; margin-bottom:6px;">
         <div style="font-size:10px; color:#e8b840; letter-spacing:.06em; text-transform:uppercase; margin-bottom:4px;">Water threshold (blue hues)</div>
         <div style="display:grid; grid-template-columns:60px 1fr 60px; gap:4px 8px; align-items:center;">
@@ -468,14 +553,19 @@
       return;
     }
     const s = out.summary;
-    const ambigNote = s.ambiguous
-      ? ` · <span style="color:#c8c8c8;">${s.ambiguous} ambiguous → ${s.parentIsWater ? 'water' : 'land'}</span>`
-      : '';
+    const r = s.resolution;
+    const parts = [];
+    if (r.waterByNeighbor)  parts.push(`<span style="color:#9adfff;">${r.waterByNeighbor} → water (neighbor)</span>`);
+    if (r.landByNeighbor)   parts.push(`<span style="color:#e8c890;">${r.landByNeighbor} → land (neighbor)</span>`);
+    if (r.waterByParent)    parts.push(`<span style="color:#9adfff;">${r.waterByParent} → water (parent)</span>`);
+    if (r.landByParent)     parts.push(`<span style="color:#e8c890;">${r.landByParent} → land (parent)</span>`);
+    const ambigDetail = parts.length ? ` · ${parts.join(' · ')}` : '';
     sumEl.innerHTML = `
       <div>Parent: <b>${s.parentTerrain || '(unknown)'}</b> · would write as <b>${s.waterVariant}</b></div>
-      <div>${s.cellCount} cells · <span style="color:#6dc8c8;">${s.water} water</span> · <span style="color:#c8a070;">${s.land} land</span>${ambigNote} ·
-        ${s.sampleFails ? `<span style="color:#e07070;">${s.sampleFails} sample fail</span> · ` : ''}
-        ${s.alreadyAuthored ? `<span style="color:#e8b840;">${s.alreadyAuthored} already authored (will skip)</span>` : ''}
+      <div>${s.cellCount} cells · <span style="color:#6dc8c8;">${s.water} water</span> · <span style="color:#c8a070;">${s.land} land</span>${ambigDetail}</div>
+      <div style="font-size:11px; color:#a08a60; margin-top:2px;">
+        ${s.sampleFails ? `${s.sampleFails} sample fail · ` : ''}
+        ${s.alreadyAuthored ? `${s.alreadyAuthored} already authored (will skip)` : ''}
       </div>
     `;
     drawPreviewCanvas();
@@ -527,7 +617,12 @@
       Math.min(srcW, ctx2.canvas.width - minPx),
       Math.min(srcH, ctx2.canvas.height - minPy),
       offX, offY, drawW, drawH);
-    // Overlay each subhex result.
+    // Overlay each subhex result. Color encodes the resolution path:
+    //   solid blue / amber  = definite (passed strict threshold)
+    //   medium blue / amber = via-neighbor (definite neighbor evidence)
+    //   grey w/ stroke      = via-parent (no signal, parent prior)
+    // This gives a visual confidence map: brightest dots are most
+    // certain, ambiguous-cells-with-no-evidence look quietest.
     const results = _previewState.results || [];
     for (const r of results){
       const svg = SD.subhexSvgCenter(r.Q, r.R);
@@ -537,20 +632,34 @@
       const y = offY + (pix.py - minPy) * scale;
       ctx.beginPath();
       ctx.arc(x, y, 4, 0, 2*Math.PI);
-      // Three-state coloring: definite water (blue), definite land
-      // (amber), ambiguous (grey — outline shows tiebreaker direction).
-      if (r.classification === 'water'){
-        ctx.fillStyle = 'rgba(50,160,255,0.65)';
-        ctx.strokeStyle = 'rgba(120,200,255,1.0)';
-      } else if (r.classification === 'land'){
-        ctx.fillStyle = 'rgba(200,140,60,0.50)';
-        ctx.strokeStyle = 'rgba(220,180,100,0.90)';
-      } else {
-        // ambiguous — fill light grey, stroke shows the tiebreaker.
-        ctx.fillStyle = 'rgba(220,220,220,0.45)';
-        ctx.strokeStyle = r.isWater
-          ? 'rgba(120,200,255,0.90)'
-          : 'rgba(220,180,100,0.90)';
+      switch (r.resolution){
+        case 'water':
+          ctx.fillStyle = 'rgba(50,160,255,0.65)';
+          ctx.strokeStyle = 'rgba(120,200,255,1.0)';
+          break;
+        case 'land':
+          ctx.fillStyle = 'rgba(200,140,60,0.50)';
+          ctx.strokeStyle = 'rgba(220,180,100,0.90)';
+          break;
+        case 'water-via-neighbor':
+          ctx.fillStyle = 'rgba(50,160,255,0.30)';
+          ctx.strokeStyle = 'rgba(120,200,255,0.85)';
+          break;
+        case 'land-via-neighbor':
+          ctx.fillStyle = 'rgba(200,140,60,0.25)';
+          ctx.strokeStyle = 'rgba(220,180,100,0.75)';
+          break;
+        case 'water-via-parent':
+          ctx.fillStyle = 'rgba(220,220,220,0.40)';
+          ctx.strokeStyle = 'rgba(120,200,255,0.85)';
+          break;
+        case 'land-via-parent':
+          ctx.fillStyle = 'rgba(220,220,220,0.40)';
+          ctx.strokeStyle = 'rgba(220,180,100,0.85)';
+          break;
+        default:
+          ctx.fillStyle = 'rgba(220,220,220,0.40)';
+          ctx.strokeStyle = 'rgba(180,180,180,0.85)';
       }
       ctx.fill();
       ctx.lineWidth = 1.2;
