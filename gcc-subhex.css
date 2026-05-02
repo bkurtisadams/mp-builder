@@ -1,4 +1,11 @@
-/* gcc-subhex.css v1.10.0 — 2026-04-30
+/* gcc-subhex.css v1.11.0 — 2026-05-01
+   v1.11: Controls panel reorg (subhex-view v2.8.0 slice 1). New
+   classes for the collapsible cell-details section: .sxw-detail-head,
+   .sxw-detail-label, .sxw-detail-summary, .sxw-summary-label,
+   .sxw-summary-sep. Native <details>-based "More fields" expander
+   styled via .sxw-more-fields. .sxw-detail.no-cell hides the
+   summary+body when nothing is selected. See bottom of file for the
+   new rules and the dark-mode TODO.
    v1.10: add .sxw-landmark-halo for cells pinned to a parent
    landmark. Gold disk drawn behind the feature glyph.
    v1.9: add .sxw-armed-ghost / .sxw-armed-ghost-layer for the new
@@ -992,3 +999,92 @@ body.theme-dark .sxw-landmark-halo {
   fill:rgba(232, 200, 110, 0.22);
   stroke:#e8c870;
 }
+
+/* ── v1.11.0 (Slice 1: panel reorg) ─────────────────────────────────
+   Tools/palette move to the top of the Controls panel. The .sxw-detail
+   block becomes a collapsible cell-details section below them, with a
+   header row, a one-line summary (terrain · lake · paths · region),
+   the always-visible body (Name / Notes / Region picker), and a
+   <details>-based "More fields" expander for Hosts / feature notes /
+   landmark pin. v2.9.0 will land the readable parchment palette pass
+   on top of these structural classes.
+
+   TODO: dark mode toggle. Foundation exists in this file (body.theme-dark
+   selectors throughout). Plan: add a toggle in the GCC settings dialog
+   that flips body.theme-dark on/off and persists via localStorage
+   (key gcc-settings.theme). All the dark-mode rules already exist;
+   only the toggle UI is missing. */
+
+.sxw-detail-head {
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  flex-wrap:wrap;
+  padding:4px 0 2px;
+  border-bottom:1px solid rgba(90,58,10,0.25);
+  margin-bottom:6px;
+}
+.sxw-detail-label {
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  font-size:10px;
+  color:#3a2a18;
+  font-weight:600;
+}
+body.theme-dark .sxw-detail-label { color:#f4e8c4; }
+body.theme-dark .sxw-detail-head { border-bottom-color:rgba(232,200,110,0.22); }
+
+.sxw-detail-summary {
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  flex-wrap:wrap;
+  margin-bottom:6px;
+  font-size:11px;
+}
+.sxw-summary-label {
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  font-size:10px;
+  color:#3a2a18;
+  margin-right:2px;
+}
+body.theme-dark .sxw-summary-label { color:#f4e8c4; }
+.sxw-summary-sep { color:#8a6a40; }
+body.theme-dark .sxw-summary-sep { color:#c8a878; }
+
+/* Hide the body and summary line entirely when no cell is selected.
+   Driven by JS toggling .sxw-detail.no-cell. */
+.sxw-detail.no-cell .sxw-detail-summary,
+.sxw-detail.no-cell .sxw-detail-body {
+  display:none;
+}
+
+/* Native <details> styling — keep the parchment idiom, no triangle. */
+.sxw-more-fields {
+  margin:6px 0 4px;
+  border-top:1px dashed rgba(90,58,10,0.25);
+  padding-top:6px;
+}
+body.theme-dark .sxw-more-fields { border-top-color:rgba(232,200,110,0.22); }
+.sxw-more-fields > summary {
+  cursor:pointer;
+  user-select:none;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  color:#3a2a18;
+  padding:2px 0;
+  list-style:none;
+}
+.sxw-more-fields > summary::-webkit-details-marker { display:none; }
+.sxw-more-fields > summary::before {
+  content:'▸';
+  display:inline-block;
+  margin-right:4px;
+  transition:transform 0.12s;
+}
+.sxw-more-fields[open] > summary::before { transform:rotate(90deg); }
+.sxw-more-fields > summary:hover { color:#5a3a0a; }
+body.theme-dark .sxw-more-fields > summary { color:#f4e8c4; }
+body.theme-dark .sxw-more-fields > summary:hover { color:#fff8d8; }

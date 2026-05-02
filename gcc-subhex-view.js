@@ -1,4 +1,21 @@
-// gcc-subhex-view.js v2.7.0 — 2026-05-01
+// gcc-subhex-view.js v2.8.0 — 2026-05-01
+// v2.8.0 (Controls reorg, slice 1 of 2): Tools moved to the top of the
+// Controls panel — palette, glyphs, and Region…/Path…/Lake…/Clear
+// buttons are now always in the line of sight. Cell details collapse
+// to a single header row when no cell is selected; expand inline below
+// the tools when a cell is clicked. Rarely-used fields (Hosts kind +
+// feature name + library id, Feature notes, Landmark pin) move behind
+// a native <details>/"More fields" expander. The "Region: pick to
+// assign" dropdown at the bottom of the old layout is retired —
+// Region… / Path… / Lake… buttons are the single arming entry point.
+// Terrain / lake / region / paths fold into a one-line summary at the
+// top of details, replacing the separate rows. All element IDs the
+// rest of the file references (#sxw-name, #sxw-notes, #sxw-feature-*,
+// #sxw-paths-list, #sxw-lake-info, #sxw-region-pick, etc.) preserved
+// unchanged so syncDetailPanel and persistFields keep working.
+// Visual treatment unchanged in this slice — readable parchment
+// palette pass lands in v2.9.0. Dark mode stub: see TODO in
+// gcc-subhex.css near the panel rules.
 // v2.7.0 (Slice 6a): Lake authoring tool. New "Lake…" button in the
 // tools row peer to Region…/Path…, with an inline picker mirroring
 // Region: pick a lake to assign / ⌫ Remove from lake / + New lake….
@@ -392,61 +409,17 @@
         </span>
       </div>
       <div class="sxw-body sxw-ctrl-body">
-        <div class="sxw-detail">
-          <div class="sxw-row sxw-row-inline">
-            <label>Cell</label>
-            <span class="sxw-readonly" id="sxw-coord">— select a cell</span>
-            <span class="sxw-sep">·</span>
-            <span class="sxw-readonly" id="sxw-terrain">—</span>
-            <span class="sxw-sep" id="sxw-owner-sep" style="display:none;">·</span>
-            <span class="sxw-readonly sxw-owner-hint" id="sxw-owner" style="display:none;"></span>
-          </div>
-          <div class="sxw-row sxw-row-inline">
-            <label>Name</label>
-            <input type="text" id="sxw-name" placeholder="(unnamed)" disabled>
-          </div>
-          <div class="sxw-row sxw-row-inline">
-            <label>Notes</label>
-            <textarea id="sxw-notes" placeholder="GM notes" disabled></textarea>
-          </div>
-          <div class="sxw-row sxw-row-inline sxw-row-feature">
-            <label>Hosts</label>
-            <select id="sxw-feature-kind" disabled>
-              <option value="">— none —</option>
-            </select>
-            <input type="text" id="sxw-feature-name" placeholder="Feature name" disabled>
-            <input type="text" id="sxw-feature-libid" placeholder="Library ID" disabled>
-          </div>
-          <div class="sxw-row sxw-row-inline sxw-row-feature-notes">
-            <label>Feature notes</label>
-            <textarea id="sxw-feature-notes" placeholder="Notes for this feature (toll, condition, lore…)" disabled></textarea>
-          </div>
-          <div class="sxw-row sxw-row-inline sxw-row-landmark">
-            <label>Landmark pin</label>
-            <select id="sxw-landmark-pick" disabled>
-              <option value="">— none —</option>
-            </select>
-          </div>
-          <div class="sxw-row sxw-row-inline sxw-row-landmark-info" id="sxw-landmark-info-row" style="display:none;">
-            <label>Landmark</label>
-            <span class="sxw-readonly" id="sxw-landmark-info">—</span>
-          </div>
-          <div class="sxw-row sxw-row-inline sxw-row-region">
-            <label>Region</label>
-            <select id="sxw-region-pick" disabled>
-              <option value="">— none —</option>
-            </select>
-            <input type="text" id="sxw-region-name" placeholder="Region name" disabled>
-          </div>
-          <div class="sxw-row sxw-row-inline sxw-row-paths">
-            <label>Paths</label>
-            <span class="sxw-readonly" id="sxw-paths-list">—</span>
-          </div>
-          <div class="sxw-row sxw-row-inline sxw-row-paths">
-            <label>Lake</label>
-            <span class="sxw-readonly" id="sxw-lake-info">—</span>
-          </div>
-          <div class="sxw-source" id="sxw-source"></div>
+        <div class="sxw-tools">
+          <button class="sxw-tool-btn" id="sxw-region-tool">Region…</button>
+          <select class="sxw-region-armed" id="sxw-region-armed" style="display:none;">
+            <option value="">— pick a region to assign —</option>
+            <option value="__new__">+ New region from selected cell's terrain…</option>
+          </select>
+          <button class="sxw-tool-btn" id="sxw-path-tool">Path…</button>
+          <button class="sxw-tool-btn" id="sxw-lake-tool">Lake…</button>
+          <select class="sxw-region-armed" id="sxw-lake-armed" style="display:none;"></select>
+          <button class="sxw-tool-btn" id="sxw-clear">Clear override</button>
+          <span class="sxw-mode" id="sxw-mode">Mode: Select</span>
         </div>
         <div class="sxw-palette-strip">
           <div class="sxw-palette" id="sxw-palette"></div>
@@ -465,17 +438,65 @@
             Click a neighboring cell to extend · click a cell already on this path to remove it (and everything after)
           </div>
         </div>
-        <div class="sxw-tools">
-          <button class="sxw-tool-btn" id="sxw-region-tool">Region…</button>
-          <select class="sxw-region-armed" id="sxw-region-armed" style="display:none;">
-            <option value="">— pick a region to assign —</option>
-            <option value="__new__">+ New region from selected cell's terrain…</option>
-          </select>
-          <button class="sxw-tool-btn" id="sxw-path-tool">Path…</button>
-          <button class="sxw-tool-btn" id="sxw-lake-tool">Lake…</button>
-          <select class="sxw-region-armed" id="sxw-lake-armed" style="display:none;"></select>
-          <button class="sxw-tool-btn" id="sxw-clear">Clear override</button>
-          <span class="sxw-mode" id="sxw-mode">Mode: Select</span>
+        <div class="sxw-detail" id="sxw-detail">
+          <div class="sxw-detail-head" id="sxw-detail-head">
+            <span class="sxw-detail-label">Cell details</span>
+            <span class="sxw-sep" id="sxw-coord-sep">·</span>
+            <span class="sxw-readonly" id="sxw-coord">— select a cell</span>
+            <span class="sxw-sep" id="sxw-owner-sep" style="display:none;">·</span>
+            <span class="sxw-readonly sxw-owner-hint" id="sxw-owner" style="display:none;"></span>
+          </div>
+          <div class="sxw-detail-summary" id="sxw-detail-summary">
+            <span class="sxw-summary-label">Terrain</span>
+            <span class="sxw-readonly" id="sxw-terrain">—</span>
+            <span class="sxw-sep sxw-summary-sep" id="sxw-lake-sep" style="display:none;">·</span>
+            <span class="sxw-readonly" id="sxw-lake-info">—</span>
+            <span class="sxw-sep sxw-summary-sep" id="sxw-paths-sep" style="display:none;">·</span>
+            <span class="sxw-readonly" id="sxw-paths-list">—</span>
+          </div>
+          <div class="sxw-detail-body" id="sxw-detail-body">
+            <div class="sxw-row sxw-row-inline">
+              <label>Name</label>
+              <input type="text" id="sxw-name" placeholder="(unnamed)" disabled>
+            </div>
+            <div class="sxw-row sxw-row-inline">
+              <label>Notes</label>
+              <textarea id="sxw-notes" placeholder="GM notes" disabled></textarea>
+            </div>
+            <div class="sxw-row sxw-row-inline sxw-row-region">
+              <label>Region</label>
+              <select id="sxw-region-pick" disabled>
+                <option value="">— none —</option>
+              </select>
+              <input type="text" id="sxw-region-name" placeholder="Region name" disabled>
+            </div>
+            <div class="sxw-row sxw-row-inline sxw-row-landmark-info" id="sxw-landmark-info-row" style="display:none;">
+              <label>Landmark</label>
+              <span class="sxw-readonly" id="sxw-landmark-info">—</span>
+            </div>
+            <details class="sxw-more-fields" id="sxw-more-fields">
+              <summary>More fields</summary>
+              <div class="sxw-row sxw-row-inline sxw-row-feature">
+                <label>Hosts</label>
+                <select id="sxw-feature-kind" disabled>
+                  <option value="">— none —</option>
+                </select>
+                <input type="text" id="sxw-feature-name" placeholder="Feature name" disabled>
+                <input type="text" id="sxw-feature-libid" placeholder="Library ID" disabled>
+              </div>
+              <div class="sxw-row sxw-row-inline sxw-row-feature-notes">
+                <label>Feature notes</label>
+                <textarea id="sxw-feature-notes" placeholder="Notes for this feature (toll, condition, lore…)" disabled></textarea>
+              </div>
+              <div class="sxw-row sxw-row-inline sxw-row-landmark">
+                <label>Landmark pin</label>
+                <select id="sxw-landmark-pick" disabled>
+                  <option value="">— none —</option>
+                </select>
+              </div>
+            </details>
+            <div class="sxw-source" id="sxw-source"></div>
+          </div>
         </div>
       </div>
     `;
@@ -2051,6 +2072,8 @@
       terr.textContent   = '—';
       if (ownerSep) ownerSep.style.display = 'none';
       if (ownerEl)  ownerEl.style.display = 'none';
+      const detailEl = findEl('sxw-detail');
+      if (detailEl) detailEl.classList.add('no-cell');
       name.value = '';   name.disabled  = true;
       notes.value = '';  notes.disabled = true;
       fkind.value = '';  fkind.disabled = true;
@@ -2064,12 +2087,18 @@
       rname.value = '';  rname.disabled = true;
       if (plist) plist.textContent = '—';
       if (lakeInfo) lakeInfo.textContent = '—';
+      const lakeSep  = findEl('sxw-lake-sep');
+      const pathsSep = findEl('sxw-paths-sep');
+      if (lakeSep)  lakeSep.style.display  = 'none';
+      if (pathsSep) pathsSep.style.display = 'none';
       source.textContent = '';
       clearB.disabled    = true;
       return;
     }
     const pTerrain = selectedParentTerrain();
     const sub = window.GCCSubhexData.getSubhex(state.selectedQ, state.selectedR, pTerrain);
+    const detailEl = findEl('sxw-detail');
+    if (detailEl) detailEl.classList.remove('no-cell');
     coord.textContent = `Q${state.selectedQ}, R${state.selectedR}`;
     terr.textContent  = sub.terrain ? (TERRAIN[sub.terrain]?.label || sub.terrain) : '—';
     const owner = selectedFragmentOwner();
@@ -2145,15 +2174,23 @@
       const cellPaths = window.GCCSubhexPaths
         ? window.GCCSubhexPaths.pathsAtCell(state.selectedQ, state.selectedR)
         : [];
-      plist.textContent = cellPaths.length
+      const hasPaths = cellPaths.length > 0;
+      plist.textContent = hasPaths
         ? cellPaths.map(p => `${p.name} (${p.kind})`).join(', ')
         : '—';
+      const pathsSep = findEl('sxw-paths-sep');
+      if (pathsSep) pathsSep.style.display = hasPaths ? '' : 'none';
+      if (!hasPaths) plist.style.display = 'none';
+      else           plist.style.display = '';
     }
     if (lakeInfo){
       const lake = sub.lakeId ? window.GCCSubhexData.getLake(sub.lakeId) : null;
       lakeInfo.textContent = lake
-        ? `${lake.name} (${lake.kind} · ${lake.depth})`
+        ? `in ${lake.name} (${lake.kind} · ${lake.depth})`
         : '—';
+      const lakeSep = findEl('sxw-lake-sep');
+      if (lakeSep) lakeSep.style.display = lake ? '' : 'none';
+      lakeInfo.style.display = lake ? '' : 'none';
     }
     source.textContent = sub.source === 'authored' ? 'Authored override (localStorage)'
       : sub.source === 'canonical' ? 'Canonical Greyhawk feature'
