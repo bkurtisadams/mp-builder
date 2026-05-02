@@ -1,4 +1,16 @@
-// gcc-coast-scanner.js v0.1.0 — 2026-05-02
+// gcc-coast-scanner.js v0.1.1 — 2026-05-02
+// v0.1.1: fix svgToImagePixel transform chain. Earlier version assumed
+// world SVG coords were in image-natural-pixel space, with the rotation
+// origin at (naturalWidth/2, naturalHeight/2). Both wrong. The image
+// has a CSS box of MAP_W×MAP_H positioned at stage(-minX, -minY); the
+// CSS transform applies around the box center; natural pixel scaling
+// is a separate post-step. Result of the bug: scanner was sampling
+// pixels from a wrong (offset, wrong-scaled) region of the image,
+// which is why the preview crop didn't match the selected hex.
+// Now reads window.MAP_W / window.MAP_H / window.stageBounds (newly
+// exposed in greyhawk-map.html).
+//
+// v0.1.0 — 2026-05-02
 //
 // Scans the Darlene map image and classifies each subhex cell of a
 // parent hex as water-vs-land, writing subhex overrides for the water
@@ -70,36 +82,56 @@
   }
 
   // ── Coordinate transforms ───────────────────────────────────────────
-  // Invert the imgX transform to map world SVG coords → image pixel coords.
-  // imgX is `translate(tx, ty) rotate(rot) scale(sx, sy)` with origin at
-  // image center, so:
-  //   pixel = M^-1 · (svg - imgCenter) + imgNaturalCenter
-  // where M is the rotate*scale composition.
+  // World SVG (wx, wy) → image natural pixel.
+  //
+  // Geometry of greyhawk-map.html:
+  //   - The stage is a fixed-size container with stage-coord origin at
+  //     its top-left.
+  //   - The hex SVG is at stage(0,0) and isn't transformed; its world
+  //     coords ARE stage coords.
+  //   - The <img> has CSS box of MAP_W × MAP_H, positioned at stage
+  //     (-stageBounds.minX, -stageBounds.minY). Its natural pixel
+  //     dimensions are naturalWidth × naturalHeight. Image-box coords
+  //     are scaled relative to natural pixels by (naturalWidth/MAP_W).
+  //   - The <img> has a CSS transform applied around its own
+  //     center: translate(tx, ty) rotate(rot°) scale(sx, sy).
+  //
+  // Inverse path: world → un-transform → un-position → un-scale-to-natural.
   function svgToImagePixel(svgX, svgY){
     const img = document.getElementById('map-img');
     if (!img) return null;
-    // greyhawk-map.html exposes its imgX transform as window.imgX.
     const X = window.imgX || { tx:0, ty:0, sx:1, sy:1, rot:0 };
-    // Image's pre-transform position: top-left at (0,0) in the same
-    // SVG-stage coord system. Center is (nw/2, nh/2). The CSS
-    // transform translates (tx, ty), rotates rot°, scales (sx, sy)
-    // around center. Inverse:
-    const cx = img.naturalWidth  / 2;
-    const cy = img.naturalHeight / 2;
-    // 1. Subtract translation. The translation moves the *center* of
-    //    the transformed image.
-    let x = svgX - cx - X.tx;
-    let y = svgY - cy - X.ty;
-    // 2. Inverse rotate.
+    const MAP_W = window.MAP_W;
+    const MAP_H = window.MAP_H;
+    const sb = window.stageBounds;
+    if (!MAP_W || !MAP_H || !sb || !img.naturalWidth) return null;
+
+    // 1. The image-box CENTER appears in the stage at:
+    //      cx_disp = -sb.minX + MAP_W/2 + X.tx
+    //      cy_disp = -sb.minY + MAP_H/2 + X.ty
+    //    (image's CSS top-left is at -sb.minX, -sb.minY; its center is
+    //    at +MAP_W/2,+MAP_H/2 from there; the CSS translate adds tx,ty.)
+    const cxDisp = -sb.minX + MAP_W / 2 + X.tx;
+    const cyDisp = -sb.minY + MAP_H / 2 + X.ty;
+
+    // 2. Subtract that center from the world point to get displayed
+    //    coords relative to image-box center.
+    let dx = svgX - cxDisp;
+    let dy = svgY - cyDisp;
+
+    // 3. Inverse rotate then inverse scale to recover image-box coords
+    //    relative to box center (in MAP_W×MAP_H space, NOT natural px).
     const a = -X.rot * Math.PI / 180;
     const ca = Math.cos(a), sa = Math.sin(a);
-    const xr = x*ca - y*sa;
-    const yr = x*sa + y*ca;
-    // 3. Inverse scale.
-    x = xr / X.sx;
-    y = yr / X.sy;
-    // 4. Add center back to get pre-transform pixel coords.
-    return { px: x + cx, py: y + cy };
+    const xr = dx*ca - dy*sa;
+    const yr = dx*sa + dy*ca;
+    const ibX = xr / X.sx + MAP_W / 2;
+    const ibY = yr / X.sy + MAP_H / 2;
+
+    // 4. Scale from image-box space (MAP_W×MAP_H) to natural pixel space.
+    const px = ibX * (img.naturalWidth  / MAP_W);
+    const py = ibY * (img.naturalHeight / MAP_H);
+    return { px, py };
   }
 
   // ── Color classification ────────────────────────────────────────────

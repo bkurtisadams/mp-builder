@@ -883,6 +883,11 @@ let stageBounds = {
   width: MAP_W + LABEL_PAD_L + LABEL_PAD_R,
   height: MAP_H + LABEL_PAD_T + LABEL_PAD_B,
 };
+// Expose dimensions and stage bounds so modules loaded via <script src=>
+// (gcc-coast-scanner et al) can compute world↔image-pixel transforms.
+window.MAP_W = MAP_W;
+window.MAP_H = MAP_H;
+Object.defineProperty(window, 'stageBounds', { get: () => stageBounds });
 function gridSize(){ return { cols:GRID_COLS, rows:GRID_ROWS }; }
 
 // new
