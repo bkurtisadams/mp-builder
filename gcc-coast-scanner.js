@@ -1,4 +1,32 @@
-// gcc-coast-scanner.js v0.3.1 — 2026-05-02
+// gcc-coast-scanner.js v0.4.0 — 2026-05-02
+// v0.4.0: bulk apply. Three new public functions and a bulk dialog
+// UI. collectParents(scope) returns the parents to scan for one of
+// three scopes:
+//   'water' — every parent whose terrain is a water variant
+//   'coast' — water + every land parent adjacent to a water parent
+//             (recommended; coastlines bleed across parent borders)
+//   'all'   — every parent on the map
+// scanBulkAsync(parents, opts, onProgress) chunks scanParent calls
+// across setTimeout(0) yields so the progress UI keeps painting;
+// returns { perParent: Map<key, {col,row,results,summary}>, totals }.
+// applyBulk(scanData, opts) writes water overrides for all isWater
+// cells across all scanned parents; captures a per-cell undo
+// snapshot ({Q, R, hadOverride, priorTerrain}). undoBulk(snapshot)
+// restores prior state cell-by-cell.
+//
+// Toolbar 🌊 button is now context-aware: with a hex selected it
+// opens the single-parent preview as before; with nothing selected
+// it opens the bulk dialog. The single-parent preview header gains
+// a "Switch to bulk ▸" link.
+//
+// Bulk apply uses DEFAULT_THRESHOLDS — no per-parent tuning. For
+// outliers the workflow is: bulk-apply with defaults, spot-check
+// problem parents in the single-parent preview, hand-tune & apply.
+//
+// samplePixel optimized: one getImageData rect call per cell
+// instead of 25 per-pixel calls. ~25× speedup, important for
+// whole-map scans (was ~7 minutes, now ~17 seconds).
+//
 // v0.3.1: loosen water DEFAULT_THRESHOLDS so Darlene's near-white
 // lake water (e.g. inside G4-88, plains parent containing the
 // western edge of Whyestil) classifies as definite water on the
@@ -255,21 +283,27 @@
     return 'ambiguous';
   }
 
-  // Sample at (px, py) with a (2r+1)x(2r+1) average. Out-of-bounds
-  // pixels skip; if all pixels are out, return null.
+  // Sample at (px, py) with a (2r+1)x(2r+1) average. One getImageData
+  // call per cell — 25× faster than per-pixel calls. Out-of-bounds
+  // padding is clipped against the canvas; if the entire window is
+  // out, returns null.
   function samplePixel(ctx, px, py){
     const r = SAMPLE_RADIUS_PX;
+    const cw = ctx.canvas.width, ch = ctx.canvas.height;
     const ix = Math.round(px), iy = Math.round(py);
-    let rs = 0, gs = 0, bs = 0, n = 0;
-    for (let dy = -r; dy <= r; dy++){
-      for (let dx = -r; dx <= r; dx++){
-        const x = ix + dx, y = iy + dy;
-        if (x < 0 || y < 0 || x >= ctx.canvas.width || y >= ctx.canvas.height) continue;
-        const d = ctx.getImageData(x, y, 1, 1).data;
-        rs += d[0]; gs += d[1]; bs += d[2]; n++;
-      }
+    const x0 = Math.max(0, ix - r);
+    const y0 = Math.max(0, iy - r);
+    const x1 = Math.min(cw, ix + r + 1);
+    const y1 = Math.min(ch, iy + r + 1);
+    const w = x1 - x0, h = y1 - y0;
+    if (w <= 0 || h <= 0) return null;
+    const data = ctx.getImageData(x0, y0, w, h).data;
+    let rs = 0, gs = 0, bs = 0;
+    const n = w * h;
+    for (let i = 0; i < n; i++){
+      const k = i * 4;
+      rs += data[k]; gs += data[k+1]; bs += data[k+2];
     }
-    if (n === 0) return null;
     return { r: rs/n, g: gs/n, b: bs/n };
   }
 
@@ -433,6 +467,166 @@
     return { written, skipped };
   }
 
+  // ── Bulk scan helpers ───────────────────────────────────────────────
+  // Three scopes:
+  //   'water' — every parent whose terrain is a water variant
+  //   'coast' — water + every land parent adjacent to a water parent
+  //             (recommended; coastlines bleed across parent borders)
+  //   'all'   — every parent on the map (slowest)
+  // collectParents returns [{col, row, terrain}] for the chosen scope.
+
+  function _isWaterTerrain(t){
+    return !!t && (t === 'water' || t.startsWith('water_'));
+  }
+
+  // 6 axial neighbors of a parent hex on the odd-q offset grid. Falls
+  // back to inline offsets if GCCPaths.neighborAcross isn't available
+  // for some reason; the scanner shouldn't depend on path module load
+  // order.
+  function _parentNeighbors(col, row){
+    if (window.GCCPaths && window.GCCPaths.neighborAcross){
+      const out = [];
+      for (let e = 0; e < 6; e++){
+        out.push(window.GCCPaths.neighborAcross(col, row, e));
+      }
+      return out;
+    }
+    const isOdd = col & 1;
+    const off = isOdd
+      ? [[0,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0]]
+      : [[0,-1],[1,-1],[1,0],[0,1],[-1,0],[-1,-1]];
+    return off.map(([dc,dr]) => ({col: col+dc, row: row+dr}));
+  }
+
+  function collectParents(scope){
+    scope = scope || 'coast';
+    const cols = (typeof window.GRID_COLS === 'number') ? window.GRID_COLS : 146;
+    const rows = (typeof window.GRID_ROWS === 'number') ? window.GRID_ROWS : 97;
+    const getT = (typeof window.getHexTerrain === 'function') ? window.getHexTerrain : null;
+    if (!getT) return [];
+    const all = [];
+    for (let c = 0; c < cols; c++){
+      for (let r = 0; r < rows; r++){
+        all.push({ col: c, row: r, terrain: getT(c, r) });
+      }
+    }
+    if (scope === 'all')   return all;
+    if (scope === 'water') return all.filter(p => _isWaterTerrain(p.terrain));
+    const waterSet = new Set();
+    for (const p of all){
+      if (_isWaterTerrain(p.terrain)) waterSet.add(`${p.col},${p.row}`);
+    }
+    return all.filter(p => {
+      if (_isWaterTerrain(p.terrain)) return true;
+      for (const nb of _parentNeighbors(p.col, p.row)){
+        if (waterSet.has(`${nb.col},${nb.row}`)) return true;
+      }
+      return false;
+    });
+  }
+
+  // Chunk parents and yield to the event loop between chunks so the
+  // progress UI repaints. Returns aggregated results; per-parent
+  // entries also keep their own results array for applyBulk.
+  async function scanBulkAsync(parents, opts, onProgress){
+    opts = opts || {};
+    const out = {
+      perParent: new Map(),
+      totals: {
+        parents: parents.length,
+        cellsScanned: 0,
+        water: 0, land: 0,
+        sampleFails: 0,
+        alreadyAuthored: 0,
+        errors: 0,
+      },
+      cancelled: false,
+    };
+    const CHUNK = 8;
+    for (let i = 0; i < parents.length; i += CHUNK){
+      if (opts.shouldCancel && opts.shouldCancel()){
+        out.cancelled = true;
+        return out;
+      }
+      const slice = parents.slice(i, i + CHUNK);
+      for (const p of slice){
+        const r = scanParent(p.col, p.row, opts);
+        if (r.error){ out.totals.errors++; continue; }
+        out.perParent.set(`${p.col},${p.row}`, {
+          col: p.col, row: p.row,
+          results: r.results,
+          summary: r.summary,
+        });
+        const s = r.summary;
+        out.totals.cellsScanned    += s.cellCount;
+        out.totals.water           += s.water;
+        out.totals.land            += s.land;
+        out.totals.sampleFails     += s.sampleFails;
+        out.totals.alreadyAuthored += s.alreadyAuthored;
+      }
+      if (onProgress) onProgress(Math.min(i + CHUNK, parents.length), parents.length);
+      await new Promise(res => setTimeout(res, 0));
+    }
+    return out;
+  }
+
+  // Write water overrides for every isWater cell across all scanned
+  // parents. Captures a per-cell undo snapshot keyed by (Q,R) — undoBulk
+  // restores the prior state cell-by-cell. Skips cells whose existing
+  // override is from any source unless overwriteAuthored is set.
+  function applyBulk(scanData, opts){
+    opts = opts || {};
+    const overwriteAuthored = !!opts.overwriteAuthored;
+    if (!window.GCCSubhexData){
+      return { error: 'no data layer', written: 0, skipped: 0, parentsAffected: 0, snapshot: [] };
+    }
+    const SD = window.GCCSubhexData;
+    let written = 0, skipped = 0;
+    const parentsAffected = new Set();
+    const snapshot = [];
+    for (const [key, p] of scanData.perParent){
+      const parentTerrain = (typeof window.getHexTerrain === 'function')
+        ? window.getHexTerrain(p.col, p.row) : null;
+      let touched = false;
+      for (const r of p.results){
+        if (!r.isWater) continue;
+        const prior = SD.getSubhex(r.Q, r.R, parentTerrain);
+        const hadOverride = !!(prior && prior.source === 'authored');
+        if (hadOverride && !overwriteAuthored){ skipped++; continue; }
+        snapshot.push({
+          Q: r.Q, R: r.R,
+          hadOverride,
+          priorTerrain: hadOverride ? prior.terrain : null,
+        });
+        SD.setSubhexOverride(r.Q, r.R, { terrain: r.terrain });
+        written++;
+        touched = true;
+      }
+      if (touched) parentsAffected.add(key);
+    }
+    return {
+      written, skipped,
+      parentsAffected: parentsAffected.size,
+      snapshot,
+    };
+  }
+
+  function undoBulk(snapshot){
+    if (!snapshot || !Array.isArray(snapshot)) return { restored: 0 };
+    if (!window.GCCSubhexData) return { restored: 0, error: 'no data layer' };
+    const SD = window.GCCSubhexData;
+    let restored = 0;
+    for (const s of snapshot){
+      if (s.hadOverride){
+        SD.setSubhexOverride(s.Q, s.R, { terrain: s.priorTerrain });
+      } else {
+        SD.clearSubhex(s.Q, s.R);
+      }
+      restored++;
+    }
+    return { restored };
+  }
+
   // ── Preview UI ──────────────────────────────────────────────────────
   // A small modal: parent label, threshold sliders, preview canvas,
   // counts, Apply / Cancel buttons. Reuses the page's gold/parchment
@@ -486,7 +680,10 @@
     wrap.innerHTML = `
       <div style="font-family:'Cinzel',serif; font-size:14px; color:#e8b840; letter-spacing:.06em; text-transform:uppercase; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #5a4a30; display:flex; justify-content:space-between; align-items:baseline;">
         <span>Coast Scanner · ${id}</span>
-        <span style="cursor:pointer; color:#c8a070; font-size:18px;" id="cs-close">×</span>
+        <span style="display:flex; gap:10px; align-items:baseline;">
+          <a id="cs-bulk-link" style="cursor:pointer; color:#c8a070; font-size:11px; text-transform:none; letter-spacing:0; text-decoration:underline;" title="Scan multiple parents at once">Bulk scan ▸</a>
+          <span style="cursor:pointer; color:#c8a070; font-size:18px;" id="cs-close">×</span>
+        </span>
       </div>
       <div id="cs-summary" style="font-size:13px; line-height:1.5; margin-bottom:10px;">scanning…</div>
       <canvas id="cs-canvas" width="320" height="320" style="display:block; margin:0 auto 10px; border:1px solid #5a4a30; background:#000;"></canvas>
@@ -540,6 +737,10 @@
     document.getElementById('cs-close').addEventListener('click', closePreview);
     document.getElementById('cs-cancel').addEventListener('click', closePreview);
     document.getElementById('cs-apply').addEventListener('click', onApplyClick);
+    document.getElementById('cs-bulk-link').addEventListener('click', () => {
+      closePreview();
+      openBulkDialog();
+    });
     for (const ctl of ['hmin','hmax','smin','vmin','vmax']){
       const wEl = document.getElementById('cs-w-' + ctl);
       const lEl = document.getElementById('cs-l-' + ctl);
@@ -704,6 +905,263 @@
     window.dispatchEvent(new CustomEvent('gcc-subhex-changed', { detail: { reason: 'coast-scanner' } }));
   }
 
+  // ── Bulk dialog UI ──────────────────────────────────────────────────
+  // Three-phase dialog:
+  //   1. Scope picker — pick water/coast/all, see live parent count
+  //   2. Scan in progress — progress bar, cancel button
+  //   3. Apply summary — totals, overwrite-authored toggle, Apply/Undo
+  // Phase transitions update DOM in place so the modal doesn't flicker.
+  let _bulkState = null;
+
+  function openBulkDialog(){
+    closeBulkDialog();
+    closePreview();
+    _bulkState = {
+      scope: 'coast',
+      phase: 'pick',          // 'pick' | 'scanning' | 'review' | 'applied'
+      scanData: null,
+      lastSnapshot: null,
+      cancelRequested: false,
+    };
+    buildBulkDOM();
+    refreshScopeCount();
+  }
+
+  function closeBulkDialog(){
+    const ex = document.getElementById('coast-scanner-bulk-modal');
+    if (ex) ex.remove();
+    document.removeEventListener('keydown', _onBulkKey, true);
+    _bulkState = null;
+  }
+
+  function _onBulkKey(e){
+    if (e.key === 'Escape' && document.getElementById('coast-scanner-bulk-modal')){
+      e.preventDefault(); e.stopPropagation();
+      if (_bulkState && _bulkState.phase === 'scanning'){
+        _bulkState.cancelRequested = true;
+      } else {
+        closeBulkDialog();
+      }
+    }
+  }
+
+  function buildBulkDOM(){
+    const wrap = document.createElement('div');
+    wrap.id = 'coast-scanner-bulk-modal';
+    wrap.style.cssText = `
+      position:fixed; top:50%; left:50%;
+      transform:translate(-50%, -50%);
+      background:#120900; color:#f4e8c4;
+      border:1px solid #c8941a; border-radius:3px;
+      padding:14px 16px; z-index:400;
+      min-width:460px; max-width:560px;
+      max-height:90vh; overflow-y:auto;
+      box-shadow:0 10px 50px rgba(0,0,0,.85);
+      font-family:'Crimson Text', Georgia, serif;
+    `;
+    wrap.innerHTML = `
+      <div style="font-family:'Cinzel',serif; font-size:14px; color:#e8b840; letter-spacing:.06em; text-transform:uppercase; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #5a4a30; display:flex; justify-content:space-between; align-items:baseline;">
+        <span>Coast Scanner · Bulk</span>
+        <span style="cursor:pointer; color:#c8a070; font-size:18px;" id="csb-close">×</span>
+      </div>
+      <div id="csb-body"></div>
+    `;
+    document.body.appendChild(wrap);
+    document.getElementById('csb-close').addEventListener('click', closeBulkDialog);
+    document.addEventListener('keydown', _onBulkKey, true);
+    renderBulkBody();
+  }
+
+  function renderBulkBody(){
+    const body = document.getElementById('csb-body');
+    if (!body || !_bulkState) return;
+    if (_bulkState.phase === 'pick')     return renderBulkPick(body);
+    if (_bulkState.phase === 'scanning') return renderBulkScanning(body);
+    if (_bulkState.phase === 'review')   return renderBulkReview(body);
+    if (_bulkState.phase === 'applied')  return renderBulkApplied(body);
+  }
+
+  function renderBulkPick(body){
+    body.innerHTML = `
+      <div style="font-size:13px; line-height:1.5; margin-bottom:10px;">
+        Scan multiple parent hexes at once and write water overrides
+        across all of them. Uses default thresholds — for outliers,
+        tune in the single-parent preview first.
+      </div>
+      <div style="font-size:12px; line-height:1.7; margin-bottom:10px;">
+        <label style="display:block; cursor:pointer;">
+          <input type="radio" name="csb-scope" value="water"> Water-only parents
+          <span style="color:#a08a60; font-size:11px;">— inland seas, lakes</span>
+        </label>
+        <label style="display:block; cursor:pointer;">
+          <input type="radio" name="csb-scope" value="coast" checked> Water + adjacent
+          <span style="color:#a08a60; font-size:11px;">— coastlines (recommended)</span>
+        </label>
+        <label style="display:block; cursor:pointer;">
+          <input type="radio" name="csb-scope" value="all"> Whole map
+          <span style="color:#a08a60; font-size:11px;">— slowest, completeness</span>
+        </label>
+      </div>
+      <div id="csb-count" style="font-size:13px; color:#c8a070; margin-bottom:12px;">—</div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button id="csb-cancel" style="background:transparent; color:#f4e8c4; border:1px solid #8b6a30; border-radius:3px; padding:6px 14px; font-family:inherit; font-size:13px; cursor:pointer;">Close</button>
+        <button id="csb-scan" style="background:#5a3a0a; color:#f4e8c4; border:1px solid #c8941a; border-radius:3px; padding:6px 14px; font-family:inherit; font-size:13px; cursor:pointer; font-weight:600;">Scan</button>
+      </div>
+    `;
+    document.getElementById('csb-cancel').addEventListener('click', closeBulkDialog);
+    document.getElementById('csb-scan').addEventListener('click', onBulkScanClick);
+    body.querySelectorAll('input[name="csb-scope"]').forEach(el => {
+      el.addEventListener('change', () => {
+        _bulkState.scope = el.value;
+        refreshScopeCount();
+      });
+    });
+  }
+
+  function refreshScopeCount(){
+    if (!_bulkState) return;
+    const el = document.getElementById('csb-count');
+    if (!el) return;
+    const parents = collectParents(_bulkState.scope);
+    _bulkState._cachedParents = parents;
+    el.innerHTML = parents.length
+      ? `Will scan <b style="color:#e8b840;">${parents.length.toLocaleString()}</b> parent${parents.length === 1 ? '' : 's'}.`
+      : `<span style="color:#c87070;">No parents match this scope (map terrain not loaded?).</span>`;
+  }
+
+  async function onBulkScanClick(){
+    if (!_bulkState) return;
+    const parents = _bulkState._cachedParents || collectParents(_bulkState.scope);
+    if (!parents.length) return;
+    _bulkState.phase = 'scanning';
+    _bulkState.cancelRequested = false;
+    renderBulkBody();
+    const t0 = performance.now();
+    const result = await scanBulkAsync(parents, {
+      shouldCancel: _bulkShouldCancel,
+    }, (done, total) => {
+      const bar = document.getElementById('csb-progress-bar');
+      const lbl = document.getElementById('csb-progress-label');
+      if (bar) bar.style.width = `${(done / total) * 100}%`;
+      if (lbl) lbl.textContent = `${done.toLocaleString()} / ${total.toLocaleString()} parents`;
+    });
+    _bulkState.scanData = result;
+    _bulkState.elapsedMs = performance.now() - t0;
+    _bulkState.phase = result.cancelled ? 'pick' : 'review';
+    if (result.cancelled){
+      renderBulkBody();
+      const c = document.getElementById('csb-count');
+      if (c) c.innerHTML = `<span style="color:#c87070;">Scan cancelled.</span>`;
+      return;
+    }
+    renderBulkBody();
+  }
+
+  // shouldCancel wiring — separate function so scanBulkAsync can poll
+  // it without _bulkState being captured at call time.
+  function _bulkShouldCancel(){
+    return !!(_bulkState && _bulkState.cancelRequested);
+  }
+
+  function renderBulkScanning(body){
+    body.innerHTML = `
+      <div style="font-size:13px; line-height:1.5; margin-bottom:10px;">Scanning…</div>
+      <div style="height:14px; background:#2a1a08; border:1px solid #5a4a30; border-radius:2px; overflow:hidden; margin-bottom:6px;">
+        <div id="csb-progress-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#c8941a,#e8b840); transition:width .2s;"></div>
+      </div>
+      <div id="csb-progress-label" style="font-size:11px; color:#c8a070; margin-bottom:12px;">starting…</div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button id="csb-cancel-scan" style="background:transparent; color:#f4e8c4; border:1px solid #8b6a30; border-radius:3px; padding:6px 14px; font-family:inherit; font-size:13px; cursor:pointer;">Cancel</button>
+      </div>
+    `;
+    document.getElementById('csb-cancel-scan').addEventListener('click', () => {
+      if (_bulkState) _bulkState.cancelRequested = true;
+    });
+  }
+
+  function renderBulkReview(body){
+    const sd = _bulkState.scanData;
+    const t = sd.totals;
+    const elapsed = (_bulkState.elapsedMs / 1000).toFixed(1);
+    // Cells that would be written = water cells minus the ones that
+    // are already authored (since default behavior skips them).
+    const candidateWrites = t.water;
+    const skippedAlready  = t.alreadyAuthored;
+    body.innerHTML = `
+      <div style="font-size:13px; line-height:1.5; margin-bottom:10px;">
+        Scanned <b>${t.parents.toLocaleString()}</b> parents in ${elapsed}s.
+      </div>
+      <div style="font-size:12px; line-height:1.6; margin-bottom:10px; padding:8px; background:#1a0e02; border:1px solid #5a4a30; border-radius:2px;">
+        <div><b>${t.cellsScanned.toLocaleString()}</b> cells classified</div>
+        <div style="color:#9adfff;">${t.water.toLocaleString()} water</div>
+        <div style="color:#e8c890;">${t.land.toLocaleString()} land</div>
+        ${t.sampleFails ? `<div style="color:#c87070;">${t.sampleFails} sample fail</div>` : ''}
+        ${t.errors ? `<div style="color:#c87070;">${t.errors} parent errors (skipped)</div>` : ''}
+      </div>
+      <div style="font-size:12px; line-height:1.6; margin-bottom:10px;">
+        <label style="cursor:pointer; user-select:none;">
+          <input type="checkbox" id="csb-overwrite"> Overwrite already-authored cells
+          ${skippedAlready ? `<span style="color:#a08a60;"> (${skippedAlready.toLocaleString()} would be affected)</span>` : ''}
+        </label>
+      </div>
+      <div id="csb-write-summary" style="font-size:13px; color:#c8a070; margin-bottom:12px;"></div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button id="csb-back" style="background:transparent; color:#f4e8c4; border:1px solid #8b6a30; border-radius:3px; padding:6px 14px; font-family:inherit; font-size:13px; cursor:pointer;">Back</button>
+        <button id="csb-apply" style="background:#5a3a0a; color:#f4e8c4; border:1px solid #c8941a; border-radius:3px; padding:6px 14px; font-family:inherit; font-size:13px; cursor:pointer; font-weight:600;">Apply</button>
+      </div>
+    `;
+    const updateWriteSummary = () => {
+      const ow = document.getElementById('csb-overwrite').checked;
+      const writes = ow ? candidateWrites : Math.max(0, candidateWrites - skippedAlready);
+      const skipMsg = ow ? '' : ` (${skippedAlready.toLocaleString()} already-authored will be skipped)`;
+      document.getElementById('csb-write-summary').innerHTML =
+        `Will write <b style="color:#e8b840;">${writes.toLocaleString()}</b> water override${writes === 1 ? '' : 's'}${skipMsg}.`;
+    };
+    updateWriteSummary();
+    document.getElementById('csb-overwrite').addEventListener('change', updateWriteSummary);
+    document.getElementById('csb-back').addEventListener('click', () => {
+      _bulkState.phase = 'pick';
+      _bulkState.scanData = null;
+      renderBulkBody();
+      refreshScopeCount();
+    });
+    document.getElementById('csb-apply').addEventListener('click', onBulkApplyClick);
+  }
+
+  function onBulkApplyClick(){
+    if (!_bulkState || !_bulkState.scanData) return;
+    const overwriteAuthored = document.getElementById('csb-overwrite').checked;
+    const out = applyBulk(_bulkState.scanData, { overwriteAuthored });
+    _bulkState.lastSnapshot = out.snapshot;
+    _bulkState.applyResult = out;
+    _bulkState.phase = 'applied';
+    renderBulkBody();
+    window.dispatchEvent(new CustomEvent('gcc-subhex-changed', { detail: { reason: 'coast-scanner-bulk' } }));
+  }
+
+  function renderBulkApplied(body){
+    const out = _bulkState.applyResult;
+    body.innerHTML = `
+      <div style="font-size:13px; line-height:1.6; margin-bottom:12px; padding:10px; background:#1a0e02; border:1px solid #5a4a30; border-radius:2px;">
+        Wrote <b style="color:#9adfff;">${out.written.toLocaleString()}</b> water override${out.written === 1 ? '' : 's'}
+        across <b>${out.parentsAffected.toLocaleString()}</b> parent${out.parentsAffected === 1 ? '' : 's'}.
+        ${out.skipped ? `<br><span style="color:#a08a60;">${out.skipped.toLocaleString()} already-authored cell${out.skipped === 1 ? '' : 's'} skipped.</span>` : ''}
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button id="csb-undo" style="background:transparent; color:#f4e8c4; border:1px solid #c87070; border-radius:3px; padding:6px 14px; font-family:inherit; font-size:13px; cursor:pointer;" ${out.written ? '' : 'disabled style="opacity:.4;"'}>Undo</button>
+        <button id="csb-done" style="background:#5a3a0a; color:#f4e8c4; border:1px solid #c8941a; border-radius:3px; padding:6px 14px; font-family:inherit; font-size:13px; cursor:pointer; font-weight:600;">Close</button>
+      </div>
+    `;
+    document.getElementById('csb-done').addEventListener('click', closeBulkDialog);
+    document.getElementById('csb-undo').addEventListener('click', () => {
+      if (!_bulkState || !_bulkState.lastSnapshot) return;
+      const r = undoBulk(_bulkState.lastSnapshot);
+      window.dispatchEvent(new CustomEvent('gcc-subhex-changed', { detail: { reason: 'coast-scanner-bulk-undo' } }));
+      alert(`Restored ${r.restored.toLocaleString()} cell${r.restored === 1 ? '' : 's'}.`);
+      closeBulkDialog();
+    });
+  }
+
   // ── Public surface ──────────────────────────────────────────────────
   window.GCCCoastScanner = {
     DEFAULT_THRESHOLDS,
@@ -713,6 +1171,9 @@
     waterVariantForParent,
     scanParent, applyResults,
     openPreview, closePreview,
+    // Bulk
+    collectParents, scanBulkAsync, applyBulk, undoBulk,
+    openBulkDialog, closeBulkDialog,
   };
 
   // ── Toolbar button auto-wire ────────────────────────────────────────
@@ -722,13 +1183,14 @@
     if (btn.dataset.coastWired) return true;
     btn.dataset.coastWired = '1';
     btn.addEventListener('click', () => {
-      // greyhawk-map.html exposes its top-level `state` const as
-      // window.state for cross-module access.
+      // Context-aware: with a hex selected, scan that one (existing
+      // single-parent flow). With nothing selected, open the bulk
+      // dialog so the user can scan whole-map / coast / water-only.
       const s = window.state;
       const col = s ? s.selectedCol : null;
       const row = s ? s.selectedRow : null;
       if (col == null || row == null){
-        alert('Click a parent hex first, then run the Coast Scanner on it.');
+        openBulkDialog();
         return;
       }
       openPreview(col, row);
