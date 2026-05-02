@@ -1,4 +1,22 @@
-// gcc-coast-scanner.js v0.3.0 — 2026-05-02
+// gcc-coast-scanner.js v0.3.1 — 2026-05-02
+// v0.3.1: loosen water DEFAULT_THRESHOLDS so Darlene's near-white
+// lake water (e.g. inside G4-88, plains parent containing the
+// western edge of Whyestil) classifies as definite water on the
+// strict pass. v0.3.0's S>=0.20 / V<=0.85 was tuned for saturated
+// inland-sea blues and rejected the desaturated lake interior, so
+// approach-C had nothing to spread from there.
+//
+// New water defaults:
+//   Hue:  180°-240°    (was 180°-230°; widened to catch deeper blues)
+//   Sat:  >= 0.015     (was >= 0.20; pale-blue-tinted-white now passes)
+//   Val:  0.30-0.99    (was 0.30-0.85; admits whitish water, still
+//                       rejects pure-pure-white text & UI highlights)
+//
+// Discriminator vs parchment is hue: parchment is yellow-tinted
+// (H~50°), Darlene's lake is blue-tinted (H~200°), so even a tiny
+// Sat min still excludes parchment because it's outside the hue band.
+//
+// v0.3.0 — 2026-05-02
 // v0.3.0: edge-aware classification (approach C). The v0.2 parent-
 // terrain tiebreaker pointed in the wrong direction for parents that
 // CONTAIN water but aren't water-typed (e.g. plains hex containing
@@ -97,10 +115,19 @@
   'use strict';
 
   // ── Defaults ────────────────────────────────────────────────────────
+  // Water threshold — anything in the blue hue band with even a tiny
+  // saturation tint, except pure-pure-white. Catches both saturated
+  // sea blues (Nyr Dyv proper) and Darlene's near-white lake interior
+  // (Whyestil's western fingers in plains/forest parents). The hue
+  // band excludes parchment (which is yellow-tinted ~50°) so the
+  // very-low saturation floor doesn't pick up cream/tan. Bounds are
+  // slightly margined (sMin 0.015 not 0.02; vMax 0.99 not 0.98) to
+  // admit pixels right at the boundary that compute as e.g. S=0.0199
+  // due to floating-point.
   const DEFAULT_THRESHOLDS = {
-    hMin: 180, hMax: 230,
-    sMin: 0.20, sMax: 1.00,
-    vMin: 0.30, vMax: 0.85,
+    hMin: 180, hMax: 240,
+    sMin: 0.015, sMax: 1.00,
+    vMin: 0.30, vMax: 0.99,
   };
   // Land threshold — anything clearly green/brown/yellow-tan is
   // "definitely land". Together with DEFAULT_THRESHOLDS for water, the
