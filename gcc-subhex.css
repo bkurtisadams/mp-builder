@@ -1,4 +1,8 @@
-/* gcc-subhex.css v1.13.0 — 2026-05-02
+/* gcc-subhex.css v1.14.0 — 2026-05-02
+   v1.14: fog brush hover override. Fogged cells need a visible hover
+   stroke (the default #1a1a1a hover would vanish against the dark
+   fog fill); use a gold stroke instead so the GM can see which cell
+   is under the cursor while painting fog.
    v1.13: fog-of-war render integration. New .sxw-cell-group.fogged
    rules darken the cell fill and hide terrain/feature icon layers
    when the GM is in fog preview mode. Strokes pass through so the
@@ -1259,4 +1263,9 @@ body.theme-dark .sxw-tool-callout .sxw-path-help { color:#e8c870; }
 }
 body.theme-dark .sxw-cell-group.fogged .sxw-cell {
   fill:#0a0a0a !important;
+}
+.sxw-cell-group.fogged .sxw-cell:hover {
+  stroke:#c8a96e;
+  stroke-width:2.5;
+  stroke-opacity:1;
 }

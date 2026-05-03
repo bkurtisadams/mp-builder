@@ -1,4 +1,17 @@
-// gcc-subhex-view.js v2.10.0 — 2026-05-02
+// gcc-subhex-view.js v2.11.0 — 2026-05-02
+// v2.11.0: fog paint brush (Slice 4 of fog rollout). New tool button
+// "Fog…" arms state.armed = { type:'fog' } and shows a help-text
+// callout. Click cells to reveal, shift+click to hide; drag to sweep.
+// Direction is captured at sweep start (state.fogBrushHide) so a sweep
+// stays consistent even if the modifier key is released. Brushing uses
+// GCCFog.{revealSubhex,hideSubhex} with deferSave=true and flushes
+// once on mouseup; the painted cell's .fogged class is toggled
+// directly so the sweep updates live without firing the global
+// gcc-fog-changed listener for every cell. Works whether preview is
+// on or off — callout text reminds the GM to flip preview if they
+// want visual feedback.
+//
+// v2.10.0 — 2026-05-02
 // v2.10.0: fog-of-war render integration (Slice 2 of fog rollout).
 // Cells get class .fogged in buildCellGroup when GCCFog.shouldFogSubhex
 // returns true; CSS hides terrain/feature layers and darkens the fill.
@@ -433,6 +446,7 @@
           <button class="sxw-tool-btn" id="sxw-region-tool">Region…</button>
           <button class="sxw-tool-btn" id="sxw-path-tool">Path…</button>
           <button class="sxw-tool-btn" id="sxw-lake-tool">Lake…</button>
+          <button class="sxw-tool-btn" id="sxw-fog-tool">Fog…</button>
           <button class="sxw-tool-btn" id="sxw-clear">Clear</button>
           <button class="sxw-tool-btn" id="sxw-fog-preview" title="Preview as players see (fog of war)">👁 Preview</button>
           <span class="sxw-mode" id="sxw-mode">Mode: Select</span>
@@ -448,6 +462,11 @@
           <div class="sxw-callout-pane" id="sxw-callout-lake" style="display:none;">
             <span class="sxw-callout-label">Lake:</span>
             <select class="sxw-region-armed" id="sxw-lake-armed"></select>
+          </div>
+          <div class="sxw-callout-pane" id="sxw-callout-fog" style="display:none;">
+            <div class="sxw-path-help">
+              Click to reveal · shift+click to hide · drag to sweep · click 👁 Preview to see fogged cells
+            </div>
           </div>
           <div class="sxw-callout-pane" id="sxw-callout-path" style="display:none;">
             <div class="sxw-callout-pathrow">
@@ -559,6 +578,7 @@
     c.querySelector('#sxw-path-armed').addEventListener('change', onPathArmedChange);
     c.querySelector('#sxw-lake-tool').addEventListener('click', onLakeToolClick);
     c.querySelector('#sxw-lake-armed').addEventListener('change', onLakeArmedChange);
+    c.querySelector('#sxw-fog-tool').addEventListener('click', onFogToolClick);
     c.querySelector('#sxw-path-undo').addEventListener('click', onPathUndoClick);
     c.querySelector('#sxw-path-rename').addEventListener('click', onPathRenameClick);
     c.querySelector('#sxw-path-delete').addEventListener('click', onPathDeleteClick);
@@ -830,12 +850,12 @@
     const cont = findEl('sxw-tool-callout');
     if (!cont) return;
     cont.style.display = name ? '' : 'none';
-    const panes = ['region', 'path', 'lake'];
+    const panes = ['region', 'path', 'lake', 'fog'];
     for (const p of panes){
       const el = findEl('sxw-callout-' + p);
       if (el) el.style.display = (p === name) ? '' : 'none';
     }
-    const btnIds = { region:'sxw-region-tool', path:'sxw-path-tool', lake:'sxw-lake-tool' };
+    const btnIds = { region:'sxw-region-tool', path:'sxw-path-tool', lake:'sxw-lake-tool', fog:'sxw-fog-tool' };
     for (const [k, id] of Object.entries(btnIds)){
       const btn = findEl(id);
       if (btn) btn.classList.toggle('armed', k === name);
@@ -907,6 +927,8 @@
       el.textContent = `Mode: Assign to lake · ${lname} · drag to brush`;
     } else if (a.type === 'lake-erase'){
       el.textContent = 'Mode: Remove from lake · click cells';
+    } else if (a.type === 'fog'){
+      el.textContent = 'Mode: Fog brush · click to reveal · shift+click to hide · drag to sweep';
     } else if (a.type === 'path'){
       const path = window.GCCSubhexPaths?.getPath(a.value);
       const pname = path ? path.name : '(unknown)';
@@ -941,6 +963,20 @@
     if (!window.GCCFog) return;
     window.GCCFog.togglePreview();
     // GCCFog dispatches `gcc-fog-changed`; the listener handles redraw.
+  }
+
+  function onFogToolClick(){
+    if (state.armed && state.armed.type === 'fog'){
+      state.armed = null;
+      showCalloutPane(null);
+      syncPaletteUI();
+      syncModeLabel();
+      return;
+    }
+    state.armed = { type: 'fog' };
+    showCalloutPane('fog');
+    syncPaletteUI();
+    syncModeLabel();
   }
 
   function syncFogPreviewBtn(){
@@ -1038,8 +1074,12 @@
     state.armed = null;
     state.markerHighlight = null;
     if (state.brushing){
+      if (state.armed?.type === 'fog' && window.GCCFog){
+        window.GCCFog.flush();
+      }
       state.brushing = false;
       state.brushedThisDrag = null;
+      state.fogBrushHide = false;
       window.removeEventListener('mouseup', onBrushEnd);
     }
     const sel = findEl('sxw-region-armed');
@@ -1932,6 +1972,9 @@
       state.brushing = true;
       state.brushedThisDrag = new Set();
     }
+    if (state.armed.type === 'fog'){
+      state.fogBrushHide = !!(ev.shiftKey || ev.altKey);
+    }
     paintCell(Q, R, ev.currentTarget);
     if (state.brushing) window.addEventListener('mouseup', onBrushEnd);
   }
@@ -1947,8 +1990,12 @@
   }
 
   function onBrushEnd(){
+    if (state.armed?.type === 'fog' && window.GCCFog){
+      window.GCCFog.flush();
+    }
     state.brushing = false;
     state.brushedThisDrag = null;
+    state.fogBrushHide = false;
     window.removeEventListener('mouseup', onBrushEnd);
   }
 
@@ -2009,6 +2056,20 @@
     } else if (a.type === 'lake-erase'){
       window.GCCSubhexData.unsetCellLake(Q, R);
       if (Q === state.selectedQ && R === state.selectedR) syncDetailPanel();
+    } else if (a.type === 'fog'){
+      // Defer save until onBrushEnd flushes; toggle the .fogged class
+      // directly so the sweep updates live without firing the global
+      // gcc-fog-changed listener for every painted cell.
+      const Fog = window.GCCFog;
+      if (!Fog) return;
+      if (state.fogBrushHide){
+        Fog.hideSubhex(Q, R, { deferSave: true });
+      } else {
+        Fog.revealSubhex(Q, R, { deferSave: true });
+      }
+      if (group){
+        group.classList.toggle('fogged', !!Fog.shouldFogSubhex(Q, R));
+      }
     } else if (a.type === 'path'){
       if (state.brushing) return;
       // If the clicked cell is already part of the armed path, treat
