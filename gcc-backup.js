@@ -1,4 +1,10 @@
-// gcc-backup.js v1.1.0 — 2026-04-12
+// gcc-backup.js v1.2.0 — 2026-05-03
+// v1.2.0: include subhex + fog data. Subhex overrides, regions, lakes,
+// migration flag, and per-map fog state were not previously backed up,
+// despite holding the bulk of authored map data (thousands of cells
+// per campaign). May 2 corruption that destroyed ~25% of authored
+// subhex data was unrecoverable for this reason.
+// v1.1.0 — 2026-04-12
 // Full data export/import for Graycloak's Campaign Corner
 // Captures: all localStorage sync keys + IndexedDB images
 // Requires: gcc-data.js, gcc-images.js, gcc-dialog.js
@@ -20,6 +26,12 @@ const GCCBackup = (function() {
     'mp-campaign-sel',
     'gcc-faserip-chars',
     'gcc-add1e-chars',
+    'gcc-subhex-overrides',
+    'gcc-subhex-regions',
+    'gcc-subhex-lakes',
+    'gcc-subhex-migrated-v5',
+    'gcc-fog-greyhawk',
+    'gcc-fog-preview',
   ];
 
   // ── Export ──
