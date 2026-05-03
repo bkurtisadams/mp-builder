@@ -1,4 +1,15 @@
-// gcc-subhex-view.js v2.9.0 — 2026-05-01
+// gcc-subhex-view.js v2.10.0 — 2026-05-02
+// v2.10.0: fog-of-war render integration (Slice 2 of fog rollout).
+// Cells get class .fogged in buildCellGroup when GCCFog.shouldFogSubhex
+// returns true; CSS hides terrain/feature layers and darkens the fill.
+// Preview toggle button (#sxw-fog-preview) added to the controls
+// tools-row — armed appearance reflects GCCFog.isPreview(). View
+// listens for `gcc-fog-changed` and re-tags existing cell groups in
+// place (no SVG rebuild). All fog rendering is gated on subhexFog
+// config + preview-mode; with either off the .fogged class is never
+// applied and the renderer behaves exactly as v2.9.0.
+//
+// v2.9.0 — 2026-05-01
 // v2.9.0 (Slice 2 of the panel reorg): readable parchment palette pass
 // + button/dropdown ergonomics fix. The Region/Path/Lake tool buttons
 // stay fixed in their row; clicking a button highlights it (gold-fill
@@ -423,6 +434,7 @@
           <button class="sxw-tool-btn" id="sxw-path-tool">Path…</button>
           <button class="sxw-tool-btn" id="sxw-lake-tool">Lake…</button>
           <button class="sxw-tool-btn" id="sxw-clear">Clear</button>
+          <button class="sxw-tool-btn" id="sxw-fog-preview" title="Preview as players see (fog of war)">👁 Preview</button>
           <span class="sxw-mode" id="sxw-mode">Mode: Select</span>
         </div>
         <div class="sxw-tool-callout" id="sxw-tool-callout" style="display:none;">
@@ -540,6 +552,7 @@
     c.querySelector('#sxw-region-pick').addEventListener('change', onRegionPickChange);
     c.querySelector('#sxw-region-name').addEventListener('blur', onRegionRename);
     c.querySelector('#sxw-clear').addEventListener('click', onClearOverride);
+    c.querySelector('#sxw-fog-preview').addEventListener('click', onFogPreviewClick);
     c.querySelector('#sxw-region-tool').addEventListener('click', onRegionToolClick);
     c.querySelector('#sxw-region-armed').addEventListener('change', onRegionArmedChange);
     c.querySelector('#sxw-path-tool').addEventListener('click', onPathToolClick);
@@ -922,6 +935,44 @@
     }, 1600);
   }
 
+  // ── Fog of war (preview-mode toggle + render integration) ──────────────
+
+  function onFogPreviewClick(){
+    if (!window.GCCFog) return;
+    window.GCCFog.togglePreview();
+    // GCCFog dispatches `gcc-fog-changed`; the listener handles redraw.
+  }
+
+  function syncFogPreviewBtn(){
+    const btn = findEl('sxw-fog-preview');
+    if (!btn) return;
+    const on = !!(window.GCCFog && window.GCCFog.isPreview());
+    btn.classList.toggle('sxw-tool-btn-armed', on);
+  }
+
+  // Re-tag every cell group's .fogged class against current fog state.
+  // Cheap (classList toggle on ~100-1000 nodes); no SVG rebuild.
+  function applyFogToAllCells(){
+    if (!state.isOpen || !state.win) return;
+    const svg = state.win.querySelector('#sxw-svg');
+    if (!svg) return;
+    const Fog = window.GCCFog;
+    const groups = svg.querySelectorAll('.sxw-cell-group');
+    for (const g of groups){
+      const Q = +g.dataset.q, R = +g.dataset.r;
+      const fog = Fog && Fog.shouldFogSubhex(Q, R);
+      g.classList.toggle('fogged', !!fog);
+    }
+  }
+
+  function onFogChanged(){
+    syncFogPreviewBtn();
+    applyFogToAllCells();
+  }
+
+  // Module-level listener — install once.
+  try { window.addEventListener('gcc-fog-changed', onFogChanged); } catch(e){}
+
   // ── Open / close ───────────────────────────────────────────────────────
   function open(col, row){
     ensureWindow();
@@ -973,6 +1024,7 @@
     syncPaletteUI();
     syncModeLabel();
     syncPathActionButtons();
+    syncFogPreviewBtn();
   }
 
   function close(){
@@ -1060,6 +1112,9 @@
       group.dataset.fragment = '1';
       group.dataset.ownerCol = fragmentInfo.ownerCol;
       group.dataset.ownerRow = fragmentInfo.ownerRow;
+    }
+    if (window.GCCFog && window.GCCFog.shouldFogSubhex(Q, R)){
+      group.classList.add('fogged');
     }
 
     const poly = document.createElementNS(ns, 'polygon');

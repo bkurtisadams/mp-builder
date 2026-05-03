@@ -1,4 +1,12 @@
-// gcc-fog.js v0.1.0 — 2026-05-02
+// gcc-fog.js v0.2.0 — 2026-05-02
+// v0.2.0: preview-mode flag + shouldFog helpers for renderer use.
+// Preview is a UI pref (whether the GM is currently viewing the map
+// "as players see it"), persisted in its own localStorage key
+// (gcc-fog-preview) — not per-map; one switch covers all maps.
+// shouldFogSubhex(Q,R) / shouldFogParent(col,row) return true iff the
+// grain is fogged AND preview is on AND the cell is unrevealed.
+//
+// v0.1.0 — 2026-05-02
 // Fog-of-war substrate. Storage + API only; no rendering, no UI, no
 // auto-reveal wiring. Downstream (render overlay, paint brush, party
 // auto-reveal, Lost engine) reads from this module.
@@ -38,12 +46,18 @@
     parentFog: true,
     subhexFog: true,
   };
+  const LS_PREVIEW_KEY = 'gcc-fog-preview';
 
   let CONFIG = Object.assign({}, DEFAULT_CONFIG);
   let LS_KEY = `gcc-fog-${CONFIG.mapId}`;
 
   let revealedParents  = new Set();
   let revealedSubhexes = new Set();
+
+  let previewMode = false;
+  try {
+    previewMode = localStorage.getItem(LS_PREVIEW_KEY) === '1';
+  } catch(e){}
 
   function lsKeyFor(mapId){ return `gcc-fog-${mapId}`; }
 
@@ -104,6 +118,34 @@
   }
 
   function config(){ return Object.assign({}, CONFIG); }
+
+  // ── Preview mode (UI pref) ─────────────────────────────────────────────
+
+  function isPreview(){ return previewMode; }
+
+  function setPreview(on){
+    const next = !!on;
+    if (next === previewMode) return false;
+    previewMode = next;
+    try { localStorage.setItem(LS_PREVIEW_KEY, previewMode ? '1' : '0'); } catch(e){}
+    try { window.dispatchEvent(new CustomEvent('gcc-fog-changed')); } catch(e){}
+    return true;
+  }
+
+  function togglePreview(){ setPreview(!previewMode); return previewMode; }
+
+  // shouldFog* — convenience for renderers. true iff the grain is fogged
+  // by config AND the GM is in preview mode AND the cell is unrevealed.
+  function shouldFogSubhex(Q, R){
+    if (!CONFIG.subhexFog) return false;
+    if (!previewMode) return false;
+    return !revealedSubhexes.has(subhexKey(Q, R));
+  }
+  function shouldFogParent(col, row){
+    if (!CONFIG.parentFog) return false;
+    if (!previewMode) return false;
+    return !revealedParents.has(parentKey(col, row));
+  }
 
   // ── Keys ───────────────────────────────────────────────────────────────
 
@@ -350,6 +392,8 @@
   window.GCCFog = {
     SCHEMA_VERSION,
     init, setConfig, config,
+    isPreview, setPreview, togglePreview,
+    shouldFogSubhex, shouldFogParent,
     parentKey, subhexKey, parseParentKey, parseSubhexKey,
     isSubhexRevealed, revealSubhex, hideSubhex,
     revealSubhexes, hideSubhexes, revealSubhexRadius,

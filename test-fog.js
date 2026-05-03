@@ -258,5 +258,60 @@ section('corrupt storage');
   assert(Fog.isSubhexRevealed(1, 1), 'recovers after first write');
 }
 
+// ── 10. preview mode + shouldFog ──────────────────────────────────────────
+section('preview + shouldFog');
+{
+  const win = makeWindow();
+  const Fog = loadFog(win);
+  Fog.init({ mapId: 't10', parentFog: true, subhexFog: true });
+
+  // Default: preview off → nothing fogged regardless of reveal state.
+  assert(Fog.isPreview() === false, 'preview defaults off');
+  assert(Fog.shouldFogSubhex(0, 0) === false, 'preview off → never fog (subhex)');
+  assert(Fog.shouldFogParent(0, 0) === false, 'preview off → never fog (parent)');
+
+  // Toggle preview on → unrevealed cells become fogged.
+  const before = win._events.length;
+  Fog.setPreview(true);
+  assert(win._events.length === before + 1, 'setPreview dispatches event');
+  assert(Fog.isPreview() === true, 'preview now on');
+  assert(Fog.shouldFogSubhex(0, 0) === true, 'preview on + unrevealed → fog');
+
+  Fog.revealSubhex(0, 0);
+  assert(Fog.shouldFogSubhex(0, 0) === false, 'preview on + revealed → no fog');
+  assert(Fog.shouldFogSubhex(5, 5) === true,  'preview on + other cell unrevealed → fog');
+
+  // setPreview is idempotent and returns false on no-op.
+  assert(Fog.setPreview(true) === false, 'setPreview(same) returns false');
+  assert(Fog.setPreview(false) === true, 'setPreview(toggle) returns true');
+  assert(Fog.shouldFogSubhex(5, 5) === false, 'preview off again → no fog');
+
+  // togglePreview returns new state.
+  assert(Fog.togglePreview() === true,  'toggle on');
+  assert(Fog.togglePreview() === false, 'toggle off');
+
+  // Disabled grain ignores preview.
+  Fog.setConfig({ subhexFog: false });
+  Fog.setPreview(true);
+  assert(Fog.shouldFogSubhex(99, 99) === false, 'subhexFog=false short-circuits shouldFog');
+
+  // Parent grain.
+  Fog.setConfig({ parentFog: true, subhexFog: true });
+  Fog.revealParent(70, 50);
+  assert(Fog.shouldFogParent(70, 50) === false, 'revealed parent → no fog');
+  assert(Fog.shouldFogParent(0, 0)   === true,  'unrevealed parent → fog');
+}
+
+// ── 11. preview persists across loads ─────────────────────────────────────
+section('preview persistence');
+{
+  const win = makeWindow();
+  const Fog1 = loadFog(win);
+  Fog1.setPreview(true);
+  // Reload module against same window (same localStorage).
+  const Fog2 = loadFog(win);
+  assert(Fog2.isPreview() === true, 'preview rehydrated from localStorage');
+}
+
 console.log(`\n── ${passes} passed, ${fails} failed ──`);
 process.exit(fails ? 1 : 0);

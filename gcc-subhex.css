@@ -1,4 +1,9 @@
-/* gcc-subhex.css v1.12.0 — 2026-05-01
+/* gcc-subhex.css v1.13.0 — 2026-05-02
+   v1.13: fog-of-war render integration. New .sxw-cell-group.fogged
+   rules darken the cell fill and hide terrain/feature icon layers
+   when the GM is in fog preview mode. Strokes pass through so the
+   selected/authored halos still register on fogged cells. See bottom
+   of file for the new rules.
    v1.12: Slice 2 of the panel reorg. New .sxw-tools-row + .sxw-tool-
    callout + .sxw-callout-pane / .sxw-callout-label / .sxw-callout-
    pathrow for the unified tool dropdown idiom. Readability bumps:
@@ -1231,3 +1236,27 @@ body.theme-dark .sxw-row select {
   line-height:1.4;
 }
 body.theme-dark .sxw-tool-callout .sxw-path-help { color:#e8c870; }
+
+/* ── Fog of war (v1.13) ───────────────────────────────────────────────── */
+/* Applied to the cell <g> when GCCFog.shouldFogSubhex(Q,R) is true.
+   Terrain + feature icon layers hide; cell fill darkens. Strokes are
+   left alone so .selected and .authored halos remain visible — the GM
+   can still tell which fogged cell is selected. The fragment-cell case
+   is included; fogged fragments look the same as fogged owned cells. */
+.sxw-cell-group.fogged .sxw-cell {
+  fill:#1a1a1a !important;
+  fill-opacity:0.92;
+}
+.sxw-cell-group.fogged .sxw-cell.fragment {
+  fill-opacity:0.78;
+}
+.sxw-cell-group.fogged .sxw-terrain-layer,
+.sxw-cell-group.fogged .sxw-feature-layer {
+  display:none;
+}
+.sxw-cell-group.fogged .sxw-cell-label {
+  display:none;
+}
+body.theme-dark .sxw-cell-group.fogged .sxw-cell {
+  fill:#0a0a0a !important;
+}
