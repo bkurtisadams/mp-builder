@@ -1,4 +1,15 @@
-// gcc-subhex-data.js v2.5.0 — 2026-05-02
+// gcc-subhex-data.js v2.6.0 — 2026-05-03
+// v2.6.0: surface localStorage save errors. Previously every save
+// path used `try { localStorage.setItem(...) } catch(e){}` with an
+// empty catch — quota errors and other write failures silently
+// dropped on the floor. May 3 incident: full-map Coast scanner
+// pushed the subhex blob past the per-origin quota; saves threw
+// QuotaExceededError every time, in-memory state diverged from
+// localStorage, on reload all post-scan work appeared to vanish.
+// This release: catch blocks log the error to console.error AND
+// dispatch a `gcc-storage-error` window event with { key, error }
+// so UI can surface a toast/banner. Same pattern applied to OVERRIDES,
+// REGIONS, LAKES, and the v1.1→v2.0 migration block.
 // v2.5.0: bulk-write hooks. setSubhexOverride and clearSubhex accept
 // an optional `opts.deferSave` flag that suppresses the per-call save()
 // (which serializes the entire OVERRIDES object). flushOverrides()
@@ -344,17 +355,30 @@
     if (raw) LAKES = JSON.parse(raw) || {};
   } catch(e){ LAKES = {}; }
 
+  function _reportStorageError(key, e){
+    console.error(`[GCCSubhexData] save failed for "${key}":`, e.name, '—', e.message,
+      '\n  in-memory state will diverge from localStorage; export now to avoid loss.');
+    try {
+      window.dispatchEvent(new CustomEvent('gcc-storage-error', {
+        detail: { key, error: e.name, message: e.message },
+      }));
+    } catch(_){}
+  }
+
   function save(){
-    try { localStorage.setItem(LS_KEY, JSON.stringify(OVERRIDES)); } catch(e){}
+    try { localStorage.setItem(LS_KEY, JSON.stringify(OVERRIDES)); }
+    catch(e){ _reportStorageError(LS_KEY, e); }
     _rebuildLakeIndexes();
     try { window.dispatchEvent(new CustomEvent('gcc-subhex-changed')); } catch(e){}
   }
   function saveRegions(){
-    try { localStorage.setItem(LS_REGIONS_KEY, JSON.stringify(REGIONS)); } catch(e){}
+    try { localStorage.setItem(LS_REGIONS_KEY, JSON.stringify(REGIONS)); }
+    catch(e){ _reportStorageError(LS_REGIONS_KEY, e); }
     try { window.dispatchEvent(new CustomEvent('gcc-subhex-changed')); } catch(e){}
   }
   function saveLakes(){
-    try { localStorage.setItem(LS_LAKES_KEY, JSON.stringify(LAKES)); } catch(e){}
+    try { localStorage.setItem(LS_LAKES_KEY, JSON.stringify(LAKES)); }
+    catch(e){ _reportStorageError(LS_LAKES_KEY, e); }
     _rebuildLakeIndexes();
     try { window.dispatchEvent(new CustomEvent('gcc-subhex-changed')); } catch(e){}
   }
@@ -971,7 +995,7 @@
         localStorage.setItem(LS_KEY, JSON.stringify(OVERRIDES));
         localStorage.setItem(LS_REGIONS_KEY, JSON.stringify(REGIONS));
         localStorage.setItem(MIGRATION_FLAG_KEY, '1');
-      } catch(e){}
+      } catch(e){ _reportStorageError('(migration v1.1→v2.0)', e); }
       if (mc || mr || dropped){
         console.log(`[GCCSubhexData] v1.1→v2.0: ${mc} cell(s), ${mr} region(s) migrated; ${dropped} dropped.`);
       }

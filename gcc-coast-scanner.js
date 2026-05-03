@@ -1,4 +1,18 @@
-// gcc-coast-scanner.js v0.4.5 — 2026-05-03
+// gcc-coast-scanner.js v0.4.6 — 2026-05-03
+// v0.4.6: skip redundant water overrides. Pre-v0.4.6 the scanner
+// always wrote water cells with explicit overrides, even when the
+// override would match the parent's terrain (e.g. water_inland_sea
+// cell inside a water_inland_sea parent — procedural fallback would
+// produce the same result). This was asymmetric with the land path,
+// which already skipped land-in-land-parent writes. For Greyhawk,
+// vast water parents (Nyr Dyv, oceans) generated hundreds of K of
+// redundant writes; a full-map scan blew localStorage quota and
+// silently failed to save. The fix: in scanParent's terrain-assign
+// pass, only set r.terrain = waterVariant if waterVariant differs
+// from parentTerrain. Otherwise null (no override). Reduces a typical
+// full-map scan from ~460K writes to ~50-80K — coastline fidelity
+// preserved (transitions still get explicit overrides), interior
+// homogeneous water parents fall to procedural like land already did.
 // v0.4.5: two safety changes after May 2 corruption events.
 // (1) waterVariantForParent('water') now returns 'water_coastal'
 //     instead of 'water_fresh'. Greyhawk parents typed plain 'water'
@@ -629,9 +643,17 @@
     let toWriteWater = 0, toWriteLand = 0;
     for (const r of results){
       if (r.isWater){
-        r.terrain = waterVariant;
         waterN++;
-        toWriteWater++;
+        if (waterVariant !== parentTerrain){
+          r.terrain = waterVariant;
+          toWriteWater++;
+        } else {
+          // Procedural fallback already gives the parent terrain
+          // most of the time; redundant override would just bloat
+          // localStorage. Symmetric with the land-in-land-parent
+          // skip below.
+          r.terrain = null;
+        }
       } else {
         landN++;
         if (parentIsWater){

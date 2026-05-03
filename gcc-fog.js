@@ -1,4 +1,8 @@
-// gcc-fog.js v0.2.0 — 2026-05-02
+// gcc-fog.js v0.3.0 — 2026-05-03
+// v0.3.0: surface save errors. Previously the save() catch was empty
+// — quota errors silently dropped, in-memory revealed-Set state could
+// diverge from localStorage. Now logs to console.error and dispatches
+// `gcc-storage-error` event. Matches gcc-subhex-data.js v2.6.0.
 // v0.2.0: preview-mode flag + shouldFog helpers for renderer use.
 // Preview is a UI pref (whether the GM is currently viewing the map
 // "as players see it"), persisted in its own localStorage key
@@ -86,7 +90,14 @@
         subhexes: Array.from(revealedSubhexes),
       };
       localStorage.setItem(LS_KEY, JSON.stringify(payload));
-    } catch(e){}
+    } catch(e){
+      console.error(`[GCCFog] save failed for "${LS_KEY}":`, e.name, '—', e.message);
+      try {
+        window.dispatchEvent(new CustomEvent('gcc-storage-error', {
+          detail: { key: LS_KEY, error: e.name, message: e.message },
+        }));
+      } catch(_){}
+    }
     try { window.dispatchEvent(new CustomEvent('gcc-fog-changed')); } catch(e){}
   }
 
