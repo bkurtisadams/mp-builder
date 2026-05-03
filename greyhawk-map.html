@@ -1324,6 +1324,12 @@ const state={
 // gcc-coast-scanner et al need this assignment to see the live object.
 window.state = state;
 
+// Initial fog reveal at the party's starting position. revealSubhexRadius
+// is idempotent — established games re-reveal already-known cells (no
+// save, no event); fresh installs get a 7-cell halo around the City of
+// Greyhawk default position so the very first map open isn't a black void.
+revealFogAtParty(state.partyCol, state.partyRow);
+
 // ── IMAGE TRANSFORM ───────────────────────────────────────────────────────────
 // The Darlene scan is aligned to the canonical SVG hex grid by transforming
 // the image (drag / scale / rotate), not the grid. The SVG grid is ground
@@ -2070,6 +2076,20 @@ function loadPartyPos(){
 function savePartyPos(col, row){
   try { localStorage.setItem('gh-party-pos', `${col},${row}`); }
   catch (e) {}
+}
+
+// Fog of war auto-reveal. Called on every party-position change and once
+// at boot. Reveals the new parent's center subhex + immediate axial
+// neighbors (radius=1 = 7 cells). No-op when GCCFog or GCCSubhexData are
+// absent, when the subhex grain is fog-disabled, or when those 7 cells
+// are already revealed (revealSubhexRadius only saves if it added keys).
+// Path-sweep between old/new parent and terrain-aware radius are v2.
+function revealFogAtParty(col, row){
+  const Fog = window.GCCFog, SD = window.GCCSubhexData;
+  if (!Fog || !SD || !SD.parentCenterAxial) return;
+  const c = SD.parentCenterAxial(col, row);
+  if (!c) return;
+  Fog.revealSubhexRadius(c.Q, c.R, 1);
 }
 
 // Time-of-day persistence. Drives encounter timing rule (DMG p.47) —
@@ -3491,6 +3511,7 @@ function movePartyDuringJourney(col, row){
   document.getElementById(`hex-${state.partyCol}-${state.partyRow}`)?.classList.add('explored');
   state.partyCol = col; state.partyRow = row;
   savePartyPos(col, row);
+  revealFogAtParty(col, row);
   updatePartyMarker();
 }
 
@@ -3905,6 +3926,7 @@ function confirmMove(){
   document.getElementById(`hex-${state.partyCol}-${state.partyRow}`)?.classList.add('explored');
   state.partyCol=col; state.partyRow=row;
   savePartyPos(col, row);
+  revealFogAtParty(col, row);
   updatePartyMarker(); closeMoveDialog();
   // Toast composition: lead with the most specific name we have for
   // the hex — landmark > region > bare coords — then coords + travel

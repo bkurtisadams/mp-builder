@@ -313,5 +313,53 @@ section('preview persistence');
   assert(Fog2.isPreview() === true, 'preview rehydrated from localStorage');
 }
 
+// ── 12. auto-reveal integration (party move → 7-cell halo) ───────────────
+section('auto-reveal on party move');
+{
+  // Mirror greyhawk-map.html's revealFogAtParty: translate (col,row) →
+  // parent-center axial via GCCSubhexData, then revealSubhexRadius(.., 1).
+  // Stubs parentCenterAxial with simple fake geometry so we can assert
+  // the 7-cell pattern without booting subhex-data.
+  const win = makeWindow();
+  win.GCCSubhexData = {
+    parentCenterAxial(col, row){
+      // Trivial mapping: parent (c,r) center = (c*10, r*10).
+      return { Q: col * 10, R: row * 10 };
+    },
+  };
+  const Fog = loadFog(win);
+  Fog.init({ mapId: 't12', parentFog: false, subhexFog: true });
+
+  function revealFogAtParty(col, row){
+    const c = win.GCCSubhexData.parentCenterAxial(col, row);
+    Fog.revealSubhexRadius(c.Q, c.R, 1);
+  }
+
+  // First move: 7 new reveals (1 + 6).
+  revealFogAtParty(64, 44);
+  assert(Fog.revealedSubhexCount() === 7, 'first move reveals 7 cells');
+
+  // Same hex re-call: idempotent. revealSubhexRadius adds 0 — no save,
+  // no event. Verify count unchanged and no extra event dispatched.
+  const evBefore = win._events.length;
+  revealFogAtParty(64, 44);
+  assert(Fog.revealedSubhexCount() === 7, 'idempotent — count still 7');
+  assert(win._events.length === evBefore, 'no event when 0 cells added');
+
+  // Move to an adjacent parent: 7 more reveals (the two halos don't
+  // overlap with this stubbed geometry — Q deltas of 10 are well past
+  // radius 1).
+  revealFogAtParty(65, 44);
+  assert(Fog.revealedSubhexCount() === 14, 'adjacent move adds 7 more');
+
+  // Third move into a parent that touches the first halo? With the stub
+  // (col,row) → (10c, 10r), col=64 row=44 center = (640,440); col=64
+  // row=45 center = (640,450). Distance 10. No overlap at radius 1.
+  // So another 7. (Real geometry has radius-1 halos disjoint at parent
+  // scale too; this just confirms the helper doesn't double-count.)
+  revealFogAtParty(64, 45);
+  assert(Fog.revealedSubhexCount() === 21, 'third disjoint parent → +7');
+}
+
 console.log(`\n── ${passes} passed, ${fails} failed ──`);
 process.exit(fails ? 1 : 0);
