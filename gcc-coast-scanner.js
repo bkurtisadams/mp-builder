@@ -1,4 +1,23 @@
-// gcc-coast-scanner.js v0.4.3 — 2026-05-02
+// gcc-coast-scanner.js v0.4.4 — 2026-05-02
+// v0.4.4: author cells whose centers fall off the Darlene image.
+// Previously, samplePixel returned null when the entire 5×5 sample
+// window was outside the canvas bounds, and scanParent skipped the
+// cell entirely (no entry in results, no apply). Map-edge parents
+// (Darlene's east/south borders) had 5-15 such cells per parent
+// that fell through to procedural fallback. Procedural usually
+// produced the right thing for deep-water parents (parent=water →
+// procedural=water), but coastal/edge parents would render
+// incorrectly.
+//
+// Fix: samplePixel returns a sentinel { offImage: true } instead
+// of null when the entire window is out of bounds. scanParent
+// classifies these cells as 'ambiguous' so pass-2's iterative
+// majority rule resolves them from in-bounds neighbors first;
+// failing that, parent-prior. Authored result either way, no
+// procedural fallthrough on map-edge parents.
+//
+// Summary now exposes summary.offImage count alongside sampleFails.
+//
 // v0.4.3: apply-side fix for water-typed parents. v0.4.2's pass-2
 // correctly classified land cells inside water-typed parents (e.g.,
 // U3-74 / Nyr Dyv interior), but applyResults / applyBulk only ever
@@ -347,19 +366,27 @@
   }
 
   // Sample at (px, py) with a (2r+1)x(2r+1) average. One getImageData
-  // call per cell — 25× faster than per-pixel calls. Out-of-bounds
-  // padding is clipped against the canvas; if the entire window is
-  // out, returns null.
+  // call per cell — 25× faster than per-pixel calls. Returns:
+  //   - { r, g, b }     normal sample, in-bounds
+  //   - { offImage: true } sentinel: cell center maps off the image
+  //                       (or the entire 5×5 window does). Distinct
+  //                       from null so scanParent can fall through
+  //                       to parent-prior instead of dropping the
+  //                       cell entirely. Map-edge parents (e.g. on
+  //                       Darlene's east/south borders) have ~5-15
+  //                       cells per parent in this state.
+  //   - null            real failure (canvas not ready, etc.)
   function samplePixel(ctx, px, py){
     const r = SAMPLE_RADIUS_PX;
     const cw = ctx.canvas.width, ch = ctx.canvas.height;
+    if (!cw || !ch) return null;
     const ix = Math.round(px), iy = Math.round(py);
     const x0 = Math.max(0, ix - r);
     const y0 = Math.max(0, iy - r);
     const x1 = Math.min(cw, ix + r + 1);
     const y1 = Math.min(ch, iy + r + 1);
     const w = x1 - x0, h = y1 - y0;
-    if (w <= 0 || h <= 0) return null;
+    if (w <= 0 || h <= 0) return { offImage: true };
     const data = ctx.getImageData(x0, y0, w, h).data;
     let rs = 0, gs = 0, bs = 0;
     const n = w * h;
@@ -419,18 +446,33 @@
     const byKey = new Map();
     const results = [];
     let sampleFails = 0;
+    let offImageCount = 0;
     for (const { Q, R } of cells){
       const svg = SD.subhexSvgCenter(Q, R);
       const pix = svgToImagePixel(svg.x, svg.y);
       if (!pix){ sampleFails++; continue; }
-      const rgb = samplePixel(ctx, pix.px, pix.py);
-      if (!rgb){ sampleFails++; continue; }
-      const cls = classifyPixel(rgb.r, rgb.g, rgb.b, T, TL);
+      const sample = samplePixel(ctx, pix.px, pix.py);
+      if (!sample){ sampleFails++; continue; }
       const sub = SD.getSubhex(Q, R, parentTerrain);
       const alreadyAuthored = sub && sub.source === 'authored';
+      // Off-image cells: the parent extends past the Darlene image
+      // edge (every map-border parent has 5-15 of these). Treat as
+      // ambiguous — pass-2 resolves via in-bounds neighbors first,
+      // then parent-prior. This authors them correctly instead of
+      // dropping them and letting procedural fallback render them.
+      let cls, rgb;
+      if (sample.offImage){
+        offImageCount++;
+        cls = 'ambiguous';
+        rgb = null;
+      } else {
+        rgb = sample;
+        cls = classifyPixel(rgb.r, rgb.g, rgb.b, T, TL);
+      }
       const r = {
         Q, R, rgb,
         classification: cls,
+        offImage: !!sample.offImage,
         isWater: false,        // filled in pass 2
         resolution: null,      // filled in pass 2
         terrain: null,
@@ -564,6 +606,7 @@
         land: landN,
         ambiguous: ambigN,
         sampleFails,
+        offImage: offImageCount,
         alreadyAuthored: alreadyN,
         // Cells that will get an override on apply.
         toWrite: toWriteWater + toWriteLand,
