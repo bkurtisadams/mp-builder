@@ -1,4 +1,13 @@
-// gcc-edge-scanner.js v0.5.1 — 2026-05-03
+// gcc-edge-scanner.js v0.5.3 — 2026-05-03
+// v0.5.3 — applyResults passes mode.source through to
+//          setSubhexOverride so writes are tagged with provenance
+//          (e.g. 'scanner-coast-v1', 'scanner-river-v1') instead
+//          of being indistinguishable from hand-authoring. Pairs
+//          with gcc-subhex-data v2.7.0 source-field support.
+// v0.5.2 — pass-2b honors mode.resolveAmbiguous='direct-only' to
+//          skip neighbor-majority resolution (needed for River).
+// v0.5.1 — deleted bulk-scan code path entirely.
+// v0.5.0 — rename + factor classifier into mode object (slice 1).
 // Renamed + factored from gcc-coast-scanner.js v0.4.6 as the slice-1
 // step toward the generalized "Edges" scanner. The pipeline (sample
 // pixel → classify → off-image abort gate → pass-2 neighbor
@@ -339,7 +348,16 @@
     // 2b: iterative majority resolution. MAX_PASSES caps propagation
     // distance — at ~10 cells across a parent, 10 passes is enough for
     // any signal to traverse the parent if needed.
-    const MAX_PASSES = 10;
+    //
+    // Mode opt-out: River mode sets resolveAmbiguous='direct-only'
+    // because rivers are intentionally thin features (1-2 subhex
+    // cells wide) and majority-vote would flip every river cell to
+    // land via its 5-of-6 land neighbors. Direct classifications
+    // (water pixel detected at the cell's center) are trusted; the
+    // rest fall through to parent prior in 2c, which for River
+    // means parent-terrain land via riverVariantFor.
+    const skipMajority = (mode.resolveAmbiguous === 'direct-only');
+    const MAX_PASSES = skipMajority ? 0 : 10;
     let pass = 0;
     let changed = true;
     while (changed && pass < MAX_PASSES){
@@ -462,17 +480,22 @@
   //                                (procedural fallback is already land)
   // Returns { written, skipped, water, land } so the dialog can show a
   // breakdown. Uses deferred saves when available for batch efficiency.
+  // v0.5.3: passes mode.source through on each write so cleanup
+  // tooling can later filter by source. Falls back to a stable
+  // string when opts.mode is absent (preview-dialog path).
   function applyResults(results, opts){
     opts = opts || {};
     const overwriteAuthored = !!opts.overwriteAuthored;
     if (!window.GCCSubhexData) return { written: 0, skipped: 0, water: 0, land: 0, error: 'no data layer' };
     const SD = window.GCCSubhexData;
     const hasFastPath = (typeof SD.peekOverride === 'function' && typeof SD.flushOverrides === 'function');
+    const mode = _resolveMode(opts);
+    const source = (mode && mode.source) || SOURCE_TAG;
     let written = 0, skipped = 0, waterW = 0, landW = 0;
     for (const r of results){
       if (!r.terrain) continue;
       if (r.alreadyAuthored && !overwriteAuthored){ skipped++; continue; }
-      SD.setSubhexOverride(r.Q, r.R, { terrain: r.terrain }, hasFastPath ? { deferSave: true } : undefined);
+      SD.setSubhexOverride(r.Q, r.R, { terrain: r.terrain, source }, hasFastPath ? { deferSave: true } : undefined);
       written++;
       if (r.isWater) waterW++;
       else           landW++;

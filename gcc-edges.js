@@ -1,4 +1,14 @@
-// gcc-edges.js v0.2.0 — 2026-05-03
+// gcc-edges.js v0.3.0 — 2026-05-03
+// v0.3.0 — Two-stage Run-scans: dry-run all parents first, gate
+//          on per-parent (>50 cells) and total (>5000 cells) caps
+//          before applying. Diagnostic table emitted before
+//          apply, not after, so it's visible even when a cap
+//          aborts the run. Catches classifier-runaway like the
+//          May 3 River incident before the writes hit
+//          localStorage.
+// v0.2.1 — Run-scans now logs per-parent diagnostics via
+//          console.table for debug visibility into what classified
+//          as what.
 // v0.2.0 — promote River into the picker (shares Coast classifier,
 //          differs only in variant-naming); add shift/right-click
 //          remove-all-flags-on-hex gesture for easier cleanup
@@ -250,6 +260,21 @@
   }
 
   // ── Run / Clear ────────────────────────────────────────────────────
+  // Anti-runaway caps. The May 3 incident: River-mode scans wrote
+  // 10,206 water_fresh cells across ~115 parents (≈88 cells per
+  // parent — every cell, not the river line) and overflowed
+  // localStorage quota. These caps catch that class of bug:
+  //
+  //   PER_PARENT_SOFT — any single parent writing more cells than
+  //                     this is suspicious (a river parent should
+  //                     write ≤10; a coastline parent ≤70). Above
+  //                     this, Run prompts for confirmation per-
+  //                     parent before applying.
+  //   TOTAL_HARD      — ceiling on cumulative writes per Run. Above
+  //                     this, Run aborts before any apply.
+  const PER_PARENT_SOFT = 50;
+  const TOTAL_HARD      = 5000;
+
   function onRunClick(){
     if (typeof window.GCCEdgeFlags === 'undefined' || typeof window.GCCEdgeScanner === 'undefined'){
       alert('Edges scanner not loaded.');
@@ -280,36 +305,114 @@
       _toast('No (parent, mode) pairs to scan.');
       return;
     }
-    // Confirm before writing — bulk authoring touches a lot of cells.
-    const summary = `Run ${work.length} scan${work.length === 1 ? '' : 's'} on ${flags.length} parent${flags.length === 1 ? '' : 's'}?`;
-    if (!confirm(summary)) return;
-    // Execute. scanParent + applyResults already use deferSave +
-    // flushOverrides internally per-parent; calling applyResults
-    // n times still results in n flush calls, which is fine for the
-    // ~50-parent ceiling Kurt's authoring scale targets. If this
-    // ever bottlenecks, we can lift the flush to a single call by
-    // using GCCSubhexData.peekOverride/setSubhexOverride directly.
-    const SD = window.GCCSubhexData;
+
+    // ── Stage 1: dry-run ──────────────────────────────────────────
+    // Run scanParent on every (parent, mode) pair WITHOUT applying.
+    // Collect each parent's would-write count and build the diag
+    // table from the same data. This lets us see runaway patterns
+    // before touching localStorage.
+    const dryResults = [];
+    const debugRows = [];
+    let totalWouldWrite = 0;
+    let parentsAborted = 0;
     const errors = [];
-    let totalWritten = 0, totalSkipped = 0, parentsAborted = 0;
+    const suspiciousParents = [];
     for (const w of work){
       const out = window.GCCEdgeScanner.scanParent(w.col, w.row, { mode: w.mode });
       if (out.error){
         errors.push(`${w.col},${w.row} (${w.modeId}): ${out.error}`);
+        debugRows.push({ parent: `${w.col},${w.row}`, mode: w.modeId, status: 'ERROR: ' + out.error });
         continue;
       }
       if (out.summary && out.summary.aborted){
         parentsAborted++;
+        debugRows.push({ parent: `${w.col},${w.row}`, mode: w.modeId, status: 'aborted (off-image)' });
         continue;
       }
-      const ap = window.GCCEdgeScanner.applyResults(out.results, {});
+      const s = out.summary || {};
+      const r = s.resolution || {};
+      const wouldWrite = s.toWrite || 0;
+      totalWouldWrite += wouldWrite;
+      if (wouldWrite > PER_PARENT_SOFT){
+        suspiciousParents.push({ col: w.col, row: w.row, modeId: w.modeId, wouldWrite });
+      }
+      dryResults.push({ work: w, out });
+      debugRows.push({
+        parent:    `${w.col},${w.row}`,
+        mode:      w.modeId,
+        terrain:   s.parentTerrain || '(none)',
+        cells:     s.cellCount,
+        water:     s.water,
+        land:      s.land,
+        ambig:     s.ambiguous,
+        wDirect:   r.waterDirect || 0,
+        lDirect:   r.landDirect || 0,
+        wByNbr:    r.waterByNeighbor || 0,
+        lByNbr:    r.landByNeighbor || 0,
+        wByParent: r.waterByParent || 0,
+        lByParent: r.landByParent || 0,
+        offImg:    s.offImage || 0,
+        wouldWrite,
+        status:    wouldWrite > PER_PARENT_SOFT ? '⚠ over per-parent cap' : '',
+      });
+    }
+
+    // Emit diag table BEFORE any apply, so the user can read it
+    // even if the run gets cancelled by a cap.
+    if (debugRows.length){
+      try {
+        console.groupCollapsed(`[Edges] Run-scans dry-run (${debugRows.length} row${debugRows.length===1?'':'s'}, would write ${totalWouldWrite} cell${totalWouldWrite===1?'':'s'})`);
+        if (typeof console.table === 'function') console.table(debugRows);
+        else console.log(debugRows);
+        console.groupEnd();
+      } catch(_){}
+    }
+    if (errors.length){
+      console.warn('[Edges] dry-run errors:', errors);
+    }
+
+    // ── Stage 2: cap gates ────────────────────────────────────────
+    if (totalWouldWrite > TOTAL_HARD){
+      const msg =
+        `Aborting: this run would write ${totalWouldWrite} cells, ` +
+        `over the safety ceiling of ${TOTAL_HARD}.\n\n` +
+        `Open DevTools console for the per-parent breakdown. ` +
+        `If the diagnostic looks correct and you genuinely want ` +
+        `to write that many cells, raise TOTAL_HARD in gcc-edges.js.`;
+      alert(msg);
+      _toast(`Aborted: ${totalWouldWrite} cells exceeds cap of ${TOTAL_HARD}`);
+      return;
+    }
+    if (suspiciousParents.length){
+      const sample = suspiciousParents.slice(0, 5)
+        .map(p => `  (${p.col},${p.row}) ${p.modeId} → ${p.wouldWrite}`).join('\n');
+      const more = suspiciousParents.length > 5
+        ? `\n  …and ${suspiciousParents.length - 5} more`
+        : '';
+      const msg =
+        `Warning: ${suspiciousParents.length} parent(s) would write ` +
+        `more than ${PER_PARENT_SOFT} cells each — possible classifier ` +
+        `runaway. Sample:\n\n${sample}${more}\n\n` +
+        `Open console for full breakdown. ` +
+        `Apply anyway?`;
+      if (!confirm(msg)){
+        _toast(`Aborted: ${suspiciousParents.length} parent(s) over per-parent cap`);
+        return;
+      }
+    } else {
+      // No suspicious parents — confirm normally.
+      const summary = `Run ${dryResults.length} scan${dryResults.length === 1 ? '' : 's'} → write ${totalWouldWrite} cell${totalWouldWrite === 1 ? '' : 's'}?`;
+      if (!confirm(summary)) return;
+    }
+
+    // ── Stage 3: apply ────────────────────────────────────────────
+    let totalWritten = 0, totalSkipped = 0;
+    for (const dr of dryResults){
+      const ap = window.GCCEdgeScanner.applyResults(dr.out.results, { mode: dr.work.mode });
       totalWritten += ap.written || 0;
       totalSkipped += ap.skipped || 0;
     }
-    if (errors.length){
-      console.warn('[Edges] scan errors:', errors);
-    }
-    const parts = [`${work.length} scan${work.length === 1 ? '' : 's'} run`,
+    const parts = [`${dryResults.length} scan${dryResults.length === 1 ? '' : 's'} run`,
                    `${totalWritten} override${totalWritten === 1 ? '' : 's'} written`];
     if (totalSkipped) parts.push(`${totalSkipped} skipped`);
     if (parentsAborted) parts.push(`${parentsAborted} aborted (off-image)`);

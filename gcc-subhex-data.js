@@ -1,4 +1,18 @@
-// gcc-subhex-data.js v2.6.0 — 2026-05-03
+// gcc-subhex-data.js v2.7.0 — 2026-05-03
+// v2.7.0: per-override `source` field. Records who wrote each
+// override so future cleanup can distinguish hand-authoring from
+// scanner output without heuristics. Default 'authored' for any
+// caller that doesn't supply one (covers the existing in-app paint
+// / outline / hex-editor paths). Edge scanner passes its mode-
+// specific source (e.g. 'scanner-coast-v1', 'scanner-river-v1').
+// Fully back-compat: existing entries without a `source` field are
+// treated as 'authored' on read; getSubhex returns it untouched.
+// Motivation: May 3 cleanup of 14,594 stale scanner entries had
+// to fall back to "no name/notes/feature/regionId/lakeId = scanner"
+// heuristic, which is fragile and would mis-flag any future
+// hand-painted plain-terrain cells.
+//
+// v2.6.0 — 2026-05-03
 // v2.6.0: surface localStorage save errors. Previously every save
 // path used `try { localStorage.setItem(...) } catch(e){}` with an
 // empty catch — quota errors and other write failures silently
@@ -499,6 +513,13 @@
     if ('feature' in fields) next.feature = normalizeFeature(fields.feature);
     if ('regionId' in fields) next.regionId = fields.regionId || null;
     if ('lakeId'   in fields) next.lakeId   = fields.lakeId   || null;
+    // v2.7.0: per-override provenance. Caller supplies 'source' to
+    // identify what wrote this entry. Defaults to 'authored' for
+    // back-compat with callers that don't pass one. Scanner output
+    // passes its mode-specific source like 'scanner-coast-v1' so
+    // cleanup tooling can target scanner writes precisely.
+    if ('source' in fields) next.source = fields.source || 'authored';
+    else if (!next.source)  next.source = 'authored';
 
     const prevRegionId = cur.regionId || null;
     if (terrainChanged && next.regionId){
