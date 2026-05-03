@@ -1,4 +1,4 @@
-// gcc-edge-modes.js v0.1.0 — 2026-05-03
+// gcc-edge-modes.js v0.2.0 — 2026-05-03
 // Mode definitions for the Edges scanner. Each mode is a plug-in
 // classifier+writer object consumed by gcc-edge-scanner. A mode owns:
 //   - threshold defaults
@@ -132,11 +132,47 @@
     source: 'scanner-coast-v1',
   };
 
+  // ── River mode ─────────────────────────────────────────────────────
+  // River shares Coast's classifier (water vs land via HSV thresholds —
+  // a river pixel on Darlene reads as water exactly the same way a
+  // coastline pixel does). What's different is the *variant* River
+  // writes: water cells inside a river-flagged parent always become
+  // water_fresh regardless of the parent's terrain, because rivers
+  // are inland watercourses cutting through forest/plains/hills/
+  // mountain parents — never coastal/inland-sea. Land variant rule
+  // also differs: a river-flagged parent's effective terrain IS the
+  // parent's terrain (forest, plains, hills…), so land cells should
+  // get the parent's terrain, not the Coast-mode plains default.
+  //
+  // Pulled forward from slice 6 because Coast and River share the
+  // classifier — the only river-specific bit is variantFor.
+  function riverVariantFor(parentTerrain, klass, opts){
+    if (klass === 'water') return 'water_fresh';
+    if (klass === 'land'){
+      // Land inside a river-flagged parent = whatever the parent
+      // already is. Avoids stamping 'plains' on a forest river hex.
+      return parentTerrain || 'plains';
+    }
+    return null;
+  }
+  const river = {
+    id: 'river',
+    label: 'River',
+    glyph: '🏞',
+    axis: 'terrain',
+    classes: ['water', 'land'],
+    defaultThreshold:     COAST_WATER_T,
+    defaultLandThreshold: COAST_LAND_T,
+    classify:    coastClassify,        // same HSV classifier
+    variantFor:  riverVariantFor,
+    source: 'scanner-river-v1',
+  };
+
   // ── Public surface ─────────────────────────────────────────────────
   window.GCCEdgeModes = {
-    coast,
-    list: [coast],          // grows as Forest/River/Jungle land
-    byId: { coast },
+    coast, river,
+    list: [coast, river],   // grows as Forest/Jungle land
+    byId: { coast, river },
     // Helpers re-exported for the scanner's preview-dialog use and
     // for tests:
     rgbToHsv, passesThreshold,

@@ -1,4 +1,9 @@
-// gcc-edges.js v0.1.0 — 2026-05-03
+// gcc-edges.js v0.2.0 — 2026-05-03
+// v0.2.0 — promote River into the picker (shares Coast classifier,
+//          differs only in variant-naming); add shift/right-click
+//          remove-all-flags-on-hex gesture for easier cleanup
+//          regardless of which mode painted what.
+// v0.1.0 — initial slice 3 paint mode + panel + dot overlay.
 // Edges paint mode + panel + flagged-parent dot overlay (slice 3 of
 // the Edges scanner redesign). Workflow:
 //
@@ -49,9 +54,10 @@
     forest: { label: 'Forest', glyph: '🌲', color: '#5a9a3a' },
     jungle: { label: 'Jungle', glyph: '🌴', color: '#2f7a3a' },
   };
-  // Modes available in this slice. Slice 5 will append 'forest';
-  // slice 6 'river' and 'jungle'.
-  const SLICE_MODES = ['coast'];
+  // Modes available in the picker. Slice 3.1 promotes River alongside
+  // Coast (they share the HSV classifier). Slice 5 adds Forest;
+  // slice 6 adds Jungle.
+  const SLICE_MODES = ['coast', 'river'];
 
   // ── Module state ───────────────────────────────────────────────────
   const state = {
@@ -185,9 +191,9 @@
         <input type="checkbox" id="edges-show-dots" ${state.showDots ? 'checked' : ''}>
         Show flag dots on map
       </label>
-      <div style="font-size:10px; color:#8b6a30; margin-top:8px; line-height:1.4;">
-        Click a parent hex to toggle its flag for the active mode.
-        Multi-mode flags stack on the same hex.
+      <div style="font-size:10px; color:#8b6a30; margin-top:8px; line-height:1.5;">
+        <b style="color:#c8a070;">Click</b> a parent to toggle the active mode.<br>
+        <b style="color:#c8a070;">Shift-click</b> or <b style="color:#c8a070;">right-click</b> to clear all modes from a hex.
       </div>
     `;
     document.body.appendChild(wrap);
@@ -215,8 +221,8 @@
           <span>${ui.label}</span>
         </label>`);
     }
-    // Future-modes hint until slice 5 lands.
-    rows.push(`<div style="font-size:10px; color:#8b6a30; margin-top:6px;">Forest, River, Jungle land in later slices.</div>`);
+    // Future-modes hint until slice 5 / 6 lands.
+    rows.push(`<div style="font-size:10px; color:#8b6a30; margin-top:6px;">Forest, Jungle land in later slices.</div>`);
     host.innerHTML = rows.join('');
     host.querySelectorAll('input[name="edges-mode"]').forEach(r => {
       r.addEventListener('change', e => { state.activeMode = e.target.value; });
@@ -333,27 +339,65 @@
   // Capture-phase on #map-wrap so we beat the map's bubble-phase
   // pan-arming handler. We swallow the event entirely (preventDefault
   // + stopImmediatePropagation) so left-click while in paint mode
-  // never starts a pan. Drag-paint is intentionally NOT supported in
-  // slice 3 — flagging is point-and-click; dragging across parents
-  // would be a footgun.
+  // never starts a pan. Drag-paint is intentionally NOT supported —
+  // flagging is point-and-click; dragging across parents would be a
+  // footgun.
+  //
+  // Click semantics:
+  //   left click          → toggle active-mode flag on hex
+  //   shift+left click    → remove ALL flags (any mode) from hex
+  //   right click         → same as shift+left (remove all)
+  // The "remove all" path means the GM doesn't have to remember
+  // which mode painted a hex to clear it — particularly useful when
+  // a hex has stacked dots from multiple modes.
+  function _removeAllFlags(col, row){
+    const F = window.GCCEdgeFlags;
+    if (!F) return 0;
+    const modes = F.getModes(col, row);
+    let n = 0;
+    for (const m of modes){
+      if (F.removeFlag(col, row, m)) n++;
+    }
+    return n;
+  }
   function onMapMousedown(ev){
     if (!state.active) return;
-    if (ev.button !== 0) return;
+    // Accept left (0) and right (2). Middle-click ignored.
+    if (ev.button !== 0 && ev.button !== 2) return;
     if (typeof window.screenToMap !== 'function' || typeof window.mapToHex !== 'function') return;
     const m = window.screenToMap(ev.clientX, ev.clientY);
     if (!m) return;
     const hit = window.mapToHex(m.x, m.y);
     if (!hit) return;
-    // Skip clicks that landed on the panel itself (panel sits over
-    // the map but isn't part of #map-wrap; capture-phase on map-wrap
-    // means we only see clicks on the map. Defensive guard anyway.)
     if (state.panelEl && state.panelEl.contains(ev.target)) return;
     ev.stopPropagation();
     ev.stopImmediatePropagation();
     ev.preventDefault();
     if (typeof window.GCCEdgeFlags === 'undefined') return;
+    const isRemoveAll = (ev.button === 2) || ev.shiftKey;
+    if (isRemoveAll){
+      const n = _removeAllFlags(hit.col, hit.row);
+      if (n > 0) LOG('remove-all', hit.col, hit.row, '→', n, 'flags removed');
+      return;
+    }
     const newState = window.GCCEdgeFlags.toggleFlag(hit.col, hit.row, state.activeMode);
     LOG('toggle', hit.col, hit.row, state.activeMode, '→', newState);
+  }
+
+  // Right-click on the map should clear flags (when in Edges mode)
+  // rather than open the browser context menu. Capture-phase on
+  // map-wrap so we beat anything else; only swallows when we're in
+  // Edges mode and the click is over a flagged hex (otherwise the
+  // normal context menu would be slightly weird to suppress).
+  function onMapContextMenu(ev){
+    if (!state.active) return;
+    if (typeof window.screenToMap !== 'function' || typeof window.mapToHex !== 'function') return;
+    const m = window.screenToMap(ev.clientX, ev.clientY);
+    if (!m) return;
+    const hit = window.mapToHex(m.x, m.y);
+    if (!hit) return;
+    ev.preventDefault();
+    ev.stopPropagation();
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────
@@ -366,6 +410,7 @@
     const wrap = document.getElementById('map-wrap');
     if (wrap){
       wrap.addEventListener('mousedown', onMapMousedown, true);
+      wrap.addEventListener('contextmenu', onMapContextMenu, true);
     }
     document.addEventListener('keydown', onKey, true);
     const btn = document.getElementById('btn-edges');
@@ -384,6 +429,7 @@
     const wrap = document.getElementById('map-wrap');
     if (wrap){
       wrap.removeEventListener('mousedown', onMapMousedown, true);
+      wrap.removeEventListener('contextmenu', onMapContextMenu, true);
     }
     document.removeEventListener('keydown', onKey, true);
     const btn = document.getElementById('btn-edges');

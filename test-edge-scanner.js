@@ -67,8 +67,23 @@ section('GCCEdgeModes shape');
   assert(M.coast.source === 'scanner-coast-v1', 'coast.source preserved');
   assert(M.coast.defaultThreshold && M.coast.defaultThreshold.hMin === 180, 'water threshold defaults intact');
   assert(M.coast.defaultLandThreshold && M.coast.defaultLandThreshold.hMin === 20, 'land threshold defaults intact');
-  assert(M.list.length === 1 && M.list[0] === M.coast, 'list contains only coast in slice 1');
-  assert(M.byId.coast === M.coast, 'byId map populated');
+  assert(M.list.length === 2 && M.list[0] === M.coast && M.list[1] === M.river, 'list = [coast, river] in slice 3.1');
+  assert(M.byId.coast === M.coast, 'byId.coast populated');
+  assert(M.byId.river === M.river, 'byId.river populated');
+  // River mode shape
+  assert(M.river.id === 'river', 'river.id');
+  assert(M.river.classify === M.coast.classify, 'river reuses coast classifier');
+  assert(M.river.source === 'scanner-river-v1', 'river source tag');
+  // River variantFor: water always becomes water_fresh regardless
+  // of parent terrain (rivers are inland watercourses).
+  assert(M.river.variantFor('water', 'water')         === 'water_fresh', "river: water-parent water → water_fresh (not water_coastal)");
+  assert(M.river.variantFor('forest_oak', 'water')    === 'water_fresh', 'river: forest-parent water → water_fresh');
+  assert(M.river.variantFor('plains', 'water')        === 'water_fresh', 'river: plains-parent water → water_fresh');
+  // River land cells preserve parent terrain (so a river cutting
+  // through forest doesn't stamp 'plains' on the land cells).
+  assert(M.river.variantFor('forest_oak', 'land')     === 'forest_oak', 'river: land in forest-parent stays forest_oak');
+  assert(M.river.variantFor('hills', 'land')          === 'hills', 'river: land in hills-parent stays hills');
+  assert(M.river.variantFor(null, 'land')             === 'plains', 'river: land with no parent terrain → plains fallback');
 }
 
 // ── 2. coastClassify routing ──────────────────────────────────────────────
