@@ -847,7 +847,8 @@
 <script src="gcc-voyage.js?v=3"></script>
 <script src="gcc-dialog.js"></script>
 <script src="gcc-subhex-view.js?v=26"></script>
-<script src="gcc-coast-scanner.js?v=12"></script>
+<script src="gcc-edge-modes.js?v=1"></script>
+<script src="gcc-edge-scanner.js?v=2"></script>
 <script src="gcc-settings.js?v=1"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
@@ -886,7 +887,7 @@ let stageBounds = {
   height: MAP_H + LABEL_PAD_T + LABEL_PAD_B,
 };
 // Expose dimensions and stage bounds so modules loaded via <script src=>
-// (gcc-coast-scanner et al) can compute world↔image-pixel transforms.
+// (gcc-edge-scanner et al) can compute world↔image-pixel transforms.
 window.MAP_W = MAP_W;
 window.MAP_H = MAP_H;
 window.GRID_COLS = GRID_COLS;
@@ -1321,7 +1322,7 @@ const state={
 // Expose state and imgX on window so modules loaded via <script src=>
 // can read them. Top-level `const` declarations in classic scripts are
 // confined to their script's lexical scope and don't propagate, so
-// gcc-coast-scanner et al need this assignment to see the live object.
+// gcc-edge-scanner et al need this assignment to see the live object.
 window.state = state;
 
 // Initial fog reveal at the party's starting position. revealSubhexRadius
