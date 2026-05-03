@@ -1,4 +1,19 @@
-// gcc-coast-scanner.js v0.4.4 — 2026-05-02
+// gcc-coast-scanner.js v0.4.5 — 2026-05-03
+// v0.4.5: two safety changes after May 2 corruption events.
+// (1) waterVariantForParent('water') now returns 'water_coastal'
+//     instead of 'water_fresh'. Greyhawk parents typed plain 'water'
+//     are coastline by convention; inland seas should be typed
+//     'water_inland_sea' and lakes 'water_fresh' on the parent hex
+//     itself. The old default collapsed every west-coast/Wooly-Bay
+//     parent to freshwater on bulk apply.
+// (2) Off-image abort gate. If more than 30% of a parent's cells
+//     come back from samplePixel as { offImage:true } in pass 1, the
+//     parent is aborted: results returned empty, summary flagged
+//     aborted:true with the off-image ratio. Map-edge parents have
+//     5-15% off-image legitimately (~5-15 cells of 100); the gate
+//     trips only on the catastrophic case where image alignment is
+//     wrong or canvas isn't decoded yet, which on May 2 silently
+//     stamped ~25% of authored parents with uniform parent-prior.
 // v0.4.4: author cells whose centers fall off the Darlene image.
 // Previously, samplePixel returned null when the entire 5×5 sample
 // window was outside the canvas bounds, and scanParent skipped the
@@ -403,7 +418,7 @@
   // contain small lakes.
   function waterVariantForParent(parentTerrain){
     if (!parentTerrain) return 'water_fresh';
-    if (parentTerrain === 'water')              return 'water_fresh';
+    if (parentTerrain === 'water')              return 'water_coastal';
     if (parentTerrain.startsWith('water_'))     return parentTerrain;
     return 'water_fresh';
   }
@@ -480,6 +495,41 @@
       };
       results.push(r);
       byKey.set(`${Q},${R}`, r);
+    }
+
+    // ── Off-image abort gate (v0.4.5) ──────────────────────────────────
+    // If more than 30% of cells came back off-image, the image is
+    // either misaligned or not yet decoded. Authoring with parent-prior
+    // would silently stamp the whole parent uniformly — the May 2
+    // corruption signature. Bail out: empty results, flag aborted.
+    const OFF_IMAGE_ABORT_RATIO = 0.30;
+    if (results.length > 0 && (offImageCount / results.length) > OFF_IMAGE_ABORT_RATIO){
+      const ratio = (offImageCount / results.length).toFixed(2);
+      console.warn(`[CoastScanner] ABORT parent (${col},${row}): ${offImageCount}/${results.length} cells off-image (ratio=${ratio}). Image alignment or load-state suspect.`);
+      return {
+        results: [],
+        summary: {
+          col, row,
+          parentTerrain,
+          parentIsWater,
+          waterVariant,
+          landVariant: parentIsWater ? landVariantForParent(parentTerrain, opts) : null,
+          cellCount: cells.length,
+          water: 0, land: 0, ambiguous: 0,
+          sampleFails, offImage: offImageCount,
+          alreadyAuthored: 0,
+          toWrite: 0, toWriteWater: 0, toWriteLand: 0,
+          aborted: true,
+          abortReason: `off-image ratio ${ratio} > ${OFF_IMAGE_ABORT_RATIO}`,
+          resolution: {
+            waterDirect: 0, landDirect: 0,
+            waterByNeighbor: 0, landByNeighbor: 0,
+            waterByParent: 0, landByParent: 0,
+          },
+          threshold: T,
+          landThreshold: TL,
+        },
+      };
     }
 
     // ── Pass 2: resolve ambiguous via iterative majority, then parent ──
