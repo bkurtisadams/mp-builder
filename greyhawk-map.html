@@ -531,6 +531,7 @@
   <div class="sep"></div>
   <button class="tb-btn" id="btn-image-align" data-hideable="true" data-label="Image alignment" title="Drag/scale/rotate the Darlene map to match SVG hexes">🖼 Image</button>
   <button class="tb-btn" id="btn-hex-edit" data-hideable="true" data-label="Hex Editor" title="Open the Hex Editor (Landmarks / Paint / Outline / Draw)">🧰 Hex</button>
+  <button class="tb-btn" id="btn-edges" data-hideable="true" data-label="Edges" title="Flag transitional parent hexes for fine-grained classifier scans (coast/forest/river/jungle)">🪡 Edges</button>
   <button class="tb-btn" id="btn-coast-scan" data-hideable="true" data-label="Coast scanner" title="Scan the Darlene image for water in the selected parent hex and write subhex overrides">🌊 Coast</button>
   <button class="tb-btn" id="btn-voyage" data-hideable="true" data-label="Voyage Simulator" title="Open the Voyage Simulator (plan sea/river routes, simulate days at sea)">⚓ Voyage</button>
   <div class="spacer"></div>
@@ -849,6 +850,8 @@
 <script src="gcc-subhex-view.js?v=26"></script>
 <script src="gcc-edge-modes.js?v=1"></script>
 <script src="gcc-edge-scanner.js?v=2"></script>
+<script src="gcc-edge-flags.js?v=1"></script>
+<script src="gcc-edges.js?v=1"></script>
 <script src="gcc-settings.js?v=1"></script>
 <script>
 // ── FIXED CANONICAL GRID ──────────────────────────────────────────────────────
@@ -2272,6 +2275,11 @@ function buildHexGrid(){
   svg.appendChild(buildCoordLabels());
   svg.appendChild(buildLandmarkOverlay());
   svg.appendChild(buildJourneyOverlay());
+  // Edges flag-dot overlay (gcc-edges.js). Rebuilt here so the dots
+  // survive a full grid rebuild (calibration changes).
+  if (window.GCCEdges && typeof window.GCCEdges.rebuildOverlay === 'function'){
+    window.GCCEdges.rebuildOverlay();
+  }
   svg.appendChild(markerG);
   applyJourneyHexClasses();
   updatePartyMarker();
