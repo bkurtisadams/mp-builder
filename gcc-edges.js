@@ -1,4 +1,23 @@
-// gcc-edges.js v0.3.2 — 2026-05-03
+// gcc-edges.js v0.4.0 — 2026-05-03
+// v0.4.0 — Two UX adds for full-coastline-scale runs:
+//          1. Draggable panel — header acts as drag handle, position
+//             persists in localStorage 'gcc-edge-panel-pos'. Clamps
+//             to viewport so saved positions don't strand the panel
+//             off-screen if the window shrinks.
+//          2. Progress UI for runs ≥ 30 parents: panel body swaps
+//             out for a progress bar + label (mirrors the Coast
+//             tool's csb-progress pattern). Loop yields every 25
+//             iterations via setTimeout(0) so the bar repaints.
+//             Apply stage also runs through this UI. After apply,
+//             awaits GCCSubhexData.flushOverrides() so the toast
+//             only fires once writes are durable on disk.
+// v0.3.3 — Per-parent cap is informational only, no longer blocks.
+//          Hand-flagged parents are presumed correct; a parent
+//          writing 100 cells means the GM legitimately wants 100
+//          overrides (e.g. mismatch between hand-painted parent
+//          terrain and Darlene image at that location). TOTAL_HARD
+//          remains the only blocking gate (catches actual quota-
+//          blowing runaway, like the May 3 incident).
 // v0.3.2 — Diagnostic improvements: sort dry-run rows by mode
 //          (so River rows aren't buried among 1000+ coast rows in
 //          mixed runs); per-mode summary table emitted alongside
@@ -187,11 +206,37 @@
   }
 
   // ── Panel ──────────────────────────────────────────────────────────
+  // Position persists in localStorage 'gcc-edge-panel-pos'. On first
+  // load (or out-of-bounds saved position from a viewport resize),
+  // falls back to the default top-right corner. Drag handle is the
+  // header div; clicks on the close × pass through.
+  const PANEL_POS_KEY = 'gcc-edge-panel-pos';
+
+  function _loadPanelPos(){
+    try {
+      const raw = localStorage.getItem(PANEL_POS_KEY);
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      if (typeof p.left !== 'number' || typeof p.top !== 'number') return null;
+      // Clamp to viewport in case the user resized smaller since saving.
+      const maxLeft = Math.max(0, window.innerWidth - 50);
+      const maxTop  = Math.max(0, window.innerHeight - 50);
+      return { left: Math.min(p.left, maxLeft), top: Math.min(p.top, maxTop) };
+    } catch(_){ return null; }
+  }
+  function _savePanelPos(left, top){
+    try { localStorage.setItem(PANEL_POS_KEY, JSON.stringify({ left, top })); } catch(_){}
+  }
+
   function buildPanel(){
     const wrap = document.createElement('div');
     wrap.id = 'edges-panel';
+    const pos = _loadPanelPos();
+    const initialPosCss = pos
+      ? `left:${pos.left}px; top:${pos.top}px;`
+      : `top:60px; right:16px;`;
     wrap.style.cssText = `
-      position:fixed; top:60px; right:16px;
+      position:fixed; ${initialPosCss}
       width:280px; z-index:300;
       background:#120900; color:#f4e8c4;
       border:1px solid #c8941a; border-radius:3px;
@@ -200,10 +245,11 @@
       font-family:'Crimson Text', Georgia, serif;
     `;
     wrap.innerHTML = `
-      <div style="font-family:'Cinzel',serif; font-size:13px; color:#e8b840; letter-spacing:.06em; text-transform:uppercase; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #5a4a30; display:flex; justify-content:space-between; align-items:baseline;">
+      <div id="edges-header" style="font-family:'Cinzel',serif; font-size:13px; color:#e8b840; letter-spacing:.06em; text-transform:uppercase; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #5a4a30; display:flex; justify-content:space-between; align-items:baseline; cursor:move; user-select:none;">
         <span>🪡 Edges</span>
         <span style="cursor:pointer; color:#c8a070; font-size:18px;" id="edges-close" title="Exit">×</span>
       </div>
+      <div id="edges-body">
       <div style="font-size:10px; color:#c8a070; letter-spacing:.06em; text-transform:uppercase; margin-bottom:4px;">Mode</div>
       <div id="edges-mode-picker" style="font-size:12px; line-height:1.7; margin-bottom:10px;"></div>
       <div id="edges-stats" style="font-size:12px; color:#c8a070; margin-bottom:10px; line-height:1.4;">—</div>
@@ -219,6 +265,14 @@
         <b style="color:#c8a070;">Click</b> a parent to toggle the active mode.<br>
         <b style="color:#c8a070;">Shift-click</b> or <b style="color:#c8a070;">right-click</b> to clear all modes from a hex.
       </div>
+      </div><!-- /edges-body -->
+      <div id="edges-progress" style="display:none;">
+        <div id="edges-progress-msg" style="font-size:13px; line-height:1.5; margin-bottom:10px; color:#f4e8c4;">Scanning…</div>
+        <div style="height:14px; background:#2a1a08; border:1px solid #5a4a30; border-radius:2px; overflow:hidden; margin-bottom:6px;">
+          <div id="edges-progress-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#c8941a,#e8b840); transition:width .2s;"></div>
+        </div>
+        <div id="edges-progress-label" style="font-size:11px; color:#c8a070;">starting…</div>
+      </div>
     `;
     document.body.appendChild(wrap);
     state.panelEl = wrap;
@@ -230,6 +284,62 @@
     document.getElementById('edges-show-dots').addEventListener('change', e => {
       setShowDots(!!e.target.checked);
     });
+    _wirePanelDrag(wrap);
+  }
+
+  // ── Panel drag ─────────────────────────────────────────────────────
+  // Mousedown on header (but not on the close × or anything inside
+  // edges-body) starts a drag. Move with the mouse, save position
+  // on mouseup. We anchor by left/top, ignoring the initial right:16px
+  // anchor — once dragged, the panel uses absolute left/top
+  // coordinates and won't track viewport-edge resizes (acceptable;
+  // user explicitly placed it).
+  function _wirePanelDrag(wrap){
+    const header = wrap.querySelector('#edges-header');
+    if (!header) return;
+    let dragging = false;
+    let startX = 0, startY = 0;
+    let startLeft = 0, startTop = 0;
+    function onDown(ev){
+      // Don't initiate drag if the user clicked the close button.
+      if (ev.target.closest('#edges-close')) return;
+      dragging = true;
+      startX = ev.clientX;
+      startY = ev.clientY;
+      const rect = wrap.getBoundingClientRect();
+      startLeft = rect.left;
+      startTop  = rect.top;
+      // Pin the wrap to absolute left/top (overriding any right-anchor).
+      wrap.style.left = startLeft + 'px';
+      wrap.style.top  = startTop  + 'px';
+      wrap.style.right = 'auto';
+      ev.preventDefault();
+      ev.stopPropagation();
+      document.addEventListener('mousemove', onMove, true);
+      document.addEventListener('mouseup',   onUp,   true);
+    }
+    function onMove(ev){
+      if (!dragging) return;
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      let nl = startLeft + dx;
+      let nt = startTop  + dy;
+      // Clamp so a sliver always stays visible.
+      const w = wrap.offsetWidth, h = wrap.offsetHeight;
+      nl = Math.max(-w + 50, Math.min(window.innerWidth - 50, nl));
+      nt = Math.max(0, Math.min(window.innerHeight - 30, nt));
+      wrap.style.left = nl + 'px';
+      wrap.style.top  = nt + 'px';
+    }
+    function onUp(ev){
+      if (!dragging) return;
+      dragging = false;
+      document.removeEventListener('mousemove', onMove, true);
+      document.removeEventListener('mouseup',   onUp,   true);
+      const rect = wrap.getBoundingClientRect();
+      _savePanelPos(rect.left, rect.top);
+    }
+    header.addEventListener('mousedown', onDown, true);
   }
   function _renderModePicker(){
     const host = state.panelEl && state.panelEl.querySelector('#edges-mode-picker');
@@ -294,7 +404,36 @@
   const PER_PARENT_SOFT = 95;
   const TOTAL_HARD      = 100000;
 
-  function onRunClick(){
+  // ── Progress UI helpers ────────────────────────────────────────────
+  function _showProgress(msg){
+    const panel = state.panelEl;
+    if (!panel) return;
+    const body = panel.querySelector('#edges-body');
+    const prog = panel.querySelector('#edges-progress');
+    if (body) body.style.display = 'none';
+    if (prog) prog.style.display = 'block';
+    _setProgress(msg || 'Scanning…', 0, '');
+  }
+  function _hideProgress(){
+    const panel = state.panelEl;
+    if (!panel) return;
+    const body = panel.querySelector('#edges-body');
+    const prog = panel.querySelector('#edges-progress');
+    if (body) body.style.display = '';
+    if (prog) prog.style.display = 'none';
+  }
+  function _setProgress(msg, pct, label){
+    const panel = state.panelEl;
+    if (!panel) return;
+    const m   = panel.querySelector('#edges-progress-msg');
+    const bar = panel.querySelector('#edges-progress-bar');
+    const lbl = panel.querySelector('#edges-progress-label');
+    if (m   && msg   != null) m.textContent = msg;
+    if (bar && pct   != null) bar.style.width = Math.max(0, Math.min(100, pct)) + '%';
+    if (lbl && label != null) lbl.textContent = label;
+  }
+
+  async function onRunClick(){
     if (typeof window.GCCEdgeFlags === 'undefined' || typeof window.GCCEdgeScanner === 'undefined'){
       alert('Edges scanner not loaded.');
       return;
@@ -330,36 +469,45 @@
     // Collect each parent's would-write count and build the diag
     // table from the same data. This lets us see runaway patterns
     // before touching localStorage.
+    //
+    // For runs over PROGRESS_THRESHOLD parents, swap the panel for
+    // a progress UI and yield to the event loop every YIELD_EVERY
+    // iterations so the bar repaints. Below the threshold the loop
+    // is fast enough (~50ms for 10 parents) that the UI swap would
+    // only flicker — skip.
+    const PROGRESS_THRESHOLD = 30;
+    const YIELD_EVERY = 25;
+    const useProgress = work.length >= PROGRESS_THRESHOLD;
+    if (useProgress) _showProgress(`Scanning ${work.length} parent${work.length===1?'':'s'}…`);
+
     const dryResults = [];
     const debugRows = [];
     let totalWouldWrite = 0;
     let parentsAborted = 0;
     const errors = [];
     const suspiciousParents = [];
-    for (const w of work){
+    for (let i = 0; i < work.length; i++){
+      const w = work[i];
       const out = window.GCCEdgeScanner.scanParent(w.col, w.row, { mode: w.mode });
       if (out.error){
         errors.push(`${w.col},${w.row} (${w.modeId}): ${out.error}`);
         debugRows.push({ parent: `${w.col},${w.row}`, mode: w.modeId, status: 'ERROR: ' + out.error });
-        continue;
-      }
-      if (out.summary && out.summary.aborted){
+      } else if (out.summary && out.summary.aborted){
         parentsAborted++;
         debugRows.push({ parent: `${w.col},${w.row}`, mode: w.modeId, status: 'aborted (off-image)' });
-        continue;
-      }
-      const s = out.summary || {};
-      const r = s.resolution || {};
-      const wouldWrite = s.toWrite || 0;
-      totalWouldWrite += wouldWrite;
-      if (wouldWrite > PER_PARENT_SOFT){
-        suspiciousParents.push({ col: w.col, row: w.row, modeId: w.modeId, wouldWrite });
-      }
-      dryResults.push({ work: w, out });
-      debugRows.push({
-        parent:    `${w.col},${w.row}`,
-        mode:      w.modeId,
-        terrain:   s.parentTerrain || '(none)',
+      } else {
+        const s = out.summary || {};
+        const r = s.resolution || {};
+        const wouldWrite = s.toWrite || 0;
+        totalWouldWrite += wouldWrite;
+        if (wouldWrite > PER_PARENT_SOFT){
+          suspiciousParents.push({ col: w.col, row: w.row, modeId: w.modeId, wouldWrite });
+        }
+        dryResults.push({ work: w, out });
+        debugRows.push({
+          parent:    `${w.col},${w.row}`,
+          mode:      w.modeId,
+          terrain:   s.parentTerrain || '(none)',
         cells:     s.cellCount,
         water:     s.water,
         land:      s.land,
@@ -373,8 +521,17 @@
         offImg:    s.offImage || 0,
         wouldWrite,
         status:    wouldWrite > PER_PARENT_SOFT ? '⚠ over per-parent cap' : '',
-      });
+        });
+      }
+      // Progress + yield (only when over threshold).
+      if (useProgress && (i % YIELD_EVERY === 0 || i === work.length - 1)){
+        const done = i + 1;
+        const pct  = Math.round((done / work.length) * 100);
+        _setProgress(null, pct, `${done} of ${work.length} parent${work.length===1?'':'s'} · ${totalWouldWrite} cells so far`);
+        await new Promise(r => setTimeout(r, 0));
+      }
     }
+    if (useProgress) _hideProgress();
 
     // Sort debug rows by mode (alphabetical) then parent so
     // mixed-mode runs group same-mode parents together — keeps
@@ -418,7 +575,14 @@
       console.warn('[Edges] dry-run errors:', errors);
     }
 
-    // ── Stage 2: cap gates ────────────────────────────────────────
+    // ── Stage 2: cap gate ─────────────────────────────────────────
+    // Only TOTAL_HARD is a blocking gate — it catches genuine
+    // quota-blowing runaway (May 3 incident pattern). PER_PARENT_SOFT
+    // is informational only: gets logged with the diagnostic, doesn't
+    // block. Reasoning: the GM hand-flagged each parent, so a parent
+    // writing 100 cells is the parent legitimately needing 100
+    // overrides (e.g. a parent painted as land that's actually all
+    // ocean on Darlene), not classifier runaway.
     if (totalWouldWrite > TOTAL_HARD){
       const msg =
         `Aborting: this run would write ${totalWouldWrite} cells, ` +
@@ -431,34 +595,35 @@
       return;
     }
     if (suspiciousParents.length){
-      const sample = suspiciousParents.slice(0, 5)
-        .map(p => `  (${p.col},${p.row}) ${p.modeId} → ${p.wouldWrite}`).join('\n');
-      const more = suspiciousParents.length > 5
-        ? `\n  …and ${suspiciousParents.length - 5} more`
-        : '';
-      const msg =
-        `Warning: ${suspiciousParents.length} parent(s) would write ` +
-        `more than ${PER_PARENT_SOFT} cells each — possible classifier ` +
-        `runaway. Sample:\n\n${sample}${more}\n\n` +
-        `Open console for full breakdown. ` +
-        `Apply anyway?`;
-      if (!confirm(msg)){
-        _toast(`Aborted: ${suspiciousParents.length} parent(s) over per-parent cap`);
-        return;
-      }
-    } else {
-      // No suspicious parents — confirm normally.
-      const summary = `Run ${dryResults.length} scan${dryResults.length === 1 ? '' : 's'} → write ${totalWouldWrite} cell${totalWouldWrite === 1 ? '' : 's'}?`;
-      if (!confirm(summary)) return;
+      // Informational only — log to console, don't block.
+      console.log(`[Edges] ${suspiciousParents.length} parent(s) would write more than ${PER_PARENT_SOFT} cells each (informational; not blocking).`);
     }
+    const summary = `Run ${dryResults.length} scan${dryResults.length === 1 ? '' : 's'} → write ${totalWouldWrite} cell${totalWouldWrite === 1 ? '' : 's'}?`;
+    if (!confirm(summary)) return;
 
     // ── Stage 3: apply ────────────────────────────────────────────
+    if (useProgress) _showProgress(`Applying ${totalWouldWrite} override${totalWouldWrite===1?'':'s'}…`);
     let totalWritten = 0, totalSkipped = 0;
-    for (const dr of dryResults){
+    for (let i = 0; i < dryResults.length; i++){
+      const dr = dryResults[i];
       const ap = window.GCCEdgeScanner.applyResults(dr.out.results, { mode: dr.work.mode });
       totalWritten += ap.written || 0;
       totalSkipped += ap.skipped || 0;
+      if (useProgress && (i % YIELD_EVERY === 0 || i === dryResults.length - 1)){
+        const done = i + 1;
+        const pct = Math.round((done / dryResults.length) * 100);
+        _setProgress(null, pct, `${done} of ${dryResults.length} parent${dryResults.length===1?'':'s'} · ${totalWritten} written`);
+        await new Promise(r => setTimeout(r, 0));
+      }
     }
+    // Wait for IDB writes to actually hit disk before claiming done.
+    // Without this, the toast says "50508 written" but the writes
+    // may still be queued — a fast reload would lose data.
+    if (window.GCCSubhexData && typeof window.GCCSubhexData.flushOverrides === 'function'){
+      if (useProgress) _setProgress('Flushing to disk…', 100, '');
+      try { await window.GCCSubhexData.flushOverrides(); } catch(_){}
+    }
+    if (useProgress) _hideProgress();
     const parts = [`${dryResults.length} scan${dryResults.length === 1 ? '' : 's'} run`,
                    `${totalWritten} override${totalWritten === 1 ? '' : 's'} written`];
     if (totalSkipped) parts.push(`${totalSkipped} skipped`);
