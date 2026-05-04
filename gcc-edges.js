@@ -1,4 +1,18 @@
-// gcc-edges.js v0.3.0 — 2026-05-03
+// gcc-edges.js v0.3.2 — 2026-05-03
+// v0.3.2 — Diagnostic improvements: sort dry-run rows by mode
+//          (so River rows aren't buried among 1000+ coast rows in
+//          mixed runs); per-mode summary table emitted alongside
+//          the row table; rows stashed on window.__edgesLastDebug
+//          so DevTools can post-hoc query (e.g.
+//          __edgesLastDebug.filter(r => r.mode === 'river')).
+// v0.3.1 — Retune anti-runaway caps for real authoring scale.
+//          PER_PARENT_SOFT 50 → 95 (real coastlines cap ~85, only
+//          classifier-runaway hits 95+). TOTAL_HARD 5000 → 100000
+//          (full Greyhawk coastline = 1,125 parents × ~45 cells
+//          ≈ 50k legit cells, with 2× headroom). Note: 50k+ writes
+//          at ~110 bytes each may exceed the ~5MB localStorage
+//          quota — chunked authoring or Firestore backing for
+//          scanner output is a likely follow-up.
 // v0.3.0 — Two-stage Run-scans: dry-run all parents first, gate
 //          on per-parent (>50 cells) and total (>5000 cells) caps
 //          before applying. Diagnostic table emitted before
@@ -263,17 +277,22 @@
   // Anti-runaway caps. The May 3 incident: River-mode scans wrote
   // 10,206 water_fresh cells across ~115 parents (≈88 cells per
   // parent — every cell, not the river line) and overflowed
-  // localStorage quota. These caps catch that class of bug:
+  // localStorage quota.
+  //
+  // Tuned for real authoring scale (Kurt's full Greyhawk coastline
+  // = 1,125 parents × ~45 cells/parent average ≈ 50k legit cells):
   //
   //   PER_PARENT_SOFT — any single parent writing more cells than
-  //                     this is suspicious (a river parent should
-  //                     write ≤10; a coastline parent ≤70). Above
-  //                     this, Run prompts for confirmation per-
-  //                     parent before applying.
-  //   TOTAL_HARD      — ceiling on cumulative writes per Run. Above
-  //                     this, Run aborts before any apply.
-  const PER_PARENT_SOFT = 50;
-  const TOTAL_HARD      = 5000;
+  //                     this is suspicious. Tuned to 95 so only
+  //                     classifier-runaway (the May 3 pattern of
+  //                     ~88-cell parents writing all 88) triggers.
+  //                     Real coastlines cap around 85 cells written.
+  //   TOTAL_HARD      — ceiling on cumulative writes per Run. Tuned
+  //                     to 100k to leave 2× headroom over full-
+  //                     coastline authoring (~50k legit cells).
+  //                     Above this, Run aborts before any apply.
+  const PER_PARENT_SOFT = 95;
+  const TOTAL_HARD      = 100000;
 
   function onRunClick(){
     if (typeof window.GCCEdgeFlags === 'undefined' || typeof window.GCCEdgeScanner === 'undefined'){
@@ -357,6 +376,20 @@
       });
     }
 
+    // Sort debug rows by mode (alphabetical) then parent so
+    // mixed-mode runs group same-mode parents together — keeps
+    // river rows from getting buried in 1000+ coast rows.
+    debugRows.sort((a, b) => {
+      const m = (a.mode || '').localeCompare(b.mode || '');
+      if (m) return m;
+      return (a.parent || '').localeCompare(b.parent || '');
+    });
+
+    // Stash on window for post-hoc query when the table is too
+    // long to scroll through. Usage in DevTools:
+    //   __edgesLastDebug.filter(r => r.mode === 'river')
+    try { window.__edgesLastDebug = debugRows; } catch(_){}
+
     // Emit diag table BEFORE any apply, so the user can read it
     // even if the run gets cancelled by a cap.
     if (debugRows.length){
@@ -365,6 +398,20 @@
         if (typeof console.table === 'function') console.table(debugRows);
         else console.log(debugRows);
         console.groupEnd();
+
+        // Also log a per-mode summary up top so it's visible
+        // without expanding the full table.
+        const byMode = {};
+        for (const r of debugRows){
+          const m = r.mode || '?';
+          byMode[m] = byMode[m] || { rows: 0, wouldWrite: 0, overCap: 0 };
+          byMode[m].rows++;
+          byMode[m].wouldWrite += (r.wouldWrite || 0);
+          if ((r.wouldWrite || 0) > PER_PARENT_SOFT) byMode[m].overCap++;
+        }
+        console.log('[Edges] Per-mode summary:');
+        if (typeof console.table === 'function') console.table(byMode);
+        else console.log(byMode);
       } catch(_){}
     }
     if (errors.length){
