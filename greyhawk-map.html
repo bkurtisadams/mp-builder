@@ -366,6 +366,12 @@
   .jd-fs { border:1px solid rgba(200,148,26,.25); border-radius:2px; padding:5px 8px; }
   .jd-fs legend { font-family:'Cinzel',serif; font-size:9px; color:#8b6e45;
     letter-spacing:.1em; text-transform:uppercase; padding:0 4px; }
+  .jd-cbx-row { display:flex; align-items:center; gap:6px; font-size:11px;
+    color:var(--parchment-light); padding:2px 0; cursor:pointer; }
+  .jd-cbx-row input[type="checkbox"] { accent-color:#c8941a; cursor:pointer; }
+  .jd-cbx-row span { font-family:'Cinzel',serif; font-size:10px; letter-spacing:.04em;
+    color:#c8a96e; }
+  .jd-cbx-row:hover span { color:#ffeebb; }
   .jd-date-row { display:flex; gap:5px; align-items:center; margin-top:3px;
     font-size:11px; color:var(--parchment-light); }
   .jd-date-row select, .jd-date-row input {
@@ -748,12 +754,18 @@
     <div class="jd-row"><label>Duration</label><span class="jd-val" id="jd-dur">—</span></div>
     <div class="jd-row" id="jd-current-row" style="display:none"><label>Current</label><span class="jd-val" id="jd-current">—</span></div>
     <div class="jd-row"><label>Encounter Checks</label><span class="jd-val" id="jd-checks">—</span></div>
+    <div class="jd-row" id="jd-lost-row" style="display:none"><label>Lost?</label><span class="jd-val" id="jd-lost" title="">—</span></div>
     <div class="jd-row" id="jd-warn-row" style="display:none"><label>Warning</label><span class="jd-val jd-warn" id="jd-warn">—</span></div>
     <div class="jd-row jd-crossings-row" id="jd-crossings-row" style="display:none">
       <label>Crossings</label>
       <span class="jd-val jd-crossings-val" id="jd-crossings">—</span>
     </div>
     <hr class="jd-div">
+    <fieldset class="jd-fs">
+      <legend>Party Knowledge</legend>
+      <label class="jd-cbx-row"><input type="checkbox" id="jd-has-guide"><span>Knowledgeable guide</span></label>
+      <label class="jd-cbx-row"><input type="checkbox" id="jd-has-map"><span>Correct map of region</span></label>
+    </fieldset>
     <fieldset class="jd-fs">
       <legend>Start Date (campaign-local)</legend>
       <div class="jd-date-row">
@@ -1316,6 +1328,9 @@ const state={
   // Persisted across reloads via gh-travel-profile localStorage key.
   // Affects travelTime() output everywhere it's called.
   travelProfile: loadTravelProfile(),
+  // Persisted across reloads via gh-lost-prefs. Surfaces party-knowledge
+  // booleans (guide, map) into the journey planner's Lost engine gates.
+  lostPrefs: loadLostPrefs(),
   imgAlignMode:false,
   imgDragging:false, imgDragStart:null, imgDragStartTx:0, imgDragStartTy:0,
   imgRotDragging:false, imgRotStart:0, imgRotStartAngle:0,
@@ -1946,6 +1961,201 @@ function computeJourneyDuration(route, profile){
 function projectedEncounterChecks(estDays){
   return Math.round(estDays * 3);
 }
+
+// ── LOST ENGINE INTEGRATION ──────────────────────────────────────────────────
+// Glue between gcc-lost.js (pure logic) and the journey planner. Derives
+// the four DMG gate booleans from world state, runs a per-route-hex
+// preview through GCCLost.checkAndRoll, and aggregates into a single
+// summary line for the planner dialog. v1 is info-only — never reroutes
+// the party. Forced march wiring + two-vector real-vs-perceived position
+// model are deferred to later slices (see docs/rules/movement.md).
+//
+// Determinism: preview rolls use a route+date-seeded RNG so multiple
+// recomputes of the same plan show stable results. The execution loop
+// (Phase 2) will use a fresh per-trip RNG; preview values are not
+// authoritative.
+
+// Path-following: closes the DMG gate-2 ("along a well-defined course")
+// when the prev→hex edge has a road bonus, OR when both hexes are part
+// of the same continuous river chain (river-along, not river-crossing).
+// Crossing-perpendicular cases (party walks from a dry hex into a river
+// hex) don't close the gate because only the destination has a river
+// segment touching the shared edge from one side.
+function lostPathFollowed(prev, hex){
+  if (typeof GCCPaths === 'undefined') return false;
+  const t = getHexTerrain(hex.col, hex.row);
+  if (GCCPaths.edgeRoadBonus(prev.col, prev.row, hex.col, hex.row, t) > 1.0) return true;
+  const prevHasRiver = GCCPaths.riversAt(prev.col, prev.row).length > 0;
+  const hexHasRiver  = GCCPaths.riversAt(hex.col,  hex.row ).length > 0;
+  if (prevHasRiver && hexHasRiver &&
+      typeof GCCPaths.edgeRiverInfo === 'function' &&
+      GCCPaths.edgeRiverInfo(prev.col, prev.row, hex.col, hex.row)){
+    return true;
+  }
+  return false;
+}
+
+// Strict per-party-traversal familiarity: was the destination's center
+// subhex actually revealed by party movement (or manual fog brush)?
+// Coast-scanner/edge-scanner authored data does NOT touch fog, so this
+// stays a true "have we been there" check. Falls back to parent fog
+// when subhex grain is unavailable (e.g., Gamma World map config).
+function lostHexFamiliar(col, row){
+  if (typeof GCCFog === 'undefined') return false;
+  if (typeof GCCSubhexData !== 'undefined' &&
+      typeof GCCSubhexData.parentCenterAxial === 'function' &&
+      typeof GCCFog.isSubhexRevealed === 'function'){
+    const c = GCCSubhexData.parentCenterAxial(col, row);
+    if (c) return GCCFog.isSubhexRevealed(c.Q, c.R);
+  }
+  if (typeof GCCFog.isParentRevealed === 'function'){
+    return GCCFog.isParentRevealed(col, row);
+  }
+  return false;
+}
+
+// djb2-ish hash over route hexes + start date. Two plans with identical
+// routes and start dates produce the same seed → same preview rolls.
+function _lostSeedFor(j){
+  let h = 5381;
+  for (const r of (j.route || [])){
+    h = (Math.imul(h, 33) + (r.col | 0)) | 0;
+    h = (Math.imul(h, 33) + (r.row | 0)) | 0;
+  }
+  if (j.startDate){
+    h = (Math.imul(h, 33) + (j.startDate.monthIdx | 0)) | 0;
+    h = (Math.imul(h, 33) + (j.startDate.day      | 0)) | 0;
+    h = (Math.imul(h, 33) + (j.startDate.year     | 0)) | 0;
+  }
+  return h >>> 0;
+}
+function _lostMulberry32(seed){
+  let s = (seed >>> 0) || 1;
+  return function(){
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Per-hex preview. Returns an aggregate over the route. Caller decides
+// how to surface it. Skips the origin (i=0) — party is already there.
+function computeJourneyLostPreview(j){
+  if (!j || !j.route || typeof window.GCCLost === 'undefined') return null;
+  const route = j.route;
+  if (route.length < 2){
+    return { hexes: [], rolled: 0, lost: 0, gateCounts: {}, dominantGate: null };
+  }
+  const rng = _lostMulberry32(_lostSeedFor(j));
+  const lostPrefs = j.lostPrefs || { hasGuide: false, hasMap: false };
+  const destFamiliar = lostHexFamiliar(j.destination.col, j.destination.row);
+  const hexes = [];
+  let rolled = 0, lost = 0;
+  const gateCounts = {};
+  for (let i = 1; i < route.length; i++){
+    const hex = route[i], prev = route[i - 1];
+    const opts = {
+      terrain: getHexTerrain(hex.col, hex.row),
+      hasGuide: !!lostPrefs.hasGuide,
+      hasMap:   !!lostPrefs.hasMap,
+      followingPath: lostPathFollowed(prev, hex),
+      destinationRevealed: destFamiliar,
+      rng,
+    };
+    const result = window.GCCLost.checkAndRoll(opts);
+    hexes.push({ hex, prev, opts, result });
+    if (result.rolled){
+      rolled++;
+      if (result.lost) lost++;
+    } else {
+      gateCounts[result.blockedBy] = (gateCounts[result.blockedBy] || 0) + 1;
+    }
+  }
+  let dominantGate = null, dom = 0;
+  for (const k in gateCounts){
+    if (gateCounts[k] > dom){ dom = gateCounts[k]; dominantGate = k; }
+  }
+  return { hexes, rolled, lost, gateCounts, dominantGate };
+}
+
+// Human labels for gate blockers. 'mapped' renders as "familiar" so
+// the GM doesn't confuse it with the hasMap gate.
+function _lostGateLabel(g){
+  switch (g){
+    case 'guide':   return 'guide';
+    case 'path':    return 'path';
+    case 'map':     return 'map';
+    case 'mapped':  return 'familiar';
+    case 'water':   return 'water/urban';
+    case 'unknown': return 'unknown terrain';
+    default:        return g || '—';
+  }
+}
+// Deviation rendered short: "60° R", "120° L behind", "180° behind".
+function _lostDeviationShort(dev){
+  if (!dev) return '?';
+  const d = dev.degrees;
+  switch (dev.rel){
+    case 'left':         return `${d}° L`;
+    case 'right':        return `${d}° R`;
+    case 'ahead-right':  return `${d}° R`;
+    case 'behind-right': return `${d}° R behind`;
+    case 'behind':       return `180° behind`;
+    case 'behind-left':  return `${d}° L behind`;
+    case 'ahead-left':   return `${d}° L`;
+    default:             return `${d}°`;
+  }
+}
+// Tooltip body: per-hex breakdown for the GM who wants to see the work.
+function _lostTooltip(preview){
+  if (!preview || !preview.hexes.length) return '';
+  const lines = [];
+  for (const h of preview.hexes){
+    const id = hexIdStr(h.hex.col, h.hex.row);
+    const r = h.result;
+    if (!r.rolled){
+      lines.push(`${id}  — gate: ${_lostGateLabel(r.blockedBy)}`);
+    } else if (!r.lost){
+      lines.push(`${id}  ${r.chance}/10 → rolled ${r.roll} (on course)`);
+    } else {
+      lines.push(`${id}  ${r.chance}/10 → rolled ${r.roll}: LOST ${_lostDeviationShort(r.deviation)} (${r.category})`);
+    }
+  }
+  return lines.join('\n');
+}
+
+function renderJourneyLost(preview){
+  const row = document.getElementById('jd-lost-row');
+  const val = document.getElementById('jd-lost');
+  if (!row || !val) return;
+  if (!preview || !preview.hexes.length){
+    row.style.display = 'none';
+    val.textContent = '—';
+    val.title = '';
+    val.classList.remove('jd-warn');
+    return;
+  }
+  row.style.display = '';
+  val.title = _lostTooltip(preview);
+  if (preview.rolled === 0){
+    // Every hex gate-blocked. Surface dominant reason; if all blockers
+    // are the same gate, the label is unambiguous.
+    val.textContent = `— gate closed (${_lostGateLabel(preview.dominantGate)})`;
+    val.classList.remove('jd-warn');
+    return;
+  }
+  if (preview.lost === 0){
+    val.textContent = `✓ ${preview.rolled} roll${preview.rolled === 1 ? '' : 's'}, on course`;
+    val.classList.remove('jd-warn');
+    return;
+  }
+  const first = preview.hexes.find(h => h.result.lost);
+  const dev = _lostDeviationShort(first.result.deviation);
+  val.textContent = `⚠ ${preview.lost}/${preview.rolled} lost — first ${hexIdStr(first.hex.col, first.hex.row)} (${dev})`;
+  val.classList.add('jd-warn');
+}
 function getRegion(col,row){
   return (typeof GCCRegions !== 'undefined')
     ? GCCRegions.getRegion(col, row)
@@ -2053,6 +2263,25 @@ function loadTravelProfile(){
 function saveTravelProfile(p){
   try { localStorage.setItem('gh-travel-profile', JSON.stringify(p)); }
   catch (e) {}
+}
+
+// Lost-engine party-knowledge prefs. User-asserted booleans the lib has
+// no way to auto-detect (retained NPC guide, "do you have a correct map
+// of this region"). Persisted across sessions; applied to every new
+// journey plan until changed.
+function loadLostPrefs(){
+  const FALLBACK = { hasGuide: false, hasMap: false };
+  try {
+    const raw = localStorage.getItem('gh-lost-prefs');
+    if (!raw) return { ...FALLBACK };
+    const p = JSON.parse(raw);
+    return { hasGuide: !!p.hasGuide, hasMap: !!p.hasMap };
+  } catch (e) { return { ...FALLBACK }; }
+}
+function saveLostPrefs(p){
+  try { localStorage.setItem('gh-lost-prefs', JSON.stringify({
+    hasGuide: !!p.hasGuide, hasMap: !!p.hasMap,
+  })); } catch (e) {}
 }
 
 // Party position persistence. Stored as "col,row" string under
@@ -3136,6 +3365,8 @@ function openJourneyPlanner(col, row){
   document.getElementById('jd-day').value = '11';
   document.getElementById('jd-year').value = '569';
   document.getElementById('jd-tod').value = state.timeOfDay || 'morning';
+  document.getElementById('jd-has-guide').checked = !!(state.lostPrefs && state.lostPrefs.hasGuide);
+  document.getElementById('jd-has-map'  ).checked = !!(state.lostPrefs && state.lostPrefs.hasMap);
   jdSuppressRecompute = false;
   // Build initial plan.
   buildJourneyPlan(col, row);
@@ -3176,6 +3407,7 @@ function buildJourneyPlan(destCol, destRow){
     destination: { col: destCol, row: destRow },
     route,
     profile,
+    lostPrefs: { ...(state.lostPrefs || { hasGuide: false, hasMap: false }) },
     planMode: 'straight',           // 'straight' | 'manual'
     startDate: { monthIdx: 15, day: 11, year: 569 },
     startTimeOfDay: state.timeOfDay || 'morning',
@@ -3376,6 +3608,12 @@ function recomputeJourneyPlan(){
     document.getElementById('jd-begin').disabled = (j.route.length < 2);
   }
   renderJourneyCrossings(dur.impassable ? [] : (dur.crossingsUsed || []));
+  // Lost-engine preview. Suppressed on impassable plans (no useful
+  // signal until the route resolves) and on degenerate origin-only
+  // routes (handled inside renderJourneyLost via empty preview).
+  const lostPreview = dur.impassable ? null : computeJourneyLostPreview(j);
+  j.lostPreview = lostPreview;
+  renderJourneyLost(lostPreview);
 }
 
 // Render the Crossings row from the list of authored crossings used
@@ -4493,6 +4731,13 @@ function wireEvents(){
       if (cur && cur !== '—') lines.push(`Current: ${cur}`);
     }
     lines.push(`Encounter Checks: ${get('jd-checks')}`);
+    // Lost-engine preview — only when the row is visible (planner has
+    // a real route) and not the placeholder "—".
+    const lostRow = document.getElementById('jd-lost-row');
+    if (lostRow && lostRow.style.display !== 'none'){
+      const lost = get('jd-lost');
+      if (lost && lost !== '—') lines.push(`Lost?: ${lost}`);
+    }
     const warn = get('jd-warn');
     if (warn && warn !== '—') lines.push(`Warning: ${warn}`);
     // Crossings — pulled from the rendered list. Empty rows mean the
@@ -4550,6 +4795,23 @@ function wireEvents(){
   for (const id of ['jd-month','jd-day','jd-year','jd-tod']){
     document.getElementById(id).addEventListener('change', recomputeJourneyPlan);
     document.getElementById(id).addEventListener('input',  recomputeJourneyPlan);
+  }
+  // Lost-engine prefs — live on the planner, persist to gh-lost-prefs,
+  // and propagate into the active journey-plan snapshot so the preview
+  // refreshes immediately. Manual mode keeps the same journey object
+  // across recomputes, so the snapshot needs to be kept in sync.
+  for (const id of ['jd-has-guide','jd-has-map']){
+    document.getElementById(id).addEventListener('change', () => {
+      if (jdSuppressRecompute) return;
+      const next = {
+        hasGuide: document.getElementById('jd-has-guide').checked,
+        hasMap:   document.getElementById('jd-has-map'  ).checked,
+      };
+      state.lostPrefs = next;
+      saveLostPrefs(next);
+      if (state.journey) state.journey.lostPrefs = { ...next };
+      recomputeJourneyPlan();
+    });
   }
   // Plan-mode buttons + manual-trace controls. Mode buttons toggle
   // between auto-fill straight line (clicks on map move destination)
