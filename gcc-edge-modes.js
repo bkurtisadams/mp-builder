@@ -1,4 +1,17 @@
-// gcc-edge-modes.js v0.2.0 — 2026-05-03
+// gcc-edge-modes.js v0.3.0 — 2026-05-03
+// v0.3.0 — River mode adds sampleStrategy='any-water'. Darlene
+//          rivers are 1-2 pixels wide; averaging across a 5×5
+//          window dilutes them past detection. Per-pixel
+//          classification with any-water-pixel-wins recovers
+//          thin features.
+// v0.2.1 — River mode now sets resolveAmbiguous='direct-only' so
+//          the scanner's pass-2 neighbor-majority resolution is
+//          skipped. Rivers are intentionally thin (1-2 subhex cells
+//          wide) and majority-vote was flipping every river cell
+//          to land via its 5-of-6 land neighbors.
+// v0.2.0 — added River mode (shares Coast HSV classifier; differs
+//          only in variant naming).
+// v0.1.0 — initial Coast mode definition.
 // Mode definitions for the Edges scanner. Each mode is a plug-in
 // classifier+writer object consumed by gcc-edge-scanner. A mode owns:
 //   - threshold defaults
@@ -166,6 +179,23 @@
     classify:    coastClassify,        // same HSV classifier
     variantFor:  riverVariantFor,
     source: 'scanner-river-v1',
+    // Per-pixel sampling instead of 5x5 averaging. Darlene rivers
+    // are 1-2 pixels wide; averaging dilutes a single river pixel
+    // among 24 surrounding land pixels and the result fails the
+    // water threshold. With 'any-water', the cell is classified
+    // water if ANY pixel in the sampling window passes water.
+    sampleStrategy: 'any-water',
+    // River-specific: do NOT use neighbor-majority resolution. Coast
+    // mode assumes water/land regions are large and contiguous, so
+    // ambiguous cells safely resolve via 6-neighbor vote. Rivers are
+    // intentionally thin (1-2 subhex cells wide), so a river cell
+    // surrounded by 5 land cells would be flipped to land by majority
+    // — exactly the wrong behavior. River mode trusts direct
+    // classifications only: water cells stay water, land cells stay
+    // land, ambiguous cells fall through to parent prior (which for
+    // River means parent-terrain land — the correct fallback for
+    // mixed pixels along the river bank).
+    resolveAmbiguous: 'direct-only',
   };
 
   // ── Public surface ─────────────────────────────────────────────────

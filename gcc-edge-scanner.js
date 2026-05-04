@@ -1,4 +1,10 @@
-// gcc-edge-scanner.js v0.5.4 — 2026-05-03
+// gcc-edge-scanner.js v0.5.5 — 2026-05-03
+// v0.5.5 — Per-mode sample strategy. samplePixels (plural) returns
+//          all individual RGBs in the sampling window; scanParent
+//          dispatches on mode.sampleStrategy ('average' | 'any-water').
+//          'any-water' classifies each pixel and declares the cell
+//          water if any pixel passes — needed for thin river
+//          detection that 5×5 averaging loses.
 // v0.5.4 — applyResults accepts opts.deferFlush so batch callers
 //          (Edges Run-scans) can skip the per-parent flush and
 //          flush once at end of batch. Pairs with putBatch in
@@ -213,6 +219,44 @@
     return { r: rs/n, g: gs/n, b: bs/n };
   }
 
+  // samplePixels (plural) returns every individual pixel in the
+  // (2r+1)×(2r+1) window as an array of {r,g,b}, instead of averaging
+  // them. Used by the 'any-water' sampling strategy: a thin river
+  // (1-2 pixels wide on Darlene) gets averaged into oblivion by
+  // samplePixel — its 1 blue pixel + 24 green/tan pixels produces a
+  // green/tan average that fails the water threshold. By scanning
+  // pixels individually, the classifier can declare the cell water
+  // if ANY pixel inside it is water-classified, catching thin
+  // features that averaging loses.
+  function samplePixels(ctx, px, py){
+    const r = SAMPLE_RADIUS_PX;
+    const cw = ctx.canvas.width, ch = ctx.canvas.height;
+    if (!cw || !ch) return null;
+    const ix = Math.round(px), iy = Math.round(py);
+    const x0 = Math.max(0, ix - r);
+    const y0 = Math.max(0, iy - r);
+    const x1 = Math.min(cw, ix + r + 1);
+    const y1 = Math.min(ch, iy + r + 1);
+    const w = x1 - x0, h = y1 - y0;
+    if (w <= 0 || h <= 0) return { offImage: true };
+    const data = ctx.getImageData(x0, y0, w, h).data;
+    const n = w * h;
+    const pixels = new Array(n);
+    let rs = 0, gs = 0, bs = 0;
+    for (let i = 0; i < n; i++){
+      const k = i * 4;
+      const r = data[k], g = data[k+1], b = data[k+2];
+      pixels[i] = { r, g, b };
+      rs += r; gs += g; bs += b;
+    }
+    return {
+      pixels,
+      // Average is also returned so the result object can stand in
+      // for samplePixel's return value when callers want both.
+      avg: { r: rs/n, g: gs/n, b: bs/n },
+    };
+  }
+
 
   // ── Scan one parent ─────────────────────────────────────────────────
   function scanParent(col, row, opts){
@@ -242,14 +286,25 @@
     // pass 2. Each entry has classification ∈ water|land|ambiguous and
     // sample data; isWater + resolution are filled in pass 2.
     const byKey = new Map();
+    // Sample strategy: 'average' (default, fast, dilutes thin features)
+    // or 'any-water' (per-pixel, catches thin features like rivers).
+    // The mode opts in via mode.sampleStrategy. River uses 'any-water'
+    // because Darlene rivers are 1-2 pixels wide and 5×5 averaging
+    // loses them.
+    const sampleStrategy = mode.sampleStrategy || 'average';
+    const useAnyWater = (sampleStrategy === 'any-water');
+
     const results = [];
     let sampleFails = 0;
     let offImageCount = 0;
+    let anyWaterHits = 0;   // for diagnostics
     for (const { Q, R } of cells){
       const svg = SD.subhexSvgCenter(Q, R);
       const pix = svgToImagePixel(svg.x, svg.y);
       if (!pix){ sampleFails++; continue; }
-      const sample = samplePixel(ctx, pix.px, pix.py);
+      const sample = useAnyWater
+        ? samplePixels(ctx, pix.px, pix.py)
+        : samplePixel(ctx, pix.px, pix.py);
       if (!sample){ sampleFails++; continue; }
       const sub = SD.getSubhex(Q, R, parentTerrain);
       const alreadyAuthored = sub && sub.source === 'authored';
@@ -263,6 +318,21 @@
         offImageCount++;
         cls = 'ambiguous';
         rgb = null;
+      } else if (useAnyWater){
+        // Any-water: classify each pixel; if any returns 'water',
+        // the whole cell is water. Otherwise prefer 'land' if any
+        // pixel returns 'land', else 'ambiguous'. rgb for the result
+        // record is the average (for diagnostics / preview canvas).
+        rgb = sample.avg;
+        let foundWater = false, foundLand = false;
+        for (const p of sample.pixels){
+          const c = mode.classify(p, T, TL);
+          if (c === 'water'){ foundWater = true; break; }
+          if (c === 'land')  foundLand = true;
+        }
+        if      (foundWater){ cls = 'water'; anyWaterHits++; }
+        else if (foundLand)   cls = 'land';
+        else                  cls = 'ambiguous';
       } else {
         rgb = sample;
         cls = mode.classify(rgb, T, TL);
@@ -278,6 +348,9 @@
       };
       results.push(r);
       byKey.set(`${Q},${R}`, r);
+    }
+    if (useAnyWater && anyWaterHits > 0){
+      console.log(`[EdgeScanner] (${col},${row}) mode=${mode.id} any-water sampling: ${anyWaterHits} cell(s) classified water by pixel-scan`);
     }
 
     // ── Off-image abort gate (v0.4.5) ──────────────────────────────────

@@ -74,6 +74,8 @@ section('GCCEdgeModes shape');
   assert(M.river.id === 'river', 'river.id');
   assert(M.river.classify === M.coast.classify, 'river reuses coast classifier');
   assert(M.river.source === 'scanner-river-v1', 'river source tag');
+  assert(M.river.resolveAmbiguous === 'direct-only', "river.resolveAmbiguous = 'direct-only' (skip majority pass)");
+  assert(M.coast.resolveAmbiguous === undefined, 'coast does NOT skip majority pass');
   // River variantFor: water always becomes water_fresh regardless
   // of parent terrain (rivers are inland watercourses).
   assert(M.river.variantFor('water', 'water')         === 'water_fresh', "river: water-parent water → water_fresh (not water_coastal)");
@@ -84,6 +86,9 @@ section('GCCEdgeModes shape');
   assert(M.river.variantFor('forest_oak', 'land')     === 'forest_oak', 'river: land in forest-parent stays forest_oak');
   assert(M.river.variantFor('hills', 'land')          === 'hills', 'river: land in hills-parent stays hills');
   assert(M.river.variantFor(null, 'land')             === 'plains', 'river: land with no parent terrain → plains fallback');
+  // River v0.3.0: sampleStrategy='any-water' for thin-river detection
+  assert(M.river.sampleStrategy === 'any-water', "river.sampleStrategy = 'any-water' (catches thin rivers)");
+  assert(M.coast.sampleStrategy === undefined, "coast.sampleStrategy unset (defaults to 'average')");
 }
 
 // ── 2. coastClassify routing ──────────────────────────────────────────────
