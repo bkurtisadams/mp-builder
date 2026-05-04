@@ -1,4 +1,16 @@
-// gcc-edges.js v0.4.0 — 2026-05-03
+// gcc-edges.js v0.4.2 — 2026-05-03
+// v0.4.2 — Remove River from the picker. Per-pixel sampling caught
+//          rivers but at 4-5 cell-wide bands instead of the 1-cell
+//          trail the geometry calls for; the path module already
+//          tracks rivers properly. Mode definition stays in
+//          gcc-edge-modes.js for possible future revisit. Existing
+//          River-flagged parents stay in storage; their dots stay
+//          on the overlay; they just can't be acted on through
+//          the picker. To clear them: shift-click each flagged
+//          hex, or use the Clear button (wipes all flags).
+// v0.4.1 — Run-scans apply loop passes deferFlush:true so 1128
+//          parents accumulate dirty entries in memory; one
+//          flushOverrides at end of batch produces one putBatch.
 // v0.4.0 — Two UX adds for full-coastline-scale runs:
 //          1. Draggable panel — header acts as drag handle, position
 //             persists in localStorage 'gcc-edge-panel-pos'. Clamps
@@ -97,10 +109,13 @@
     forest: { label: 'Forest', glyph: '🌲', color: '#5a9a3a' },
     jungle: { label: 'Jungle', glyph: '🌴', color: '#2f7a3a' },
   };
-  // Modes available in the picker. Slice 3.1 promotes River alongside
-  // Coast (they share the HSV classifier). Slice 5 adds Forest;
-  // slice 6 adds Jungle.
-  const SLICE_MODES = ['coast', 'river'];
+  // Modes available in the picker. River was tried in v15.1.18-26 but
+  // the per-pixel sampling produced a 4-5 cell-wide water band along
+  // a 1-cell-wide river, which is wrong for 3-mile subhexes. The path
+  // module already tracks rivers properly. River mode definition
+  // stays in gcc-edge-modes.js (inert) for possible future revisit.
+  // Slice 5 adds Forest; slice 6 adds Jungle.
+  const SLICE_MODES = ['coast'];
 
   // ── Module state ───────────────────────────────────────────────────
   const state = {
@@ -355,7 +370,7 @@
           <span>${ui.label}</span>
         </label>`);
     }
-    // Future-modes hint until slice 5 / 6 lands.
+    // Future-modes hint.
     rows.push(`<div style="font-size:10px; color:#8b6a30; margin-top:6px;">Forest, Jungle land in later slices.</div>`);
     host.innerHTML = rows.join('');
     host.querySelectorAll('input[name="edges-mode"]').forEach(r => {
