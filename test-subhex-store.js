@@ -181,6 +181,48 @@ function section(name){ console.log(`\n── ${name} ──`); resetIDB(); }
     assert(minKept === expectedMin, `kept the most-recent: minKept=${minKept}, expected=${expectedMin}`);
   }
 
+  // ── 7b. putBatch — single transaction for many writes ────────────
+  section('putBatch (batch transaction)');
+  {
+    const win = makeWindow();
+    const S = loadStore(win);
+    await S.ready();
+    // 10k writes via putBatch should land fast — one transaction
+    // per chunk. 10k → 2 chunks at BATCH_CHUNK=5000.
+    const puts = {};
+    for (let i = 0; i < 10000; i++) puts[`subhex_${i}_0`] = { terrain: 'plains', authoredAt: i };
+    const t0 = Date.now();
+    S.putBatch(puts);
+    await S.flush();
+    const ms = Date.now() - t0;
+    const all = await S.loadAll();
+    assert(Object.keys(all).length === 10000, `10k entries via putBatch: ${Object.keys(all).length}`);
+    assert(ms < 5000, `putBatch under 5s for 10k entries (got ${ms}ms)`);
+    console.log(`    putBatch wrote 10k entries in ${ms}ms`);
+  }
+
+  // ── 7c. putBatch deletes ─────────────────────────────────────────
+  section('putBatch deletes');
+  {
+    const win = makeWindow();
+    const S = loadStore(win);
+    await S.ready();
+    // Seed
+    const puts = {};
+    for (let i = 0; i < 100; i++) puts[`subhex_${i}_0`] = { terrain: 'plains', authoredAt: i };
+    S.putBatch(puts);
+    await S.flush();
+    // Delete half via putBatch
+    const dels = [];
+    for (let i = 0; i < 50; i++) dels.push(`subhex_${i}_0`);
+    S.putBatch(null, dels);
+    await S.flush();
+    const all = await S.loadAll();
+    assert(Object.keys(all).length === 50, `50 entries after batch delete: ${Object.keys(all).length}`);
+    assert(!('subhex_0_0' in all), 'subhex_0_0 deleted');
+    assert('subhex_50_0' in all, 'subhex_50_0 survives');
+  }
+
   // ── 8. survives reload (re-load module against same DB) ───────────
   // Don't call section() here — we want the prior IDB to survive.
   console.log('\n── reload preserves IDB state ──');

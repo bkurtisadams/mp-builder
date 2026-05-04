@@ -1,4 +1,9 @@
-// gcc-subhex-store.js v0.1.0 — 2026-05-03
+// gcc-subhex-store.js v0.2.0 — 2026-05-03
+// v0.2.0 — putBatch(puts, deletes): write many entries in a single
+//          IDB transaction. Critical for scanner output — 50k
+//          one-at-a-time puts took ~30 minutes (one transaction
+//          each + a microtask hop per await); batched it's seconds.
+// v0.1.0 — initial IDB-backed persistence layer.
 // IndexedDB-backed canonical persistence for subhex overrides.
 // Replaces the bare localStorage write path that hit quota at 50k+
 // entries on May 3, 2026. localStorage remains as a synchronous
@@ -184,6 +189,58 @@
     });
     return _writeQ;
   }
+
+  // Batch writes — put many entries in a single transaction.
+  // Critical for scanner output: putting 50k entries one-at-a-time
+  // is ~30 minutes of microtask hops + one transaction per entry;
+  // batching them lands in seconds. `puts` is { id: entry, ... };
+  // `deletes` is an array of ids. Pass either or both.
+  //
+  // Internally chunked at BATCH_CHUNK (5000) operations per
+  // transaction. Single-transaction 50k-op writes are technically
+  // legal in IDB but some browsers slow down or hit internal
+  // limits; chunking is defensive and adds negligible overhead
+  // (5k ops fit comfortably in one tx).
+  const BATCH_CHUNK = 5000;
+  function putBatch(puts, deletes){
+    _writeQ = _writeQ.then(async () => {
+      await ready();
+      try {
+        const putIds = puts ? Object.keys(puts) : [];
+        const delIds = deletes ? deletes.slice() : [];
+        // Run chunks sequentially. We want to await each chunk's
+        // tx.oncomplete before starting the next so a mid-flight
+        // failure doesn't leave half the writes orphaned.
+        let i = 0;
+        while (i < putIds.length || (delIds.length > 0 && putIds.length === 0 && i === 0)){
+          const tx = _db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          // Take up to BATCH_CHUNK puts.
+          const chunkEnd = Math.min(i + BATCH_CHUNK, putIds.length);
+          for (; i < chunkEnd; i++){
+            const id = putIds[i];
+            store.put(puts[id], id);
+          }
+          // Apply all deletes in the first chunk (cheap, no need to
+          // chunk unless tens of thousands).
+          if (delIds.length > 0 && i <= BATCH_CHUNK){
+            for (const id of delIds) store.delete(id);
+            delIds.length = 0;   // mark consumed
+          }
+          await new Promise((resolve, reject) => {
+            tx.oncomplete = () => resolve();
+            tx.onerror    = () => reject(tx.error);
+            tx.onabort    = () => reject(tx.error || new Error('batch tx aborted'));
+          });
+          if (i >= putIds.length && delIds.length === 0) break;
+        }
+      } catch(e){
+        console.error('[SubhexStore] putBatch failed:', e);
+        _emitError(e);
+      }
+    });
+    return _writeQ;
+  }
   function remove(id){
     _writeQ = _writeQ.then(async () => {
       await ready();
@@ -244,7 +301,7 @@
 
   window.GCCSubhexStore = {
     ready, bootSnapshot, loadAll,
-    put, remove, clear, flush,
+    put, putBatch, remove, clear, flush,
     writeBootCache,
     // Test hooks
     _DB_NAME: DB_NAME,

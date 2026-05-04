@@ -1,4 +1,11 @@
-// gcc-subhex-data.js v2.8.0 — 2026-05-03
+// gcc-subhex-data.js v2.8.1 — 2026-05-03
+// v2.8.1: save() uses GCCSubhexStore.putBatch() to write all dirty
+// entries in a single IDB transaction, instead of one-transaction-
+// per-entry. Earlier observed: 50k cells took ~30 minutes via
+// 50k sequential puts; with putBatch it's seconds. Pairs with
+// gcc-subhex-store v0.2.0.
+//
+// v2.8.0 — 2026-05-03
 // v2.8.0: IndexedDB-backed canonical persistence (slice F1 of the
 // Firestore migration). localStorage was hitting its 5MB quota at
 // 50k+ overrides on May 3, 2026. Overrides now live in IDB
@@ -476,17 +483,32 @@
   }
 
   function save(){
-    // IDB primary: drain dirty/deleted into the store queue.
+    // IDB primary: drain dirty/deleted into a single batched
+    // transaction. v2.8.0 used per-entry puts which created one
+    // IDB transaction per cell — 50k transactions in series took
+    // ~30 minutes. v2.8.1 batches via putBatch.
     const STORE = window.GCCSubhexStore;
-    if (STORE){
+    if (STORE && typeof STORE.putBatch === 'function'){
+      const puts = {};
+      let putCount = 0;
+      for (const id of _dirty){
+        if (id in OVERRIDES){ puts[id] = OVERRIDES[id]; putCount++; }
+      }
+      const deletes = Array.from(_deleted);
+      if (putCount > 0 || deletes.length > 0){
+        STORE.putBatch(putCount > 0 ? puts : null, deletes.length > 0 ? deletes : null);
+      }
+      // Bounded boot cache for fast next-load. F2 may drop this
+      // when Firestore takes over the durable role.
+      STORE.writeBootCache(OVERRIDES);
+    } else if (STORE){
+      // Older store with only single put/remove — fall back.
       for (const id of _dirty){
         if (id in OVERRIDES) STORE.put(id, OVERRIDES[id]);
       }
       for (const id of _deleted){
         STORE.remove(id);
       }
-      // Bounded boot cache for fast next-load. F2 may drop this
-      // when Firestore takes over the durable role.
       STORE.writeBootCache(OVERRIDES);
     } else {
       // No store loaded — fall back to whole-set localStorage write

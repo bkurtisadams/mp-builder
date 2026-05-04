@@ -1,4 +1,9 @@
-// gcc-edge-scanner.js v0.5.3 — 2026-05-03
+// gcc-edge-scanner.js v0.5.4 — 2026-05-03
+// v0.5.4 — applyResults accepts opts.deferFlush so batch callers
+//          (Edges Run-scans) can skip the per-parent flush and
+//          flush once at end of batch. Pairs with putBatch in
+//          gcc-subhex-store v0.2.0: drops 1128 IDB transactions
+//          per full-coastline run to 1.
 // v0.5.3 — applyResults passes mode.source through to
 //          setSubhexOverride so writes are tagged with provenance
 //          (e.g. 'scanner-coast-v1', 'scanner-river-v1') instead
@@ -483,9 +488,15 @@
   // v0.5.3: passes mode.source through on each write so cleanup
   // tooling can later filter by source. Falls back to a stable
   // string when opts.mode is absent (preview-dialog path).
+  // v0.5.4: opts.deferFlush — when true, applyResults skips the
+  // per-call flushOverrides at the end. Caller (Edges Run-scans
+  // batch) is responsible for flushing once at the end of the
+  // batch instead of after every parent. Drops 1128 IDB
+  // transactions to 1 for a full coastline run.
   function applyResults(results, opts){
     opts = opts || {};
     const overwriteAuthored = !!opts.overwriteAuthored;
+    const deferFlush = !!opts.deferFlush;
     if (!window.GCCSubhexData) return { written: 0, skipped: 0, water: 0, land: 0, error: 'no data layer' };
     const SD = window.GCCSubhexData;
     const hasFastPath = (typeof SD.peekOverride === 'function' && typeof SD.flushOverrides === 'function');
@@ -500,7 +511,7 @@
       if (r.isWater) waterW++;
       else           landW++;
     }
-    if (hasFastPath) SD.flushOverrides();
+    if (hasFastPath && !deferFlush) SD.flushOverrides();
     return { written, skipped, water: waterW, land: landW };
   }
 

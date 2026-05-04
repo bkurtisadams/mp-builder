@@ -606,7 +606,11 @@
     let totalWritten = 0, totalSkipped = 0;
     for (let i = 0; i < dryResults.length; i++){
       const dr = dryResults[i];
-      const ap = window.GCCEdgeScanner.applyResults(dr.out.results, { mode: dr.work.mode });
+      // deferFlush — let the per-parent applyResults accumulate
+      // dirty entries; we flush once at end of the whole batch.
+      // Critical for 50k-cell scale: drops 1128 separate IDB
+      // transactions to 1.
+      const ap = window.GCCEdgeScanner.applyResults(dr.out.results, { mode: dr.work.mode, deferFlush: true });
       totalWritten += ap.written || 0;
       totalSkipped += ap.skipped || 0;
       if (useProgress && (i % YIELD_EVERY === 0 || i === dryResults.length - 1)){
