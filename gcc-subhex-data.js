@@ -1,4 +1,44 @@
-// gcc-subhex-data.js v2.7.0 — 2026-05-03
+// gcc-subhex-data.js v2.8.0 — 2026-05-03
+// v2.8.0: IndexedDB-backed canonical persistence (slice F1 of the
+// Firestore migration). localStorage was hitting its 5MB quota at
+// 50k+ overrides on May 3, 2026. Overrides now live in IDB
+// (database 'gcc-subhex', store 'overrides'); localStorage stays
+// as a size-capped boot cache (top 2000 most-recent entries) so
+// hard-reload renders instantly while IDB warms up. IDB has no
+// practical cap for this scale — typical browser quotas are
+// hundreds of MB.
+//
+// Boot flow:
+//   1. Module load reads localStorage synchronously into OVERRIDES
+//      (back-compat; warm cache).
+//   2. Background: GCCSubhexStore.ready() → loadAll() → merges IDB
+//      entries into OVERRIDES, fires gcc-subhex-changed when done.
+//   3. UI shows whatever's in OVERRIDES at any moment; IDB-only
+//      cells appear after step 2 (~100-300ms typical).
+//
+// Save flow (unchanged from caller perspective):
+//   - In-memory OVERRIDES updated synchronously
+//   - save() enqueues IDB write via store.put() (async, queued)
+//   - save() also writes the bounded boot cache to localStorage
+//   - flushOverrides() awaits the IDB write queue drain
+//
+// Migration:
+//   - First ready() with empty IDB and non-empty localStorage
+//     copies every entry into IDB. Boot cache stays intact.
+//   - Slice F2 will add Firestore as the cross-device sync layer
+//     on top of IDB (IDB stays the local cache).
+//
+// Save error surfacing (v2.6.0+ contract still honored):
+//   - 'gcc-storage-error' event with { key, error, message }
+//   - localStorage failures: key='gcc-subhex-overrides' (boot cache
+//     quota — non-fatal, IDB is the real save)
+//   - IDB failures: key='gcc-subhex (idb)' (these are real)
+//
+// REGIONS / LAKES are NOT yet on IDB in F1 — they remain
+// localStorage-only. Both are small (<100 entries typical). Slice
+// F2 moves them.
+//
+// v2.7.0 — 2026-05-03
 // v2.7.0: per-override `source` field. Records who wrote each
 // override so future cleanup can distinguish hand-authoring from
 // scanner output without heuristics. Default 'authored' for any
@@ -350,8 +390,21 @@
   ];
 
   // ── Storage ────────────────────────────────────────────────────────────
-
+  //
+  // Overrides: IDB primary (via GCCSubhexStore), localStorage as
+  // bounded boot cache. Boot reads localStorage synchronously for a
+  // fast initial render; IDB hydration happens on first tick after
+  // module load and merges any IDB-only entries into in-memory state.
+  //
+  // Regions / Lakes: localStorage only in slice F1 — moves in F2.
+  //
+  // Track per-id dirty flags so save() only writes the entries that
+  // actually changed (avoids a full-set write every time someone
+  // edits one cell). dirty.add(id) on mutation; save() drains the
+  // set into IDB puts, then writes the bounded boot cache.
   let OVERRIDES = {};
+  const _dirty = new Set();        // ids modified since last save
+  const _deleted = new Set();      // ids removed since last save
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) OVERRIDES = JSON.parse(raw) || {};
@@ -369,6 +422,49 @@
     if (raw) LAKES = JSON.parse(raw) || {};
   } catch(e){ LAKES = {}; }
 
+  // Hydrate from IDB on next tick. We don't block module load on
+  // this — readers see the localStorage cache immediately and the
+  // IDB-only entries fade in once loaded. UI listens for the
+  // gcc-subhex-changed event to re-render.
+  let _idbReady = null;
+  function _hydrateFromIdb(){
+    if (_idbReady) return _idbReady;
+    if (typeof window.GCCSubhexStore === 'undefined'){
+      console.warn('[GCCSubhexData] GCCSubhexStore not loaded; staying on localStorage-only');
+      _idbReady = Promise.resolve();
+      return _idbReady;
+    }
+    const STORE = window.GCCSubhexStore;
+    _idbReady = (async () => {
+      try {
+        const idbAll = await STORE.loadAll();
+        // Merge IDB into OVERRIDES. IDB wins over the boot cache —
+        // the cache is by definition stale or a subset.
+        let added = 0, replaced = 0;
+        for (const id of Object.keys(idbAll)){
+          if (id in OVERRIDES) replaced++;
+          else                 added++;
+          OVERRIDES[id] = idbAll[id];
+        }
+        if (added || replaced){
+          console.log(`[GCCSubhexData] IDB hydration: +${added} added, ${replaced} confirmed (total ${Object.keys(OVERRIDES).length})`);
+          _rebuildLakeIndexes();
+          try { window.dispatchEvent(new CustomEvent('gcc-subhex-changed', { detail: { reason: 'idb-hydrate' } })); } catch(_){}
+        }
+      } catch(e){
+        console.error('[GCCSubhexData] IDB hydration failed:', e);
+      }
+    })();
+    return _idbReady;
+  }
+  // Kick off hydration after the current synchronous module-load
+  // chain finishes. setTimeout(0) > Promise.resolve().then because
+  // GCCSubhexStore may not be defined yet at module-eval time
+  // (script tag ordering); the first tick gives it a chance.
+  if (typeof window !== 'undefined' && typeof setTimeout === 'function'){
+    setTimeout(_hydrateFromIdb, 0);
+  }
+
   function _reportStorageError(key, e){
     console.error(`[GCCSubhexData] save failed for "${key}":`, e.name, '—', e.message,
       '\n  in-memory state will diverge from localStorage; export now to avoid loss.');
@@ -380,8 +476,28 @@
   }
 
   function save(){
-    try { localStorage.setItem(LS_KEY, JSON.stringify(OVERRIDES)); }
-    catch(e){ _reportStorageError(LS_KEY, e); }
+    // IDB primary: drain dirty/deleted into the store queue.
+    const STORE = window.GCCSubhexStore;
+    if (STORE){
+      for (const id of _dirty){
+        if (id in OVERRIDES) STORE.put(id, OVERRIDES[id]);
+      }
+      for (const id of _deleted){
+        STORE.remove(id);
+      }
+      // Bounded boot cache for fast next-load. F2 may drop this
+      // when Firestore takes over the durable role.
+      STORE.writeBootCache(OVERRIDES);
+    } else {
+      // No store loaded — fall back to whole-set localStorage write
+      // (legacy behavior, will hit quota at scale but keeps F1
+      // installable in environments where GCCSubhexStore failed
+      // to load).
+      try { localStorage.setItem(LS_KEY, JSON.stringify(OVERRIDES)); }
+      catch(e){ _reportStorageError(LS_KEY, e); }
+    }
+    _dirty.clear();
+    _deleted.clear();
     _rebuildLakeIndexes();
     try { window.dispatchEvent(new CustomEvent('gcc-subhex-changed')); } catch(e){}
   }
@@ -544,8 +660,15 @@
     next.authoredAt = Date.now();
     const empty = !next.terrain && !next.name && !next.notes && !next.feature
                   && !next.regionId && !next.lakeId;
-    if (empty) delete OVERRIDES[id];
-    else       OVERRIDES[id] = next;
+    if (empty){
+      delete OVERRIDES[id];
+      _dirty.delete(id);
+      _deleted.add(id);
+    } else {
+      OVERRIDES[id] = next;
+      _deleted.delete(id);
+      _dirty.add(id);
+    }
     if (!opts || !opts.deferSave) save();
 
     const newRegionId = next.regionId || null;
@@ -640,12 +763,24 @@
     const id = subhexId(Q, R);
     if (id in OVERRIDES){
       delete OVERRIDES[id];
+      _dirty.delete(id);
+      _deleted.add(id);
       if (!opts || !opts.deferSave) save();
       return true;
     }
     return false;
   }
-  function clearAll(){ OVERRIDES = {}; save(); }
+  function clearAll(){
+    // Full reset — push down to IDB via store.clear() so the cache
+    // doesn't keep an old in-flight write alive.
+    OVERRIDES = {};
+    _dirty.clear();
+    _deleted.clear();
+    if (window.GCCSubhexStore){ window.GCCSubhexStore.clear(); }
+    else { try { localStorage.removeItem(LS_KEY); } catch(_){} }
+    _rebuildLakeIndexes();
+    try { window.dispatchEvent(new CustomEvent('gcc-subhex-changed')); } catch(_){}
+  }
 
   // Bulk-write helpers. peekOverride returns the raw OVERRIDES entry
   // (or undefined) without invoking canonicalSubhex/proceduralTerrain
@@ -655,7 +790,16 @@
   function peekOverride(Q, R){
     return OVERRIDES[subhexId(Q, R)];
   }
-  function flushOverrides(){ save(); }
+  // flushOverrides() drains pending dirty/deleted into the IDB
+  // queue (via save()), then returns a promise that resolves once
+  // every queued IDB write has hit disk. Callers that need to know
+  // when persistence is durable (tests, sign-out flow) should
+  // await this; callers that just want to commit an in-memory
+  // batch can call it without await (sync-style).
+  function flushOverrides(){
+    save();
+    return window.GCCSubhexStore ? window.GCCSubhexStore.flush() : Promise.resolve();
+  }
 
   // ── Regions (global scope) ─────────────────────────────────────────────
 
@@ -1012,11 +1156,15 @@
 
       OVERRIDES = nextOv;
       REGIONS = nextRg;
-      try {
-        localStorage.setItem(LS_KEY, JSON.stringify(OVERRIDES));
-        localStorage.setItem(LS_REGIONS_KEY, JSON.stringify(REGIONS));
-        localStorage.setItem(MIGRATION_FLAG_KEY, '1');
-      } catch(e){ _reportStorageError('(migration v1.1→v2.0)', e); }
+      // Route the migrated state through the new save() path so IDB
+      // (slice F1+) sees it. Mark every entry dirty so save() pushes
+      // them. The migration flag still goes to localStorage directly
+      // (it's a tiny scalar; quota isn't a concern).
+      for (const id of Object.keys(OVERRIDES)) _dirty.add(id);
+      save();
+      saveRegions();
+      try { localStorage.setItem(MIGRATION_FLAG_KEY, '1'); }
+      catch(e){ _reportStorageError(MIGRATION_FLAG_KEY, e); }
       if (mc || mr || dropped){
         console.log(`[GCCSubhexData] v1.1→v2.0: ${mc} cell(s), ${mr} region(s) migrated; ${dropped} dropped.`);
       }
