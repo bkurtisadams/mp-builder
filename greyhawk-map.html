@@ -771,6 +771,7 @@
       <legend>Party Knowledge</legend>
       <label class="jd-cbx-row"><input type="checkbox" id="jd-has-guide"><span>Knowledgeable guide</span></label>
       <label class="jd-cbx-row"><input type="checkbox" id="jd-has-map"><span>Correct map of region</span></label>
+      <label class="jd-cbx-row"><input type="checkbox" id="jd-following-feature"><span>Following river or road</span></label>
     </fieldset>
     <fieldset class="jd-fs">
       <legend>Start Date (campaign-local)</legend>
@@ -2055,19 +2056,21 @@ function computeJourneyLostPreview(j){
     return { hexes: [], rolled: 0, lost: 0, gateCounts: {}, dominantGate: null };
   }
   const rng = _lostMulberry32(_lostSeedFor(j));
-  const lostPrefs = j.lostPrefs || { hasGuide: false, hasMap: false };
-  const destFamiliar = lostHexFamiliar(j.destination.col, j.destination.row);
+  const lostPrefs = j.lostPrefs || { hasGuide: false, hasMap: false, followingFeature: false };
   const hexes = [];
   let rolled = 0, lost = 0;
   const gateCounts = {};
   for (let i = 1; i < route.length; i++){
     const hex = route[i], prev = route[i - 1];
+    // DMG p.49: "Procedures are only for exploration of unmapped terrain."
+    // Per-hex check — a route may cross both mapped and unmapped hexes;
+    // mapped hexes gate-out, unmapped hexes still roll.
     const opts = {
       terrain: getHexTerrain(hex.col, hex.row),
       hasGuide: !!lostPrefs.hasGuide,
       hasMap:   !!lostPrefs.hasMap,
-      followingPath: lostPathFollowed(prev, hex),
-      destinationRevealed: destFamiliar,
+      followingPath: lostPathFollowed(prev, hex) || !!lostPrefs.followingFeature,
+      destinationRevealed: lostHexFamiliar(hex.col, hex.row),
       rng,
     };
     const result = window.GCCLost.checkAndRoll(opts);
@@ -2276,17 +2279,17 @@ function saveTravelProfile(p){
 // of this region"). Persisted across sessions; applied to every new
 // journey plan until changed.
 function loadLostPrefs(){
-  const FALLBACK = { hasGuide: false, hasMap: false };
+  const FALLBACK = { hasGuide: false, hasMap: false, followingFeature: false };
   try {
     const raw = localStorage.getItem('gh-lost-prefs');
     if (!raw) return { ...FALLBACK };
     const p = JSON.parse(raw);
-    return { hasGuide: !!p.hasGuide, hasMap: !!p.hasMap };
+    return { hasGuide: !!p.hasGuide, hasMap: !!p.hasMap, followingFeature: !!p.followingFeature };
   } catch (e) { return { ...FALLBACK }; }
 }
 function saveLostPrefs(p){
   try { localStorage.setItem('gh-lost-prefs', JSON.stringify({
-    hasGuide: !!p.hasGuide, hasMap: !!p.hasMap,
+    hasGuide: !!p.hasGuide, hasMap: !!p.hasMap, followingFeature: !!p.followingFeature,
   })); } catch (e) {}
 }
 
@@ -3373,6 +3376,7 @@ function openJourneyPlanner(col, row){
   document.getElementById('jd-tod').value = state.timeOfDay || 'morning';
   document.getElementById('jd-has-guide').checked = !!(state.lostPrefs && state.lostPrefs.hasGuide);
   document.getElementById('jd-has-map'  ).checked = !!(state.lostPrefs && state.lostPrefs.hasMap);
+  document.getElementById('jd-following-feature').checked = !!(state.lostPrefs && state.lostPrefs.followingFeature);
   jdSuppressRecompute = false;
   // Build initial plan.
   buildJourneyPlan(col, row);
@@ -3413,7 +3417,7 @@ function buildJourneyPlan(destCol, destRow){
     destination: { col: destCol, row: destRow },
     route,
     profile,
-    lostPrefs: { ...(state.lostPrefs || { hasGuide: false, hasMap: false }) },
+    lostPrefs: { ...(state.lostPrefs || { hasGuide: false, hasMap: false, followingFeature: false }) },
     planMode: 'straight',           // 'straight' | 'manual'
     startDate: { monthIdx: 15, day: 11, year: 569 },
     startTimeOfDay: state.timeOfDay || 'morning',
@@ -4806,12 +4810,13 @@ function wireEvents(){
   // and propagate into the active journey-plan snapshot so the preview
   // refreshes immediately. Manual mode keeps the same journey object
   // across recomputes, so the snapshot needs to be kept in sync.
-  for (const id of ['jd-has-guide','jd-has-map']){
+  for (const id of ['jd-has-guide','jd-has-map','jd-following-feature']){
     document.getElementById(id).addEventListener('change', () => {
       if (jdSuppressRecompute) return;
       const next = {
         hasGuide: document.getElementById('jd-has-guide').checked,
         hasMap:   document.getElementById('jd-has-map'  ).checked,
+        followingFeature: document.getElementById('jd-following-feature').checked,
       };
       state.lostPrefs = next;
       saveLostPrefs(next);
