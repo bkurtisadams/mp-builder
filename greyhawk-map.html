@@ -3018,10 +3018,11 @@ function updateSidePanel(col,row,terrain,region,dist){
   // (that's a separate user action).
   const moveBtn = document.getElementById('p-btn-move-here');
   const planBtn = document.getElementById('p-btn-plan-journey');
-  // Active journey (executing or paused) blocks both Move Here and Plan
-  // Journey. Move Here would teleport the party off the route mid-trip;
-  // Plan Journey would clobber the active journey state. The journey
-  // log panel is the only legitimate way to advance/abort.
+  // Active journey (executing or paused) blocks Move Here and
+  // repurposes Plan Journey as Resume Journey. Move Here would
+  // teleport the party off the route mid-trip; Plan Journey would
+  // clobber the active journey state, so it's swapped to a
+  // log-reopener instead.
   const jActive = state.journey && (state.journey.status === 'active' || state.journey.status === 'paused');
   if (moveBtn){
     const isPartyHex = (col === state.partyCol && row === state.partyRow);
@@ -3048,17 +3049,27 @@ function updateSidePanel(col,row,terrain,region,dist){
   // including the party's own hex. Clicking opens the planner with
   // this hex as the initial destination — if it's the party hex the
   // initial route has zero distance, and the GM clicks elsewhere on
-  // the map to set a real destination. Only suppressed during an
-  // active journey to prevent clobbering executing-journey state.
+  // the map to set a real destination.
+  //
+  // During an active or paused journey the same button is repurposed
+  // as "Resume Journey" — clicking reopens the journey log so the GM
+  // can continue or abort. Without this, closing the journey log
+  // panel during a paused journey strands the user with no way back
+  // in (Plan Journey would otherwise be hidden, no other entry point
+  // exists, and reload-and-nuke-localStorage is the only escape).
   if (planBtn){
-    if (!jActive){
+    if (jActive){
       planBtn.style.display = '';
-      planBtn.dataset.col = String(col);
-      planBtn.dataset.row = String(row);
-    } else {
-      planBtn.style.display = 'none';
+      planBtn.textContent = '🧭 Resume Journey';
+      planBtn.dataset.resume = '1';
       delete planBtn.dataset.col;
       delete planBtn.dataset.row;
+    } else {
+      planBtn.style.display = '';
+      planBtn.textContent = '🧭 Plan Journey';
+      delete planBtn.dataset.resume;
+      planBtn.dataset.col = String(col);
+      planBtn.dataset.row = String(row);
     }
   }
   const sp=document.getElementById('side-panel');
@@ -3747,6 +3758,16 @@ function loadActiveJourney(){
     const raw = localStorage.getItem('gh-journey-active');
     if (!raw) return null;
     const j = JSON.parse(raw);
+    // Defensive: end-state journeys shouldn't live in this slot. The
+    // happy path is arriveJourney/abortJourney → archiveJourney (to
+    // gh-journey-last) + clearActiveJourney. If one ends up here
+    // anyway (interrupted cleanup, browser crash mid-write, manual
+    // tampering), treat it as gone and remove the stale record so
+    // the planner button isn't blocked forever.
+    if (!j || j.status === 'arrived' || j.status === 'aborted'){
+      try { localStorage.removeItem('gh-journey-active'); } catch (e) {}
+      return null;
+    }
     // Coerce active → paused on reload so the loop never auto-resumes.
     if (j.status === 'active') j.status = 'paused';
     if (!j.pauseReason) j.pauseReason = 'reload';
@@ -4715,6 +4736,13 @@ function wireEvents(){
   // checks / arrival date). Begin emits a phase-2-pending toast.
   document.getElementById('p-btn-plan-journey').addEventListener('click', e => {
     const ds = e.currentTarget.dataset;
+    // Resume mode: button was repurposed because a journey is
+    // active/paused. Reopen the journey log so the GM can continue
+    // or abort, instead of trying to plan a new journey on top.
+    if (ds.resume === '1'){
+      showJourneyLog();
+      return;
+    }
     if (!ds.col || !ds.row) return;
     openJourneyPlanner(parseInt(ds.col, 10), parseInt(ds.row, 10));
   });
