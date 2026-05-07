@@ -34,3 +34,8 @@ backup-*.json
 # Test / coverage output
 coverage/
 *.lcov
+# Service account keys
+*adminsdk*.json
+serviceAccountKey.json
+.env
+.env.local
