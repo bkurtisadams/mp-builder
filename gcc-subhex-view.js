@@ -1,4 +1,4 @@
-// gcc-subhex-view.js v2.11.0 — 2026-05-02
+// gcc-subhex-view.js v2.12.0 — 2026-05-06
 // v2.11.0: fog paint brush (Slice 4 of fog rollout). New tool button
 // "Fog…" arms state.armed = { type:'fog' } and shows a help-text
 // callout. Click cells to reveal, shift+click to hide; drag to sweep.
@@ -476,6 +476,8 @@
             <div class="sxw-path-actions">
               <button class="sxw-tool-btn sxw-path-action" id="sxw-path-undo" title="Remove the last cell of the armed path">↶ Undo</button>
               <button class="sxw-tool-btn sxw-path-action" id="sxw-path-rename" title="Rename the armed path">✎ Rename</button>
+              <button class="sxw-tool-btn sxw-path-action" id="sxw-path-edit" title="Edit tier and headwaters/mouth linkage (rivers only)">⚙ Tier/Linkage</button>
+              <button class="sxw-tool-btn sxw-path-action" id="sxw-path-reverse" title="Reverse flow direction — swaps headwaters and mouth (rivers only)">↻ Reverse</button>
               <button class="sxw-tool-btn sxw-path-action sxw-tool-btn-danger" id="sxw-path-delete" title="Delete the armed path">⌫ Delete</button>
               <button class="sxw-tool-btn sxw-path-action sxw-tool-btn-armed" id="sxw-path-done" title="Stop editing this path">✓ Done</button>
             </div>
@@ -581,6 +583,8 @@
     c.querySelector('#sxw-fog-tool').addEventListener('click', onFogToolClick);
     c.querySelector('#sxw-path-undo').addEventListener('click', onPathUndoClick);
     c.querySelector('#sxw-path-rename').addEventListener('click', onPathRenameClick);
+    c.querySelector('#sxw-path-edit').addEventListener('click', onPathEditClick);
+    c.querySelector('#sxw-path-reverse').addEventListener('click', onPathReverseClick);
     c.querySelector('#sxw-path-delete').addEventListener('click', onPathDeleteClick);
     c.querySelector('#sxw-path-done').addEventListener('click', onPathDoneClick);
 
@@ -2687,6 +2691,17 @@
       const el = findEl(id);
       if (el) el.style.display = armed ? '' : 'none';
     }
+    // River-only actions: Tier/Linkage editor and Reverse-flow.
+    const riverIds = ['sxw-path-edit', 'sxw-path-reverse'];
+    let isRiver = false;
+    if (armed){
+      const path = window.GCCSubhexPaths?.getPath(state.armed.value);
+      isRiver = !!(path && path.kind === 'river');
+    }
+    for (const id of riverIds){
+      const el = findEl(id);
+      if (el) el.style.display = (armed && isRiver) ? '' : 'none';
+    }
     const help = findEl('sxw-path-help');
     if (help) help.style.display = armed ? '' : 'none';
     const head = findEl('sxw-path-section-head');
@@ -2751,6 +2766,201 @@
     const svg = state.win?.querySelector('#sxw-svg');
     if (svg){ renderPaths(svg); renderParentPathMarkers(svg); renderCrossings(svg); }
     syncModeLabel();
+  }
+
+  // Reverse the armed river's flow direction. Confirms first since
+  // this swaps headwaters/mouth alongside the cells[] order.
+  function onPathReverseClick(){
+    if (!state.armed || state.armed.type !== 'path') return;
+    const path = window.GCCSubhexPaths.getPath(state.armed.value);
+    if (!path || path.kind !== 'river') return;
+    const ok = (typeof confirm === 'function')
+      ? confirm(`Reverse flow direction of "${path.name}"? Headwaters and mouth will swap.`)
+      : true;
+    if (!ok) return;
+    window.GCCSubhexPaths.reverseCells(state.armed.value);
+    const svg = state.win?.querySelector('#sxw-svg');
+    if (svg){ renderPaths(svg); renderParentPathMarkers(svg); renderCrossings(svg); }
+    syncModeLabel();
+    syncPathActionButtons();
+    flashMode(`Reversed flow of ${path.name}`);
+  }
+
+  // Open the tier / headwaters / mouth editor for the armed river.
+  function onPathEditClick(){
+    if (!state.armed || state.armed.type !== 'path') return;
+    const path = window.GCCSubhexPaths.getPath(state.armed.value);
+    if (!path || path.kind !== 'river') return;
+    openRiverEditDialog(path);
+  }
+
+  // River edit dialog. Three editable groups: tier, headwaters,
+  // mouth. Direction is read-only here — use the Reverse button on
+  // the action row to flip it. On OK, only changed fields fire
+  // their writers.
+  //
+  // Linkage shape per gcc-subhex-paths v3: { lakeId } | { pathId } | null.
+  // Slice 6b shows all lakes and all rivers (other than self) without
+  // adjacency filtering — Slice 7 will warn on non-adjacent picks.
+  function openRiverEditDialog(path){
+    const dlg = window.GCCDialog || window.MPDialog;
+    if (!dlg || typeof dlg.confirm !== 'function'){
+      if (typeof alert === 'function') alert('Dialog system not available');
+      return;
+    }
+    const lakes = window.GCCSubhexData.listLakes();
+    const allPaths = window.GCCSubhexPaths.listPaths();
+    const otherRivers = allPaths.filter(p => p.kind === 'river' && p.id !== path.id);
+    const lakeOpts = lakes.map(l =>
+      `<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)} (${escapeHtml(l.kind)} · ${escapeHtml(l.depth)})</option>`
+    ).join('');
+    const riverOpts = otherRivers.map(r =>
+      `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}${r.tier ? ' (' + escapeHtml(r.tier) + ')' : ''}</option>`
+    ).join('');
+    const tierVal = path.tier || '';
+    const tierOpt = (v, label) =>
+      `<option value="${v}"${tierVal === v ? ' selected' : ''}>${label}</option>`;
+    // Compute initial linkage kind + value for the two pickers.
+    const linkKind = (lk) => {
+      if (!lk) return 'none';
+      if (lk.lakeId) return 'lake';
+      if (lk.pathId) return 'path';
+      return 'none';
+    };
+    const linkVal = (lk) => {
+      if (!lk) return '';
+      return lk.lakeId || lk.pathId || '';
+    };
+    const hKind = linkKind(path.headwaters);
+    const mKind = linkKind(path.mouth);
+    const hVal  = linkVal(path.headwaters);
+    const mVal  = linkVal(path.mouth);
+    // Direction readout — first and last cell of cells[].
+    const first = path.cells[0];
+    const last  = path.cells[path.cells.length - 1];
+    const dirReadout = (path.cells.length >= 2)
+      ? `headwaters cell (${first.Q},${first.R}) → mouth cell (${last.Q},${last.R})`
+      : (path.cells.length === 1 ? `single cell (${first.Q},${first.R})` : 'no cells authored');
+
+    const linkBlock = (id, kind, val, label) => ''
+      + `<fieldset style="border:1px solid #c0a070;background:#faf8f2;padding:6px 8px;margin:0 0 8px 0">`
+      +   `<legend style="font-size:11px;font-weight:700;color:#8b0000;padding:0 4px">${label}</legend>`
+      +   `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">`
+      +     `<label style="font-size:11px;font-weight:700">Kind:</label>`
+      +     `<select id="sxw-river-${id}-kind" style="padding:3px">`
+      +       `<option value="none"${kind === 'none' ? ' selected' : ''}>— none (unset) —</option>`
+      +       `<option value="lake"${kind === 'lake' ? ' selected' : ''}>lake</option>`
+      +       `<option value="path"${kind === 'path' ? ' selected' : ''}>river (tributary)</option>`
+      +     `</select>`
+      +   `</div>`
+      +   `<div id="sxw-river-${id}-lake-row" style="display:${kind === 'lake' ? 'flex' : 'none'};gap:8px;align-items:center;margin-bottom:4px">`
+      +     `<label style="font-size:11px;font-weight:700;min-width:40px">Lake:</label>`
+      +     `<select id="sxw-river-${id}-lake" style="flex:1;padding:3px">`
+      +       `<option value="">— pick a lake —</option>` + lakeOpts
+      +     `</select>`
+      +   `</div>`
+      +   `<div id="sxw-river-${id}-path-row" style="display:${kind === 'path' ? 'flex' : 'none'};gap:8px;align-items:center;margin-bottom:4px">`
+      +     `<label style="font-size:11px;font-weight:700;min-width:40px">River:</label>`
+      +     `<select id="sxw-river-${id}-path" style="flex:1;padding:3px">`
+      +       `<option value="">— pick a river —</option>` + riverOpts
+      +     `</select>`
+      +   `</div>`
+      + `</fieldset>`;
+
+    const html = ''
+      + '<div class="sxw-river-form" style="text-align:left;">'
+      +   `<div style="font-size:11px;color:#666;margin-bottom:8px">Editing: <strong>${escapeHtml(path.name)}</strong></div>`
+      +   '<fieldset style="border:1px solid #c0a070;background:#faf8f2;padding:6px 8px;margin:0 0 8px 0">'
+      +     '<legend style="font-size:11px;font-weight:700;color:#8b0000;padding:0 4px">Tier</legend>'
+      +     '<select id="sxw-river-tier" style="width:100%;padding:4px">'
+      +       tierOpt('',            '— unset —')
+      +       tierOpt('stream',      'stream — small, fordable, low movement cost')
+      +       tierOpt('river',       'river — standard, requires bridge/ferry')
+      +       tierOpt('great_river', 'great river — major waterway, high movement cost')
+      +     '</select>'
+      +   '</fieldset>'
+      +   '<fieldset style="border:1px solid #c0a070;background:#faf8f2;padding:6px 8px;margin:0 0 8px 0">'
+      +     '<legend style="font-size:11px;font-weight:700;color:#8b0000;padding:0 4px">Direction</legend>'
+      +     `<div style="font-size:11px;color:#444">${escapeHtml(dirReadout)}</div>`
+      +     '<div style="font-size:10px;color:#888;margin-top:3px">Use the ↻ Reverse button on the action row to swap headwaters and mouth.</div>'
+      +   '</fieldset>'
+      +   linkBlock('headwaters', hKind, hVal, 'Headwaters (source)')
+      +   linkBlock('mouth',      mKind, mVal, 'Mouth (terminus)')
+      + '</div>';
+
+    // Helper that wires the kind→row visibility toggle for one block.
+    // Run after the dialog body is in the DOM (next microtask).
+    function wireKindToggle(id, initialVal){
+      const kindEl  = document.getElementById('sxw-river-' + id + '-kind');
+      const lakeRow = document.getElementById('sxw-river-' + id + '-lake-row');
+      const pathRow = document.getElementById('sxw-river-' + id + '-path-row');
+      const lakeEl  = document.getElementById('sxw-river-' + id + '-lake');
+      const pathEl  = document.getElementById('sxw-river-' + id + '-path');
+      if (!kindEl) return;
+      // Preselect the current value in whichever dropdown is active.
+      if (initialVal){
+        if (kindEl.value === 'lake' && lakeEl) lakeEl.value = initialVal;
+        if (kindEl.value === 'path' && pathEl) pathEl.value = initialVal;
+      }
+      kindEl.addEventListener('change', () => {
+        const k = kindEl.value;
+        if (lakeRow) lakeRow.style.display = (k === 'lake') ? 'flex' : 'none';
+        if (pathRow) pathRow.style.display = (k === 'path') ? 'flex' : 'none';
+      });
+    }
+
+    dlg.confirm('Edit River', html, { okText: 'Save', cancelText: 'Cancel' }).then(ok => {
+      if (!ok) return;
+      // Reload path in case anything mutated while the dialog was open.
+      const fresh = window.GCCSubhexPaths.getPath(path.id);
+      if (!fresh) return;
+
+      // Tier delta.
+      const tierEl = document.getElementById('sxw-river-tier');
+      const newTier = tierEl ? (tierEl.value || null) : (fresh.tier || null);
+      if ((fresh.tier || null) !== (newTier || null)){
+        window.GCCSubhexPaths.setPathTier(fresh.id, newTier);
+      }
+
+      // Linkage delta — produces { lakeId } | { pathId } | null.
+      const readLink = (id) => {
+        const k = document.getElementById('sxw-river-' + id + '-kind')?.value || 'none';
+        if (k === 'lake'){
+          const v = document.getElementById('sxw-river-' + id + '-lake')?.value || '';
+          return v ? { lakeId: v } : null;
+        }
+        if (k === 'path'){
+          const v = document.getElementById('sxw-river-' + id + '-path')?.value || '';
+          return v ? { pathId: v } : null;
+        }
+        return null;
+      };
+      const linkEq = (a, b) => {
+        const aId = a ? (a.lakeId || a.pathId || '') : '';
+        const bId = b ? (b.lakeId || b.pathId || '') : '';
+        return aId === bId;
+      };
+      const newH = readLink('headwaters');
+      const newM = readLink('mouth');
+      if (!linkEq(fresh.headwaters, newH)){
+        window.GCCSubhexPaths.setPathHeadwaters(fresh.id, newH);
+      }
+      if (!linkEq(fresh.mouth, newM)){
+        window.GCCSubhexPaths.setPathMouth(fresh.id, newM);
+      }
+
+      const svg = state.win?.querySelector('#sxw-svg');
+      if (svg){ renderPaths(svg); renderParentPathMarkers(svg); renderCrossings(svg); }
+      syncModeLabel();
+      flashMode(`Saved ${fresh.name}`);
+    });
+
+    // Wire toggles after the dialog is in the DOM. GCCDialog.confirm
+    // mounts synchronously, so a microtask defer is sufficient.
+    Promise.resolve().then(() => {
+      wireKindToggle('headwaters', hVal);
+      wireKindToggle('mouth', mVal);
+    });
   }
 
   function onPathDeleteClick(){
