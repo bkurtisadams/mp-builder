@@ -1,4 +1,4 @@
-// gcc-subhex-paths.js v2.0.0 — 2026-04-30
+// gcc-subhex-paths.js v2.1.0 — 2026-05-06
 // v2.0.0: schema v2 → v3. Rivers gain `tier` ('stream'|'river'|
 // 'great_river'). All paths gain `headwaters` and `mouth` linkage
 // fields, polymorphic { lakeId } | { pathId } | null. Defensive
@@ -169,8 +169,38 @@
     return PATHS[pathDocId(localId)] || null;
   }
 
+  // Look up a path by kind + name. Returns the longest-cells match
+  // when there are duplicates (for forward-compat with pre-v2.1.0
+  // data that may already contain dups). Returns null if no match.
+  // Used by the marker-click handler to arm an existing path even
+  // when its cells[] hasn't yet reached the boundary cell of the
+  // current parent.
+  function findByKindName(kind, name){
+    if (!kind || !name) return null;
+    const trimmed = String(name).trim();
+    let best = null;
+    for (const id in PATHS){
+      const p = PATHS[id];
+      if (!p || p.kind !== kind) continue;
+      if ((p.name || '').trim() !== trimmed) continue;
+      if (!best || (p.cells?.length || 0) > (best.cells?.length || 0)) best = p;
+    }
+    return best;
+  }
+
   function createPath(kind, name){
     if (!PATH_KINDS_SET.has(kind) || !name) return null;
+    // Dedup guard: refuse to create a second path with the same
+    // kind+name. Authoring "Velverdyva (river)" twice is almost
+    // always a mistake — typically the GM clicked a parent-marker
+    // that didn't recognize an in-progress path on the other side
+    // of a parent boundary. Return null so the caller can lookup
+    // and arm the existing one instead.
+    const trimmed = String(name).trim();
+    for (const id in PATHS){
+      const p = PATHS[id];
+      if (p && p.kind === kind && (p.name || '').trim() === trimmed) return null;
+    }
     const localId = genLocalId(name);
     const doc = {
       id: localId,
@@ -693,7 +723,7 @@
 
   window.GCCSubhexPaths = {
     PATH_KINDS, RIVER_TIERS, SCHEMA_VERSION,
-    listPaths, pathsInParent, getPath, createPath, renamePath, deletePath,
+    listPaths, pathsInParent, getPath, findByKindName, createPath, renamePath, deletePath,
     appendCell, popCell, truncateBefore, pathsAtCell, isNeighbor,
     setPathTier, setPathHeadwaters, setPathMouth, reverseCells,
     parentHasPathAuthoring, parentHasSubhexPaths,

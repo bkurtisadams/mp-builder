@@ -1,4 +1,4 @@
-// gcc-subhex-view.js v2.12.0 — 2026-05-06
+// gcc-subhex-view.js v2.13.0 — 2026-05-06
 // v2.11.0: fog paint brush (Slice 4 of fog rollout). New tool button
 // "Fog…" arms state.armed = { type:'fog' } and shows a help-text
 // callout. Click cells to reveal, shift+click to hide; drag to sweep.
@@ -1455,18 +1455,29 @@
 
     let pathId;
     if (authoredId){
-      // Already authored — just arm it for extension.
+      // The visual-placement match found a path containing this exact
+      // boundary cell — arm that one. Fast path.
       pathId = authoredId;
     } else {
-      // Create a new subhex path with matching kind + name, anchored
-      // at the boundary cell.
-      const newPath = window.GCCSubhexPaths.createPath(kind, name);
-      if (!newPath){
-        if (typeof console !== 'undefined') console.warn('[subhex-view] failed to create path for marker', { kind, name });
-        return;
+      // Visual-placement didn't find a hit (path doesn't yet contain
+      // this cell), but a path with the same kind+name may still
+      // exist elsewhere on the map — typically authored from another
+      // parent and not yet extended into this one. Arm the existing
+      // one instead of duplicating it.
+      const existing = window.GCCSubhexPaths.findByKindName(kind, name);
+      if (existing){
+        pathId = existing.id;
+      } else {
+        // Truly new — create with kind+name from the marker, anchor
+        // first cell at the boundary subhex.
+        const newPath = window.GCCSubhexPaths.createPath(kind, name);
+        if (!newPath){
+          if (typeof console !== 'undefined') console.warn('[subhex-view] failed to create path for marker', { kind, name });
+          return;
+        }
+        window.GCCSubhexPaths.appendCell(newPath.id, Q, R);
+        pathId = newPath.id;
       }
-      window.GCCSubhexPaths.appendCell(newPath.id, Q, R);
-      pathId = newPath.id;
     }
 
     state.armed = { type: 'path', value: pathId };
@@ -2628,19 +2639,34 @@
     noneOpt.value = '';
     noneOpt.textContent = '— pick a path to extend —';
     sel.appendChild(noneOpt);
+    // Existing paths grouped by kind. Each kind gets its own optgroup
+    // so the picker visually separates rivers from roads from trails,
+    // and the "Create new" group below is impossible to confuse with
+    // an existing path entry.
     const paths = window.GCCSubhexPaths.listPaths();
-    for (const p of paths){
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = `${p.name} (${p.kind} · ${p.cells.length} cells)`;
-      sel.appendChild(opt);
+    const KIND_LABEL = { river: 'Rivers', road: 'Roads', trail: 'Trails' };
+    for (const kind of window.GCCSubhexPaths.PATH_KINDS){
+      const ofKind = paths.filter(p => p.kind === kind);
+      if (!ofKind.length) continue;
+      const grp = document.createElement('optgroup');
+      grp.label = KIND_LABEL[kind] || kind;
+      for (const p of ofKind){
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${p.name} (${p.cells.length} cells)`;
+        grp.appendChild(opt);
+      }
+      sel.appendChild(grp);
     }
+    const createGrp = document.createElement('optgroup');
+    createGrp.label = '── Create new ──';
     for (const kind of window.GCCSubhexPaths.PATH_KINDS){
       const opt = document.createElement('option');
       opt.value = `__new__:${kind}`;
       opt.textContent = `+ New ${kind}…`;
-      sel.appendChild(opt);
+      createGrp.appendChild(opt);
     }
+    sel.appendChild(createGrp);
     if (prev) sel.value = prev;
   }
 
@@ -2650,12 +2676,24 @@
       const kind = val.slice('__new__:'.length);
       const name = (typeof prompt === 'function') ? prompt(`New ${kind} name:`) : null;
       if (!name){ ev.target.value = ''; return; }
-      const path = window.GCCSubhexPaths.createPath(kind, name);
-      if (!path){ ev.target.value = ''; return; }
-      rebuildPathArmedPicker();
-      ev.target.value = path.id;
-      state.armed = { type: 'path', value: path.id };
-      state.markerHighlight = null;
+      // Dup check: if a path with this kind+name already exists,
+      // arm it instead of creating a duplicate. The data layer
+      // also refuses createPath for dups (defense in depth).
+      const existing = window.GCCSubhexPaths.findByKindName(kind, name);
+      if (existing){
+        flashMode(`"${existing.name}" already exists — armed for extension instead of creating a new ${kind}`);
+        rebuildPathArmedPicker();
+        ev.target.value = existing.id;
+        state.armed = { type: 'path', value: existing.id };
+        state.markerHighlight = null;
+      } else {
+        const path = window.GCCSubhexPaths.createPath(kind, name);
+        if (!path){ ev.target.value = ''; return; }
+        rebuildPathArmedPicker();
+        ev.target.value = path.id;
+        state.armed = { type: 'path', value: path.id };
+        state.markerHighlight = null;
+      }
     } else if (val){
       // Switched to a different path. Drop the marker highlight unless
       // the new path still corresponds to the highlighted segment.
